@@ -2,12 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package tar implements access to tar archives.
+// Package tar 实现了对 tar 存档的访问。
 //
-// Tape archives (tar) are a file format for storing a sequence of files that
-// can be read and written in a streaming manner.
-// This package aims to cover most variations of the format,
-// including those produced by GNU and BSD tar tools.
+// 磁带存档（tar）是一种用于存储文件序列的文件格式，可以以流式方式读取和写入。
+// 本包旨在覆盖该格式的大多数变体，包括由 GNU 和 BSD tar 工具生成的格式。
 package tar
 
 import (
@@ -24,9 +22,8 @@ import (
 	"time"
 )
 
-// BUG: Use of the Uid and Gid fields in Header could overflow on 32-bit
-// architectures. If a large value is encountered when decoding, the result
-// stored in Header will be the truncated version.
+// BUG：在32位架构上使用 Header 中的 Uid 和 Gid 字段可能会溢出。
+// 如果在解码时遇到较大的值，存储在 Header 中的结果将是截断后的版本。
 
 var tarinsecurepath = godebug.New("tarinsecurepath")
 
@@ -58,49 +55,45 @@ func (he headerError) Error() string {
 	return fmt.Sprintf("%s: %v", prefix, strings.Join(ss, "; and "))
 }
 
-// Type flags for Header.Typeflag.
+// Header.Typeflag 的类型标志。
 const (
-	// Type '0' indicates a regular file.
+	// 类型 '0' 表示普通文件。
 	TypeReg = '0'
 
-	// Deprecated: Use TypeReg instead.
+	// 已弃用：请使用 TypeReg 代替。
 	TypeRegA = '\x00'
 
-	// Type '1' to '6' are header-only flags and may not have a data body.
-	TypeLink    = '1' // Hard link
-	TypeSymlink = '2' // Symbolic link
-	TypeChar    = '3' // Character device node
-	TypeBlock   = '4' // Block device node
-	TypeDir     = '5' // Directory
-	TypeFifo    = '6' // FIFO node
+	// 类型 '1' 到 '6' 是仅头标志，可能没有数据体。
+	TypeLink    = '1' // 硬链接
+	TypeSymlink = '2' // 符号链接
+	TypeChar    = '3' // 字符设备节点
+	TypeBlock   = '4' // 块设备节点
+	TypeDir     = '5' // 目录
+	TypeFifo    = '6' // FIFO 节点
 
-	// Type '7' is reserved.
+	// 类型 '7' 是保留的。
 	TypeCont = '7'
 
-	// Type 'x' is used by the PAX format to store key-value records that
-	// are only relevant to the next file.
-	// This package transparently handles these types.
+	// 类型 'x' 用于 PAX 格式，存储仅与下一个文件相关的键值记录。
+	// 本包透明地处理这些类型。
 	TypeXHeader = 'x'
 
-	// Type 'g' is used by the PAX format to store key-value records that
-	// are relevant to all subsequent files.
-	// This package only supports parsing and composing such headers,
-	// but does not currently support persisting the global state across files.
+	// 类型 'g' 用于 PAX 格式，存储与所有后续文件相关的键值记录。
+	// 本包仅支持解析和组合此类头部，但当前不支持跨文件持久化全局状态。
 	TypeXGlobalHeader = 'g'
 
-	// Type 'S' indicates a sparse file in the GNU format.
+	// 类型 'S' 表示 GNU 格式中的稀疏文件。
 	TypeGNUSparse = 'S'
 
-	// Types 'L' and 'K' are used by the GNU format for a meta file
-	// used to store the path or link name for the next file.
-	// This package transparently handles these types.
+	// 类型 'L' 和 'K' 用于 GNU 格式的元文件，用于存储下一个文件的路径或链接名。
+	// 本包透明地处理这些类型。
 	TypeGNULongName = 'L'
 	TypeGNULongLink = 'K'
 )
 
-// Keywords for PAX extended header records.
+// PAX 扩展头部记录的关键词。
 const (
-	paxNone     = "" // Indicates that no PAX key is suitable
+	paxNone     = "" // 表示没有合适的 PAX 键
 	paxPath     = "path"
 	paxLinkpath = "linkpath"
 	paxSize     = "size"
@@ -110,13 +103,13 @@ const (
 	paxGname    = "gname"
 	paxMtime    = "mtime"
 	paxAtime    = "atime"
-	paxCtime    = "ctime"   // Removed from later revision of PAX spec, but was valid
-	paxCharset  = "charset" // Currently unused
-	paxComment  = "comment" // Currently unused
+	paxCtime    = "ctime"   // 从后续修订的 PAX 规范中移除，但曾是有效的
+	paxCharset  = "charset" // 当前未使用
+	paxComment  = "comment" // 当前未使用
 
 	paxSchilyXattr = "SCHILY.xattr."
 
-	// Keywords for GNU sparse files in a PAX extended header.
+	// PAX 扩展头部中 GNU 稀疏文件的关键词。
 	paxGNUSparse          = "GNU.sparse."
 	paxGNUSparseNumBlocks = "GNU.sparse.numblocks"
 	paxGNUSparseOffset    = "GNU.sparse.offset"
@@ -129,122 +122,110 @@ const (
 	paxGNUSparseRealSize  = "GNU.sparse.realsize"
 )
 
-// basicKeys is a set of the PAX keys for which we have built-in support.
-// This does not contain "charset" or "comment", which are both PAX-specific,
-// so adding them as first-class features of Header is unlikely.
-// Users can use the PAXRecords field to set it themselves.
+// basicKeys 是内置支持的 PAX 键集合。
+// 这不包括 "charset" 或 "comment"，两者都是 PAX 特有的，
+// 不太可能作为 Header 的一流特性添加。
+// 用户可以使用 PAXRecords 字段自行设置。
 var basicKeys = map[string]bool{
 	paxPath: true, paxLinkpath: true, paxSize: true, paxUid: true, paxGid: true,
 	paxUname: true, paxGname: true, paxMtime: true, paxAtime: true, paxCtime: true,
 }
 
-// A Header represents a single header in a tar archive.
-// Some fields may not be populated.
+// Header 表示 tar 存档中的单个头部。
+// 某些字段可能未填充。
 //
-// For forward compatibility, users that retrieve a Header from Reader.Next,
-// mutate it in some ways, and then pass it back to Writer.WriteHeader
-// should do so by creating a new Header and copying the fields
-// that they are interested in preserving.
+// 为了向前兼容，从 Reader.Next 获取 Header 的用户，
+// 以某种方式修改它，然后将其传回 Writer.WriteHeader 时，
+// 应通过创建一个新的 Header 并复制他们希望保留的字段来实现。
 type Header struct {
-	// Typeflag is the type of header entry.
-	// The zero value is automatically promoted to either TypeReg or TypeDir
-	// depending on the presence of a trailing slash in Name.
+	// Typeflag 是头部条目的类型。
+	// 零值会根据 Name 中是否存在尾部斜杠自动提升为 TypeReg 或 TypeDir。
 	Typeflag byte
 
-	Name     string // Name of file entry
-	Linkname string // Target name of link (valid for TypeLink or TypeSymlink)
+	Name     string // 文件条目的名称
+	Linkname string // 链接的目标名称（对 TypeLink 或 TypeSymlink 有效）
 
-	Size  int64  // Logical file size in bytes
-	Mode  int64  // Permission and mode bits
-	Uid   int    // User ID of owner
-	Gid   int    // Group ID of owner
-	Uname string // User name of owner
-	Gname string // Group name of owner
+	Size  int64  // 逻辑文件大小（字节）
+	Mode  int64  // 权限和模式位
+	Uid   int    // 所有者的用户 ID
+	Gid   int    // 所有者的组 ID
+	Uname string // 所有者的用户名
+	Gname string // 所有者的组名
 
-	// If the Format is unspecified, then Writer.WriteHeader rounds ModTime
-	// to the nearest second and ignores the AccessTime and ChangeTime fields.
+	// 如果 Format 未指定，则 Writer.WriteHeader 会将 ModTime
+	// 舍入到最接近的秒，并忽略 AccessTime 和 ChangeTime 字段。
 	//
-	// To use AccessTime or ChangeTime, specify the Format as PAX or GNU.
-	// To use sub-second resolution, specify the Format as PAX.
-	ModTime    time.Time // Modification time
-	AccessTime time.Time // Access time (requires either PAX or GNU support)
-	ChangeTime time.Time // Change time (requires either PAX or GNU support)
+	// 要使用 AccessTime 或 ChangeTime，请将 Format 指定为 PAX 或 GNU。
+	// 要使用亚秒级精度，请将 Format 指定为 PAX。
+	ModTime    time.Time // 修改时间
+	AccessTime time.Time // 访问时间（需要 PAX 或 GNU 支持）
+	ChangeTime time.Time // 变更时间（需要 PAX 或 GNU 支持）
 
-	Devmajor int64 // Major device number (valid for TypeChar or TypeBlock)
-	Devminor int64 // Minor device number (valid for TypeChar or TypeBlock)
+	Devmajor int64 // 主设备号（对 TypeChar 或 TypeBlock 有效）
+	Devminor int64 // 次设备号（对 TypeChar 或 TypeBlock 有效）
 
-	// Xattrs stores extended attributes as PAX records under the
-	// "SCHILY.xattr." namespace.
+	// Xattrs 在 "SCHILY.xattr." 命名空间下以 PAX 记录存储扩展属性。
 	//
-	// The following are semantically equivalent:
+	// 以下在语义上是等价的：
 	//  h.Xattrs[key] = value
 	//  h.PAXRecords["SCHILY.xattr."+key] = value
 	//
-	// When Writer.WriteHeader is called, the contents of Xattrs will take
-	// precedence over those in PAXRecords.
+	// 调用 Writer.WriteHeader 时，Xattrs 的内容将优先于 PAXRecords 中的内容。
 	//
-	// Deprecated: Use PAXRecords instead.
+	// 已弃用：请使用 PAXRecords 代替。
 	Xattrs map[string]string
 
-	// PAXRecords is a map of PAX extended header records.
+	// PAXRecords 是 PAX 扩展头部记录的映射。
 	//
-	// User-defined records should have keys of the following form:
+	// 用户定义的记录应具有以下形式的键：
 	//	VENDOR.keyword
-	// Where VENDOR is some namespace in all uppercase, and keyword may
-	// not contain the '=' character (e.g., "GOLANG.pkg.version").
-	// The key and value should be non-empty UTF-8 strings.
+	// 其中 VENDOR 是全大写的某个命名空间，keyword 不得包含 '=' 字符（例如 "GOLANG.pkg.version"）。
+	// 键和值应为非空的 UTF-8 字符串。
 	//
-	// When Writer.WriteHeader is called, PAX records derived from the
-	// other fields in Header take precedence over PAXRecords.
+	// 调用 Writer.WriteHeader 时，从 Header 的其他字段派生的 PAX 记录优先于 PAXRecords。
 	PAXRecords map[string]string
 
-	// Format specifies the format of the tar header.
+	// Format 指定 tar 头部的格式。
 	//
-	// This is set by Reader.Next as a best-effort guess at the format.
-	// Since the Reader liberally reads some non-compliant files,
-	// it is possible for this to be FormatUnknown.
+	// 这由 Reader.Next 设置为对格式的最佳猜测。
+	// 由于 Reader 宽松地读取一些不兼容的文件，这可能为 FormatUnknown。
 	//
-	// If the format is unspecified when Writer.WriteHeader is called,
-	// then it uses the first format (in the order of USTAR, PAX, GNU)
-	// capable of encoding this Header (see Format).
+	// 如果在调用 Writer.WriteHeader 时未指定格式，
+	// 则它使用能够编码此 Header 的第一种格式（按 USTAR、PAX、GNU 的顺序）（参见 Format）。
 	Format Format
 }
 
-// sparseEntry represents a Length-sized fragment at Offset in the file.
+// sparseEntry 表示文件中在 Offset 处的一个 Length 大小的片段。
 type sparseEntry struct{ Offset, Length int64 }
 
 func (s sparseEntry) endOffset() int64 { return s.Offset + s.Length }
 
-// A sparse file can be represented as either a sparseDatas or a sparseHoles.
-// As long as the total size is known, they are equivalent and one can be
-// converted to the other form and back. The various tar formats with sparse
-// file support represent sparse files in the sparseDatas form. That is, they
-// specify the fragments in the file that has data, and treat everything else as
-// having zero bytes. As such, the encoding and decoding logic in this package
-// deals with sparseDatas.
+// 稀疏文件可以表示为 sparseDatas 或 sparseHoles。
+// 只要总大小已知，它们是等价的，可以相互转换。
+// 支持稀疏文件的各种 tar 格式以 sparseDatas 形式表示稀疏文件。
+// 也就是说，它们指定文件中有数据的片段，并将其他所有内容视为零字节。
+// 因此，本包中的编码和解码逻辑处理 sparseDatas。
 //
-// However, the external API uses sparseHoles instead of sparseDatas because the
-// zero value of sparseHoles logically represents a normal file (i.e., there are
-// no holes in it). On the other hand, the zero value of sparseDatas implies
-// that the file has no data in it, which is rather odd.
+// 然而，外部 API 使用 sparseHoles 而不是 sparseDatas，因为 sparseHoles 的零值逻辑上表示一个普通文件（即其中没有空洞）。
+// 另一方面，sparseDatas 的零值意味着文件中没有数据，这相当奇怪。
 //
-// As an example, if the underlying raw file contains the 10-byte data:
+// 例如，如果底层原始文件包含 10 字节数据：
 //
 //	var compactFile = "abcdefgh"
 //
-// And the sparse map has the following entries:
+// 并且稀疏映射具有以下条目：
 //
 //	var spd sparseDatas = []sparseEntry{
-//		{Offset: 2,  Length: 5},  // Data fragment for 2..6
-//		{Offset: 18, Length: 3},  // Data fragment for 18..20
+//		{Offset: 2,  Length: 5},  // 2..6 的数据片段
+//		{Offset: 18, Length: 3},  // 18..20 的数据片段
 //	}
 //	var sph sparseHoles = []sparseEntry{
-//		{Offset: 0,  Length: 2},  // Hole fragment for 0..1
-//		{Offset: 7,  Length: 11}, // Hole fragment for 7..17
-//		{Offset: 21, Length: 4},  // Hole fragment for 21..24
+//		{Offset: 0,  Length: 2},  // 0..1 的空洞片段
+//		{Offset: 7,  Length: 11}, // 7..17 的空洞片段
+//		{Offset: 21, Length: 4},  // 21..24 的空洞片段
 //	}
 //
-// Then the content of the resulting sparse file with a Header.Size of 25 is:
+// 那么 Header.Size 为 25 的最终稀疏文件的内容为：
 //
 //	var sparseFile = "\x00"*2 + "abcde" + "\x00"*11 + "fgh" + "\x00"*4
 type (
@@ -252,11 +233,10 @@ type (
 	sparseHoles []sparseEntry
 )
 
-// validateSparseEntries reports whether sp is a valid sparse map.
-// It does not matter whether sp represents data fragments or hole fragments.
+// validateSparseEntries 报告 sp 是否为有效的稀疏映射。
+// sp 表示数据片段还是空洞片段无关紧要。
 func validateSparseEntries(sp []sparseEntry, size int64) bool {
-	// Validate all sparse entries. These are the same checks as performed by
-	// the BSD tar utility.
+	// 验证所有稀疏条目。这些与 BSD tar 工具执行的检查相同。
 	if size < 0 {
 		return false
 	}
@@ -264,33 +244,30 @@ func validateSparseEntries(sp []sparseEntry, size int64) bool {
 	for _, cur := range sp {
 		switch {
 		case cur.Offset < 0 || cur.Length < 0:
-			return false // Negative values are never okay
+			return false // 负值永远不可接受
 		case cur.Offset > math.MaxInt64-cur.Length:
-			return false // Integer overflow with large length
+			return false // 大长度导致整数溢出
 		case cur.endOffset() > size:
-			return false // Region extends beyond the actual size
+			return false // 区域超出实际大小
 		case pre.endOffset() > cur.Offset:
-			return false // Regions cannot overlap and must be in order
+			return false // 区域不能重叠且必须按顺序
 		}
 		pre = cur
 	}
 	return true
 }
 
-// alignSparseEntries mutates src and returns dst where each fragment's
-// starting offset is aligned up to the nearest block edge, and each
-// ending offset is aligned down to the nearest block edge.
+// alignSparseEntries 修改 src 并返回 dst，其中每个片段的起始偏移量向上对齐到最近的块边界，每个结束偏移量向下对齐到最近的块边界。
 //
-// Even though the Go tar Reader and the BSD tar utility can handle entries
-// with arbitrary offsets and lengths, the GNU tar utility can only handle
-// offsets and lengths that are multiples of blockSize.
+// 尽管 Go tar Reader 和 BSD tar 工具可以处理具有任意偏移量和长度的条目，
+// 但 GNU tar 工具只能处理偏移量和长度是 blockSize 倍数的条目。
 func alignSparseEntries(src []sparseEntry, size int64) []sparseEntry {
 	dst := src[:0]
 	for _, s := range src {
 		pos, end := s.Offset, s.endOffset()
-		pos += blockPadding(+pos) // Round-up to nearest blockSize
+		pos += blockPadding(+pos) // 向上舍入到最近的 blockSize
 		if end != size {
-			end -= blockPadding(-end) // Round-down to nearest blockSize
+			end -= blockPadding(-end) // 向下舍入到最近的 blockSize
 		}
 		if pos < end {
 			dst = append(dst, sparseEntry{Offset: pos, Length: end - pos})
@@ -299,58 +276,55 @@ func alignSparseEntries(src []sparseEntry, size int64) []sparseEntry {
 	return dst
 }
 
-// invertSparseEntries converts a sparse map from one form to the other.
-// If the input is sparseHoles, then it will output sparseDatas and vice-versa.
-// The input must have been already validated.
+// invertSparseEntries 将稀疏映射从一种形式转换为另一种形式。
+// 如果输入是 sparseHoles，则输出 sparseDatas，反之亦然。
+// 输入必须已经验证过。
 //
-// This function mutates src and returns a normalized map where:
-//   - adjacent fragments are coalesced together
-//   - only the last fragment may be empty
-//   - the endOffset of the last fragment is the total size
+// 此函数修改 src 并返回一个规范化后的映射，其中：
+//   - 相邻的片段合并在一起
+//   - 只有最后一个片段可能为空
+//   - 最后一个片段的 endOffset 等于总大小
 func invertSparseEntries(src []sparseEntry, size int64) []sparseEntry {
 	dst := src[:0]
 	var pre sparseEntry
 	for _, cur := range src {
 		if cur.Length == 0 {
-			continue // Skip empty fragments
+			continue // 跳过空片段
 		}
 		pre.Length = cur.Offset - pre.Offset
 		if pre.Length > 0 {
-			dst = append(dst, pre) // Only add non-empty fragments
+			dst = append(dst, pre) // 仅添加非空片段
 		}
 		pre.Offset = cur.endOffset()
 	}
-	pre.Length = size - pre.Offset // Possibly the only empty fragment
+	pre.Length = size - pre.Offset // 可能是唯一的空片段
 	return append(dst, pre)
 }
 
-// fileState tracks the number of logical (includes sparse holes) and physical
-// (actual in tar archive) bytes remaining for the current file.
+// fileState 跟踪当前文件的逻辑（包括稀疏空洞）和物理（实际在 tar 存档中）剩余字节数。
 //
-// Invariant: logicalRemaining >= physicalRemaining
+// 不变式：logicalRemaining >= physicalRemaining
 type fileState interface {
 	logicalRemaining() int64
 	physicalRemaining() int64
 }
 
-// allowedFormats determines which formats can be used.
-// The value returned is the logical OR of multiple possible formats.
-// If the value is FormatUnknown, then the input Header cannot be encoded
-// and an error is returned explaining why.
+// allowedFormats 确定可以使用哪些格式。
+// 返回的值是多种可能格式的逻辑或。
+// 如果值为 FormatUnknown，则无法编码输入的 Header，并返回解释原因的错误。
 //
-// As a by-product of checking the fields, this function returns paxHdrs, which
-// contain all fields that could not be directly encoded.
-// A value receiver ensures that this method does not mutate the source Header.
+// 作为检查字段的副作用，此函数返回 paxHdrs，其中包含所有无法直接编码的字段。
+// 值接收器确保此方法不会修改源 Header。
 func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err error) {
 	format = FormatUSTAR | FormatPAX | FormatGNU
 	paxHdrs = make(map[string]string)
 
 	var whyNoUSTAR, whyNoPAX, whyNoGNU string
-	var preferPAX bool // Prefer PAX over USTAR
+	var preferPAX bool // 优先选择 PAX 而非 USTAR
 	verifyString := func(s string, size int, name, paxKey string) {
-		// NUL-terminator is optional for path and linkpath.
-		// Technically, it is required for uname and gname,
-		// but neither GNU nor BSD tar checks for it.
+		// NUL 终止符对于 path 和 linkpath 是可选的。
+		// 从技术上讲，对于 uname 和 gname 是必需的，
+		// 但 GNU 和 BSD tar 都不检查它。
 		tooLong := len(s) > size
 		allowLongGNU := paxKey == paxPath || paxKey == paxLinkpath
 		if hasNUL(s) || (tooLong && !allowLongGNU) {
@@ -395,7 +369,7 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err 
 	}
 	verifyTime := func(ts time.Time, size int, name, paxKey string) {
 		if ts.IsZero() {
-			return // Always okay
+			return // 总是可以
 		}
 		if !fitsInBase256(size, ts.Unix()) {
 			whyNoGNU = fmt.Sprintf("GNU cannot encode %s=%v", name, ts)
@@ -409,7 +383,7 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err 
 		}
 		needsNano := ts.Nanosecond() != 0
 		if !isMtime || !fitsOctal || needsNano {
-			preferPAX = true // USTAR may truncate sub-second measurements
+			preferPAX = true // USTAR 可能会截断亚秒级测量值
 			if paxKey == paxNone {
 				whyNoPAX = fmt.Sprintf("PAX cannot encode %s=%v", name, ts)
 				format.mustNotBe(FormatPAX)
@@ -422,7 +396,7 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err 
 		}
 	}
 
-	// Check basic fields.
+	// 检查基本字段。
 	var blk block
 	v7 := blk.toV7()
 	ustar := blk.toUSTAR()
@@ -441,11 +415,11 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err 
 	verifyTime(h.AccessTime, len(gnu.accessTime()), "AccessTime", paxAtime)
 	verifyTime(h.ChangeTime, len(gnu.changeTime()), "ChangeTime", paxCtime)
 
-	// Check for header-only types.
+	// 检查仅头类型。
 	var whyOnlyPAX, whyOnlyGNU string
 	switch h.Typeflag {
 	case TypeReg, TypeChar, TypeBlock, TypeFifo, TypeGNUSparse:
-		// Exclude TypeLink and TypeSymlink, since they may reference directories.
+		// 排除 TypeLink 和 TypeSymlink，因为它们可能引用目录。
 		if strings.HasSuffix(h.Name, "/") {
 			return FormatUnknown, nil, headerError{"filename may not have trailing slash"}
 		}
@@ -463,7 +437,7 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err 
 		return FormatUnknown, nil, headerError{"negative size on header-only type"}
 	}
 
-	// Check PAX records.
+	// 检查 PAX 记录。
 	if len(h.Xattrs) > 0 {
 		for k, v := range h.Xattrs {
 			paxHdrs[paxSchilyXattr+k] = v
@@ -475,11 +449,11 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err 
 		for k, v := range h.PAXRecords {
 			switch _, exists := paxHdrs[k]; {
 			case exists:
-				continue // Do not overwrite existing records
+				continue // 不覆盖现有记录
 			case h.Typeflag == TypeXGlobalHeader:
-				paxHdrs[k] = v // Copy all records
+				paxHdrs[k] = v // 复制所有记录
 			case !basicKeys[k] && !strings.HasPrefix(k, paxGNUSparse):
-				paxHdrs[k] = v // Ignore local records that may conflict
+				paxHdrs[k] = v // 忽略可能冲突的本地记录
 			}
 		}
 		whyOnlyPAX = "only PAX supports PAXRecords"
@@ -491,10 +465,10 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err 
 		}
 	}
 
-	// TODO(dsnet): Re-enable this when adding sparse support.
-	// See https://golang.org/issue/22735
+	// TODO(dsnet)：当添加稀疏支持时重新启用此功能。
+	// 参见 https://golang.org/issue/22735
 	/*
-		// Check sparse files.
+		// 检查稀疏文件。
 		if len(h.SparseHoles) > 0 || h.Typeflag == TypeGNUSparse {
 			if isHeaderOnlyType(h.Typeflag) {
 				return FormatUnknown, nil, headerError{"header-only type cannot be sparse"}
@@ -514,12 +488,12 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err 
 		}
 	*/
 
-	// Check desired format.
+	// 检查所需格式。
 	if wantFormat := h.Format; wantFormat != FormatUnknown {
 		if wantFormat.has(FormatPAX) && !preferPAX {
-			wantFormat.mayBe(FormatUSTAR) // PAX implies USTAR allowed too
+			wantFormat.mayBe(FormatUSTAR) // PAX 也允许 USTAR
 		}
-		format.mayOnlyBe(wantFormat) // Set union of formats allowed and format wanted
+		format.mayOnlyBe(wantFormat) // 设置允许格式和所需格式的并集
 	}
 	if format == FormatUnknown {
 		switch h.Format {
@@ -536,12 +510,12 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err 
 	return format, paxHdrs, err
 }
 
-// FileInfo returns an fs.FileInfo for the Header.
+// FileInfo 返回 Header 的 fs.FileInfo。
 func (h *Header) FileInfo() fs.FileInfo {
 	return headerFileInfo{h}
 }
 
-// headerFileInfo implements fs.FileInfo.
+// headerFileInfo 实现了 fs.FileInfo。
 type headerFileInfo struct {
 	h *Header
 }
@@ -551,7 +525,7 @@ func (fi headerFileInfo) IsDir() bool        { return fi.Mode().IsDir() }
 func (fi headerFileInfo) ModTime() time.Time { return fi.h.ModTime }
 func (fi headerFileInfo) Sys() any           { return fi.h }
 
-// Name returns the base name of the file.
+// Name 返回文件的基本名称。
 func (fi headerFileInfo) Name() string {
 	if fi.IsDir() {
 		return path.Base(path.Clean(fi.h.Name))
@@ -559,12 +533,12 @@ func (fi headerFileInfo) Name() string {
 	return path.Base(fi.h.Name)
 }
 
-// Mode returns the permission and mode bits for the headerFileInfo.
+// Mode 返回 headerFileInfo 的权限和模式位。
 func (fi headerFileInfo) Mode() (mode fs.FileMode) {
-	// Set file permission bits.
+	// 设置文件权限位。
 	mode = fs.FileMode(fi.h.Mode).Perm()
 
-	// Set setuid, setgid and sticky bits.
+	// 设置 setuid、setgid 和 sticky 位。
 	if fi.h.Mode&c_ISUID != 0 {
 		mode |= fs.ModeSetuid
 	}
@@ -575,7 +549,7 @@ func (fi headerFileInfo) Mode() (mode fs.FileMode) {
 		mode |= fs.ModeSticky
 	}
 
-	// Set file mode bits; clear perm, setuid, setgid, and sticky bits.
+	// 设置文件模式位；清除 perm、setuid、setgid 和 sticky 位。
 	switch m := fs.FileMode(fi.h.Mode) &^ 07777; m {
 	case c_ISDIR:
 		mode |= fs.ModeDir
@@ -613,38 +587,36 @@ func (fi headerFileInfo) String() string {
 	return fs.FormatFileInfo(fi)
 }
 
-// sysStat, if non-nil, populates h from system-dependent fields of fi.
+// sysStat 如果非 nil，则从 fi 的系统相关字段填充 h。
 var sysStat func(fi fs.FileInfo, h *Header, doNameLookups bool) error
 
 const (
-	// Mode constants from the USTAR spec:
-	// See http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06
-	c_ISUID = 04000 // Set uid
-	c_ISGID = 02000 // Set gid
-	c_ISVTX = 01000 // Save text (sticky bit)
+	// USTAR 规范中的模式常量：
+	// 参见 http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06
+	c_ISUID = 04000 // 设置 uid
+	c_ISGID = 02000 // 设置 gid
+	c_ISVTX = 01000 // 保存文本（sticky 位）
 
-	// Common Unix mode constants; these are not defined in any common tar standard.
-	// Header.FileInfo understands these, but FileInfoHeader will never produce these.
-	c_ISDIR  = 040000  // Directory
+	// 常见的 Unix 模式常量；这些未在任何常见的 tar 标准中定义。
+	// Header.FileInfo 理解这些，但 FileInfoHeader 永远不会产生这些。
+	c_ISDIR  = 040000  // 目录
 	c_ISFIFO = 010000  // FIFO
-	c_ISREG  = 0100000 // Regular file
-	c_ISLNK  = 0120000 // Symbolic link
-	c_ISBLK  = 060000  // Block special file
-	c_ISCHR  = 020000  // Character special file
-	c_ISSOCK = 0140000 // Socket
+	c_ISREG  = 0100000 // 普通文件
+	c_ISLNK  = 0120000 // 符号链接
+	c_ISBLK  = 060000  // 块特殊文件
+	c_ISCHR  = 020000  // 字符特殊文件
+	c_ISSOCK = 0140000 // 套接字
 )
 
-// FileInfoHeader creates a partially-populated [Header] from fi.
-// If fi describes a symlink, FileInfoHeader records link as the link target.
-// If fi describes a directory, a slash is appended to the name.
+// FileInfoHeader 从 fi 创建一个部分填充的 [Header]。
+// 如果 fi 描述一个符号链接，FileInfoHeader 将 link 记录为链接目标。
+// 如果 fi 描述一个目录，则在名称后附加斜杠。
 //
-// Since fs.FileInfo's Name method only returns the base name of
-// the file it describes, it may be necessary to modify Header.Name
-// to provide the full path name of the file.
+// 由于 fs.FileInfo 的 Name 方法仅返回它所描述文件的基本名称，
+// 可能需要修改 Header.Name 以提供文件的完整路径名。
 //
-// If fi implements [FileInfoNames]
-// Header.Gname and Header.Uname
-// are provided by the methods of the interface.
+// 如果 fi 实现了 [FileInfoNames]，则 Header.Gname 和 Header.Uname
+// 由该接口的方法提供。
 func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("archive/tar: FileInfo is nil")
@@ -653,7 +625,7 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	h := &Header{
 		Name:    fi.Name(),
 		ModTime: fi.ModTime(),
-		Mode:    int64(fm.Perm()), // or'd with c_IS* constants later
+		Mode:    int64(fm.Perm()), // 稍后与 c_IS* 常量进行或运算
 	}
 	switch {
 	case fm.IsRegular():
@@ -687,11 +659,9 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	if fm&fs.ModeSticky != 0 {
 		h.Mode |= c_ISVTX
 	}
-	// If possible, populate additional fields from OS-specific
-	// FileInfo fields.
+	// 如果可能，从特定于操作系统的 FileInfo 字段填充其他字段。
 	if sys, ok := fi.Sys().(*Header); ok {
-		// This FileInfo came from a Header (not the OS). Use the
-		// original Header to populate all remaining fields.
+		// 此 FileInfo 来自 Header（而非操作系统）。使用原始 Header 填充所有剩余字段。
 		h.Uid = sys.Uid
 		h.Gid = sys.Gid
 		h.Uname = sys.Uname
@@ -700,7 +670,7 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 		h.ChangeTime = sys.ChangeTime
 		h.Xattrs = maps.Clone(sys.Xattrs)
 		if sys.Typeflag == TypeLink {
-			// hard link
+			// 硬链接
 			h.Typeflag = TypeLink
 			h.Size = 0
 			h.Linkname = sys.Linkname
@@ -726,19 +696,17 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
 	return h, nil
 }
 
-// FileInfoNames extends [fs.FileInfo].
-// Passing an instance of this to [FileInfoHeader] permits the caller
-// to avoid a system-dependent name lookup by specifying the Uname and Gname directly.
+// FileInfoNames 扩展了 [fs.FileInfo]。
+// 将其实例传递给 [FileInfoHeader] 允许调用者通过直接指定 Uname 和 Gname 来避免系统相关的名称查找。
 type FileInfoNames interface {
 	fs.FileInfo
-	// Uname should give a user name.
+	// Uname 应返回用户名。
 	Uname() (string, error)
-	// Gname should give a group name.
+	// Gname 应返回组名。
 	Gname() (string, error)
 }
 
-// isHeaderOnlyType checks if the given type flag is of the type that has no
-// data section even if a size is specified.
+// isHeaderOnlyType 检查给定的类型标志是否为即使指定了大小也没有数据部分的类型。
 func isHeaderOnlyType(flag byte) bool {
 	switch flag {
 	case TypeLink, TypeSymlink, TypeChar, TypeBlock, TypeDir, TypeFifo:
