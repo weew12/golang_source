@@ -3,19 +3,17 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package zip provides support for reading and writing ZIP archives.
+zip 包提供对 ZIP 归档文件的读写支持。
 
-See the [ZIP specification] for details.
+详情参见 [ZIP 规范]。
 
-This package does not support disk spanning.
+本包不支持磁盘跨卷存储。
 
-A note about ZIP64:
+关于 ZIP64 的说明：
 
-To be backwards compatible the FileHeader has both 32 and 64 bit Size
-fields. The 64 bit fields will always contain the correct value and
-for normal archives both fields will be the same. For files requiring
-the ZIP64 format the 32 bit fields will be 0xffffffff and the 64 bit
-fields must be used instead.
+为保持向后兼容，FileHeader 同时包含 32 位和 64 位大小字段。
+64 位字段始终存储正确数值，普通归档文件中两类字段值一致。
+对于需要使用 ZIP64 格式的文件，32 位字段会设为 0xffffffff，此时必须使用 64 位字段。
 
 [ZIP specification]: https://support.pkware.com/pkzip/appnote
 */
@@ -27,10 +25,10 @@ import (
 	"time"
 )
 
-// Compression methods.
+// 压缩方法
 const (
-	Store   uint16 = 0 // no compression
-	Deflate uint16 = 8 // DEFLATE compressed
+	Store   uint16 = 0 // 无压缩
+	Deflate uint16 = 8 // DEFLATE 压缩
 )
 
 const (
@@ -39,133 +37,125 @@ const (
 	directoryEndSignature    = 0x06054b50
 	directory64LocSignature  = 0x07064b50
 	directory64EndSignature  = 0x06064b50
-	dataDescriptorSignature  = 0x08074b50 // de-facto standard; required by OS X Finder
-	fileHeaderLen            = 30         // + filename + extra
-	directoryHeaderLen       = 46         // + filename + extra + comment
-	directoryEndLen          = 22         // + comment
-	dataDescriptorLen        = 16         // four uint32: descriptor signature, crc32, compressed size, size
-	dataDescriptor64Len      = 24         // two uint32: signature, crc32 | two uint64: compressed size, size
+	dataDescriptorSignature  = 0x08074b50 // 事实标准；OS X Finder 要求此字段
+	fileHeaderLen            = 30         // + 文件名 + 额外数据
+	directoryHeaderLen       = 46         // + 文件名 + 额外数据 + 注释
+	directoryEndLen          = 22         // + 注释
+	dataDescriptorLen        = 16         // 四个 uint32：描述符签名、crc32、压缩后大小、原始大小
+	dataDescriptor64Len      = 24         // 两个 uint32：签名、crc32 | 两个 uint64：压缩后大小、原始大小
 	directory64LocLen        = 20         //
-	directory64EndLen        = 56         // + extra
+	directory64EndLen        = 56         // + 额外数据
 
-	// Constants for the first byte in CreatorVersion.
+	// CreatorVersion 首字节的常量
 	creatorFAT    = 0
 	creatorUnix   = 3
 	creatorNTFS   = 11
 	creatorVFAT   = 14
 	creatorMacOSX = 19
 
-	// Version numbers.
-	zipVersion20 = 20 // 2.0
-	zipVersion45 = 45 // 4.5 (reads and writes zip64 archives)
+	// 版本号
+	zipVersion20 = 20 // 2.0 版本
+	zipVersion45 = 45 // 4.5 版本（支持 ZIP64 归档读写）
 
-	// Limits for non zip64 files.
+	// 非 ZIP64 文件的大小限制
 	uint16max = (1 << 16) - 1
 	uint32max = (1 << 32) - 1
 
-	// Extra header IDs.
+	// 额外头部 ID
 	//
-	// IDs 0..31 are reserved for official use by PKWARE.
-	// IDs above that range are defined by third-party vendors.
-	// Since ZIP lacked high precision timestamps (nor an official specification
-	// of the timezone used for the date fields), many competing extra fields
-	// have been invented. Pervasive use effectively makes them "official".
+	// ID 0~31 为 PKWARE 官方保留使用
+	// 超出该范围的 ID 由第三方厂商定义
+	// 由于 ZIP 格式缺乏高精度时间戳（也未官方指定日期字段的时区），
+	// 诸多 competing 额外字段被设计出来，广泛使用后事实上成为“官方”标准
 	//
-	// See http://mdfs.net/Docs/Comp/Archiving/Zip/ExtraField
-	zip64ExtraID       = 0x0001 // Zip64 extended information
-	ntfsExtraID        = 0x000a // NTFS
-	unixExtraID        = 0x000d // UNIX
-	extTimeExtraID     = 0x5455 // Extended timestamp
-	infoZipUnixExtraID = 0x5855 // Info-ZIP Unix extension
+	// 参见 http://mdfs.net/Docs/Comp/Archiving/Zip/ExtraField
+	zip64ExtraID       = 0x0001 // Zip64 扩展信息
+	ntfsExtraID        = 0x000a // NTFS 格式
+	unixExtraID        = 0x000d // UNIX 格式
+	extTimeExtraID     = 0x5455 // 扩展时间戳
+	infoZipUnixExtraID = 0x5855 // Info-ZIP Unix 扩展
 )
 
-// FileHeader describes a file within a ZIP file.
-// See the [ZIP specification] for details.
+// FileHeader 描述 ZIP 文件中的单个文件条目
+// 详情参见 [ZIP 规范]
 //
 // [ZIP specification]: https://support.pkware.com/pkzip/appnote
 type FileHeader struct {
-	// Name is the name of the file.
+	// Name 为文件名称
 	//
-	// It must be a relative path, not start with a drive letter (such as "C:"),
-	// and must use forward slashes instead of back slashes. A trailing slash
-	// indicates that this file is a directory and should have no data.
+	// 必须为相对路径，不能以盘符（如 C:）开头，
+	// 且必须使用正斜杠而非反斜杠。末尾带斜杠表示该条目为目录，不应包含数据
 	Name string
 
-	// Comment is any arbitrary user-defined string shorter than 64KiB.
+	// Comment 为任意用户自定义字符串，长度小于 64KiB
 	Comment string
 
-	// NonUTF8 indicates that Name and Comment are not encoded in UTF-8.
+	// NonUTF8 标识 Name 和 Comment 未使用 UTF-8 编码
 	//
-	// By specification, the only other encoding permitted should be CP-437,
-	// but historically many ZIP readers interpret Name and Comment as whatever
-	// the system's local character encoding happens to be.
+	// 按规范，唯一允许的其他编码应为 CP-437，
+	// 但历史上很多 ZIP 读取器会将 Name 和 Comment 按系统本地字符编码解析
 	//
-	// This flag should only be set if the user intends to encode a non-portable
-	// ZIP file for a specific localized region. Otherwise, the Writer
-	// automatically sets the ZIP format's UTF-8 flag for valid UTF-8 strings.
+	// 仅当用户需要为特定本地化区域生成非可移植 ZIP 文件时，才应设置该标志。
+	// 其他情况下，Writer 会为合法 UTF-8 字符串自动设置 ZIP 格式的 UTF-8 标志
 	NonUTF8 bool
 
 	CreatorVersion uint16
 	ReaderVersion  uint16
 	Flags          uint16
 
-	// Method is the compression method. If zero, Store is used.
+	// Method 为压缩方法，为 0 时使用 Store（无压缩）
 	Method uint16
 
-	// Modified is the modified time of the file.
+	// Modified 为文件的修改时间
 	//
-	// When reading, an extended timestamp is preferred over the legacy MS-DOS
-	// date field, and the offset between the times is used as the timezone.
-	// If only the MS-DOS date is present, the timezone is assumed to be UTC.
+	// 读取时，优先使用扩展时间戳而非旧版 MS-DOS 日期字段，
+	// 时间差值会作为时区偏移。若仅存在 MS-DOS 日期，则时区默认为 UTC
 	//
-	// When writing, an extended timestamp (which is timezone-agnostic) is
-	// always emitted. The legacy MS-DOS date field is encoded according to the
-	// location of the Modified time.
+	// 写入时，始终生成与时区无关的扩展时间戳。
+	// 旧版 MS-DOS 日期字段会按 Modified 时间的所在时区编码
 	Modified time.Time
 
-	// ModifiedTime is an MS-DOS-encoded time.
+	// ModifiedTime 为 MS-DOS 编码格式的时间
 	//
-	// Deprecated: Use Modified instead.
+	// 已弃用：请改用 Modified
 	ModifiedTime uint16
 
-	// ModifiedDate is an MS-DOS-encoded date.
+	// ModifiedDate 为 MS-DOS 编码格式的日期
 	//
-	// Deprecated: Use Modified instead.
+	// 已弃用：请改用 Modified
 	ModifiedDate uint16
 
-	// CRC32 is the CRC32 checksum of the file content.
+	// CRC32 为文件内容的 CRC32 校验和
 	CRC32 uint32
 
-	// CompressedSize is the compressed size of the file in bytes.
-	// If either the uncompressed or compressed size of the file
-	// does not fit in 32 bits, CompressedSize is set to ^uint32(0).
+	// CompressedSize 为文件压缩后的字节大小
+	// 若文件压缩前/压缩后大小超出 32 位范围，该字段会设为 ^uint32(0)
 	//
-	// Deprecated: Use CompressedSize64 instead.
+	// 已弃用：请改用 CompressedSize64
 	CompressedSize uint32
 
-	// UncompressedSize is the uncompressed size of the file in bytes.
-	// If either the uncompressed or compressed size of the file
-	// does not fit in 32 bits, UncompressedSize is set to ^uint32(0).
+	// UncompressedSize 为文件未压缩的字节大小
+	// 若文件压缩前/压缩后大小超出 32 位范围，该字段会设为 ^uint32(0)
 	//
-	// Deprecated: Use UncompressedSize64 instead.
+	// 已弃用：请改用 UncompressedSize64
 	UncompressedSize uint32
 
-	// CompressedSize64 is the compressed size of the file in bytes.
+	// CompressedSize64 为文件压缩后的字节大小
 	CompressedSize64 uint64
 
-	// UncompressedSize64 is the uncompressed size of the file in bytes.
+	// UncompressedSize64 为文件未压缩的字节大小
 	UncompressedSize64 uint64
 
 	Extra         []byte
-	ExternalAttrs uint32 // Meaning depends on CreatorVersion
+	ExternalAttrs uint32 // 含义取决于 CreatorVersion
 }
 
-// FileInfo returns an fs.FileInfo for the [FileHeader].
+// FileInfo 返回该 FileHeader 对应的 fs.FileInfo
 func (h *FileHeader) FileInfo() fs.FileInfo {
 	return headerFileInfo{h}
 }
 
-// headerFileInfo implements [fs.FileInfo].
+// headerFileInfo 实现 fs.FileInfo 接口
 type headerFileInfo struct {
 	fh *FileHeader
 }
@@ -194,13 +184,10 @@ func (fi headerFileInfo) String() string {
 	return fs.FormatFileInfo(fi)
 }
 
-// FileInfoHeader creates a partially-populated [FileHeader] from an
-// fs.FileInfo.
-// Because fs.FileInfo's Name method returns only the base name of
-// the file it describes, it may be necessary to modify the Name field
-// of the returned header to provide the full path name of the file.
-// If compression is desired, callers should set the FileHeader.Method
-// field; it is unset by default.
+// FileInfoHeader 从 fs.FileInfo 创建一个部分填充的 FileHeader
+// 由于 fs.FileInfo 的 Name 方法仅返回文件的基础名称，
+// 可能需要修改返回头部的 Name 字段以设置文件完整路径
+// 若需要压缩，调用方应设置 FileHeader.Method 字段，该字段默认为空
 func FileInfoHeader(fi fs.FileInfo) (*FileHeader, error) {
 	size := fi.Size()
 	fh := &FileHeader{
@@ -218,23 +205,23 @@ func FileInfoHeader(fi fs.FileInfo) (*FileHeader, error) {
 }
 
 type directoryEnd struct {
-	diskNbr            uint32 // unused
-	dirDiskNbr         uint32 // unused
-	dirRecordsThisDisk uint64 // unused
+	diskNbr            uint32 // 未使用
+	dirDiskNbr         uint32 // 未使用
+	dirRecordsThisDisk uint64 // 未使用
 	directoryRecords   uint64
 	directorySize      uint64
-	directoryOffset    uint64 // relative to file
+	directoryOffset    uint64 // 相对于文件起始位置
 	commentLen         uint16
 	comment            string
 }
 
-// timeZone returns a *time.Location based on the provided offset.
-// If the offset is non-sensible, then this uses an offset of zero.
+// timeZone 根据给定的偏移量返回对应的 *time.Location
+// 若偏移量无效，则使用 0 偏移量
 func timeZone(offset time.Duration) *time.Location {
 	const (
-		minOffset   = -12 * time.Hour  // E.g., Baker island at -12:00
-		maxOffset   = +14 * time.Hour  // E.g., Line island at +14:00
-		offsetAlias = 15 * time.Minute // E.g., Nepal at +5:45
+		minOffset   = -12 * time.Hour  // 例如贝克岛，时区 -12:00
+		maxOffset   = +14 * time.Hour  // 例如莱恩岛，时区 +14:00
+		offsetAlias = 15 * time.Minute // 例如尼泊尔，时区 +5:45
 	)
 	offset = offset.Round(offsetAlias)
 	if offset < minOffset || maxOffset < offset {
@@ -243,56 +230,53 @@ func timeZone(offset time.Duration) *time.Location {
 	return time.FixedZone("", int(offset/time.Second))
 }
 
-// msDosTimeToTime converts an MS-DOS date and time into a time.Time.
-// The resolution is 2s.
-// See: https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime
+// msDosTimeToTime 将 MS-DOS 日期时间转换为 time.Time
+// 精度为 2 秒
+// 参见：https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-dosdatetimetofiletime
 func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
 	return time.Date(
-		// date bits 0-4: day of month; 5-8: month; 9-15: years since 1980
+		// 日期位：0-4 日；5-8 月；9-15 1980 年起的年份
 		int(dosDate>>9+1980),
 		time.Month(dosDate>>5&0xf),
 		int(dosDate&0x1f),
 
-		// time bits 0-4: second/2; 5-10: minute; 11-15: hour
+		// 时间位：0-4 秒/2；5-10 分；11-15 时
 		int(dosTime>>11),
 		int(dosTime>>5&0x3f),
 		int(dosTime&0x1f*2),
-		0, // nanoseconds
+		0, // 纳秒
 
 		time.UTC,
 	)
 }
 
-// timeToMsDosTime converts a time.Time to an MS-DOS date and time.
-// The resolution is 2s.
-// See: https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-filetimetodosdatetime
+// timeToMsDosTime 将 time.Time 转换为 MS-DOS 日期时间
+// 精度为 2 秒
+// 参见：https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-filetimetodosdatetime
 func timeToMsDosTime(t time.Time) (fDate uint16, fTime uint16) {
 	fDate = uint16(t.Day() + int(t.Month())<<5 + (t.Year()-1980)<<9)
 	fTime = uint16(t.Second()/2 + t.Minute()<<5 + t.Hour()<<11)
 	return
 }
 
-// ModTime returns the modification time in UTC using the legacy
-// [ModifiedDate] and [ModifiedTime] fields.
+// ModTime 通过旧版 ModifiedDate 和 ModifiedTime 字段返回 UTC 格式的修改时间
 //
-// Deprecated: Use [Modified] instead.
+// 已弃用：请改用 Modified
 func (h *FileHeader) ModTime() time.Time {
 	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
 }
 
-// SetModTime sets the [Modified], [ModifiedTime], and [ModifiedDate] fields
-// to the given time in UTC.
+// SetModTime 将 Modified、ModifiedTime 和 ModifiedDate 字段设置为给定的 UTC 时间
 //
-// Deprecated: Use [Modified] instead.
+// 已弃用：请改用 Modified
 func (h *FileHeader) SetModTime(t time.Time) {
-	t = t.UTC() // Convert to UTC for compatibility
+	t = t.UTC() // 转换为 UTC 以保证兼容性
 	h.Modified = t
 	h.ModifiedDate, h.ModifiedTime = timeToMsDosTime(t)
 }
 
 const (
-	// Unix constants. The specification doesn't mention them,
-	// but these seem to be the values agreed on by tools.
+	// Unix 相关常量。规范中未提及，但各类工具均约定使用这些值
 	s_IFMT   = 0xf000
 	s_IFSOCK = 0xc000
 	s_IFLNK  = 0xa000
@@ -309,7 +293,7 @@ const (
 	msdosReadOnly = 0x01
 )
 
-// Mode returns the permission and mode bits for the [FileHeader].
+// Mode 返回 FileHeader 的权限与模式位
 func (h *FileHeader) Mode() (mode fs.FileMode) {
 	switch h.CreatorVersion >> 8 {
 	case creatorUnix, creatorMacOSX:
@@ -323,12 +307,12 @@ func (h *FileHeader) Mode() (mode fs.FileMode) {
 	return mode
 }
 
-// SetMode changes the permission and mode bits for the [FileHeader].
+// SetMode 修改 FileHeader 的权限与模式位
 func (h *FileHeader) SetMode(mode fs.FileMode) {
 	h.CreatorVersion = h.CreatorVersion&0xff | creatorUnix<<8
 	h.ExternalAttrs = fileModeToUnixMode(mode) << 16
 
-	// set MSDOS attributes too, as the original zip does.
+	// 同时设置 MSDOS 属性，与原始 zip 工具行为一致
 	if mode&fs.ModeDir != 0 {
 		h.ExternalAttrs |= msdosDir
 	}
@@ -337,11 +321,12 @@ func (h *FileHeader) SetMode(mode fs.FileMode) {
 	}
 }
 
-// isZip64 reports whether the file size exceeds the 32 bit limit
+// isZip64 判断文件大小是否超出 32 位限制
 func (h *FileHeader) isZip64() bool {
 	return h.CompressedSize64 >= uint32max || h.UncompressedSize64 >= uint32max
 }
 
+// hasDataDescriptor 判断文件头部是否包含数据描述符
 func (h *FileHeader) hasDataDescriptor() bool {
 	return h.Flags&0x8 != 0
 }
@@ -402,7 +387,7 @@ func unixModeToFileMode(m uint32) fs.FileMode {
 	case s_IFLNK:
 		mode |= fs.ModeSymlink
 	case s_IFREG:
-		// nothing to do
+		// 无需额外处理
 	case s_IFSOCK:
 		mode |= fs.ModeSocket
 	}
