@@ -1,0 +1,75 @@
+name: 自动生成 Go 文档并发布 Release
+
+on:
+  push:
+    branches: [ main ]  # 只在 main 分支提交时触发，可根据需要修改
+    paths-ignore:       # 忽略这些文件的提交，避免不必要的构建
+      - 'README.md'
+      - '.gitignore'
+      - '*.md'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 必须有写权限才能创建 Release
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史，用于生成版本号
+
+      - name: 设置 Go 环境
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'  # 使用与你源码匹配的 Go 版本
+          cache: true
+
+      - name: 安装 doc2go 工具
+        run: go install go.abhg.dev/doc2go@latest
+
+      - name: 生成静态文档
+        run: |
+          # 设置 GOROOT 为仓库中的 go1.26 目录
+          export GOROOT=$GITHUB_WORKSPACE/go1.26
+          
+          # 生成完整的静态文档（不使用 embed 模式）
+          doc2go -out ./go1.26-full std
+          
+          # 验证文档是否生成成功
+          if [ ! -d "./go1.26-full" ]; then
+            echo "错误：文档生成失败"
+            exit 1
+          fi
+          
+          echo "文档生成成功，目录大小：$(du -sh ./go1.26-full | cut -f1)"
+
+      - name: 打包文档为 ZIP
+        run: |
+          # 获取当前提交的短哈希作为版本标识
+          SHA=$(git rev-parse --short HEAD)
+          # 获取当前日期
+          DATE=$(date +%Y%m%d)
+          # 定义文件名
+          ZIP_NAME="go1.26-docs-${DATE}-${SHA}.zip"
+          
+          # 打包文档目录
+          zip -r "$ZIP_NAME" go1.26-full/
+          
+          # 保存文件名到环境变量，供后续步骤使用
+          echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+          echo "RELEASE_TAG=v${DATE}-${SHA}" >> $GITHUB_ENV
+          
+          echo "打包完成：$ZIP_NAME"
+          ls -lh "$ZIP_NAME"
+
+      - name: 创建 Release 并上传资产
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Go 1.26 文档 ${{ env.RELEASE_TAG }}
+          generate_release_notes: true  # 自动生成 Release 说明
+          files: ${{ env.ZIP_NAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
