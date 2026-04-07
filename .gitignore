@@ -1,0 +1,20 @@
+# 临时文件
+temp-docs/
+*.log
+
+# Hugo 构建产物
+go-docs-hugo/public/
+go-docs-hugo/resources/_gen/
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# Node 模块（如果有）
+node_modules/
+
+# 文档文件
+go1.26-full/
+
+go1.26/test/
+go1.26/*/testdata/
