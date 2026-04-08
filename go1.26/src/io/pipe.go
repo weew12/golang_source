@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Pipe adapter to connect code expecting an io.Reader
-// with code expecting an io.Writer.
+// 管道适配器，用于将期望 io.Reader 的代码与期望 io.Writer 的代码连接起来。
 
 package io
 
@@ -12,9 +11,9 @@ import (
 	"sync"
 )
 
-// onceError is an object that will only store an error once.
+// onceError 是一个仅会存储一次错误的对象。
 type onceError struct {
-	sync.Mutex // guards following
+	sync.Mutex // 保护后续字段
 	err        error
 }
 
@@ -32,16 +31,16 @@ func (a *onceError) Load() error {
 	return a.err
 }
 
-// ErrClosedPipe is the error used for read or write operations on a closed pipe.
+// ErrClosedPipe 是对已关闭管道执行读或写操作时返回的错误。
 var ErrClosedPipe = errors.New("io: read/write on closed pipe")
 
-// A pipe is the shared pipe structure underlying PipeReader and PipeWriter.
+// pipe 是 PipeReader 和 PipeWriter 底层共享的管道结构体。
 type pipe struct {
-	wrMu sync.Mutex // Serializes Write operations
+	wrMu sync.Mutex // 序列化写入操作
 	wrCh chan []byte
 	rdCh chan int
 
-	once sync.Once // Protects closing done
+	once sync.Mutex // 保护 done 通道的关闭操作
 	done chan struct{}
 	rerr onceError
 	werr onceError
@@ -104,7 +103,7 @@ func (p *pipe) closeWrite(err error) error {
 	return nil
 }
 
-// readCloseError is considered internal to the pipe type.
+// readCloseError 被视为 pipe 类型的内部方法。
 func (p *pipe) readCloseError() error {
 	rerr := p.rerr.Load()
 	if werr := p.werr.Load(); rerr == nil && werr != nil {
@@ -113,7 +112,7 @@ func (p *pipe) readCloseError() error {
 	return ErrClosedPipe
 }
 
-// writeCloseError is considered internal to the pipe type.
+// writeCloseError 被视为 pipe 类型的内部方法。
 func (p *pipe) writeCloseError() error {
 	werr := p.werr.Load()
 	if rerr := p.rerr.Load(); werr == nil && rerr != nil {
@@ -122,76 +121,62 @@ func (p *pipe) writeCloseError() error {
 	return ErrClosedPipe
 }
 
-// A PipeReader is the read half of a pipe.
+// PipeReader 是管道的读取端。
 type PipeReader struct{ pipe }
 
-// Read implements the standard Read interface:
-// it reads data from the pipe, blocking until a writer
-// arrives or the write end is closed.
-// If the write end is closed with an error, that error is
-// returned as err; otherwise err is EOF.
+// Read 实现标准的 Read 接口：
+// 它从管道中读取数据，会阻塞直到写入方写入数据或写入端关闭。
+// 若写入端因错误关闭，该错误会作为 err 返回；否则 err 为 EOF。
 func (r *PipeReader) Read(data []byte) (n int, err error) {
 	return r.pipe.read(data)
 }
 
-// Close closes the reader; subsequent writes to the
-// write half of the pipe will return the error [ErrClosedPipe].
+// Close 关闭读取端；后续对管道写入端的写入操作将返回 ErrClosedPipe 错误。
 func (r *PipeReader) Close() error {
 	return r.CloseWithError(nil)
 }
 
-// CloseWithError closes the reader; subsequent writes
-// to the write half of the pipe will return the error err.
+// CloseWithError 关闭读取端；后续对管道写入端的写入操作将返回 err 错误。
 //
-// CloseWithError never overwrites the previous error if it exists
-// and always returns nil.
+// 若已存在错误，CloseWithError 不会覆盖原有错误，且始终返回 nil。
 func (r *PipeReader) CloseWithError(err error) error {
 	return r.pipe.closeRead(err)
 }
 
-// A PipeWriter is the write half of a pipe.
+// PipeWriter 是管道的写入端。
 type PipeWriter struct{ r PipeReader }
 
-// Write implements the standard Write interface:
-// it writes data to the pipe, blocking until one or more readers
-// have consumed all the data or the read end is closed.
-// If the read end is closed with an error, that err is
-// returned as err; otherwise err is [ErrClosedPipe].
+// Write 实现标准的 Write 接口：
+// 它向管道写入数据，会阻塞直到一个或多个读取方消费完所有数据，或读取端关闭。
+// 若读取端因错误关闭，该错误会作为 err 返回；否则 err 为 ErrClosedPipe。
 func (w *PipeWriter) Write(data []byte) (n int, err error) {
 	return w.r.pipe.write(data)
 }
 
-// Close closes the writer; subsequent reads from the
-// read half of the pipe will return no bytes and EOF.
+// Close 关闭写入端；后续从管道读取端的读取操作将返回0字节数据及EOF。
 func (w *PipeWriter) Close() error {
 	return w.CloseWithError(nil)
 }
 
-// CloseWithError closes the writer; subsequent reads from the
-// read half of the pipe will return no bytes and the error err,
-// or EOF if err is nil.
+// CloseWithError 关闭写入端；后续从管道读取端的读取操作将返回0字节数据及err错误，
+// 若err为nil则返回EOF。
 //
-// CloseWithError never overwrites the previous error if it exists
-// and always returns nil.
+// 若已存在错误，CloseWithError 不会覆盖原有错误，且始终返回 nil。
 func (w *PipeWriter) CloseWithError(err error) error {
 	return w.r.pipe.closeWrite(err)
 }
 
-// Pipe creates a synchronous in-memory pipe.
-// It can be used to connect code expecting an [io.Reader]
-// with code expecting an [io.Writer].
+// Pipe 创建一个同步的内存管道。
+// 它可用于将期望 io.Reader 的代码与期望 io.Writer 的代码连接起来。
 //
-// Reads and Writes on the pipe are matched one to one
-// except when multiple Reads are needed to consume a single Write.
-// That is, each Write to the [PipeWriter] blocks until it has satisfied
-// one or more Reads from the [PipeReader] that fully consume
-// the written data.
-// The data is copied directly from the Write to the corresponding
-// Read (or Reads); there is no internal buffering.
+// 管道上的读操作与写操作一一对应，除非需要多次读操作才能消费完一次写入的数据。
+// 也就是说，对 PipeWriter 的每次写入都会阻塞，直到 PipeReader 的一次或多次读操作
+// 完全消费完写入的数据。
+// 数据从写入操作直接复制到对应的读操作（或多次读操作）中，无内部缓冲。
 //
-// It is safe to call Read and Write in parallel with each other or with Close.
-// Parallel calls to Read and parallel calls to Write are also safe:
-// the individual calls will be gated sequentially.
+// 并行调用 Read、Write 或 Close 是安全的。
+// 并行调用多次 Read、并行调用多次 Write 同样安全：
+// 各个调用会被串行化执行。
 func Pipe() (*PipeReader, *PipeWriter) {
 	pw := &PipeWriter{r: PipeReader{pipe: pipe{
 		wrCh: make(chan []byte),
