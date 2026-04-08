@@ -3,6 +3,8 @@
 ## 第1部分 输入输出 (Input/Output)
 
 - [ ] io：提供I/O原语的基础接口
+  - [ ] fs: Package fs defines basic interfaces to a file system.
+  - [ ] ioutil: Package ioutil implements some I/O utility functions.
 - [ ] bufio：实现带缓冲的I/O，包装io.Reader/io.Writer
 
 ## 第2部分 文本处理
