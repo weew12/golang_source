@@ -10,22 +10,21 @@ import (
 	"slices"
 )
 
-// ReadDirFS is the interface implemented by a file system
-// that provides an optimized implementation of [ReadDir].
+// ReadDirFS 是文件系统实现的接口，
+// 该接口为 [ReadDir] 提供了优化的实现。
 type ReadDirFS interface {
 	FS
 
-	// ReadDir reads the named directory
-	// and returns a list of directory entries sorted by filename.
+	// ReadDir 读取指定名称的目录，
+	// 并返回按文件名排序的目录条目列表。
 	ReadDir(name string) ([]DirEntry, error)
 }
 
-// ReadDir reads the named directory
-// and returns a list of directory entries sorted by filename.
+// ReadDir 读取指定名称的目录，
+// 并返回按文件名排序的目录条目列表。
 //
-// If fs implements [ReadDirFS], ReadDir calls fs.ReadDir.
-// Otherwise ReadDir calls fs.Open and uses ReadDir and Close
-// on the returned file.
+// 若文件系统实现了 [ReadDirFS] 接口，ReadDir 会调用 fs.ReadDir。
+// 否则，ReadDir 会调用 fs.Open，并对返回的文件调用 ReadDir 和 Close。
 func ReadDir(fsys FS, name string) ([]DirEntry, error) {
 	if fsys, ok := fsys.(ReadDirFS); ok {
 		return fsys.ReadDir(name)
@@ -49,7 +48,7 @@ func ReadDir(fsys FS, name string) ([]DirEntry, error) {
 	return list, err
 }
 
-// dirInfo is a DirEntry based on a FileInfo.
+// dirInfo 是基于 FileInfo 实现的 DirEntry。
 type dirInfo struct {
 	fileInfo FileInfo
 }
@@ -74,8 +73,8 @@ func (di dirInfo) String() string {
 	return FormatDirEntry(di)
 }
 
-// FileInfoToDirEntry returns a [DirEntry] that returns information from info.
-// If info is nil, FileInfoToDirEntry returns nil.
+// FileInfoToDirEntry 返回一个从 info 中读取信息的 [DirEntry]。
+// 若 info 为 nil，FileInfoToDirEntry 返回 nil。
 func FileInfoToDirEntry(info FileInfo) DirEntry {
 	if info == nil {
 		return nil

@@ -4,19 +4,19 @@
 
 package fs
 
-// A StatFS is a file system with a Stat method.
+// StatFS 是具备 Stat 方法的文件系统接口。
 type StatFS interface {
 	FS
 
-	// Stat returns a FileInfo describing the file.
-	// If there is an error, it should be of type *PathError.
+	// Stat 返回描述文件的 FileInfo。
+	// 若发生错误，错误类型应为 *PathError。
 	Stat(name string) (FileInfo, error)
 }
 
-// Stat returns a [FileInfo] describing the named file from the file system.
+// Stat 从文件系统中返回描述指定文件的 [FileInfo]。
 //
-// If fs implements [StatFS], Stat calls fs.Stat.
-// Otherwise, Stat opens the [File] to stat it.
+// 若 fs 实现了 [StatFS] 接口，Stat 会调用 fs.Stat。
+// 否则，Stat 会打开 [File] 并获取其文件信息。
 func Stat(fsys FS, name string) (FileInfo, error) {
 	if fsys, ok := fsys.(StatFS); ok {
 		return fsys.Stat(name)

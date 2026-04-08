@@ -6,29 +6,28 @@ package fs
 
 import "io"
 
-// ReadFileFS is the interface implemented by a file system
-// that provides an optimized implementation of [ReadFile].
+// ReadFileFS 是文件系统实现的接口，
+// 该接口为 [ReadFile] 提供了优化的实现。
 type ReadFileFS interface {
 	FS
 
-	// ReadFile reads the named file and returns its contents.
-	// A successful call returns a nil error, not io.EOF.
-	// (Because ReadFile reads the whole file, the expected EOF
-	// from the final Read is not treated as an error to be reported.)
+	// ReadFile 读取指定名称的文件并返回其内容。
+	// 调用成功时返回 nil 错误，而非 io.EOF。
+	//（因为 ReadFile 会读取整个文件，最终读取操作预期的 EOF
+	// 不会被视为需要上报的错误。）
 	//
-	// The caller is permitted to modify the returned byte slice.
-	// This method should return a copy of the underlying data.
+	// 调用者可以修改返回的字节切片。
+	// 该方法应返回底层数据的副本。
 	ReadFile(name string) ([]byte, error)
 }
 
-// ReadFile reads the named file from the file system fs and returns its contents.
-// A successful call returns a nil error, not [io.EOF].
-// (Because ReadFile reads the whole file, the expected EOF
-// from the final Read is not treated as an error to be reported.)
+// ReadFile 从文件系统 fs 中读取指定名称的文件并返回其内容。
+// 调用成功时返回 nil 错误，而非 [io.EOF]。
+// （因为 ReadFile 会读取整个文件，最终读取操作预期的 EOF
+// 不会被视为需要上报的错误。）
 //
-// If fs implements [ReadFileFS], ReadFile calls fs.ReadFile.
-// Otherwise ReadFile calls fs.Open and uses Read and Close
-// on the returned [File].
+// 若 fs 实现了 [ReadFileFS] 接口，ReadFile 会调用 fs.ReadFile。
+// 否则，ReadFile 会调用 fs.Open，并对返回的 [File] 调用 Read 和 Close。
 func ReadFile(fsys FS, name string) ([]byte, error) {
 	if fsys, ok := fsys.(ReadFileFS); ok {
 		return fsys.ReadFile(name)

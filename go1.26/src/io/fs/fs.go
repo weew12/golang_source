@@ -2,25 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fs defines basic interfaces to a file system.
-// A file system can be provided by the host operating system
-// but also by other packages.
+// fs 包定义了文件系统的基础接口。
+// 文件系统可由宿主操作系统提供，也可由其他包提供。
 //
-// # Path Names
+// # 路径名称
 //
-// The interfaces in this package all operate on the same
-// path name syntax, regardless of the host operating system.
+// 本包中的所有接口均使用统一的路径名称语法，与宿主操作系统无关。
 //
-// Path names are UTF-8-encoded,
-// unrooted, slash-separated sequences of path elements, like “x/y/z”.
-// Path names must not contain an element that is “.” or “..” or the empty string,
-// except for the special case that the name "." may be used for the root directory.
-// Paths must not start or end with a slash: “/x” and “x/” are invalid.
+// 路径名称为 UTF-8 编码、非根目录、以斜杠分隔的路径元素序列，例如 “x/y/z”。
+// 路径名称不能包含 “.”、“..” 或空字符串元素，
+// 唯一特例是可使用 “.” 表示根目录。
+// 路径不能以斜杠开头或结尾：“/x” 和 “x/” 均为无效路径。
 //
-// # Testing
+// # 测试
 //
-// See the [testing/fstest] package for support with testing
-// implementations of file systems.
+// 测试文件系统实现时，可使用 testing/fstest 包提供的支持。
 package fs
 
 import (
@@ -29,36 +25,32 @@ import (
 	"unicode/utf8"
 )
 
-// An FS provides access to a hierarchical file system.
+// FS 提供对分层文件系统的访问能力。
 //
-// The FS interface is the minimum implementation required of the file system.
-// A file system may implement additional interfaces,
-// such as [ReadFileFS], to provide additional or optimized functionality.
+// FS 接口是文件系统所需实现的最小接口。
+// 文件系统可以实现额外的接口（例如 ReadFileFS），
+// 以提供扩展或优化后的功能。
 //
-// [testing/fstest.TestFS] may be used to test implementations of an FS for
-// correctness.
+// 可使用 testing/fstest.TestFS 测试 FS 接口实现的正确性。
 type FS interface {
-	// Open opens the named file.
-	// [File.Close] must be called to release any associated resources.
+	// Open 打开指定名称的文件。
+	// 必须调用 [File.Close] 释放相关资源。
 	//
-	// When Open returns an error, it should be of type *PathError
-	// with the Op field set to "open", the Path field set to name,
-	// and the Err field describing the problem.
+	// 当 Open 返回错误时，该错误应为 *PathError 类型，
+	// 其中 Op 字段设为 "open"，Path 字段设为 name，
+	// Err 字段用于描述具体问题。
 	//
-	// Open should reject attempts to open names that do not satisfy
-	// ValidPath(name), returning a *PathError with Err set to
-	// ErrInvalid or ErrNotExist.
+	// Open 应拒绝打开不满足 ValidPath(name) 的名称，
+	// 并返回 Err 字段为 ErrInvalid 或 ErrNotExist 的 *PathError。
 	Open(name string) (File, error)
 }
 
-// ValidPath reports whether the given path name
-// is valid for use in a call to Open.
+// ValidPath 判断给定的路径名称是否可用于 Open 调用。
 //
-// Note that paths are slash-separated on all systems, even Windows.
-// Paths containing other characters such as backslash and colon
-// are accepted as valid, but those characters must never be
-// interpreted by an [FS] implementation as path element separators.
-// See the [Path Names] section for more details.
+// 注意：所有系统（包括 Windows）的路径均使用斜杠分隔。
+// 包含反斜杠、冒号等其他字符的路径会被视为有效路径，
+// 但 FS 实现绝不能将这些字符解析为路径元素分隔符。
+// 更多详情见 [Path Names] 章节。
 //
 // [Path Names]: https://pkg.go.dev/io/fs#hdr-Path_Names
 func ValidPath(name string) bool {
@@ -67,11 +59,11 @@ func ValidPath(name string) bool {
 	}
 
 	if name == "." {
-		// special case
+		// 特殊情况
 		return true
 	}
 
-	// Iterate over elements in name, checking each.
+	// 遍历路径中的所有元素，逐一校验
 	for {
 		i := 0
 		for i < len(name) && name[i] != '/' {
@@ -82,80 +74,73 @@ func ValidPath(name string) bool {
 			return false
 		}
 		if i == len(name) {
-			return true // reached clean ending
+			return true // 到达合法结尾
 		}
 		name = name[i+1:]
 	}
 }
 
-// A File provides access to a single file.
-// The File interface is the minimum implementation required of the file.
-// Directory files should also implement [ReadDirFile].
-// A file may implement [io.ReaderAt] or [io.Seeker] as optimizations.
+// File 提供对单个文件的访问能力。
+// File 接口是文件所需实现的最小接口。
+// 目录文件还应实现 [ReadDirFile] 接口。
+// 文件可实现 io.ReaderAt 或 io.Seeker 接口作为优化方案。
 type File interface {
 	Stat() (FileInfo, error)
 	Read([]byte) (int, error)
 	Close() error
 }
 
-// A DirEntry is an entry read from a directory
-// (using the [ReadDir] function or a [ReadDirFile]'s ReadDir method).
+// DirEntry 是从目录中读取的条目
+// （通过 ReadDir 函数或 ReadDirFile 的 ReadDir 方法获取）。
 type DirEntry interface {
-	// Name returns the name of the file (or subdirectory) described by the entry.
-	// This name is only the final element of the path (the base name), not the entire path.
-	// For example, Name would return "hello.go" not "home/gopher/hello.go".
+	// Name 返回条目描述的文件（或子目录）名称。
+	// 该名称仅为路径的最后一个元素（基础名称），而非完整路径。
+	// 例如：Name 会返回 "hello.go"，而非 "home/gopher/hello.go"。
 	Name() string
 
-	// IsDir reports whether the entry describes a directory.
+	// IsDir 判断该条目是否为目录。
 	IsDir() bool
 
-	// Type returns the type bits for the entry.
-	// The type bits are a subset of the usual FileMode bits, those returned by the FileMode.Type method.
+	// Type 返回条目的类型位。
+	// 类型位是标准 FileMode 位的子集，与 FileMode.Type 方法返回值一致。
 	Type() FileMode
 
-	// Info returns the FileInfo for the file or subdirectory described by the entry.
-	// The returned FileInfo may be from the time of the original directory read
-	// or from the time of the call to Info. If the file has been removed or renamed
-	// since the directory read, Info may return an error satisfying errors.Is(err, ErrNotExist).
-	// If the entry denotes a symbolic link, Info reports the information about the link itself,
-	// not the link's target.
+	// Info 返回条目描述的文件或子目录的 FileInfo。
+	// 返回的 FileInfo 可能来自原始目录读取时，也可能来自调用 Info 时。
+	// 若目录读取后文件被删除或重命名，Info 可能返回满足 errors.Is(err, ErrNotExist) 的错误。
+	// 若条目为符号链接，Info 返回链接本身的信息，而非链接目标的信息。
 	Info() (FileInfo, error)
 }
 
-// A ReadDirFile is a directory file whose entries can be read with the ReadDir method.
-// Every directory file should implement this interface.
-// (It is permissible for any file to implement this interface,
-// but if so ReadDir should return an error for non-directories.)
+// ReadDirFile 是可通过 ReadDir 方法读取条目的目录文件。
+// 所有目录文件都应实现此接口。
+// （允许任意文件实现此接口，但非目录文件调用 ReadDir 应返回错误。）
 type ReadDirFile interface {
 	File
 
-	// ReadDir reads the contents of the directory and returns
-	// a slice of up to n DirEntry values in directory order.
-	// Subsequent calls on the same file will yield further DirEntry values.
+	// ReadDir 读取目录内容，返回最多 n 个按目录顺序排列的 DirEntry 切片。
+	// 对同一文件的后续调用会继续返回后续的 DirEntry。
 	//
-	// If n > 0, ReadDir returns at most n DirEntry structures.
-	// In this case, if ReadDir returns an empty slice, it will return
-	// a non-nil error explaining why.
-	// At the end of a directory, the error is io.EOF.
-	// (ReadDir must return io.EOF itself, not an error wrapping io.EOF.)
+	// 若 n > 0，ReadDir 最多返回 n 个 DirEntry 结构体。
+	// 这种情况下，若 ReadDir 返回空切片，会同时返回非空错误说明原因。
+	// 到达目录末尾时，错误为 io.EOF。
+	//（ReadDir 必须直接返回 io.EOF，而非包装 io.EOF 的错误。）
 	//
-	// If n <= 0, ReadDir returns all remaining DirEntry values from the directory
-	// in a single slice. In this case, if ReadDir succeeds (reads all the way
-	// to the end of the directory), it returns the slice and a nil error.
-	// If it encounters an error before the end of the directory,
-	// ReadDir returns the DirEntry list read until that point and a non-nil error.
+	// 若 n <= 0，ReadDir 一次性返回目录中所有剩余的 DirEntry。
+	// 这种情况下，若 ReadDir 执行成功（读取到目录末尾），会返回切片和 nil 错误。
+	// 若在到达目录末尾前遇到错误，
+	// ReadDir 会返回截至该点已读取的 DirEntry 列表和非空错误。
 	ReadDir(n int) ([]DirEntry, error)
 }
 
-// Generic file system errors.
-// Errors returned by file systems can be tested against these errors
-// using [errors.Is].
+// 文件系统通用错误。
+// 文件系统返回的错误可通过 errors.Is 与这些错误进行匹配判断。
 var (
-	ErrInvalid    = errInvalid()    // "invalid argument"
-	ErrPermission = errPermission() // "permission denied"
-	ErrExist      = errExist()      // "file already exists"
-	ErrNotExist   = errNotExist()   // "file does not exist"
-	ErrClosed     = errClosed()     // "file already closed"
+	ErrInvalid    = errInvalid()    // "无效参数"
+	ErrPermission = errPermission() // "权限不足"
+	ErrExist      = errExist()      // "文件已存在"
+	ErrNotExist   = errNotExist()   // "文件不存在"
+	ErrClosed     = errClosed()     // "文件已关闭"
 )
 
 func errInvalid() error    { return oserror.ErrInvalid }
@@ -164,54 +149,51 @@ func errExist() error      { return oserror.ErrExist }
 func errNotExist() error   { return oserror.ErrNotExist }
 func errClosed() error     { return oserror.ErrClosed }
 
-// A FileInfo describes a file and is returned by [Stat].
+// FileInfo 描述文件信息，由 Stat 方法返回。
 type FileInfo interface {
-	Name() string       // base name of the file
-	Size() int64        // length in bytes for regular files; system-dependent for others
-	Mode() FileMode     // file mode bits
-	ModTime() time.Time // modification time
-	IsDir() bool        // abbreviation for Mode().IsDir()
-	Sys() any           // underlying data source (can return nil)
+	Name() string       // 文件的基础名称
+	Size() int64        // 普通文件的字节长度；其他文件为系统依赖值
+	Mode() FileMode     // 文件模式位
+	ModTime() time.Time // 修改时间
+	IsDir() bool        // Mode().IsDir() 的简写
+	Sys() any           // 底层数据源（可返回 nil）
 }
 
-// A FileMode represents a file's mode and permission bits.
-// The bits have the same definition on all systems, so that
-// information about files can be moved from one system
-// to another portably. Not all bits apply to all systems.
-// The only required bit is [ModeDir] for directories.
+// FileMode 表示文件的模式和权限位。
+// 这些位在所有系统上定义一致，因此文件信息可跨系统移植。
+// 并非所有位都适用于所有系统。
+// 唯一强制要求的位是目录对应的 ModeDir。
 type FileMode uint32
 
-// The defined file mode bits are the most significant bits of the [FileMode].
-// The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
-// The values of these bits should be considered part of the public API and
-// may be used in wire protocols or disk representations: they must not be
-// changed, although new bits might be added.
+// 定义的文件模式位是 FileMode 的最高有效位。
+// 最低 9 位是标准的 Unix rwxrwxrwx 权限位。
+// 这些位的值应视为公共 API 的一部分，可用于网络协议或磁盘存储：
+// 绝不允许修改，仅可新增位定义。
 const (
-	// The single letters are the abbreviations
-	// used by the String method's formatting.
-	ModeDir        FileMode = 1 << (32 - 1 - iota) // d: is a directory
-	ModeAppend                                     // a: append-only
-	ModeExclusive                                  // l: exclusive use
-	ModeTemporary                                  // T: temporary file; Plan 9 only
-	ModeSymlink                                    // L: symbolic link
-	ModeDevice                                     // D: device file
-	ModeNamedPipe                                  // p: named pipe (FIFO)
-	ModeSocket                                     // S: Unix domain socket
-	ModeSetuid                                     // u: setuid
-	ModeSetgid                                     // g: setgid
-	ModeCharDevice                                 // c: Unix character device, when ModeDevice is set
-	ModeSticky                                     // t: sticky
-	ModeIrregular                                  // ?: non-regular file; nothing else is known about this file
+	// 单个字母是 String 方法格式化时使用的缩写
+	ModeDir        FileMode = 1 << (32 - 1 - iota) // d: 目录
+	ModeAppend                                     // a: 仅追加模式
+	ModeExclusive                                  // l: 独占使用
+	ModeTemporary                                  // T: 临时文件；仅 Plan 9 系统
+	ModeSymlink                                    // L: 符号链接
+	ModeDevice                                     // D: 设备文件
+	ModeNamedPipe                                  // p: 命名管道（FIFO）
+	ModeSocket                                     // S: Unix 域套接字
+	ModeSetuid                                     // u: 设置用户ID
+	ModeSetgid                                     // g: 设置组ID
+	ModeCharDevice                                 // c: Unix 字符设备（需同时设置 ModeDevice）
+	ModeSticky                                     // t: 粘滞位
+	ModeIrregular                                  // ?: 非规则文件；无其他已知属性
 
-	// Mask for the type bits. For regular files, none will be set.
+	// 类型位掩码。普通文件无任何类型位设置。
 	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeCharDevice | ModeIrregular
 
-	ModePerm FileMode = 0777 // Unix permission bits
+	ModePerm FileMode = 0777 // Unix 权限位
 )
 
 func (m FileMode) String() string {
 	const str = "dalTLDpSugct?"
-	var buf [32]byte // Mode is uint32.
+	var buf [32]byte // Mode 是 uint32 类型
 	w := 0
 	for i, c := range str {
 		if m&(1<<uint(32-1-i)) != 0 {
@@ -235,29 +217,29 @@ func (m FileMode) String() string {
 	return string(buf[:w])
 }
 
-// IsDir reports whether m describes a directory.
-// That is, it tests for the [ModeDir] bit being set in m.
+// IsDir 判断 m 是否表示目录。
+// 即检查 m 中是否设置了 ModeDir 位。
 func (m FileMode) IsDir() bool {
 	return m&ModeDir != 0
 }
 
-// IsRegular reports whether m describes a regular file.
-// That is, it tests that no mode type bits are set.
+// IsRegular 判断 m 是否表示普通文件。
+// 即检查未设置任何文件类型位。
 func (m FileMode) IsRegular() bool {
 	return m&ModeType == 0
 }
 
-// Perm returns the Unix permission bits in m (m & [ModePerm]).
+// Perm 返回 m 中的 Unix 权限位 (m & [ModePerm])。
 func (m FileMode) Perm() FileMode {
 	return m & ModePerm
 }
 
-// Type returns type bits in m (m & [ModeType]).
+// Type 返回 m 中的类型位 (m & [ModeType])。
 func (m FileMode) Type() FileMode {
 	return m & ModeType
 }
 
-// PathError records an error and the operation and file path that caused it.
+// PathError 记录错误信息，以及引发错误的操作和文件路径。
 type PathError struct {
 	Op   string
 	Path string
@@ -268,7 +250,7 @@ func (e *PathError) Error() string { return e.Op + " " + e.Path + ": " + e.Err.E
 
 func (e *PathError) Unwrap() error { return e.Err }
 
-// Timeout reports whether this error represents a timeout.
+// Timeout 判断该错误是否为超时错误。
 func (e *PathError) Timeout() bool {
 	t, ok := e.Err.(interface{ Timeout() bool })
 	return ok && t.Timeout()

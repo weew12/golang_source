@@ -9,70 +9,53 @@ import (
 	"path"
 )
 
-// SkipDir is used as a return value from [WalkDirFunc] to indicate that
-// the directory named in the call is to be skipped. It is not returned
-// as an error by any function.
+// SkipDir 作为 [WalkDirFunc] 的返回值，用于跳过当前指定的目录。
+// 该值不会被任何函数作为错误返回。
 var SkipDir = errors.New("skip this directory")
 
-// SkipAll is used as a return value from [WalkDirFunc] to indicate that
-// all remaining files and directories are to be skipped. It is not returned
-// as an error by any function.
+// SkipAll 作为 [WalkDirFunc] 的返回值，用于跳过所有剩余的文件和目录。
+// 该值不会被任何函数作为错误返回。
 var SkipAll = errors.New("skip everything and stop the walk")
 
-// WalkDirFunc is the type of the function called by [WalkDir] to visit
-// each file or directory.
+// WalkDirFunc 是 [WalkDir] 遍历文件/目录时调用的函数类型。
 //
-// The path argument contains the argument to [WalkDir] as a prefix.
-// That is, if WalkDir is called with root argument "dir" and finds a file
-// named "a" in that directory, the walk function will be called with
-// argument "dir/a".
+// path 参数为遍历路径，以 [WalkDir] 的入参为前缀。
+// 例如：以根目录 "dir" 调用 WalkDir，遍历到该目录下名为 "a" 的文件时，
+// 遍历函数的 path 参数为 "dir/a"。
 //
-// The d argument is the [DirEntry] for the named path.
+// d 参数为对应路径的 [DirEntry]。
 //
-// The error result returned by the function controls how [WalkDir]
-// continues. If the function returns the special value [SkipDir], WalkDir
-// skips the current directory (path if d.IsDir() is true, otherwise
-// path's parent directory). If the function returns the special value
-// [SkipAll], WalkDir skips all remaining files and directories. Otherwise,
-// if the function returns a non-nil error, WalkDir stops entirely and
-// returns that error.
+// 函数返回的错误结果决定 [WalkDir] 的后续行为：
+// 若返回特殊值 [SkipDir]，WalkDir 会跳过当前目录（d.IsDir() 为 true 时跳过 path 本身，否则跳过 path 的父目录）；
+// 若返回特殊值 [SkipAll]，WalkDir 会跳过所有剩余文件和目录；
+// 若返回其他非空错误，WalkDir 会立即停止遍历并返回该错误。
 //
-// The err argument reports an error related to path, signaling that
-// [WalkDir] will not walk into that directory. The function can decide how
-// to handle that error; as described earlier, returning the error will
-// cause WalkDir to stop walking the entire tree.
+// err 参数用于报告路径相关的错误，代表 [WalkDir] 不会进入该目录遍历。
+// 函数可自行处理该错误：如前文所述，返回错误会导致 WalkDir 停止整个目录树的遍历。
 //
-// [WalkDir] calls the function with a non-nil err argument in two cases.
+// [WalkDir] 会在两种场景下，以非空 err 参数调用该函数：
 //
-// First, if the initial [Stat] on the root directory fails, WalkDir
-// calls the function with path set to root, d set to nil, and err set to
-// the error from [fs.Stat].
+// 第一，根目录的初始 [Stat] 操作失败时，WalkDir 会调用该函数：
+// path 设为根目录，d 设为 nil，err 设为 [fs.Stat] 返回的错误。
 //
-// Second, if a directory's ReadDir method (see [ReadDirFile]) fails, WalkDir calls the
-// function with path set to the directory's path, d set to an
-// [DirEntry] describing the directory, and err set to the error from
-// ReadDir. In this second case, the function is called twice with the
-// path of the directory: the first call is before the directory read is
-// attempted and has err set to nil, giving the function a chance to
-// return [SkipDir] or [SkipAll] and avoid the ReadDir entirely. The second call
-// is after a failed ReadDir and reports the error from ReadDir.
-// (If ReadDir succeeds, there is no second call.)
+// 第二，目录的 ReadDir 方法（见 [ReadDirFile]）执行失败时，WalkDir 会调用该函数：
+// path 设为目录路径，d 设为描述该目录的 [DirEntry]，err 设为 ReadDir 返回的错误。
+// 第二种场景下，同一个目录路径会被调用两次函数：
+// 第一次在尝试读取目录前调用，err 为 nil，允许函数返回 [SkipDir] 或 [SkipAll] 直接跳过读取；
+// 第二次在 ReadDir 失败后调用，用于报告读取错误。（若 ReadDir 成功，则不会触发第二次调用。）
 //
-// The differences between WalkDirFunc compared to [path/filepath.WalkFunc] are:
+// WalkDirFunc 与 [path/filepath.WalkFunc] 的区别：
 //
-//   - The second argument has type [DirEntry] instead of [FileInfo].
-//   - The function is called before reading a directory, to allow [SkipDir]
-//     or [SkipAll] to bypass the directory read entirely or skip all remaining
-//     files and directories respectively.
-//   - If a directory read fails, the function is called a second time
-//     for that directory to report the error.
+//   - 第二个参数类型为 [DirEntry]，而非 [FileInfo]。
+//   - 读取目录前会先调用函数，可通过 [SkipDir] 跳过目录读取，或通过 [SkipAll] 跳过所有剩余内容。
+//   - 目录读取失败时，会对该目录进行第二次函数调用以报告错误。
 type WalkDirFunc func(path string, d DirEntry, err error) error
 
-// walkDir recursively descends path, calling walkDirFn.
+// walkDir 递归遍历路径，调用 walkDirFn 函数。
 func walkDir(fsys FS, name string, d DirEntry, walkDirFn WalkDirFunc) error {
 	if err := walkDirFn(name, d, nil); err != nil || !d.IsDir() {
 		if err == SkipDir && d.IsDir() {
-			// Successfully skipped directory.
+			// 成功跳过目录。
 			err = nil
 		}
 		return err
@@ -80,7 +63,7 @@ func walkDir(fsys FS, name string, d DirEntry, walkDirFn WalkDirFunc) error {
 
 	dirs, err := ReadDir(fsys, name)
 	if err != nil {
-		// Second call, to report ReadDir error.
+		// 第二次调用，报告 ReadDir 错误。
 		err = walkDirFn(name, d, err)
 		if err != nil {
 			if err == SkipDir && d.IsDir() {
@@ -102,18 +85,16 @@ func walkDir(fsys FS, name string, d DirEntry, walkDirFn WalkDirFunc) error {
 	return nil
 }
 
-// WalkDir walks the file tree rooted at root, calling fn for each file or
-// directory in the tree, including root.
+// WalkDir 遍历以 root 为根的文件树，对树中的每个文件/目录（包含根节点）调用 fn 函数。
 //
-// All errors that arise visiting files and directories are filtered by fn:
-// see the [fs.WalkDirFunc] documentation for details.
+// 遍历文件/目录时产生的所有错误都会由 fn 函数处理：
+// 详情见 [fs.WalkDirFunc] 文档。
 //
-// The files are walked in lexical order, which makes the output deterministic
-// but requires WalkDir to read an entire directory into memory before proceeding
-// to walk that directory.
+// 文件按字典序遍历，保证输出结果确定性，
+// 但这要求 WalkDir 在遍历目录前，将整个目录读取到内存中。
 //
-// WalkDir does not follow symbolic links found in directories,
-// but if root itself is a symbolic link, its target will be walked.
+// WalkDir 不会解析目录中的符号链接，
+// 但若根节点 root 本身是符号链接，则会遍历其指向的目标。
 func WalkDir(fsys FS, root string, fn WalkDirFunc) error {
 	info, err := Stat(fsys, root)
 	if err != nil {
