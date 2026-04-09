@@ -58,10 +58,15 @@ jobs:
           TARGET_CSS="./go1.26-full/_/css/main.css"
           
           if [ -f "$CUSTOM_CSS" ]; then
-            cp "$CUSTOM_CSS" "$TARGET_CSS"
-            echo "✅ 自定义样式已替换默认 main.css"
+            # 使用 -f 强制覆盖，-v 显示详细日志
+            cp -f -v "$CUSTOM_CSS" "$TARGET_CSS"
+            echo "✅ 复制后的文件大小和内容:"
+            ls -lh "$TARGET_CSS"
+            echo "--- 内容预览 ---"
+            head -n 5 "$TARGET_CSS"
           else
             echo "⚠️ 自定义样式文件不存在，使用默认样式"
+            ls -la .github/ # 辅助调试
           fi
       
       - name: 上传文档产物（供后续任务使用）
