@@ -2,7 +2,7 @@
  * Go-Style Documentation Theme - Professional Edition
  * 基础样式：保留用户原始逻辑
  * 扩展功能：基于 pkg-* ID 的结构化增强
- * 修复：优化中文字体显示
+ * 修复：Chrome Windows 中文回退宋体问题 + 全平台字体渲染优化
  */
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap");
@@ -29,29 +29,41 @@
   --syntax-number: #005cc5; /* 蓝色：数字字面量 */
   --syntax-operator: #d73a49; /* 红色：:=, ==, +, - */
 
-  /* 字体栈 (已修复：加入中文支持) */
-  /* 英文优先，中文回退到：苹方(PingFang) -> 冬青黑体 -> 微软雅黑 -> 思源黑体 */
+  /* ✅ 核心修复：Chrome Windows 字体栈顺序
+   * 必须把 Microsoft YaHei UI 放在最前面，这是 Chrome 优先识别的变体
+   * 然后才是标准微软雅黑，最后兜底 Noto Sans SC
+   */
   --font-sans:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", 
-    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC",
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Microsoft YaHei UI", "Microsoft YaHei",
+    "PingFang SC", "Hiragino Sans GB", "Noto Sans SC",
     Helvetica, Arial, sans-serif;
   
-  /* 等宽字体 (已修复：加入中文等宽支持) */
+  /* 等宽字体同样修复 */
   --font-mono:
     "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "PingFang SC", "Microsoft YaHei", "Noto Sans SC", monospace;
+    "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC", monospace;
 }
 
-/* --- 基础布局 (已修复：微调行高适应中文) --- */
+/* ✅ 全局渲染优化：强制 Chrome 使用正确的渲染策略 */
+html {
+  text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
+  /* 强制硬件加速，防止渲染降级 */
+  transform: translateZ(0);
+}
+
+/* --- 基础布局 (微调行高适应中文) --- */
 body {
   max-width: 1100px;
   margin: 0 auto;
   padding: 2rem 1.5rem;
   font-family: var(--font-sans);
-  line-height: 1.8; /* 中文阅读最佳行高通常在 1.75-2.0 之间 */
+  line-height: 1.8; /* 中文阅读最佳行高 */
   color: var(--text-main);
   background-color: #ffffff;
-  -webkit-font-smoothing: antialiased;
+  -webkit-font-smoothing: antialiased; /* macOS 生效 */
+  -moz-osx-font-smoothing: grayscale; /* Firefox macOS 生效 */
 }
 
 /* --- 标题美化 (保留原样) --- */
@@ -155,7 +167,7 @@ pre {
   border-radius: 8px;
   border: 1px solid var(--border-light);
   overflow-x: auto;
-  line-height: 1.6; /* 代码保持稍密的行高 */
+  line-height: 1.6; /* 代码保持稍密行高 */
   margin: 1.5rem 0;
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
 }
@@ -244,7 +256,6 @@ span.deprecated-tag {
   color: white;
   background-color: #cf222e;
   padding: 0.15rem 0.5rem;
-  /* border-radius: 12px; */
   font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -252,56 +263,46 @@ span.deprecated-tag {
 }
 
 /* --- 精致箭头修复：让 Summary 内部元素并排并自定义 Marker --- */
-
-/* 1. 容器处理 */
 details.deprecated > summary {
   display: flex;
   align-items: center;
   cursor: pointer;
   list-style: none;
-  padding: 0.5rem 1rem; /* 给 summary 一点内边距，更像按钮 */
+  padding: 0.5rem 1rem;
 }
 
-/* 隐藏 Safari 原生箭头 */
 details.deprecated > summary::-webkit-details-marker {
   display: none;
 }
 
-/* 2. 用 CSS 画一个精致的“侧三角” */
 details.deprecated > summary::before {
   content: "";
   display: inline-block;
   width: 0;
   height: 0;
-
-  /* 画一个等腰三角形 */
   border-top: 5px solid transparent;
   border-bottom: 5px solid transparent;
-  border-left: 8px solid var(--text-muted); /* 控制三角形颜色和大小 */
-
+  border-left: 8px solid var(--text-muted);
   margin-right: 12px;
   transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-origin: 4px center; /* 确保围绕中心点旋转 */
+  transform-origin: 4px center;
 }
 
-/* 3. 展开时的状态 */
 details.deprecated[open] > summary::before {
   transform: rotate(90deg);
-  border-left-color: var(--go-blue); /* 展开时变色 */
+  border-left-color: var(--go-blue);
 }
 
-/* 4. h3 样式微调：确保垂直居中 */
 details.deprecated > summary h3 {
   display: inline-flex;
   align-items: center;
   margin: 0;
   padding: 0;
   border: none;
-  line-height: 1; /* 防止行高撑开容器导致对不齐 */
+  line-height: 1;
   font-size: 1.25rem;
 }
 
-/* 5. 确保内部标签对齐 */
 .deprecated-tag {
   font-size: 0.7rem;
   padding: 2px 6px;
@@ -348,28 +349,24 @@ footer {
    功能扩展区：基于 pkg-* ID 增强文档结构与标题分类
    ============================================================ */
 
-/* 1. 结构化锚点增强：为主要章节添加左侧色块区分 */
-
-/* 索引区美化：让 Index 列表更像一个整齐的面板 */
+/* 索引区美化 */
 #pkg-index + ul {
   background: var(--bg-gray);
   padding: 1.2rem 1.5rem;
   border-radius: 8px;
   border: 1px solid var(--border-light);
-  column-count: 2; /* 宽屏自动分两列 */
+  column-count: 2;
   column-gap: 2rem;
   list-style-position: inside;
 }
 
-/* 2. API 实体标题自动着色：利用 ID 匹配 doc2go 的逻辑 */
-
-/* 所有的 h3 条目（API 详情标题）基础样式 */
+/* API 实体标题基础样式 */
 h3[id] {
   padding-left: 8px;
   transition: border-color 0.2s;
 }
 
-/* 3. 增强：让锚点符号 ¶ 只在悬停时显示，保持页面整洁 */
+/* 锚点符号悬停显示 */
 .permalink {
   opacity: 0;
   margin-left: 8px;
