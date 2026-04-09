@@ -1,0 +1,379 @@
+/* 
+ * Go-Style Documentation Theme - Professional Edition
+ * 基础样式：保留用户原始逻辑
+ * 扩展功能：基于 pkg-* ID 的结构化增强
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&display=swap");
+
+:root {
+  /* 品牌色与 UI 调色板 */
+  --go-blue: #007d9c;
+  --go-light-blue: #e0ebf5;
+  --text-main: #1a1b1c;
+  --text-title: #111827;
+  --text-muted: #5e6066;
+  --bg-gray: #f8f9fa;
+  --bg-code: #f6f8fa;
+  --border-color: #d2d2d2;
+  --border-light: #e5e7eb;
+
+  /* VSCode Light+ 语法配色 */
+  --syntax-keyword: #d73a49; /* 红色：if, return, func, package */
+  --syntax-function: #6f42c1; /* 紫色：函数定义与调用 */
+  --syntax-string: #032f62; /* 深蓝：字符串内容 */
+  --syntax-comment: #6a737d; /* 灰色：注释 */
+  --syntax-type: #005cc5; /* 蓝色：int, string, struct, interface */
+  --syntax-variable: #e36209; /* 橙色：常量与特定变量 */
+  --syntax-number: #005cc5; /* 蓝色：数字字面量 */
+  --syntax-operator: #d73a49; /* 红色：:=, ==, +, - */
+
+  /* 字体栈 */
+  --font-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+    sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    monospace;
+}
+
+/* --- 基础布局 (保留原样) --- */
+body {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  color: var(--text-main);
+  background-color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- 标题美化 (保留原样) --- */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-sans);
+  color: var(--text-title);
+  letter-spacing: -0.02em;
+  margin-top: 2rem;
+  margin-bottom: 0.8rem;
+}
+
+h1 {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  position: relative;
+  padding-bottom: 0.75rem;
+  margin-top: 0;
+}
+
+h1::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 60px;
+  height: 5px;
+  background-color: var(--go-blue);
+  border-radius: 3px;
+}
+
+h2 {
+  font-size: 1.65rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 0.3rem;
+}
+
+h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+h4 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* --- 链接 (保留原样) --- */
+a {
+  text-decoration: none;
+  color: var(--go-blue);
+  transition: color 0.2s;
+}
+
+a:hover {
+  color: #005f77;
+  text-decoration: underline;
+}
+
+/* --- 导航栏 (保留原样) --- */
+nav {
+  padding: 0.75rem 1.25rem;
+  background-color: var(--bg-gray);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+  font-size: 0.95rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* --- 代码与语法高亮 (保留原样) --- */
+code,
+kbd,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  tab-size: 4;
+}
+
+code {
+  background-color: rgba(175, 184, 193, 0.2);
+  padding: 0.2em 0.4em;
+  border-radius: 5px;
+  color: #24292e;
+}
+
+pre {
+  background-color: var(--bg-code);
+  color: #24292e;
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  overflow-x: auto;
+  line-height: 1.5;
+  margin: 1.5rem 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* Chroma 高亮 (保留原样) */
+.chroma .k,
+.chroma .kd,
+.chroma .kn,
+.chroma .kp,
+.chroma .kr {
+  color: var(--syntax-keyword);
+  font-weight: 600;
+}
+.chroma .kt {
+  color: var(--syntax-type);
+  font-weight: 600;
+}
+.chroma .nf,
+.chroma .fm {
+  color: var(--syntax-function);
+}
+.chroma .s,
+.chroma .s2,
+.chroma .sb,
+.chroma .sc {
+  color: var(--syntax-string);
+}
+.chroma .c,
+.chroma .c1,
+.chroma .ch,
+.chroma .cm {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+.chroma .m,
+.chroma .mi,
+.chroma .mf,
+.chroma .mh {
+  color: var(--syntax-number);
+}
+.chroma .o,
+.chroma .ow {
+  color: var(--syntax-operator);
+}
+.chroma .nv,
+.chroma .vc,
+.chroma .vg,
+.chroma .vi {
+  color: var(--syntax-variable);
+}
+.chroma .ln {
+  color: #afb8c1;
+  padding-right: 1rem;
+  user-select: none;
+}
+
+/* --- 交互组件 (保留原样) --- */
+details.example {
+  margin: 1.2rem 0;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: shadow 0.3s;
+}
+
+details.example:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+details.example > summary {
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-gray);
+  color: var(--go-blue);
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+details.example[open] > summary {
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* --- 废弃标记 (保留原样) --- */
+span.deprecated-tag {
+  color: white;
+  background-color: #cf222e;
+  padding: 0.15rem 0.5rem;
+  /* border-radius: 12px; */
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-left: 0.6rem;
+}
+
+/* --- 精致箭头修复：让 Summary 内部元素并排并自定义 Marker --- */
+
+/* 1. 容器处理 */
+details.deprecated > summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+  padding: 0.5rem 1rem; /* 给 summary 一点内边距，更像按钮 */
+}
+
+/* 隐藏 Safari 原生箭头 */
+details.deprecated > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* 2. 用 CSS 画一个精致的“侧三角” */
+details.deprecated > summary::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+
+  /* 画一个等腰三角形 */
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 8px solid var(--text-muted); /* 控制三角形颜色和大小 */
+
+  margin-right: 12px;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: 4px center; /* 确保围绕中心点旋转 */
+}
+
+/* 3. 展开时的状态 */
+details.deprecated[open] > summary::before {
+  transform: rotate(90deg);
+  border-left-color: var(--go-blue); /* 展开时变色 */
+}
+
+/* 4. h3 样式微调：确保垂直居中 */
+details.deprecated > summary h3 {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  line-height: 1; /* 防止行高撑开容器导致对不齐 */
+  font-size: 1.25rem;
+}
+
+/* 5. 确保内部标签对齐 */
+.deprecated-tag {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  margin-left: 8px;
+  line-height: 1;
+}
+
+.permalink {
+  margin-left: 8px;
+  line-height: 1;
+}
+
+/* --- 页脚 (保留原样) --- */
+footer {
+  margin-top: 5rem;
+  padding: 2rem 0;
+  border-top: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+#generated-by-footer {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* 响应式适配 (保留原样) */
+@media (max-width: 768px) {
+  body {
+    padding: 1rem;
+  }
+  nav {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  #pkg-index + ul {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+   功能扩展区：基于 pkg-* ID 增强文档结构与标题分类
+   ============================================================ */
+
+/* 1. 结构化锚点增强：为主要章节添加左侧色块区分 */
+
+/* 索引区美化：让 Index 列表更像一个整齐的面板 */
+#pkg-index + ul {
+  background: var(--bg-gray);
+  padding: 1.2rem 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+  column-count: 2; /* 宽屏自动分两列 */
+  column-gap: 2rem;
+  list-style-position: inside;
+}
+
+/* 2. API 实体标题自动着色：利用 ID 匹配 doc2go 的逻辑 */
+
+/* 所有的 h3 条目（API 详情标题）基础样式 */
+h3[id] {
+  padding-left: 8px;
+  transition: border-color 0.2s;
+}
+
+/* 3. 增强：让锚点符号 ¶ 只在悬停时显示，保持页面整洁 */
+.permalink {
+  opacity: 0;
+  margin-left: 8px;
+  font-size: 0.8em;
+  color: var(--text-muted) !important;
+  transition: opacity 0.2s;
+}
+
+h2:hover .permalink,
+h3:hover .permalink {
+  opacity: 1;
+}

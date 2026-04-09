@@ -52,6 +52,18 @@ jobs:
           echo "文档生成成功"
           ls -la ./go1.26-full
 
+      - name: 注入自定义 CSS
+        run: |
+          CUSTOM_CSS=".github/styles/custom.css"
+          TARGET_CSS="./go1.26-full/_/main.css"
+          
+          if [ -f "$CUSTOM_CSS" ]; then
+            cp "$CUSTOM_CSS" "$TARGET_CSS"
+            echo "✅ 自定义样式已替换默认 main.css"
+          else
+            echo "⚠️ 自定义样式文件不存在，使用默认样式"
+          fi
+      
       - name: 上传文档产物（供后续任务使用）
         uses: actions/upload-pages-artifact@v3
         with:
