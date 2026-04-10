@@ -234,7 +234,7 @@ func (m FileMode) Perm() FileMode {
 	return m & ModePerm
 }
 
-// Type 返回 m 中的类型位 (m & [ModeType])。
+// Type 返回 m 中的类型位 (m & [ModeType] )。
 func (m FileMode) Type() FileMode {
 	return m & ModeType
 }

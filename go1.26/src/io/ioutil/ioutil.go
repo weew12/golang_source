@@ -21,7 +21,7 @@ import (
 // 调用成功时返回 err == nil，而非 err == EOF。由于 ReadAll 被定义为从数据源读取直至 EOF，
 // 因此不会将 Read 操作返回的 EOF 视为需要上报的错误。
 //
-// 已弃用：自 Go 1.16 起，该函数仅直接调用 [io.ReadAll]。
+// 已弃用：自 Go 1.16 起，该函数仅直接调用 [io.ReadAll] 。
 //
 //go:fix inline
 func ReadAll(r io.Reader) ([]byte, error) {
@@ -32,7 +32,7 @@ func ReadAll(r io.Reader) ([]byte, error) {
 // 调用成功时返回 err == nil，而非 err == EOF。由于 ReadFile 会读取整个文件，
 // 因此不会将 Read 操作返回的 EOF 视为需要上报的错误。
 //
-// 已弃用：自 Go 1.16 起，该函数仅直接调用 [os.ReadFile]。
+// 已弃用：自 Go 1.16 起，该函数仅直接调用 [os.ReadFile] 。
 //
 //go:fix inline
 func ReadFile(filename string) ([]byte, error) {
@@ -43,7 +43,7 @@ func ReadFile(filename string) ([]byte, error) {
 // 若文件不存在，WriteFile 会以权限 perm（应用 umask 之前）创建文件；
 // 否则 WriteFile 会在写入前截断文件，且不修改文件原有权限。
 //
-// 已弃用：自 Go 1.16 起，该函数仅直接调用 [os.WriteFile]。
+// 已弃用：自 Go 1.16 起，该函数仅直接调用 [os.WriteFile] 。
 //
 //go:fix inline
 func WriteFile(filename string, data []byte, perm fs.FileMode) error {
@@ -55,7 +55,7 @@ func WriteFile(filename string, data []byte, perm fs.FileMode) error {
 // ReadDir 会返回空的目录条目和对应的错误。
 //
 // 已弃用：自 Go 1.16 起，[os.ReadDir] 是更高效、更规范的选择：
-// 它返回 [fs.DirEntry] 列表而非 [fs.FileInfo]，
+// 它返回 [fs.DirEntry] 列表而非 [fs.FileInfo] ，
 // 且在目录读取中途发生错误时，会返回已读取的部分结果。
 //
 // 若你仍需获取 [fs.FileInfo] 列表，可通过以下方式实现：
@@ -86,7 +86,7 @@ func ReadDir(dirname string) ([]fs.FileInfo, error) {
 
 // NopCloser 返回一个包装了指定 Reader r 的 ReadCloser，其 Close 方法为空操作。
 //
-// 已弃用：自 Go 1.16 起，该函数仅直接调用 [io.NopCloser]。
+// 已弃用：自 Go 1.16 起，该函数仅直接调用 [io.NopCloser] 。
 //
 //go:fix inline
 func NopCloser(r io.Reader) io.ReadCloser {
@@ -95,5 +95,5 @@ func NopCloser(r io.Reader) io.ReadCloser {
 
 // Discard 是一个 io.Writer，所有对它的 Write 调用都会成功执行，且不做任何实际操作。
 //
-// 已弃用：自 Go 1.16 起，该变量仅为 [io.Discard]。
+// 已弃用：自 Go 1.16 起，该变量仅为 [io.Discard] 。
 var Discard io.Writer = io.Discard

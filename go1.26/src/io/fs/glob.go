@@ -23,7 +23,7 @@ type GlobFS interface {
 // 模式可描述层级化路径名称，例如 usr/*/bin/ed。
 //
 // Glob 会忽略文件系统错误（如读取目录时的 I/O 错误）。
-// 唯一可能返回的错误是 [path.ErrBadPattern]，用于表示模式格式非法。
+// 唯一可能返回的错误是 [path.ErrBadPattern] ，用于表示模式格式非法。
 //
 // 若 fs 实现了 [GlobFS] 接口，Glob 会直接调用 fs.Glob。
 // 否则，Glob 会使用 [ReadDir] 遍历目录树，查找匹配模式的文件。

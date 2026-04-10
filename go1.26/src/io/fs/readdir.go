@@ -73,7 +73,7 @@ func (di dirInfo) String() string {
 	return FormatDirEntry(di)
 }
 
-// FileInfoToDirEntry 返回一个从 info 中读取信息的 [DirEntry]。
+// FileInfoToDirEntry 返回一个从 info 中读取信息的 [DirEntry] 。
 // 若 info 为 nil，FileInfoToDirEntry 返回 nil。
 func FileInfoToDirEntry(info FileInfo) DirEntry {
 	if info == nil {
