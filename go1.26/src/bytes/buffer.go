@@ -116,7 +116,7 @@ func (b *Buffer) Truncate(n int) {
 
 // Reset 将缓冲区置空，
 // 但保留底层存储空间供后续写入使用。
-// Reset 等价于 [Buffer.Truncate](sslocal://flow/file_open?url=0&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=)。
+// Reset 等价于 [Buffer.Truncate]
 func (b *Buffer) Reset() {
 	b.buf = b.buf[:0]
 	b.off = 0

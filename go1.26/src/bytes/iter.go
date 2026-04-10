@@ -60,7 +60,7 @@ func splitSeq(s, sep []byte, sepSave int) iter.Seq[[]byte] {
 }
 
 // SplitSeq 返回 s 中所有被 sep 分隔的子切片的迭代器。
-// 迭代器产生的子切片与 [Split](sslocal://flow/file_open?url=s%2C+sep&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=) 返回的相同，
+// 迭代器产生的子切片与 [Split]
 // 但不会构建一个包含这些子切片的新切片。
 // 它返回一个单次使用的迭代器。
 func SplitSeq(s, sep []byte) iter.Seq[[]byte] {
@@ -68,7 +68,7 @@ func SplitSeq(s, sep []byte) iter.Seq[[]byte] {
 }
 
 // SplitAfterSeq 返回 s 中在每个 sep 实例后分割的子切片的迭代器。
-// 迭代器产生的子切片与 [SplitAfter](sslocal://flow/file_open?url=s%2C+sep&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=) 返回的相同，
+// 迭代器产生的子切片与 [SplitAfter]
 // 但不会构建一个包含这些子切片的新切片。
 // 它返回一个单次使用的迭代器。
 func SplitAfterSeq(s, sep []byte) iter.Seq[[]byte] {
@@ -76,7 +76,7 @@ func SplitAfterSeq(s, sep []byte) iter.Seq[[]byte] {
 }
 
 // FieldsSeq 返回 s 中围绕连续空白字符（由 [unicode.IsSpace] 定义）分割的子切片的迭代器。
-// 迭代器产生的子切片与 [Fields](sslocal://flow/file_open?url=s&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=) 返回的相同，
+// 迭代器产生的子切片与 [Fields]
 // 但不会构建一个包含这些子切片的新切片。
 func FieldsSeq(s []byte) iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
@@ -108,7 +108,7 @@ func FieldsSeq(s []byte) iter.Seq[[]byte] {
 }
 
 // FieldsFuncSeq 返回 s 中围绕连续满足 f(c) 的 Unicode 码点分割的子切片的迭代器。
-// 迭代器产生的子切片与 [FieldsFunc](sslocal://flow/file_open?url=s&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=) 返回的相同，
+// 迭代器产生的子切片与 [FieldsFunc]
 // 但不会构建一个包含这些子切片的新切片。
 func FieldsFuncSeq(s []byte, f func(rune) bool) iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
