@@ -10,11 +10,11 @@ import (
 	"unicode/utf8"
 )
 
-// Lines returns an iterator over the newline-terminated lines in the byte slice s.
-// The lines yielded by the iterator include their terminating newlines.
-// If s is empty, the iterator yields no lines at all.
-// If s does not end in a newline, the final yielded line will not end in a newline.
-// It returns a single-use iterator.
+// Lines 返回字节切片 s 中以换行符结尾的行的迭代器。
+// 迭代器产生的行包含其结尾的换行符。
+// 如果 s 为空，迭代器不会产生任何行。
+// 如果 s 不以换行符结尾，最后产生的行将不以换行符结尾。
+// 它返回一个单次使用的迭代器。
 func Lines(s []byte) iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
 		for len(s) > 0 {
@@ -31,8 +31,7 @@ func Lines(s []byte) iter.Seq[[]byte] {
 	}
 }
 
-// splitSeq is SplitSeq or SplitAfterSeq, configured by how many
-// bytes of sep to include in the results (none or all).
+// splitSeq 是 SplitSeq 或 SplitAfterSeq，通过在结果中包含 sep 的字节数（不包含或全部包含）来配置。
 func splitSeq(s, sep []byte, sepSave int) iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
 		if len(sep) == 0 {
@@ -60,26 +59,25 @@ func splitSeq(s, sep []byte, sepSave int) iter.Seq[[]byte] {
 	}
 }
 
-// SplitSeq returns an iterator over all subslices of s separated by sep.
-// The iterator yields the same subslices that would be returned by [Split](s, sep),
-// but without constructing a new slice containing the subslices.
-// It returns a single-use iterator.
+// SplitSeq 返回 s 中所有被 sep 分隔的子切片的迭代器。
+// 迭代器产生的子切片与 [Split](sslocal://flow/file_open?url=s%2C+sep&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=) 返回的相同，
+// 但不会构建一个包含这些子切片的新切片。
+// 它返回一个单次使用的迭代器。
 func SplitSeq(s, sep []byte) iter.Seq[[]byte] {
 	return splitSeq(s, sep, 0)
 }
 
-// SplitAfterSeq returns an iterator over subslices of s split after each instance of sep.
-// The iterator yields the same subslices that would be returned by [SplitAfter](s, sep),
-// but without constructing a new slice containing the subslices.
-// It returns a single-use iterator.
+// SplitAfterSeq 返回 s 中在每个 sep 实例后分割的子切片的迭代器。
+// 迭代器产生的子切片与 [SplitAfter](sslocal://flow/file_open?url=s%2C+sep&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=) 返回的相同，
+// 但不会构建一个包含这些子切片的新切片。
+// 它返回一个单次使用的迭代器。
 func SplitAfterSeq(s, sep []byte) iter.Seq[[]byte] {
 	return splitSeq(s, sep, len(sep))
 }
 
-// FieldsSeq returns an iterator over subslices of s split around runs of
-// whitespace characters, as defined by [unicode.IsSpace].
-// The iterator yields the same subslices that would be returned by [Fields](s),
-// but without constructing a new slice containing the subslices.
+// FieldsSeq 返回 s 中围绕连续空白字符（由 [unicode.IsSpace] 定义）分割的子切片的迭代器。
+// 迭代器产生的子切片与 [Fields](sslocal://flow/file_open?url=s&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=) 返回的相同，
+// 但不会构建一个包含这些子切片的新切片。
 func FieldsSeq(s []byte) iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
 		start := -1
@@ -109,10 +107,9 @@ func FieldsSeq(s []byte) iter.Seq[[]byte] {
 	}
 }
 
-// FieldsFuncSeq returns an iterator over subslices of s split around runs of
-// Unicode code points satisfying f(c).
-// The iterator yields the same subslices that would be returned by [FieldsFunc](s),
-// but without constructing a new slice containing the subslices.
+// FieldsFuncSeq 返回 s 中围绕连续满足 f(c) 的 Unicode 码点分割的子切片的迭代器。
+// 迭代器产生的子切片与 [FieldsFunc](sslocal://flow/file_open?url=s&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=) 返回的相同，
+// 但不会构建一个包含这些子切片的新切片。
 func FieldsFuncSeq(s []byte, f func(rune) bool) iter.Seq[[]byte] {
 	return func(yield func([]byte) bool) {
 		start := -1

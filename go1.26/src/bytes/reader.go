@@ -10,19 +10,17 @@ import (
 	"unicode/utf8"
 )
 
-// A Reader implements the [io.Reader], [io.ReaderAt], [io.WriterTo], [io.Seeker],
-// [io.ByteScanner], and [io.RuneScanner] interfaces by reading from
-// a byte slice.
-// Unlike a [Buffer], a Reader is read-only and supports seeking.
-// The zero value for Reader operates like a Reader of an empty slice.
+// Reader 通过读取字节切片实现了 [io.Reader]、[io.ReaderAt]、[io.WriterTo]、[io.Seeker]、
+// [io.ByteScanner] 和 [io.RuneScanner] 接口。
+// 与 [Buffer] 不同，Reader 是只读的且支持寻址。
+// Reader 的零值行为类似于读取空切片的 Reader。
 type Reader struct {
 	s        []byte
-	i        int64 // current reading index
-	prevRune int   // index of previous rune; or < 0
+	i        int64 // 当前读取索引
+	prevRune int   // 上一个 rune 的索引；或 < 0
 }
 
-// Len returns the number of bytes of the unread portion of the
-// slice.
+// Len 返回切片中未读取部分的字节数。
 func (r *Reader) Len() int {
 	if r.i >= int64(len(r.s)) {
 		return 0
@@ -30,12 +28,12 @@ func (r *Reader) Len() int {
 	return int(int64(len(r.s)) - r.i)
 }
 
-// Size returns the original length of the underlying byte slice.
-// Size is the number of bytes available for reading via [Reader.ReadAt].
-// The result is unaffected by any method calls except [Reader.Reset].
+// Size 返回底层字节切片的原始长度。
+// Size 是通过 [Reader.ReadAt] 可读取的字节数。
+// 除 [Reader.Reset] 外，任何方法调用都不会影响该结果。
 func (r *Reader) Size() int64 { return int64(len(r.s)) }
 
-// Read implements the [io.Reader] interface.
+// Read 实现了 [io.Reader] 接口。
 func (r *Reader) Read(b []byte) (n int, err error) {
 	if r.i >= int64(len(r.s)) {
 		return 0, io.EOF
@@ -46,9 +44,9 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 	return
 }
 
-// ReadAt implements the [io.ReaderAt] interface.
+// ReadAt 实现了 [io.ReaderAt] 接口。
 func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
-	// cannot modify state - see io.ReaderAt
+	// 不能修改状态 - 参见 io.ReaderAt
 	if off < 0 {
 		return 0, errors.New("bytes.Reader.ReadAt: negative offset")
 	}
@@ -62,7 +60,7 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
-// ReadByte implements the [io.ByteReader] interface.
+// ReadByte 实现了 [io.ByteReader] 接口。
 func (r *Reader) ReadByte() (byte, error) {
 	r.prevRune = -1
 	if r.i >= int64(len(r.s)) {
@@ -73,7 +71,7 @@ func (r *Reader) ReadByte() (byte, error) {
 	return b, nil
 }
 
-// UnreadByte complements [Reader.ReadByte] in implementing the [io.ByteScanner] interface.
+// UnreadByte 补充 [Reader.ReadByte] 实现了 [io.ByteScanner] 接口。
 func (r *Reader) UnreadByte() error {
 	if r.i <= 0 {
 		return errors.New("bytes.Reader.UnreadByte: at beginning of slice")
@@ -83,7 +81,7 @@ func (r *Reader) UnreadByte() error {
 	return nil
 }
 
-// ReadRune implements the [io.RuneReader] interface.
+// ReadRune 实现了 [io.RuneReader] 接口。
 func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	if r.i >= int64(len(r.s)) {
 		r.prevRune = -1
@@ -99,7 +97,7 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	return
 }
 
-// UnreadRune complements [Reader.ReadRune] in implementing the [io.RuneScanner] interface.
+// UnreadRune 补充 [Reader.ReadRune] 实现了 [io.RuneScanner] 接口。
 func (r *Reader) UnreadRune() error {
 	if r.i <= 0 {
 		return errors.New("bytes.Reader.UnreadRune: at beginning of slice")
@@ -112,7 +110,7 @@ func (r *Reader) UnreadRune() error {
 	return nil
 }
 
-// Seek implements the [io.Seeker] interface.
+// Seek 实现了 [io.Seeker] 接口。
 func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	r.prevRune = -1
 	var abs int64
@@ -133,7 +131,7 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	return abs, nil
 }
 
-// WriteTo implements the [io.WriterTo] interface.
+// WriteTo 实现了 [io.WriterTo] 接口。
 func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	r.prevRune = -1
 	if r.i >= int64(len(r.s)) {
@@ -152,8 +150,8 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// Reset resets the [Reader] to be reading from b.
+// Reset 重置 [Reader] 以从 b 读取。
 func (r *Reader) Reset(b []byte) { *r = Reader{b, 0, -1} }
 
-// NewReader returns a new [Reader] reading from b.
+// NewReader 返回一个从 b 读取的新 [Reader]。
 func NewReader(b []byte) *Reader { return &Reader{b, 0, -1} }
