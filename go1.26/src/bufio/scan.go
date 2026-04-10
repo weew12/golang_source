@@ -11,62 +11,48 @@ import (
 	"unicode/utf8"
 )
 
-// Scanner provides a convenient interface for reading data such as
-// a file of newline-delimited lines of text. Successive calls to
-// the [Scanner.Scan] method will step through the 'tokens' of a file, skipping
-// the bytes between the tokens. The specification of a token is
-// defined by a split function of type [SplitFunc]; the default split
-// function breaks the input into lines with line termination stripped. [Scanner.Split]
-// functions are defined in this package for scanning a file into
-// lines, bytes, UTF-8-encoded runes, and space-delimited words. The
-// client may instead provide a custom split function.
+// Scanner 提供便捷接口读取数据，例如换行分隔的文本文件。
+// 连续调用 Scanner.Scan 方法会步进文件的“标记”，跳过标记之间的字节。
+// 标记的定义由 SplitFunc 类型的分割函数决定；默认分割函数将输入拆分为行，并去除行尾符。
+// 本包定义了 Scanner.Split 函数，用于将文件扫描为行、字节、UTF-8 编码的字符和空格分隔的单词。
+// 客户端也可提供自定义分割函数。
 //
-// Scanning stops unrecoverably at EOF, the first I/O error, or a token too
-// large to fit in the [Scanner.Buffer]. When a scan stops, the reader may have
-// advanced arbitrarily far past the last token. Programs that need more
-// control over error handling or large tokens, or must run sequential scans
-// on a reader, should use [bufio.Reader] instead.
+// 扫描在遇到 EOF、首个 I/O 错误或标记过大无法放入 Scanner.Buffer 时不可恢复地停止。
+// 扫描停止时，读取器可能已远超最后一个标记。
+// 需要更精细控制错误处理、大标记，或必须在读取器上连续扫描的程序，应改用 bufio.Reader。
 type Scanner struct {
-	r            io.Reader // The reader provided by the client.
-	split        SplitFunc // The function to split the tokens.
-	maxTokenSize int       // Maximum size of a token; modified by tests.
-	token        []byte    // Last token returned by split.
-	buf          []byte    // Buffer used as argument to split.
-	start        int       // First non-processed byte in buf.
-	end          int       // End of data in buf.
-	err          error     // Sticky error.
-	empties      int       // Count of successive empty tokens.
-	scanCalled   bool      // Scan has been called; buffer is in use.
-	done         bool      // Scan has finished.
+	r            io.Reader // 客户端提供的读取器
+	split        SplitFunc // 分割标记的函数
+	maxTokenSize int       // 标记的最大大小；测试时可修改
+	token        []byte    // 分割函数返回的最后一个标记
+	buf          []byte    // 作为分割函数参数的缓冲区
+	start        int       // buf 中首个未处理字节
+	end          int       // buf 中数据的结束位置
+	err          error     // 持久错误
+	empties      int       // 连续空标记的计数
+	scanCalled   bool      // Scan 已被调用；缓冲区正在使用
+	done         bool      // Scan 已完成
 }
 
-// SplitFunc is the signature of the split function used to tokenize the
-// input. The arguments are an initial substring of the remaining unprocessed
-// data and a flag, atEOF, that reports whether the [Reader] has no more data
-// to give. The return values are the number of bytes to advance the input
-// and the next token to return to the user, if any, plus an error, if any.
+// SplitFunc 是用于将输入标记化的分割函数的签名。
+// 参数为剩余未处理数据的初始子串，以及 atEOF 标志（报告 Reader 是否无更多数据可提供）。
+// 返回值为输入前进的字节数、返回给用户的下一个标记（若有），以及错误（若有）。
 //
-// Scanning stops if the function returns an error, in which case some of
-// the input may be discarded. If that error is [ErrFinalToken], scanning
-// stops with no error. A non-nil token delivered with [ErrFinalToken]
-// will be the last token, and a nil token with [ErrFinalToken]
-// immediately stops the scanning.
+// 若函数返回错误，扫描停止，此时部分输入可能被丢弃。
+// 若错误为 ErrFinalToken，扫描无错误停止。
+// 随 ErrFinalToken 传递的非 nil 标记将是最后一个标记，
+// 随 ErrFinalToken 传递的 nil 标记会立即停止扫描。
 //
-// Otherwise, the [Scanner] advances the input. If the token is not nil,
-// the [Scanner] returns it to the user. If the token is nil, the
-// Scanner reads more data and continues scanning; if there is no more
-// data--if atEOF was true--the [Scanner] returns. If the data does not
-// yet hold a complete token, for instance if it has no newline while
-// scanning lines, a [SplitFunc] can return (0, nil, nil) to signal the
-// [Scanner] to read more data into the slice and try again with a
-// longer slice starting at the same point in the input.
+// 否则，Scanner 前进输入。若标记非 nil，Scanner 将其返回给用户。
+// 若标记为 nil，Scanner 读取更多数据并继续扫描；若无更多数据（atEOF 为 true），Scanner 返回。
+// 若数据尚未包含完整标记（例如扫描行时无换行符），SplitFunc 可返回 (0, nil, nil)，
+// 示意 Scanner 读取更多数据到切片，并从输入的同一点开始用更长的切片重试。
 //
-// The function is never called with an empty data slice unless atEOF
-// is true. If atEOF is true, however, data may be non-empty and,
-// as always, holds unprocessed text.
+// 除非 atEOF 为 true，否则函数永远不会用空数据切片调用。
+// 但若 atEOF 为 true，data 可能非空，且始终包含未处理文本。
 type SplitFunc func(data []byte, atEOF bool) (advance int, token []byte, err error)
 
-// Errors returned by Scanner.
+// Scanner 返回的错误
 var (
 	ErrTooLong         = errors.New("bufio.Scanner: token too long")
 	ErrNegativeAdvance = errors.New("bufio.Scanner: SplitFunc returns negative advance count")
@@ -75,17 +61,15 @@ var (
 )
 
 const (
-	// MaxScanTokenSize is the maximum size used to buffer a token
-	// unless the user provides an explicit buffer with [Scanner.Buffer].
-	// The actual maximum token size may be smaller as the buffer
-	// may need to include, for instance, a newline.
+	// MaxScanTokenSize 是缓冲标记的最大大小，除非用户通过 Scanner.Buffer 显式提供缓冲区。
+	// 实际最大标记大小可能更小，因为缓冲区可能需要包含换行符等内容。
 	MaxScanTokenSize = 64 * 1024
 
-	startBufSize = 4096 // Size of initial allocation for buffer.
+	startBufSize = 4096 // 缓冲区初始分配大小
 )
 
-// NewScanner returns a new [Scanner] to read from r.
-// The split function defaults to [ScanLines].
+// NewScanner 返回一个从 r 读取的新 Scanner。
+// 分割函数默认为 ScanLines。
 func NewScanner(r io.Reader) *Scanner {
 	return &Scanner{
 		r:            r,
@@ -94,7 +78,7 @@ func NewScanner(r io.Reader) *Scanner {
 	}
 }
 
-// Err returns the first non-EOF error that was encountered by the [Scanner].
+// Err 返回 Scanner 遇到的首个非 EOF 错误。
 func (s *Scanner) Err() error {
 	if s.err == io.EOF {
 		return nil
@@ -102,59 +86,49 @@ func (s *Scanner) Err() error {
 	return s.err
 }
 
-// Bytes returns the most recent token generated by a call to [Scanner.Scan].
-// The underlying array may point to data that will be overwritten
-// by a subsequent call to Scan. It does no allocation.
+// Bytes 返回 Scanner.Scan 调用生成的最新标记。
+// 底层数组可能指向会被后续 Scan 调用覆盖的数据。不进行内存分配。
 func (s *Scanner) Bytes() []byte {
 	return s.token
 }
 
-// Text returns the most recent token generated by a call to [Scanner.Scan]
-// as a newly allocated string holding its bytes.
+// Text 将 Scanner.Scan 调用生成的最新标记作为新分配的字符串返回。
 func (s *Scanner) Text() string {
 	return string(s.token)
 }
 
-// ErrFinalToken is a special sentinel error value. It is intended to be
-// returned by a Split function to indicate that the scanning should stop
-// with no error. If the token being delivered with this error is not nil,
-// the token is the last token.
+// ErrFinalToken 是一个特殊的标记错误值。
+// 它旨在由分割函数返回，指示扫描应无错误停止。
+// 若随此错误传递的标记非 nil，该标记即为最后一个标记。
 //
-// The value is useful to stop processing early or when it is necessary to
-// deliver a final empty token (which is different from a nil token).
-// One could achieve the same behavior with a custom error value but
-// providing one here is tidier.
-// See the emptyFinalToken example for a use of this value.
+// 该值用于提前停止处理，或在需要传递最终空标记（与 nil 标记不同）时使用。
+// 可以用自定义错误值实现相同行为，但在此提供一个更整洁。
+// 参见 emptyFinalToken 示例了解该值的用法。
 var ErrFinalToken = errors.New("final token")
 
-// Scan advances the [Scanner] to the next token, which will then be
-// available through the [Scanner.Bytes] or [Scanner.Text] method. It returns false when
-// there are no more tokens, either by reaching the end of the input or an error.
-// After Scan returns false, the [Scanner.Err] method will return any error that
-// occurred during scanning, except that if it was [io.EOF], [Scanner.Err]
-// will return nil.
-// Scan panics if the split function returns too many empty
-// tokens without advancing the input. This is a common error mode for
-// scanners.
+// Scan 将 Scanner 前进到下一个标记，该标记随后可通过 Scanner.Bytes 或 Scanner.Text 方法获取。
+// 当无更多标记时（因到达输入末尾或错误）返回 false。
+// Scan 返回 false 后，Scanner.Err 方法将返回扫描期间发生的任何错误，
+// 但若为 io.EOF，Scanner.Err 将返回 nil。
+// 若分割函数在未前进输入的情况下返回过多空标记，Scan 会 panic。
+// 这是扫描器的常见错误模式。
 func (s *Scanner) Scan() bool {
 	if s.done {
 		return false
 	}
 	s.scanCalled = true
-	// Loop until we have a token.
+	// 循环直到获得标记
 	for {
-		// See if we can get a token with what we already have.
-		// If we've run out of data but have an error, give the split function
-		// a chance to recover any remaining, possibly empty token.
+		// 查看是否能用现有数据获得标记
+		// 若数据已耗尽但有错误，给分割函数机会恢复剩余的可能为空的标记
 		if s.end > s.start || s.err != nil {
 			advance, token, err := s.split(s.buf[s.start:s.end], s.err != nil)
 			if err != nil {
 				if err == ErrFinalToken {
 					s.token = token
 					s.done = true
-					// When token is not nil, it means the scanning stops
-					// with a trailing token, and thus the return value
-					// should be true to indicate the existence of the token.
+					// 当标记非 nil 时，意味着扫描随尾随标记停止，
+					// 因此返回值应为 true 以指示标记存在
 					return token != nil
 				}
 				s.setErr(err)
@@ -168,7 +142,7 @@ func (s *Scanner) Scan() bool {
 				if s.err == nil || advance > 0 {
 					s.empties = 0
 				} else {
-					// Returning tokens not advancing input at EOF.
+					// 在 EOF 处返回标记但未前进输入
 					s.empties++
 					if s.empties > maxConsecutiveEmptyReads {
 						panic("bufio.Scan: too many empty tokens without progressing")
@@ -177,25 +151,24 @@ func (s *Scanner) Scan() bool {
 				return true
 			}
 		}
-		// We cannot generate a token with what we are holding.
-		// If we've already hit EOF or an I/O error, we are done.
+		// 无法用现有数据生成标记
+		// 若已遇到 EOF 或 I/O 错误，结束扫描
 		if s.err != nil {
-			// Shut it down.
+			// 关闭扫描
 			s.start = 0
 			s.end = 0
 			return false
 		}
-		// Must read more data.
-		// First, shift data to beginning of buffer if there's lots of empty space
-		// or space is needed.
+		// 必须读取更多数据
+		// 首先，若有大量空闲空间或需要空间，将数据移至缓冲区开头
 		if s.start > 0 && (s.end == len(s.buf) || s.start > len(s.buf)/2) {
 			copy(s.buf, s.buf[s.start:s.end])
 			s.end -= s.start
 			s.start = 0
 		}
-		// Is the buffer full? If so, resize.
+		// 缓冲区已满？若是，调整大小
 		if s.end == len(s.buf) {
-			// Guarantee no overflow in the multiplication below.
+			// 保证下方乘法不溢出
 			const maxInt = int(^uint(0) >> 1)
 			if len(s.buf) >= s.maxTokenSize || len(s.buf) > maxInt/2 {
 				s.setErr(ErrTooLong)
@@ -212,9 +185,8 @@ func (s *Scanner) Scan() bool {
 			s.end -= s.start
 			s.start = 0
 		}
-		// Finally we can read some input. Make sure we don't get stuck with
-		// a misbehaving Reader. Officially we don't need to do this, but let's
-		// be extra careful: Scanner is for safe, simple jobs.
+		// 终于可以读取输入了。确保不会因行为不当的 Reader 卡住
+		// 官方上不需要这么做，但额外小心：Scanner 用于安全、简单的任务
 		for loop := 0; ; {
 			n, err := s.r.Read(s.buf[s.end:len(s.buf)])
 			if n < 0 || len(s.buf)-s.end < n {
@@ -239,7 +211,7 @@ func (s *Scanner) Scan() bool {
 	}
 }
 
-// advance consumes n bytes of the buffer. It reports whether the advance was legal.
+// advance 消耗缓冲区的 n 个字节。报告前进是否合法。
 func (s *Scanner) advance(n int) bool {
 	if n < 0 {
 		s.setErr(ErrNegativeAdvance)
@@ -253,25 +225,23 @@ func (s *Scanner) advance(n int) bool {
 	return true
 }
 
-// setErr records the first error encountered.
+// setErr 记录遇到的首个错误
 func (s *Scanner) setErr(err error) {
 	if s.err == nil || s.err == io.EOF {
 		s.err = err
 	}
 }
 
-// Buffer controls memory allocation by the Scanner.
-// It sets the initial buffer to use when scanning
-// and the maximum size of buffer that may be allocated during scanning.
-// The contents of the buffer are ignored.
+// Buffer 控制 Scanner 的内存分配。
+// 它设置扫描时使用的初始缓冲区，以及扫描期间可分配的最大缓冲区大小。
+// 缓冲区的内容被忽略。
 //
-// The maximum token size must be less than the larger of max and cap(buf).
-// If max <= cap(buf), [Scanner.Scan] will use this buffer only and do no allocation.
+// 最大标记大小必须小于 max 和 cap(buf) 中的较大者。
+// 若 max <= cap(buf)，Scanner.Scan 将仅使用此缓冲区，不进行内存分配。
 //
-// By default, [Scanner.Scan] uses an internal buffer and sets the
-// maximum token size to [MaxScanTokenSize].
+// 默认情况下，Scanner.Scan 使用内部缓冲区，并将最大标记大小设为 MaxScanTokenSize。
 //
-// Buffer panics if it is called after scanning has started.
+// 若在扫描开始后调用 Buffer，会 panic。
 func (s *Scanner) Buffer(buf []byte, max int) {
 	if s.scanCalled {
 		panic("Buffer called after Scan")
@@ -280,10 +250,10 @@ func (s *Scanner) Buffer(buf []byte, max int) {
 	s.maxTokenSize = max
 }
 
-// Split sets the split function for the [Scanner].
-// The default split function is [ScanLines].
+// Split 设置 Scanner 的分割函数。
+// 默认分割函数为 ScanLines。
 //
-// Split panics if it is called after scanning has started.
+// 若在扫描开始后调用 Split，会 panic。
 func (s *Scanner) Split(split SplitFunc) {
 	if s.scanCalled {
 		panic("Split called after Scan")
@@ -291,9 +261,9 @@ func (s *Scanner) Split(split SplitFunc) {
 	s.split = split
 }
 
-// Split functions
+// 分割函数
 
-// ScanBytes is a split function for a [Scanner] that returns each byte as a token.
+// ScanBytes 是 Scanner 的分割函数，将每个字节作为一个标记返回。
 func ScanBytes(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
@@ -303,45 +273,41 @@ func ScanBytes(data []byte, atEOF bool) (advance int, token []byte, err error) {
 
 var errorRune = []byte(string(utf8.RuneError))
 
-// ScanRunes is a split function for a [Scanner] that returns each
-// UTF-8-encoded rune as a token. The sequence of runes returned is
-// equivalent to that from a range loop over the input as a string, which
-// means that erroneous UTF-8 encodings translate to U+FFFD = "\xef\xbf\xbd".
-// Because of the Scan interface, this makes it impossible for the client to
-// distinguish correctly encoded replacement runes from encoding errors.
+// ScanRunes 是 Scanner 的分割函数，将每个 UTF-8 编码的字符作为一个标记返回。
+// 返回的字符序列与对输入作为字符串进行 range 循环的结果等效，
+// 这意味着错误的 UTF-8 编码会转换为 U+FFFD = "\xef\xbf\xbd"。
+// 由于 Scan 接口，客户端无法区分正确编码的替换字符与编码错误。
 func ScanRunes(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
 	}
 
-	// Fast path 1: ASCII.
+	// 快速路径 1：ASCII
 	if data[0] < utf8.RuneSelf {
 		return 1, data[0:1], nil
 	}
 
-	// Fast path 2: Correct UTF-8 decode without error.
+	// 快速路径 2：正确的 UTF-8 解码无错误
 	_, width := utf8.DecodeRune(data)
 	if width > 1 {
-		// It's a valid encoding. Width cannot be one for a correctly encoded
-		// non-ASCII rune.
+		// 有效编码。正确编码的非 ASCII 字符的宽度不可能为 1
 		return width, data[0:width], nil
 	}
 
-	// We know it's an error: we have width==1 and implicitly r==utf8.RuneError.
-	// Is the error because there wasn't a full rune to be decoded?
-	// FullRune distinguishes correctly between erroneous and incomplete encodings.
+	// 已知是错误：width==1 且隐含 r==utf8.RuneError
+	// 错误是因为没有完整的字符可解码吗？
+	// FullRune 正确区分错误编码与不完整编码
 	if !atEOF && !utf8.FullRune(data) {
-		// Incomplete; get more bytes.
+		// 不完整；获取更多字节
 		return 0, nil, nil
 	}
 
-	// We have a real UTF-8 encoding error. Return a properly encoded error rune
-	// but advance only one byte. This matches the behavior of a range loop over
-	// an incorrectly encoded string.
+	// 存在真正的 UTF-8 编码错误。返回正确编码的错误字符，但仅前进 1 个字节
+	// 这与对错误编码字符串进行 range 循环的行为一致
 	return 1, errorRune, nil
 }
 
-// dropCR drops a terminal \r from the data.
+// dropCR 从数据中去除末尾的 \r
 func dropCR(data []byte) []byte {
 	if len(data) > 0 && data[len(data)-1] == '\r' {
 		return data[0 : len(data)-1]
@@ -349,34 +315,31 @@ func dropCR(data []byte) []byte {
 	return data
 }
 
-// ScanLines is a split function for a [Scanner] that returns each line of
-// text, stripped of any trailing end-of-line marker. The returned line may
-// be empty. The end-of-line marker is one optional carriage return followed
-// by one mandatory newline. In regular expression notation, it is `\r?\n`.
-// The last non-empty line of input will be returned even if it has no
-// newline.
+// ScanLines 是 Scanner 的分割函数，将每行文本作为标记返回，并去除任何尾随的行尾标记。
+// 返回的行可能为空。行尾标记是一个可选的回车符后跟一个强制的换行符。
+// 在正则表达式表示法中，它是 `\r?\n`。
+// 输入的最后一个非空行即使没有换行符也会被返回。
 func ScanLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if atEOF && len(data) == 0 {
 		return 0, nil, nil
 	}
 	if i := bytes.IndexByte(data, '\n'); i >= 0 {
-		// We have a full newline-terminated line.
+		// 有完整的换行符结尾的行
 		return i + 1, dropCR(data[0:i]), nil
 	}
-	// If we're at EOF, we have a final, non-terminated line. Return it.
+	// 若在 EOF 处，有最后的未终止行。返回它
 	if atEOF {
 		return len(data), dropCR(data), nil
 	}
-	// Request more data.
+	// 请求更多数据
 	return 0, nil, nil
 }
 
-// isSpace reports whether the character is a Unicode white space character.
-// We avoid dependency on the unicode package, but check validity of the implementation
-// in the tests.
+// isSpace 报告字符是否为 Unicode 空白字符。
+// 我们避免依赖 unicode 包，但在测试中检查实现的有效性
 func isSpace(r rune) bool {
 	if r <= '\u00FF' {
-		// Obvious ASCII ones: \t through \r plus space. Plus two Latin-1 oddballs.
+		// 明显的 ASCII 空白：\t 到 \r 加空格。再加两个 Latin-1 特殊字符
 		switch r {
 		case ' ', '\t', '\n', '\v', '\f', '\r':
 			return true
@@ -385,7 +348,7 @@ func isSpace(r rune) bool {
 		}
 		return false
 	}
-	// High-valued ones.
+	// 高值字符
 	if '\u2000' <= r && r <= '\u200a' {
 		return true
 	}
@@ -396,12 +359,10 @@ func isSpace(r rune) bool {
 	return false
 }
 
-// ScanWords is a split function for a [Scanner] that returns each
-// space-separated word of text, with surrounding spaces deleted. It will
-// never return an empty string. The definition of space is set by
-// unicode.IsSpace.
+// ScanWords 是 Scanner 的分割函数，将每个空格分隔的单词作为标记返回，并去除周围的空格。
+// 它永远不会返回空字符串。空格的定义由 unicode.IsSpace 设定。
 func ScanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	// Skip leading spaces.
+	// 跳过开头的空格
 	start := 0
 	for width := 0; start < len(data); start += width {
 		var r rune
@@ -410,7 +371,7 @@ func ScanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
 			break
 		}
 	}
-	// Scan until space, marking end of word.
+	// 扫描直到空格，标记单词结束
 	for width, i := 0, start; i < len(data); i += width {
 		var r rune
 		r, width = utf8.DecodeRune(data[i:])
@@ -418,10 +379,10 @@ func ScanWords(data []byte, atEOF bool) (advance int, token []byte, err error) {
 			return i + width, data[start:i], nil
 		}
 	}
-	// If we're at EOF, we have a final, non-empty, non-terminated word. Return it.
+	// 若在 EOF 处，有最后的非空、未终止单词。返回它
 	if atEOF && len(data) > start {
 		return len(data), data[start:], nil
 	}
-	// Request more data.
+	// 请求更多数据
 	return start, nil, nil
 }
