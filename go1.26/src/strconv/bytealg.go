@@ -8,7 +8,7 @@ package strconv
 
 import "internal/bytealg"
 
-// index returns the index of the first instance of c in s, or -1 if missing.
+// index 返回 c 在 s 中第一次出现的索引，如果不存在则返回 -1。
 func index(s string, c byte) int {
 	return bytealg.IndexByteString(s, c)
 }

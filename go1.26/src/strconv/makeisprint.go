@@ -5,7 +5,7 @@
 //go:build ignore
 
 //
-// usage:
+// 用法:
 //
 // go run makeisprint.go -output isprint.go
 //
@@ -33,11 +33,11 @@ var (
 )
 
 func isPrint(r rune) bool {
-	// Same algorithm, either on uint16 or uint32 value.
-	// First, find first i such that rang[i] >= x.
-	// This is the index of either the start or end of a pair that might span x.
-	// The start is even (rang[i&^1]) and the end is odd (rang[i|1]).
-	// If we find x in a range, make sure x is not in exception list.
+	// 对于 uint16 或 uint32 值，算法相同。
+	// 首先，找到第一个满足 rang[i] >= x 的 i。
+	// 这是可能包含 x 的区间对的起点或终点的索引。
+	// 起点是偶数（rang[i&^1]），终点是奇数（rang[i|1]）。
+	// 如果在区间中找到 x，需确保 x 不在例外列表中。
 
 	if 0 <= r && r < 1<<16 {
 		rr, rang, except := uint16(r), range16, except16
@@ -62,7 +62,7 @@ func scan(min, max rune) (rang, except []uint32) {
 	lo := rune(-1)
 	for i := min; ; i++ {
 		if (i > max || !unicode.IsPrint(i)) && lo >= 0 {
-			// End range, but avoid flip flop.
+			// 结束区间，但避免反复波动。
 			if i+1 <= max && unicode.IsPrint(i+1) {
 				except = append(except, uint32(i))
 				continue
@@ -146,7 +146,7 @@ func main() {
 	}
 	fmt.Fprintf(&buf, "}\n\n")
 
-	// The list of graphic but not "printable" runes is short. Just make one easy table.
+	// 图形字符但非“可打印”字符的列表很短。直接做一个简单的表。
 	fmt.Fprintf(&buf, "// isGraphic lists the graphic runes not matched by IsPrint.\n")
 	fmt.Fprintf(&buf, "var isGraphic = []uint16{\n")
 	for r := rune(0); r <= unicode.MaxRune; r++ {
