@@ -6,12 +6,11 @@ package strings
 
 import "internal/bytealg"
 
-// Compare returns an integer comparing two strings lexicographically.
-// The result will be 0 if a == b, -1 if a < b, and +1 if a > b.
+// Compare 返回一个按字典顺序比较两个字符串的整数。
+// 如果 a == b，结果为 0；如果 a < b，结果为 -1；如果 a > b，结果为 +1。
 //
-// Use Compare when you need to perform a three-way comparison (with
-// [slices.SortFunc], for example). It is usually clearer and always faster
-// to use the built-in string comparison operators ==, <, >, and so on.
+// 当你需要执行三向比较时（例如与 [slices.SortFunc] 一起使用），请使用 Compare。
+// 使用内置的字符串比较运算符 ==、<、> 等通常更清晰，而且总是更快。
 func Compare(a, b string) int {
 	return bytealg.CompareString(a, b)
 }

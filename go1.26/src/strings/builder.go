@@ -11,67 +11,58 @@ import (
 	"unsafe"
 )
 
-// A Builder is used to efficiently build a string using [Builder.Write] methods.
-// It minimizes memory copying. The zero value is ready to use.
-// Do not copy a non-zero Builder.
+// Builder 用于通过 [Builder.Write] 方法高效地构建字符串。
+// 它最大限度地减少了内存复制。零值即可使用。
+// 不要复制非零的 Builder。
 type Builder struct {
-	addr *Builder // of receiver, to detect copies by value
+	addr *Builder // 接收者的地址，用于检测值复制
 
-	// External users should never get direct access to this buffer, since
-	// the slice at some point will be converted to a string using unsafe, also
-	// data between len(buf) and cap(buf) might be uninitialized.
+	// 外部用户永远不应直接访问此缓冲区，因为该切片在某个时刻会使用 unsafe 转换为字符串，
+	// 同时 len(buf) 和 cap(buf) 之间的数据可能未初始化。
 	buf []byte
 }
 
-// copyCheck implements a dynamic check to prevent modification after
-// copying a non-zero Builder, which would be unsafe (see #25907, #47276).
+// copyCheck 实现了一个动态检查，以防止在复制非零 Builder 后进行修改，这将是不安全的（参见 #25907、#47276）。
 //
-// We cannot add a noCopy field to Builder, to cause vet's copylocks
-// check to report copying, because copylocks cannot reliably
-// discriminate the zero and nonzero cases.
+// 我们无法向 Builder 添加 noCopy 字段来让 vet 的 copylocks 检查报告复制行为，
+// 因为 copylocks 无法可靠地区分零值和非零情况。
 func (b *Builder) copyCheck() {
 	if b.addr == nil {
-		// This hack works around a failing of Go's escape analysis
-		// that was causing b to escape and be heap allocated.
-		// See issue 23382.
-		// TODO: once issue 7921 is fixed, this should be reverted to
-		// just "b.addr = b".
+		// 此 hack 解决了 Go 逃逸分析的一个失败问题，该问题曾导致 b 逃逸并被分配到堆上。
+		// 参见 issue 23382。
+		// TODO：一旦 issue 7921 修复，应将此恢复为仅 "b.addr = b"。
 		b.addr = (*Builder)(abi.NoEscape(unsafe.Pointer(b)))
 	} else if b.addr != b {
 		panic("strings: illegal use of non-zero Builder copied by value")
 	}
 }
 
-// String returns the accumulated string.
+// String 返回累积的字符串。
 func (b *Builder) String() string {
 	return unsafe.String(unsafe.SliceData(b.buf), len(b.buf))
 }
 
-// Len returns the number of accumulated bytes; b.Len() == len(b.String()).
+// Len 返回累积的字节数；b.Len() == len(b.String())。
 func (b *Builder) Len() int { return len(b.buf) }
 
-// Cap returns the capacity of the builder's underlying byte slice. It is the
-// total space allocated for the string being built and includes any bytes
-// already written.
+// Cap 返回构建器底层字节切片的容量。它是为正在构建的字符串分配的总空间，包括已写入的任何字节。
 func (b *Builder) Cap() int { return cap(b.buf) }
 
-// Reset resets the [Builder] to be empty.
+// Reset 将 [Builder] 重置为空。
 func (b *Builder) Reset() {
 	b.addr = nil
 	b.buf = nil
 }
 
-// grow copies the buffer to a new, larger buffer so that there are at least n
-// bytes of capacity beyond len(b.buf).
+// grow 将缓冲区复制到一个新的更大的缓冲区，以便在 len(b.buf) 之外至少有 n 字节的容量。
 func (b *Builder) grow(n int) {
 	buf := bytealg.MakeNoZero(2*cap(b.buf) + n)[:len(b.buf)]
 	copy(buf, b.buf)
 	b.buf = buf
 }
 
-// Grow grows b's capacity, if necessary, to guarantee space for
-// another n bytes. After Grow(n), at least n bytes can be written to b
-// without another allocation. If n is negative, Grow panics.
+// Grow 如有必要，会增加 b 的容量，以确保有足够的空间再容纳 n 个字节。
+// 在 Grow(n) 之后，至少可以向 b 写入 n 个字节而无需再次分配。如果 n 为负数，Grow 会引发 panic。
 func (b *Builder) Grow(n int) {
 	b.copyCheck()
 	if n < 0 {
@@ -82,24 +73,24 @@ func (b *Builder) Grow(n int) {
 	}
 }
 
-// Write appends the contents of p to b's buffer.
-// Write always returns len(p), nil.
+// Write 将 p 的内容追加到 b 的缓冲区中。
+// Write 始终返回 len(p)，nil。
 func (b *Builder) Write(p []byte) (int, error) {
 	b.copyCheck()
 	b.buf = append(b.buf, p...)
 	return len(p), nil
 }
 
-// WriteByte appends the byte c to b's buffer.
-// The returned error is always nil.
+// WriteByte 将字节 c 追加到 b 的缓冲区中。
+// 返回的错误始终为 nil。
 func (b *Builder) WriteByte(c byte) error {
 	b.copyCheck()
 	b.buf = append(b.buf, c)
 	return nil
 }
 
-// WriteRune appends the UTF-8 encoding of Unicode code point r to b's buffer.
-// It returns the length of r and a nil error.
+// WriteRune 将 Unicode 码点 r 的 UTF-8 编码追加到 b 的缓冲区中。
+// 它返回 r 的长度和一个 nil 错误。
 func (b *Builder) WriteRune(r rune) (int, error) {
 	b.copyCheck()
 	n := len(b.buf)
@@ -107,8 +98,8 @@ func (b *Builder) WriteRune(r rune) (int, error) {
 	return len(b.buf) - n, nil
 }
 
-// WriteString appends the contents of s to b's buffer.
-// It returns the length of s and a nil error.
+// WriteString 将 s 的内容追加到 b 的缓冲区中。
+// 它返回 s 的长度和一个 nil 错误。
 func (b *Builder) WriteString(s string) (int, error) {
 	b.copyCheck()
 	b.buf = append(b.buf, s...)

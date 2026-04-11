@@ -10,18 +10,16 @@ import (
 	"unicode/utf8"
 )
 
-// A Reader implements the [io.Reader], [io.ReaderAt], [io.ByteReader], [io.ByteScanner],
-// [io.RuneReader], [io.RuneScanner], [io.Seeker], and [io.WriterTo] interfaces by reading
-// from a string.
-// The zero value for Reader operates like a Reader of an empty string.
+// Reader 通过读取字符串实现了 [io.Reader]、[io.ReaderAt]、[io.ByteReader]、[io.ByteScanner]、
+// [io.RuneReader]、[io.RuneScanner]、[io.Seeker] 以及 [io.WriterTo] 接口。
+// Reader 的零值表现等同于读取空字符串的 Reader。
 type Reader struct {
 	s        string
-	i        int64 // current reading index
-	prevRune int   // index of previous rune; or < 0
+	i        int64 // 当前读取索引
+	prevRune int   // 上一个符文的索引；小于 0 表示无
 }
 
-// Len returns the number of bytes of the unread portion of the
-// string.
+// Len 返回字符串中未读取部分的字节数。
 func (r *Reader) Len() int {
 	if r.i >= int64(len(r.s)) {
 		return 0
@@ -29,13 +27,12 @@ func (r *Reader) Len() int {
 	return int(int64(len(r.s)) - r.i)
 }
 
-// Size returns the original length of the underlying string.
-// Size is the number of bytes available for reading via [Reader.ReadAt].
-// The returned value is always the same and is not affected by calls
-// to any other method.
+// Size 返回底层字符串的原始长度。
+// Size 是可通过 [Reader.ReadAt] 读取的字节总数。
+// 该返回值始终固定，不受其他任何方法调用的影响。
 func (r *Reader) Size() int64 { return int64(len(r.s)) }
 
-// Read implements the [io.Reader] interface.
+// Read 实现了 [io.Reader] 接口。
 func (r *Reader) Read(b []byte) (n int, err error) {
 	if r.i >= int64(len(r.s)) {
 		return 0, io.EOF
@@ -46,9 +43,9 @@ func (r *Reader) Read(b []byte) (n int, err error) {
 	return
 }
 
-// ReadAt implements the [io.ReaderAt] interface.
+// ReadAt 实现了 [io.ReaderAt] 接口。
 func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
-	// cannot modify state - see io.ReaderAt
+	// 不可修改状态 - 参见 io.ReaderAt
 	if off < 0 {
 		return 0, errors.New("strings.Reader.ReadAt: negative offset")
 	}
@@ -62,7 +59,7 @@ func (r *Reader) ReadAt(b []byte, off int64) (n int, err error) {
 	return
 }
 
-// ReadByte implements the [io.ByteReader] interface.
+// ReadByte 实现了 [io.ByteReader] 接口。
 func (r *Reader) ReadByte() (byte, error) {
 	r.prevRune = -1
 	if r.i >= int64(len(r.s)) {
@@ -73,7 +70,7 @@ func (r *Reader) ReadByte() (byte, error) {
 	return b, nil
 }
 
-// UnreadByte implements the [io.ByteScanner] interface.
+// UnreadByte 实现了 [io.ByteScanner] 接口。
 func (r *Reader) UnreadByte() error {
 	if r.i <= 0 {
 		return errors.New("strings.Reader.UnreadByte: at beginning of string")
@@ -83,7 +80,7 @@ func (r *Reader) UnreadByte() error {
 	return nil
 }
 
-// ReadRune implements the [io.RuneReader] interface.
+// ReadRune 实现了 [io.RuneReader] 接口。
 func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	if r.i >= int64(len(r.s)) {
 		r.prevRune = -1
@@ -95,7 +92,7 @@ func (r *Reader) ReadRune() (ch rune, size int, err error) {
 	return
 }
 
-// UnreadRune implements the [io.RuneScanner] interface.
+// UnreadRune 实现了 [io.RuneScanner] 接口。
 func (r *Reader) UnreadRune() error {
 	if r.i <= 0 {
 		return errors.New("strings.Reader.UnreadRune: at beginning of string")
@@ -108,7 +105,7 @@ func (r *Reader) UnreadRune() error {
 	return nil
 }
 
-// Seek implements the [io.Seeker] interface.
+// Seek 实现了 [io.Seeker] 接口。
 func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	r.prevRune = -1
 	var abs int64
@@ -129,7 +126,7 @@ func (r *Reader) Seek(offset int64, whence int) (int64, error) {
 	return abs, nil
 }
 
-// WriteTo implements the [io.WriterTo] interface.
+// WriteTo 实现了 [io.WriterTo] 接口。
 func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	r.prevRune = -1
 	if r.i >= int64(len(r.s)) {
@@ -148,9 +145,9 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
 	return
 }
 
-// Reset resets the [Reader] to be reading from s.
+// Reset 将 [Reader] 重置为从 s 读取数据。
 func (r *Reader) Reset(s string) { *r = Reader{s, 0, -1} }
 
-// NewReader returns a new [Reader] reading from s.
-// It is similar to [bytes.NewBufferString] but more efficient and non-writable.
+// NewReader 返回一个从 s 读取数据的新 [Reader]。
+// 它与 [bytes.NewBufferString] 功能相似，但效率更高且不可写入。
 func NewReader(s string) *Reader { return &Reader{s, 0, -1} }

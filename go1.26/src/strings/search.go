@@ -4,44 +4,27 @@
 
 package strings
 
-// stringFinder efficiently finds strings in a source text. It's implemented
-// using the Boyer-Moore string search algorithm:
+// stringFinder 用于在源文本中高效查找字符串。它采用 Boyer-Moore 字符串搜索算法实现：
 // https://en.wikipedia.org/wiki/Boyer-Moore_string_search_algorithm
-// https://www.cs.utexas.edu/~moore/publications/fstrpos.pdf (note: this aged
-// document uses 1-based indexing)
+// https://www.cs.utexas.edu/~moore/publications/fstrpos.pdf（注意：这份早期文档使用的是从 1 开始的索引）
 type stringFinder struct {
-	// pattern is the string that we are searching for in the text.
+	// pattern 是我们要在文本中查找的字符串。
 	pattern string
 
-	// badCharSkip[b] contains the distance between the last byte of pattern
-	// and the rightmost occurrence of b in pattern. If b is not in pattern,
-	// badCharSkip[b] is len(pattern).
+	// badCharSkip[b] 存储 pattern 最后一个字节与 pattern 中 b 最右侧出现位置之间的距离。若 b 不在 pattern 中，
+	// badCharSkip[b] 的值为 len(pattern)。
 	//
-	// Whenever a mismatch is found with byte b in the text, we can safely
-	// shift the matching frame at least badCharSkip[b] until the next time
-	// the matching char could be in alignment.
+	// 当在文本中发现字节 b 不匹配时，我们可以安全地将匹配窗口至少移动 badCharSkip[b]，直到下一次可能匹配的字符对齐。
 	badCharSkip [256]int
 
-	// goodSuffixSkip[i] defines how far we can shift the matching frame given
-	// that the suffix pattern[i+1:] matches, but the byte pattern[i] does
-	// not. There are two cases to consider:
+	// goodSuffixSkip[i] 定义了当后缀 pattern[i+1:] 匹配但字节 pattern[i] 不匹配时，我们可以将匹配窗口移动的距离。需考虑两种情况：
 	//
-	// 1. The matched suffix occurs elsewhere in pattern (with a different
-	// byte preceding it that we might possibly match). In this case, we can
-	// shift the matching frame to align with the next suffix chunk. For
-	// example, the pattern "mississi" has the suffix "issi" next occurring
-	// (in right-to-left order) at index 1, so goodSuffixSkip[3] ==
-	// shift+len(suffix) == 3+4 == 7.
+	// 1. 匹配的后缀在 pattern 中其他位置出现（其前导字节不同，我们可能匹配该字节）。此时，我们可以移动匹配窗口以对齐下一个后缀块。
+	// 例如，pattern "mississi" 的后缀 "issi" 下一次出现（从右到左顺序）在索引 1 处，因此 goodSuffixSkip[3] == 偏移量+len(后缀) == 3+4 == 7。
 	//
-	// 2. If the matched suffix does not occur elsewhere in pattern, then the
-	// matching frame may share part of its prefix with the end of the
-	// matching suffix. In this case, goodSuffixSkip[i] will contain how far
-	// to shift the frame to align this portion of the prefix to the
-	// suffix. For example, in the pattern "abcxxxabc", when the first
-	// mismatch from the back is found to be in position 3, the matching
-	// suffix "xxabc" is not found elsewhere in the pattern. However, its
-	// rightmost "abc" (at position 6) is a prefix of the whole pattern, so
-	// goodSuffixSkip[3] == shift+len(suffix) == 6+5 == 11.
+	// 2. 若匹配的后缀未在 pattern 中其他位置出现，则匹配窗口的前缀可能与匹配后缀的末尾部分重叠。此时，goodSuffixSkip[i] 存储将窗口移动以使此前缀部分与后缀对齐所需的距离。
+	// 例如，在 pattern "abcxxxabc" 中，当从后往前首次在位置 3 发现不匹配时，匹配的后缀 "xxabc" 未在 pattern 中其他位置出现。
+	// 不过，其最右侧的 "abc"（位于位置 6）是整个 pattern 的前缀，因此 goodSuffixSkip[3] == 偏移量+len(后缀) == 6+5 == 11。
 	goodSuffixSkip []int
 }
 
@@ -50,37 +33,34 @@ func makeStringFinder(pattern string) *stringFinder {
 		pattern:        pattern,
 		goodSuffixSkip: make([]int, len(pattern)),
 	}
-	// last is the index of the last character in the pattern.
+	// last 是 pattern 中最后一个字符的索引。
 	last := len(pattern) - 1
 
-	// Build bad character table.
-	// Bytes not in the pattern can skip one pattern's length.
+	// 构建坏字符表。
+	// 不在 pattern 中的字节可以跳过一个 pattern 的长度。
 	for i := range f.badCharSkip {
 		f.badCharSkip[i] = len(pattern)
 	}
-	// The loop condition is < instead of <= so that the last byte does not
-	// have a zero distance to itself. Finding this byte out of place implies
-	// that it is not in the last position.
+	// 循环条件使用 < 而非 <=，以确保最后一个字节到自身的距离不为零。发现该字节位置不匹配意味着它不在最后一个位置。
 	for i := 0; i < last; i++ {
 		f.badCharSkip[pattern[i]] = last - i
 	}
 
-	// Build good suffix table.
-	// First pass: set each value to the next index which starts a prefix of
-	// pattern.
+	// 构建好后缀表。
+	// 第一轮：将每个值设置为 pattern 前缀起始的下一个索引。
 	lastPrefix := last
 	for i := last; i >= 0; i-- {
 		if HasPrefix(pattern, pattern[i+1:]) {
 			lastPrefix = i + 1
 		}
-		// lastPrefix is the shift, and (last-i) is len(suffix).
+		// lastPrefix 是偏移量，(last-i) 是后缀长度。
 		f.goodSuffixSkip[i] = lastPrefix + last - i
 	}
-	// Second pass: find repeats of pattern's suffix starting from the front.
+	// 第二轮：从前往后查找 pattern 后缀的重复出现。
 	for i := 0; i < last; i++ {
 		lenSuffix := longestCommonSuffix(pattern, pattern[1:i+1])
 		if pattern[i-lenSuffix] != pattern[last-lenSuffix] {
-			// (last-i) is the shift, and lenSuffix is len(suffix).
+			// (last-i) 是偏移量，lenSuffix 是后缀长度。
 			f.goodSuffixSkip[last-lenSuffix] = lenSuffix + last - i
 		}
 	}
@@ -97,19 +77,18 @@ func longestCommonSuffix(a, b string) (i int) {
 	return
 }
 
-// next returns the index in text of the first occurrence of the pattern. If
-// the pattern is not found, it returns -1.
+// next 返回 pattern 在 text 中首次出现的索引。若未找到 pattern，则返回 -1。
 func (f *stringFinder) next(text string) int {
 	i := len(f.pattern) - 1
 	for i < len(text) {
-		// Compare backwards from the end until the first unmatching character.
+		// 从末尾开始反向比较，直到第一个不匹配的字符。
 		j := len(f.pattern) - 1
 		for j >= 0 && text[i] == f.pattern[j] {
 			i--
 			j--
 		}
 		if j < 0 {
-			return i + 1 // match
+			return i + 1 // 匹配
 		}
 		i += max(f.badCharSkip[text[i]], f.goodSuffixSkip[j])
 	}

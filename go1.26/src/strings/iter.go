@@ -10,11 +10,11 @@ import (
 	"unicode/utf8"
 )
 
-// Lines returns an iterator over the newline-terminated lines in the string s.
-// The lines yielded by the iterator include their terminating newlines.
-// If s is empty, the iterator yields no lines at all.
-// If s does not end in a newline, the final yielded line will not end in a newline.
-// It returns a single-use iterator.
+// Lines 返回一个迭代器，用于遍历字符串 s 中以换行符结尾的行。
+// 迭代器产生的行包含其结尾的换行符。
+// 如果 s 为空，迭代器不会产生任何行。
+// 如果 s 不以换行符结尾，则最后产生的行也不会以换行符结尾。
+// 它返回一个单次使用的迭代器。
 func Lines(s string) iter.Seq[string] {
 	return func(yield func(string) bool) {
 		for len(s) > 0 {
@@ -31,8 +31,7 @@ func Lines(s string) iter.Seq[string] {
 	}
 }
 
-// splitSeq is SplitSeq or SplitAfterSeq, configured by how many
-// bytes of sep to include in the results (none or all).
+// splitSeq 是 SplitSeq 或 SplitAfterSeq，通过在结果中包含 sep 的字节数（不包含或全部包含）来配置。
 func splitSeq(s, sep string, sepSave int) iter.Seq[string] {
 	return func(yield func(string) bool) {
 		if len(sep) == 0 {
@@ -60,26 +59,22 @@ func splitSeq(s, sep string, sepSave int) iter.Seq[string] {
 	}
 }
 
-// SplitSeq returns an iterator over all substrings of s separated by sep.
-// The iterator yields the same strings that would be returned by [Split](s, sep),
-// but without constructing the slice.
-// It returns a single-use iterator.
+// SplitSeq 返回一个迭代器，用于遍历由 sep 分隔的 s 的所有子字符串。
+// 迭代器产生的字符串与 [Split] 返回的字符串相同，但不会构建切片。
+// 它返回一个单次使用的迭代器。
 func SplitSeq(s, sep string) iter.Seq[string] {
 	return splitSeq(s, sep, 0)
 }
 
-// SplitAfterSeq returns an iterator over substrings of s split after each instance of sep.
-// The iterator yields the same strings that would be returned by [SplitAfter](s, sep),
-// but without constructing the slice.
-// It returns a single-use iterator.
+// SplitAfterSeq 返回一个迭代器，用于遍历在每个 sep 实例后分割的 s 的子字符串。
+// 迭代器产生的字符串与 [SplitAfter] 返回的字符串相同，但不会构建切片。
+// 它返回一个单次使用的迭代器。
 func SplitAfterSeq(s, sep string) iter.Seq[string] {
 	return splitSeq(s, sep, len(sep))
 }
 
-// FieldsSeq returns an iterator over substrings of s split around runs of
-// whitespace characters, as defined by [unicode.IsSpace].
-// The iterator yields the same strings that would be returned by [Fields](s),
-// but without constructing the slice.
+// FieldsSeq 返回一个迭代器，用于遍历围绕由 [unicode.IsSpace] 定义的空白字符序列分割的 s 的子字符串。
+// 迭代器产生的字符串与 [Fields] 返回的字符串相同，但不会构建切片。
 func FieldsSeq(s string) iter.Seq[string] {
 	return func(yield func(string) bool) {
 		start := -1
@@ -109,10 +104,8 @@ func FieldsSeq(s string) iter.Seq[string] {
 	}
 }
 
-// FieldsFuncSeq returns an iterator over substrings of s split around runs of
-// Unicode code points satisfying f(c).
-// The iterator yields the same strings that would be returned by [FieldsFunc](s),
-// but without constructing the slice.
+// FieldsFuncSeq 返回一个迭代器，用于遍历围绕满足 f(c) 的 Unicode 码点序列分割的 s 的子字符串。
+// 迭代器产生的字符串与 [FieldsFunc] 返回的字符串相同，但不会构建切片。
 func FieldsFuncSeq(s string, f func(rune) bool) iter.Seq[string] {
 	return func(yield func(string) bool) {
 		start := -1
