@@ -10,8 +10,8 @@
 ## 第2部分 文本处理
 
 - [X] bytes：实现字节切片的操作函数
-- [ ] strings：实现UTF-8编码字符串的基础操作
-- [ ] strconv：基本数据类型与其字符串表示的转换
+- [X] strings：实现UTF-8编码字符串的基础操作
+- [X] strconv：基本数据类型与其字符串表示的转换
 - [ ] fmt：实现格式化I/O，类似C的printf/scanf
 - [ ] regexp：实现正则表达式搜索
 - [ ] html：提供HTML文本转义与反转义函数
