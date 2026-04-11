@@ -10,28 +10,23 @@ import (
 	"slices"
 )
 
-// Errorf formats according to a format specifier and returns the string as a
-// value that satisfies error.
+// Errorf 根据格式说明符格式化，并将结果字符串作为满足 error 接口的值返回。
 //
-// If the format specifier includes a %w verb with an error operand,
-// the returned error will implement an Unwrap method returning the operand.
-// If there is more than one %w verb, the returned error will implement an
-// Unwrap method returning a []error containing all the %w operands in the
-// order they appear in the arguments.
-// It is invalid to supply the %w verb with an operand that does not implement
-// the error interface. The %w verb is otherwise a synonym for %v.
+// 若格式说明符包含 %w 动词且操作数为错误类型，返回的错误将实现 Unwrap 方法并返回该操作数。
+// 若存在多个 %w 动词，返回的错误将实现 Unwrap 方法并返回 []error，其中包含所有 %w 操作数（按参数出现顺序排列）。
+// 为 %w 动词提供未实现 error 接口的操作数是无效的。除此之外，%w 动词是 %v 的同义词。
 func Errorf(format string, a ...any) (err error) {
-	// This function has been split in a somewhat unnatural way
-	// so that both it and the errors.New call can be inlined.
+	// 此函数以一种不太自然的方式拆分，
+	// 以便它自身和 errors.New 调用均可内联。
 	if err = errorf(format, a...); err != nil {
 		return err
 	}
-	// No formatting was needed. We can avoid some allocations and other work.
-	// See https://go.dev/cl/708836 for details.
+	// 无需格式化。可避免一些内存分配和其他工作。
+	// 详见 https://go.dev/cl/708836。
 	return errors.New(format)
 }
 
-// errorf formats and returns an error value, or nil if no formatting is required.
+// errorf 格式化并返回错误值；若无需格式化则返回 nil。
 func errorf(format string, a ...any) error {
 	if len(a) == 0 && stringslite.IndexByte(format, '%') == -1 {
 		return nil

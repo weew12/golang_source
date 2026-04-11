@@ -14,8 +14,8 @@ import (
 	"unicode/utf8"
 )
 
-// Strings for use with buffer.WriteString.
-// This is less overhead than using buffer.Write with byte arrays.
+// 供 buffer.WriteString 使用的字符串。
+// 与使用字节数组调用 buffer.Write 相比，这种方式开销更小。
 const (
 	commaSpaceString  = ", "
 	nilAngleString    = "<nil>"
@@ -33,56 +33,52 @@ const (
 	invReflectString  = "<invalid reflect.Value>"
 )
 
-// State represents the printer state passed to custom formatters.
-// It provides access to the [io.Writer] interface plus information about
-// the flags and options for the operand's format specifier.
+// State 表示传递给自定义格式化器的打印器状态。
+// 它提供对 [io.Writer] 接口的访问，以及操作数格式说明符的标志和选项信息。
 type State interface {
-	// Write is the function to call to emit formatted output to be printed.
+	// Write 是用于输出待打印格式化内容的函数。
 	Write(b []byte) (n int, err error)
-	// Width returns the value of the width option and whether it has been set.
+	// Width 返回宽度选项的值以及该选项是否已设置。
 	Width() (wid int, ok bool)
-	// Precision returns the value of the precision option and whether it has been set.
+	// Precision 返回精度选项的值以及该选项是否已设置。
 	Precision() (prec int, ok bool)
 
-	// Flag reports whether the flag c, a character, has been set.
+	// Flag 报告字符标志 c 是否已设置。
 	Flag(c int) bool
 }
 
-// Formatter is implemented by any value that has a Format method.
-// The implementation controls how [State] and rune are interpreted,
-// and may call [Sprint] or [Fprint](f) etc. to generate its output.
+// Formatter 由任何实现了 Format 方法的值实现。
+// 该实现控制如何解释 [State] 和 rune，
+// 并可调用 [Sprint] 或 [Fprint](sslocal://flow/file_open?url=f&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=) 等方法生成输出。
 type Formatter interface {
 	Format(f State, verb rune)
 }
 
-// Stringer is implemented by any value that has a String method,
-// which defines the “native” format for that value.
-// The String method is used to print values passed as an operand
-// to any format that accepts a string or to an unformatted printer
-// such as [Print].
+// Stringer 由任何实现了 String 方法的值实现，
+// 该方法定义了该值的“原生”格式。
+// 当值作为操作数传递给接受字符串的格式，
+// 或传递给 [Print] 这类无格式打印器时，会调用 String 方法进行打印。
 type Stringer interface {
 	String() string
 }
 
-// GoStringer is implemented by any value that has a GoString method,
-// which defines the Go syntax for that value.
-// The GoString method is used to print values passed as an operand
-// to a %#v format.
+// GoStringer 由任何实现了 GoString 方法的值实现，
+// 该方法定义了该值的 Go 语法格式。
+// 当值作为操作数传递给 %#v 格式时，会调用 GoString 方法进行打印。
 type GoStringer interface {
 	GoString() string
 }
 
-// FormatString returns a string representing the fully qualified formatting
-// directive captured by the [State], followed by the argument verb. ([State] does not
-// itself contain the verb.) The result has a leading percent sign followed by any
-// flags, the width, and the precision. Missing flags, width, and precision are
-// omitted. This function allows a [Formatter] to reconstruct the original
-// directive triggering the call to Format.
+// FormatString 返回一个字符串，代表 [State] 捕获的完整格式化指令，
+// 后跟参数动词。（[State] 本身不包含动词）
+// 结果以百分号开头，后跟任意标志、宽度和精度。
+// 未设置的标志、宽度和精度将被省略。
+// 该函数允许 [Formatter] 重建触发 Format 调用的原始指令。
 func FormatString(state State, verb rune) string {
-	var tmp [16]byte // Use a local buffer.
+	var tmp [16]byte // 使用局部缓冲区
 	b := append(tmp[:0], '%')
-	for _, c := range " +-#0" { // All known flags
-		if state.Flag(int(c)) { // The argument is an int for historical reasons.
+	for _, c := range " +-#0" { // 所有已知标志
+		if state.Flag(int(c)) { // 出于历史原因，参数为 int 类型
 			b = append(b, byte(c))
 		}
 	}
@@ -97,7 +93,7 @@ func FormatString(state State, verb rune) string {
 	return string(b)
 }
 
-// Use simple []byte instead of bytes.Buffer to avoid large dependency.
+// 使用简单的 []byte 而非 bytes.Buffer，避免引入大型依赖
 type buffer []byte
 
 func (b *buffer) write(p []byte) {
@@ -116,30 +112,30 @@ func (b *buffer) writeRune(r rune) {
 	*b = utf8.AppendRune(*b, r)
 }
 
-// pp is used to store a printer's state and is reused with sync.Pool to avoid allocations.
+// pp 用于存储打印器状态，并通过 sync.Pool 复用以避免内存分配
 type pp struct {
 	buf buffer
 
-	// arg holds the current item, as an interface{}.
+	// arg 以 interface{} 类型存储当前项
 	arg any
 
-	// value is used instead of arg for reflect values.
+	// value 用于反射值，替代 arg
 	value reflect.Value
 
-	// fmt is used to format basic items such as integers or strings.
+	// fmt 用于格式化整数、字符串等基础项
 	fmt fmt
 
-	// reordered records whether the format string used argument reordering.
+	// reordered 记录格式化字符串是否使用了参数重排序
 	reordered bool
-	// goodArgNum records whether the most recent reordering directive was valid.
+	// goodArgNum 记录最近的重排序指令是否有效
 	goodArgNum bool
-	// panicking is set by catchPanic to avoid infinite panic, recover, panic, ... recursion.
+	// panicking 由 catchPanic 设置，避免无限 panic、recover 递归
 	panicking bool
-	// erroring is set when printing an error string to guard against calling handleMethods.
+	// erroring 在打印错误字符串时设置，防止调用 handleMethods
 	erroring bool
-	// wrapErrs is set when the format string may contain a %w verb.
+	// wrapErs 在格式化字符串可能包含 %w 动词时设置
 	wrapErrs bool
-	// wrappedErrs records the targets of the %w verb.
+	// wrappedErrs 记录 %w 动词的目标参数
 	wrappedErrs []int
 }
 
@@ -147,7 +143,7 @@ var ppFree = sync.Pool{
 	New: func() any { return new(pp) },
 }
 
-// newPrinter allocates a new pp struct or grabs a cached one.
+// newPrinter 分配一个新的 pp 结构体，或获取一个缓存的结构体
 func newPrinter() *pp {
 	p := ppFree.Get().(*pp)
 	p.panicking = false
@@ -157,15 +153,14 @@ func newPrinter() *pp {
 	return p
 }
 
-// free saves used pp structs in ppFree; avoids an allocation per invocation.
+// free 将已使用的 pp 结构体存入 ppFree；避免每次调用都分配内存
 func (p *pp) free() {
-	// Proper usage of a sync.Pool requires each entry to have approximately
-	// the same memory cost. To obtain this property when the stored type
-	// contains a variably-sized buffer, we add a hard limit on the maximum
-	// buffer to place back in the pool. If the buffer is larger than the
-	// limit, we drop the buffer and recycle just the printer.
+	// 正确使用 sync.Pool 要求每个元素的内存开销大致相同。
+	// 当存储的类型包含可变大小的缓冲区时，为保证这一特性，
+	// 我们对放回池中的缓冲区设置最大容量硬限制。
+	// 若缓冲区超出限制，我们丢弃缓冲区，仅回收打印器本身。
 	//
-	// See https://golang.org/issue/23199.
+	// 参见 https://golang.org/issue/23199
 	if cap(p.buf) > 64*1024 {
 		p.buf = nil
 	} else {
@@ -201,24 +196,24 @@ func (p *pp) Flag(b int) bool {
 	return false
 }
 
-// Write implements [io.Writer] so we can call [Fprintf] on a pp (through [State]), for
-// recursive use in custom verbs.
+// Write 实现 [io.Writer] 接口，以便我们可以（通过 [State]）在 pp 上调用 [Fprintf]，
+// 用于自定义动词的递归调用
 func (p *pp) Write(b []byte) (ret int, err error) {
 	p.buf.write(b)
 	return len(b), nil
 }
 
-// WriteString implements [io.StringWriter] so that we can call [io.WriteString]
-// on a pp (through state), for efficiency.
+// WriteString 实现 [io.StringWriter] 接口，以便我们可以（通过 state）在 pp 上调用 [io.WriteString]，
+// 提升执行效率
 func (p *pp) WriteString(s string) (ret int, err error) {
 	p.buf.writeString(s)
 	return len(s), nil
 }
 
-// These routines end in 'f' and take a format string.
+// 以下函数以 'f' 结尾，接收格式化字符串
 
-// Fprintf formats according to a format specifier and writes to w.
-// It returns the number of bytes written and any write error encountered.
+// Fprintf 根据格式说明符进行格式化，并写入 w
+// 返回写入的字节数以及遇到的任何写入错误
 func Fprintf(w io.Writer, format string, a ...any) (n int, err error) {
 	p := newPrinter()
 	p.doPrintf(format, a)
@@ -227,13 +222,13 @@ func Fprintf(w io.Writer, format string, a ...any) (n int, err error) {
 	return
 }
 
-// Printf formats according to a format specifier and writes to standard output.
-// It returns the number of bytes written and any write error encountered.
+// Printf 根据格式说明符进行格式化，并写入标准输出
+// 返回写入的字节数以及遇到的任何写入错误
 func Printf(format string, a ...any) (n int, err error) {
 	return Fprintf(os.Stdout, format, a...)
 }
 
-// Sprintf formats according to a format specifier and returns the resulting string.
+// Sprintf 根据格式说明符进行格式化，并返回生成的字符串
 func Sprintf(format string, a ...any) string {
 	p := newPrinter()
 	p.doPrintf(format, a)
@@ -242,8 +237,8 @@ func Sprintf(format string, a ...any) string {
 	return s
 }
 
-// Appendf formats according to a format specifier, appends the result to the byte
-// slice, and returns the updated slice.
+// Appendf 根据格式说明符进行格式化，将结果追加到字节切片，
+// 并返回更新后的切片
 func Appendf(b []byte, format string, a ...any) []byte {
 	p := newPrinter()
 	p.doPrintf(format, a)
@@ -252,11 +247,11 @@ func Appendf(b []byte, format string, a ...any) []byte {
 	return b
 }
 
-// These routines do not take a format string
+// 以下函数不接收格式化字符串
 
-// Fprint formats using the default formats for its operands and writes to w.
-// Spaces are added between operands when neither is a string.
-// It returns the number of bytes written and any write error encountered.
+// Fprint 使用操作数的默认格式进行格式化，并写入 w
+// 当两个操作数均非字符串时，在操作数之间添加空格
+// 返回写入的字节数以及遇到的任何写入错误
 func Fprint(w io.Writer, a ...any) (n int, err error) {
 	p := newPrinter()
 	p.doPrint(a)
@@ -265,15 +260,15 @@ func Fprint(w io.Writer, a ...any) (n int, err error) {
 	return
 }
 
-// Print formats using the default formats for its operands and writes to standard output.
-// Spaces are added between operands when neither is a string.
-// It returns the number of bytes written and any write error encountered.
+// Print 使用操作数的默认格式进行格式化，并写入标准输出
+// 当两个操作数均非字符串时，在操作数之间添加空格
+// 返回写入的字节数以及遇到的任何写入错误
 func Print(a ...any) (n int, err error) {
 	return Fprint(os.Stdout, a...)
 }
 
-// Sprint formats using the default formats for its operands and returns the resulting string.
-// Spaces are added between operands when neither is a string.
+// Sprint 使用操作数的默认格式进行格式化，并返回生成的字符串
+// 当两个操作数均非字符串时，在操作数之间添加空格
 func Sprint(a ...any) string {
 	p := newPrinter()
 	p.doPrint(a)
@@ -282,9 +277,9 @@ func Sprint(a ...any) string {
 	return s
 }
 
-// Append formats using the default formats for its operands, appends the result to
-// the byte slice, and returns the updated slice.
-// Spaces are added between operands when neither is a string.
+// Append 使用操作数的默认格式进行格式化，将结果追加到字节切片，
+// 并返回更新后的切片
+// 当两个操作数均非字符串时，在操作数之间添加空格
 func Append(b []byte, a ...any) []byte {
 	p := newPrinter()
 	p.doPrint(a)
@@ -293,13 +288,12 @@ func Append(b []byte, a ...any) []byte {
 	return b
 }
 
-// These routines end in 'ln', do not take a format string,
-// always add spaces between operands, and add a newline
-// after the last operand.
+// 以下函数以 'ln' 结尾，不接收格式化字符串，
+// 始终在操作数之间添加空格，并在最后一个操作数后添加换行符
 
-// Fprintln formats using the default formats for its operands and writes to w.
-// Spaces are always added between operands and a newline is appended.
-// It returns the number of bytes written and any write error encountered.
+// Fprintln 使用操作数的默认格式进行格式化，并写入 w
+// 始终在操作数之间添加空格，并追加换行符
+// 返回写入的字节数以及遇到的任何写入错误
 func Fprintln(w io.Writer, a ...any) (n int, err error) {
 	p := newPrinter()
 	p.doPrintln(a)
@@ -308,15 +302,15 @@ func Fprintln(w io.Writer, a ...any) (n int, err error) {
 	return
 }
 
-// Println formats using the default formats for its operands and writes to standard output.
-// Spaces are always added between operands and a newline is appended.
-// It returns the number of bytes written and any write error encountered.
+// Println 使用操作数的默认格式进行格式化，并写入标准输出
+// 始终在操作数之间添加空格，并追加换行符
+// 返回写入的字节数以及遇到的任何写入错误
 func Println(a ...any) (n int, err error) {
 	return Fprintln(os.Stdout, a...)
 }
 
-// Sprintln formats using the default formats for its operands and returns the resulting string.
-// Spaces are always added between operands and a newline is appended.
+// Sprintln 使用操作数的默认格式进行格式化，并返回生成的字符串
+// 始终在操作数之间添加空格，并追加换行符
 func Sprintln(a ...any) string {
 	p := newPrinter()
 	p.doPrintln(a)
@@ -325,9 +319,8 @@ func Sprintln(a ...any) string {
 	return s
 }
 
-// Appendln formats using the default formats for its operands, appends the result
-// to the byte slice, and returns the updated slice. Spaces are always added
-// between operands and a newline is appended.
+// Appendln 使用操作数的默认格式进行格式化，将结果追加到字节切片，
+// 并返回更新后的切片。始终在操作数之间添加空格，并追加换行符
 func Appendln(b []byte, a ...any) []byte {
 	p := newPrinter()
 	p.doPrintln(a)
@@ -336,9 +329,8 @@ func Appendln(b []byte, a ...any) []byte {
 	return b
 }
 
-// getField gets the i'th field of the struct value.
-// If the field itself is a non-nil interface, return a value for
-// the thing inside the interface, not the interface itself.
+// getField 获取结构体值的第 i 个字段
+// 若该字段本身是非空接口，则返回接口内部的值，而非接口本身
 func getField(v reflect.Value, i int) reflect.Value {
 	val := v.Field(i)
 	if val.Kind() == reflect.Interface && !val.IsNil() {
@@ -347,21 +339,21 @@ func getField(v reflect.Value, i int) reflect.Value {
 	return val
 }
 
-// tooLarge reports whether the magnitude of the integer is
-// too large to be used as a formatting width or precision.
+// tooLarge 报告整数的大小是否过大，
+// 不适合用作格式化宽度或精度
 func tooLarge(x int) bool {
 	const max int = 1e6
 	return x > max || x < -max
 }
 
-// parsenum converts ASCII to integer.  num is 0 (and isnum is false) if no number present.
+// parsenum 将 ASCII 转换为整数。若不存在数字，num 为 0（且 isnum 为 false）
 func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
 	if start >= end {
 		return 0, false, end
 	}
 	for newi = start; newi < end && '0' <= s[newi] && s[newi] <= '9'; newi++ {
 		if tooLarge(num) {
-			return 0, false, end // Overflow; crazy long number most likely.
+			return 0, false, end // 溢出；极可能是超长数字
 		}
 		num = num*10 + int(s[newi]-'0')
 		isnum = true
@@ -409,8 +401,8 @@ func (p *pp) fmtBool(v bool, verb rune) {
 	}
 }
 
-// fmt0x64 formats a uint64 in hexadecimal and prefixes it with 0x or
-// not, as requested, by temporarily setting the sharp flag.
+// fmt0x64 将 uint64 格式化为十六进制，并根据要求添加 0x 前缀，
+// 通过临时设置 sharp 标志实现
 func (p *pp) fmt0x64(v uint64, leading0x bool) {
 	sharp := p.fmt.sharp
 	p.fmt.sharp = leading0x
@@ -418,7 +410,7 @@ func (p *pp) fmt0x64(v uint64, leading0x bool) {
 	p.fmt.sharp = sharp
 }
 
-// fmtInteger formats a signed or unsigned integer.
+// fmtInteger 格式化有符号或无符号整数
 func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 	switch verb {
 	case 'v':
@@ -448,8 +440,8 @@ func (p *pp) fmtInteger(v uint64, isSigned bool, verb rune) {
 	}
 }
 
-// fmtFloat formats a float. The default precision for each verb
-// is specified as last argument in the call to fmt_float.
+// fmtFloat 格式化浮点数。每个动词的默认精度
+// 作为 fmt_float 调用的最后一个参数指定
 func (p *pp) fmtFloat(v float64, size int, verb rune) {
 	switch verb {
 	case 'v':
@@ -465,18 +457,18 @@ func (p *pp) fmtFloat(v float64, size int, verb rune) {
 	}
 }
 
-// fmtComplex formats a complex number v with
-// r = real(v) and j = imag(v) as (r+ji) using
-// fmtFloat for r and j formatting.
+// fmtComplex 格式化复数 v，其中
+// r = real(v)，j = imag(v)，格式为 (r+ji)
+// 使用 fmtFloat 对 r 和 j 进行格式化
 func (p *pp) fmtComplex(v complex128, size int, verb rune) {
-	// Make sure any unsupported verbs are found before the
-	// calls to fmtFloat to not generate an incorrect error string.
+	// 确保在调用 fmtFloat 前检测到所有不支持的动词，
+	// 避免生成错误的错误字符串
 	switch verb {
 	case 'v', 'b', 'g', 'G', 'x', 'X', 'f', 'F', 'e', 'E':
 		oldPlus := p.fmt.plus
 		p.buf.writeByte('(')
 		p.fmtFloat(real(v), size/2, verb)
-		// Imaginary part always has a sign.
+		// 虚部始终带有符号
 		p.fmt.plus = true
 		p.fmtFloat(imag(v), size/2, verb)
 		p.buf.writeString("i)")
@@ -587,22 +579,22 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
 
 func (p *pp) catchPanic(arg any, verb rune, method string) {
 	if err := recover(); err != nil {
-		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
-		// Stringer that fails to guard against nil or a nil pointer for a
-		// value receiver, and in either case, "<nil>" is a nice result.
+		// 若为空指针，直接输出 "<nil>"。最可能的原因是
+		// Stringer 未做空值防护，或值接收器使用了空指针，
+		// 无论哪种情况，"<nil>" 都是合适的输出
 		if v := reflect.ValueOf(arg); v.Kind() == reflect.Pointer && v.IsNil() {
 			p.buf.writeString(nilAngleString)
 			return
 		}
-		// Otherwise print a concise panic message. Most of the time the panic
-		// value will print itself nicely.
+		// 否则打印简洁的 panic 信息。大多数情况下，
+		// panic 值本身可以正常打印
 		if p.panicking {
-			// Nested panics; the recursion in printArg cannot succeed.
+			// 嵌套 panic；printArg 中的递归无法成功执行
 			panic(err)
 		}
 
 		oldFlags := p.fmt.fmtFlags
-		// For this output we want default behavior.
+		// 该输出使用默认行为
 		p.fmt.clearflags()
 
 		p.buf.writeString(percentBangString)
@@ -624,17 +616,17 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 		return
 	}
 	if verb == 'w' {
-		// It is invalid to use %w other than with Errorf or with a non-error arg.
+		// %w 仅能与 Errorf 配合使用，且参数必须为 error 类型，否则无效
 		_, ok := p.arg.(error)
 		if !ok || !p.wrapErrs {
 			p.badVerb(verb)
 			return true
 		}
-		// If the arg is a Formatter, pass 'v' as the verb to it.
+		// 若参数实现了 Formatter，将动词 'v' 传递给它
 		verb = 'v'
 	}
 
-	// Is it a Formatter?
+	// 是否为 Formatter？
 	if formatter, ok := p.arg.(Formatter); ok {
 		handled = true
 		defer p.catchPanic(p.arg, verb, "Format")
@@ -642,25 +634,24 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
 		return
 	}
 
-	// If we're doing Go syntax and the argument knows how to supply it, take care of it now.
+	// 若需要 Go 语法格式且参数支持该格式，立即处理
 	if p.fmt.sharpV {
 		if stringer, ok := p.arg.(GoStringer); ok {
 			handled = true
 			defer p.catchPanic(p.arg, verb, "GoString")
-			// Print the result of GoString unadorned.
+			// 直接打印 GoString 的结果，不加修饰
 			p.fmt.fmtS(stringer.GoString())
 			return
 		}
 	} else {
-		// If a string is acceptable according to the format, see if
-		// the value satisfies one of the string-valued interfaces.
-		// Println etc. set verb to %v, which is "stringable".
+		// 若格式接受字符串，检查值是否实现了任意字符串相关接口
+		// Println 等方法会将动词设为 %v，该动词支持字符串格式化
 		switch verb {
 		case 'v', 's', 'x', 'X', 'q':
-			// Is it an error or Stringer?
-			// The duplication in the bodies is necessary:
-			// setting handled and deferring catchPanic
-			// must happen before calling the method.
+			// 是否为 error 或 Stringer？
+			// 函数体中的重复代码是必要的：
+			// 设置 handled 和延迟调用 catchPanic
+			// 必须在调用方法前执行
 			switch v := p.arg.(type) {
 			case error:
 				handled = true
@@ -693,8 +684,8 @@ func (p *pp) printArg(arg any, verb rune) {
 		return
 	}
 
-	// Special processing considerations.
-	// %T (the value's type) and %p (its address) are special; we always do them first.
+	// 特殊处理规则
+	// %T（值的类型）和 %p（值的地址）为特殊动词，始终优先处理
 	switch verb {
 	case 'T':
 		p.fmt.fmtS(reflect.TypeOf(arg).String())
@@ -704,7 +695,7 @@ func (p *pp) printArg(arg any, verb rune) {
 		return
 	}
 
-	// Some types can be done without reflection.
+	// 部分类型无需反射即可处理
 	switch f := arg.(type) {
 	case bool:
 		p.fmtBool(f, verb)
@@ -743,8 +734,8 @@ func (p *pp) printArg(arg any, verb rune) {
 	case []byte:
 		p.fmtBytes(f, verb, "[]byte")
 	case reflect.Value:
-		// Handle extractable values with special methods
-		// since printValue does not handle them at depth 0.
+		// 处理包含特殊方法且可提取的值
+		// 因为 printValue 在深度 0 时不处理这类值
 		if f.IsValid() && f.CanInterface() {
 			p.arg = f.Interface()
 			if p.handleMethods(verb) {
@@ -753,19 +744,18 @@ func (p *pp) printArg(arg any, verb rune) {
 		}
 		p.printValue(f, verb, 0)
 	default:
-		// If the type is not simple, it might have methods.
+		// 若类型非基础类型，可能包含方法
 		if !p.handleMethods(verb) {
-			// Need to use reflection, since the type had no
-			// interface methods that could be used for formatting.
+			// 需使用反射，因为该类型没有可用于格式化的接口方法
 			p.printValue(reflect.ValueOf(f), verb, 0)
 		}
 	}
 }
 
-// printValue is similar to printArg but starts with a reflect value, not an interface{} value.
-// It does not handle 'p' and 'T' verbs because these should have been already handled by printArg.
+// printValue 与 printArg 类似，但接收反射值而非 interface{} 值
+// 不处理 'p' 和 'T' 动词，这些动词已由 printArg 提前处理
 func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
-	// Handle values with special methods if not already handled by printArg (depth == 0).
+	// 若未被 printArg 处理（depth == 0），处理包含特殊方法的值
 	if depth > 0 && value.IsValid() && value.CanInterface() {
 		p.arg = value.Interface()
 		if p.handleMethods(verb) {
@@ -869,16 +859,16 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 	case reflect.Array, reflect.Slice:
 		switch verb {
 		case 's', 'q', 'x', 'X':
-			// Handle byte and uint8 slices and arrays special for the above verbs.
+			// 对上述动词，特殊处理字节和 uint8 切片/数组
 			t := f.Type()
 			if t.Elem().Kind() == reflect.Uint8 {
 				var bytes []byte
 				if f.Kind() == reflect.Slice || f.CanAddr() {
 					bytes = f.Bytes()
 				} else {
-					// We have an array, but we cannot Bytes() a non-addressable array,
-					// so we build a slice by hand. This is a rare case but it would be nice
-					// if reflection could help a little more.
+					// 处理数组场景：不可取地址的数组无法调用 Bytes()，
+					// 因此手动构建切片。该场景罕见，
+					// 若反射能提供更多支持会更好
 					bytes = make([]byte, f.Len())
 					for i := range bytes {
 						bytes[i] = byte(f.Index(i).Uint())
@@ -913,8 +903,8 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 			p.buf.writeByte(']')
 		}
 	case reflect.Pointer:
-		// pointer to array or slice or struct? ok at top level
-		// but not embedded (avoid loops)
+		// 指向数组、切片、结构体或映射的指针？顶层允许，
+		// 嵌套则禁止（避免循环）
 		if depth == 0 && f.UnsafePointer() != nil {
 			switch a := f.Elem(); a.Kind() {
 			case reflect.Array, reflect.Slice, reflect.Struct, reflect.Map:
@@ -931,13 +921,13 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
 	}
 }
 
-// intFromArg gets the argNumth element of a. On return, isInt reports whether the argument has integer type.
+// intFromArg 获取 a 中第 argNumth 个元素。返回时，isInt 报告参数是否为整数类型
 func intFromArg(a []any, argNum int) (num int, isInt bool, newArgNum int) {
 	newArgNum = argNum
 	if argNum < len(a) {
-		num, isInt = a[argNum].(int) // Almost always OK.
+		num, isInt = a[argNum].(int) // 绝大多数情况都有效
 		if !isInt {
-			// Work harder.
+			// 额外处理逻辑
 			switch v := reflect.ValueOf(a[argNum]); v.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 				n := v.Int()
@@ -952,7 +942,7 @@ func intFromArg(a []any, argNum int) (num int, isInt bool, newArgNum int) {
 					isInt = true
 				}
 			default:
-				// Already 0, false.
+				// 保持默认值 0, false
 			}
 		}
 		newArgNum = argNum + 1
@@ -964,34 +954,33 @@ func intFromArg(a []any, argNum int) (num int, isInt bool, newArgNum int) {
 	return
 }
 
-// parseArgNumber returns the value of the bracketed number, minus 1
-// (explicit argument numbers are one-indexed but we want zero-indexed).
-// The opening bracket is known to be present at format[0].
-// The returned values are the index, the number of bytes to consume
-// up to the closing paren, if present, and whether the number parsed
-// ok. The bytes to consume will be 1 if no closing paren is present.
+// parseArgNumber 返回方括号内数字的值减 1
+// （显式参数编号从 1 开始，而我们使用从 0 开始的索引）
+// 已知 format[0] 位置为左括号
+// 返回值为索引、需要消耗的字节数（至右括号，若存在）以及数字是否解析成功
+// 若无右括号，消耗字节数为 1
 func parseArgNumber(format string) (index int, wid int, ok bool) {
-	// There must be at least 3 bytes: [n].
+	// 至少需要 3 个字节：[n]
 	if len(format) < 3 {
 		return 0, 1, false
 	}
 
-	// Find closing bracket.
+	// 查找右括号
 	for i := 1; i < len(format); i++ {
 		if format[i] == ']' {
 			width, ok, newi := parsenum(format, 1, i)
 			if !ok || newi != i {
 				return 0, i + 1, false
 			}
-			return width - 1, i + 1, true // arg numbers are one-indexed and skip paren.
+			return width - 1, i + 1, true // 参数编号从 1 开始，跳过括号
 		}
 	}
 	return 0, 1, false
 }
 
-// argNumber returns the next argument to evaluate, which is either the value of the passed-in
-// argNum or the value of the bracketed integer that begins format[i:]. It also returns
-// the new value of i, that is, the index of the next byte of the format to process.
+// argNumber 返回下一个待求值的参数，可为传入的 argNum 值，
+// 或 format[i:] 起始的方括号整数。同时返回 i 的新值，
+// 即下一个待处理格式化字节的索引
 func (p *pp) argNumber(argNum int, format string, i int, numArgs int) (newArgNum, newi int, found bool) {
 	if len(format) <= i || format[i] != '[' {
 		return argNum, i, false
@@ -1019,8 +1008,8 @@ func (p *pp) missingArg(verb rune) {
 
 func (p *pp) doPrintf(format string, a []any) {
 	end := len(format)
-	argNum := 0         // we process one argument per non-trivial format
-	afterIndex := false // previous item in format was an index like [3].
+	argNum := 0         // 每个非平凡格式处理一个参数
+	afterIndex := false // 格式化字符串中上一项为 [3] 这类参数索引
 	p.reordered = false
 formatLoop:
 	for i := 0; i < end; {
@@ -1033,14 +1022,14 @@ formatLoop:
 			p.buf.writeString(format[lasti:i])
 		}
 		if i >= end {
-			// done processing format string
+			// 格式化字符串处理完毕
 			break
 		}
 
-		// Process one verb
+		// 处理一个动词
 		i++
 
-		// Do we have flags?
+		// 处理标志
 		p.fmt.clearflags()
 	simpleFormat:
 		for ; i < end; i++ {
@@ -1057,18 +1046,18 @@ formatLoop:
 			case ' ':
 				p.fmt.space = true
 			default:
-				// Fast path for common case of ascii lower case simple verbs
-				// without precision or width or argument indices.
+				// 快速处理无精度、无宽度、无参数索引的
+				// ASCII 小写简单动词通用场景
 				if 'a' <= c && c <= 'z' && argNum < len(a) {
 					switch c {
 					case 'w':
 						p.wrappedErrs = append(p.wrappedErrs, argNum)
 						fallthrough
 					case 'v':
-						// Go syntax
+						// Go 语法格式
 						p.fmt.sharpV = p.fmt.sharp
 						p.fmt.sharp = false
-						// Struct-field syntax
+						// 结构体字段格式
 						p.fmt.plusV = p.fmt.plus
 						p.fmt.plus = false
 					}
@@ -1077,15 +1066,15 @@ formatLoop:
 					i++
 					continue formatLoop
 				}
-				// Format is more complex than simple flags and a verb or is malformed.
+				// 格式比简单标志+动词更复杂，或格式非法
 				break simpleFormat
 			}
 		}
 
-		// Do we have an explicit argument index?
+		// 处理显式参数索引
 		argNum, i, afterIndex = p.argNumber(argNum, format, i, len(a))
 
-		// Do we have width?
+		// 处理宽度
 		if i < end && format[i] == '*' {
 			i++
 			p.fmt.wid, p.fmt.widPresent, argNum = intFromArg(a, argNum)
@@ -1094,12 +1083,11 @@ formatLoop:
 				p.buf.writeString(badWidthString)
 			}
 
-			// We have a negative width, so take its value and ensure
-			// that the minus flag is set
+			// 宽度为负数，取其绝对值并设置减号标志
 			if p.fmt.wid < 0 {
 				p.fmt.wid = -p.fmt.wid
 				p.fmt.minus = true
-				p.fmt.zero = false // Do not pad with zeros to the right.
+				p.fmt.zero = false // 禁止右侧补零
 			}
 			afterIndex = false
 		} else {
@@ -1109,7 +1097,7 @@ formatLoop:
 			}
 		}
 
-		// Do we have precision?
+		// 处理精度
 		if i+1 < end && format[i] == '.' {
 			i++
 			if afterIndex { // "%[3].2d"
@@ -1119,7 +1107,7 @@ formatLoop:
 			if i < end && format[i] == '*' {
 				i++
 				p.fmt.prec, p.fmt.precPresent, argNum = intFromArg(a, argNum)
-				// Negative precision arguments don't make sense
+				// 负精度无意义
 				if p.fmt.prec < 0 {
 					p.fmt.prec = 0
 					p.fmt.precPresent = false
@@ -1150,20 +1138,20 @@ formatLoop:
 		i += size
 
 		switch {
-		case verb == '%': // Percent does not absorb operands and ignores f.wid and f.prec.
+		case verb == '%': // 百分号不占用操作数，忽略宽度和精度
 			p.buf.writeByte('%')
 		case !p.goodArgNum:
 			p.badArgNum(verb)
-		case argNum >= len(a): // No argument left over to print for the current verb.
+		case argNum >= len(a): // 无剩余参数供当前动词打印
 			p.missingArg(verb)
 		case verb == 'w':
 			p.wrappedErrs = append(p.wrappedErrs, argNum)
 			fallthrough
 		case verb == 'v':
-			// Go syntax
+			// Go 语法格式
 			p.fmt.sharpV = p.fmt.sharp
 			p.fmt.sharp = false
-			// Struct-field syntax
+			// 结构体字段格式
 			p.fmt.plusV = p.fmt.plus
 			p.fmt.plus = false
 			fallthrough
@@ -1173,9 +1161,8 @@ formatLoop:
 		}
 	}
 
-	// Check for extra arguments unless the call accessed the arguments
-	// out of order, in which case it's too expensive to detect if they've all
-	// been used and arguably OK if they're not.
+	// 检查是否存在多余参数，除非调用乱序访问参数
+	// 乱序场景下检测所有参数是否用完成本过高，且未用完也可接受
 	if !p.reordered && argNum < len(a) {
 		p.fmt.clearflags()
 		p.buf.writeString(extraString)
@@ -1199,7 +1186,7 @@ func (p *pp) doPrint(a []any) {
 	prevString := false
 	for argNum, arg := range a {
 		isString := arg != nil && reflect.TypeOf(arg).Kind() == reflect.String
-		// Add a space between two non-string arguments.
+		// 两个非字符串参数之间添加空格
 		if argNum > 0 && !isString && !prevString {
 			p.buf.writeByte(' ')
 		}
@@ -1208,8 +1195,8 @@ func (p *pp) doPrint(a []any) {
 	}
 }
 
-// doPrintln is like doPrint but always adds a space between arguments
-// and a newline after the last argument.
+// doPrintln 与 doPrint 类似，但始终在参数之间添加空格，
+// 并在最后一个参数后添加换行符
 func (p *pp) doPrintln(a []any) {
 	for argNum, arg := range a {
 		if argNum > 0 {
