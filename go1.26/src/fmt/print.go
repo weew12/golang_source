@@ -49,7 +49,7 @@ type State interface {
 
 // Formatter 由任何实现了 Format 方法的值实现。
 // 该实现控制如何解释 [State] 和 rune，
-// 并可调用 [Sprint] 或 [Fprint](sslocal://flow/file_open?url=f&flow_extra=eyJsaW5rX3R5cGUiOiJjb2RlX2ludGVycHJldGVyIn0=) 等方法生成输出。
+// 并可调用 [Sprint] 或 [Fprint] 等方法生成输出。
 type Formatter interface {
 	Format(f State, verb rune)
 }
