@@ -11,17 +11,17 @@ import (
 	"unicode/utf8"
 )
 
-// Compiled program.
-// May not belong in this package, but convenient for now.
+// 编译后的程序。
+// 可能不属于此包，但目前放在这里很方便。
 
-// A Prog is a compiled regular expression program.
+// Prog 是一个编译后的正则表达式程序。
 type Prog struct {
 	Inst   []Inst
-	Start  int // index of start instruction
-	NumCap int // number of InstCapture insts in re
+	Start  int // 起始指令的索引
+	NumCap int // re 中 InstCapture 指令的数量
 }
 
-// An InstOp is an instruction opcode.
+// InstOp 是指令操作码。
 type InstOp uint8
 
 const (
@@ -59,7 +59,7 @@ func (i InstOp) String() string {
 	return instOpNames[i]
 }
 
-// An EmptyOp specifies a kind or mixture of zero-width assertions.
+// EmptyOp 指定一种或多种零宽度断言。
 type EmptyOp uint8
 
 const (
@@ -71,12 +71,10 @@ const (
 	EmptyNoWordBoundary
 )
 
-// EmptyOpContext returns the zero-width assertions
-// satisfied at the position between the runes r1 and r2.
-// Passing r1 == -1 indicates that the position is
-// at the beginning of the text.
-// Passing r2 == -1 indicates that the position is
-// at the end of the text.
+// EmptyOpContext 返回在 rune r1 和 r2 之间的位置
+// 满足的零宽度断言。
+// 传入 r1 == -1 表示该位置在文本开头。
+// 传入 r2 == -1 表示该位置在文本结尾。
 func EmptyOpContext(r1, r2 rune) EmptyOp {
 	var op EmptyOp = EmptyNoWordBoundary
 	var boundary byte
@@ -102,20 +100,20 @@ func EmptyOpContext(r1, r2 rune) EmptyOp {
 	return op
 }
 
-// IsWordChar reports whether r is considered a “word character”
-// during the evaluation of the \b and \B zero-width assertions.
-// These assertions are ASCII-only: the word characters are [A-Za-z0-9_].
+// IsWordChar 报告 r 是否被视为"单词字符"，
+// 用于 \b 和 \B 零宽度断言的求值过程中。
+// 这些断言仅限 ASCII：单词字符为 [A-Za-z0-9_]。
 func IsWordChar(r rune) bool {
-	// Test for lowercase letters first, as these occur more
-	// frequently than uppercase letters in common cases.
+	// 优先测试小写字母，因为在常见情况下
+	// 小写字母出现的频率高于大写字母。
 	return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || '0' <= r && r <= '9' || r == '_'
 }
 
-// An Inst is a single instruction in a regular expression program.
+// Inst 是正则表达式程序中的单条指令。
 type Inst struct {
 	Op   InstOp
-	Out  uint32 // all but InstMatch, InstFail
-	Arg  uint32 // InstAlt, InstAltMatch, InstCapture, InstEmptyWidth
+	Out  uint32 // 除 InstMatch、InstFail 外的所有指令
+	Arg  uint32 // InstAlt、InstAltMatch、InstCapture、InstEmptyWidth
 	Rune []rune
 }
 
@@ -125,7 +123,7 @@ func (p *Prog) String() string {
 	return b.String()
 }
 
-// skipNop follows any no-op or capturing instructions.
+// skipNop 跟随任何空操作或捕获指令。
 func (p *Prog) skipNop(pc uint32) *Inst {
 	i := &p.Inst[pc]
 	for i.Op == InstNop || i.Op == InstCapture {
@@ -134,7 +132,7 @@ func (p *Prog) skipNop(pc uint32) *Inst {
 	return i
 }
 
-// op returns i.Op but merges all the Rune special cases into InstRune
+// op 返回 i.Op，但将所有 Rune 特殊情况合并为 InstRune
 func (i *Inst) op() InstOp {
 	op := i.Op
 	switch op {
@@ -144,18 +142,17 @@ func (i *Inst) op() InstOp {
 	return op
 }
 
-// Prefix returns a literal string that all matches for the
-// regexp must start with. Complete is true if the prefix
-// is the entire match.
+// Prefix 返回一个字面字符串，正则表达式的所有匹配
+// 都必须以此开头。如果前缀就是整个匹配，则 Complete 为 true。
 func (p *Prog) Prefix() (prefix string, complete bool) {
 	i := p.skipNop(uint32(p.Start))
 
-	// Avoid allocation of buffer if prefix is empty.
+	// 如果前缀为空，避免分配缓冲区。
 	if i.op() != InstRune || len(i.Rune) != 1 {
 		return "", i.Op == InstMatch
 	}
 
-	// Have prefix; gather characters.
+	// 有前缀；收集字符。
 	var buf strings.Builder
 	for i.op() == InstRune && len(i.Rune) == 1 && Flags(i.Arg)&FoldCase == 0 && i.Rune[0] != utf8.RuneError {
 		buf.WriteRune(i.Rune[0])
@@ -164,8 +161,8 @@ func (p *Prog) Prefix() (prefix string, complete bool) {
 	return buf.String(), i.Op == InstMatch
 }
 
-// StartCond returns the leading empty-width conditions that must
-// be true in any match. It returns ^EmptyOp(0) if no matches are possible.
+// StartCond 返回在任何匹配中必须为真的前导零宽度条件。
+// 如果不可能有匹配，则返回 ^EmptyOp(0)。
 func (p *Prog) StartCond() EmptyOp {
 	var flag EmptyOp
 	pc := uint32(p.Start)
@@ -190,17 +187,17 @@ Loop:
 
 const noMatch = -1
 
-// MatchRune reports whether the instruction matches (and consumes) r.
-// It should only be called when i.Op == [InstRune].
+// MatchRune 报告该指令是否匹配（并消耗）r。
+// 只应在 i.Op == [InstRune] 时调用。
 func (i *Inst) MatchRune(r rune) bool {
 	return i.MatchRunePos(r) != noMatch
 }
 
-// MatchRunePos checks whether the instruction matches (and consumes) r.
-// If so, MatchRunePos returns the index of the matching rune pair
-// (or, when len(i.Rune) == 1, rune singleton).
-// If not, MatchRunePos returns -1.
-// MatchRunePos should only be called when i.Op == [InstRune].
+// MatchRunePos 检查该指令是否匹配（并消耗）r。
+// 如果匹配，MatchRunePos 返回匹配的 rune 对的索引
+// （或者当 len(i.Rune) == 1 时，返回单个 rune 的索引）。
+// 如果不匹配，MatchRunePos 返回 -1。
+// MatchRunePos 只应在 i.Op == [InstRune] 时调用。
 func (i *Inst) MatchRunePos(r rune) int {
 	rune := i.Rune
 
@@ -209,7 +206,7 @@ func (i *Inst) MatchRunePos(r rune) int {
 		return noMatch
 
 	case 1:
-		// Special case: single-rune slice is from literal string, not char class.
+		// 特殊情况：单 rune 切片来自字面字符串，而非字符类。
 		r0 := rune[0]
 		if r == r0 {
 			return 0
@@ -230,8 +227,8 @@ func (i *Inst) MatchRunePos(r rune) int {
 		return noMatch
 
 	case 4, 6, 8:
-		// Linear search for a few pairs.
-		// Should handle ASCII well.
+		// 对少量对进行线性搜索。
+		// 应该能很好地处理 ASCII。
 		for j := 0; j < len(rune); j += 2 {
 			if r < rune[j] {
 				return noMatch
@@ -243,7 +240,7 @@ func (i *Inst) MatchRunePos(r rune) int {
 		return noMatch
 	}
 
-	// Otherwise binary search.
+	// 否则使用二分搜索。
 	lo := 0
 	hi := len(rune) / 2
 	for lo < hi {
@@ -260,9 +257,9 @@ func (i *Inst) MatchRunePos(r rune) int {
 	return noMatch
 }
 
-// MatchEmptyWidth reports whether the instruction matches
-// an empty string between the runes before and after.
-// It should only be called when i.Op == [InstEmptyWidth].
+// MatchEmptyWidth 报告该指令是否匹配
+// rune before 和 after 之间的空字符串。
+// 只应在 i.Op == [InstEmptyWidth] 时调用。
 func (i *Inst) MatchEmptyWidth(before rune, after rune) bool {
 	switch EmptyOp(i.Arg) {
 	case EmptyBeginLine:

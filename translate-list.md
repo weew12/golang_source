@@ -13,7 +13,7 @@
 - [X] strings：实现UTF-8编码字符串的基础操作
 - [X] strconv：基本数据类型与其字符串表示的转换
 - [X] fmt：实现格式化I/O，类似C的printf/scanf
-- [ ] regexp：实现正则表达式搜索
+- [X] regexp：实现正则表达式搜索
 - [ ] html：提供HTML文本转义与反转义函数
 - [ ] unicode：提供Unicode码点属性测试相关函数
 - [ ] text/scanner：UTF-8文本的扫描器与分词器

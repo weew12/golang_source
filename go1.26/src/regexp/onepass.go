@@ -12,32 +12,31 @@ import (
 	"unicode/utf8"
 )
 
-// "One-pass" regexp execution.
-// Some regexps can be analyzed to determine that they never need
-// backtracking: they are guaranteed to run in one pass over the string
-// without bothering to save all the usual NFA state.
-// Detect those and execute them more quickly.
+// "单遍"正则表达式执行。
+// 某些正则表达式可以通过分析确定它们永远不需要
+// 回溯：它们保证在字符串上一遍运行完成，
+// 无需费心保存所有常规的 NFA 状态。
+// 检测这些正则表达式并更快速地执行它们。
 
-// A onePassProg is a compiled one-pass regular expression program.
-// It is the same as syntax.Prog except for the use of onePassInst.
+// onePassProg 是一个编译后的单遍正则表达式程序。
+// 它与 syntax.Prog 相同，只是使用了 onePassInst。
 type onePassProg struct {
 	Inst   []onePassInst
-	Start  int // index of start instruction
-	NumCap int // number of InstCapture insts in re
+	Start  int // 起始指令的索引
+	NumCap int // re 中 InstCapture 指令的数量
 }
 
-// A onePassInst is a single instruction in a one-pass regular expression program.
-// It is the same as syntax.Inst except for the new 'Next' field.
+// onePassInst 是单遍正则表达式程序中的一条指令。
+// 它与 syntax.Inst 相同，只是增加了新的 'Next' 字段。
 type onePassInst struct {
 	syntax.Inst
 	Next []uint32
 }
 
-// onePassPrefix returns a literal string that all matches for the
-// regexp must start with. Complete is true if the prefix
-// is the entire match. Pc is the index of the last rune instruction
-// in the string. The onePassPrefix skips over the mandatory
-// EmptyBeginText.
+// onePassPrefix 返回一个字面字符串，该正则表达式的所有匹配
+// 都必须以此开头。如果前缀就是整个匹配，则 Complete 为 true。
+// Pc 是字符串中最后一条 rune 指令的索引。
+// onePassPrefix 会跳过强制性的 EmptyBeginText。
 func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 	i := &p.Inst[p.Start]
 	if i.Op != syntax.InstEmptyWidth || (syntax.EmptyOp(i.Arg))&syntax.EmptyBeginText == 0 {
@@ -49,12 +48,12 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 		pc = i.Out
 		i = &p.Inst[pc]
 	}
-	// Avoid allocation of buffer if prefix is empty.
+	// 如果前缀为空，避免分配缓冲区。
 	if iop(i) != syntax.InstRune || len(i.Rune) != 1 {
 		return "", i.Op == syntax.InstMatch, uint32(p.Start)
 	}
 
-	// Have prefix; gather characters.
+	// 有前缀；收集字符。
 	var buf strings.Builder
 	for iop(i) == syntax.InstRune && len(i.Rune) == 1 && syntax.Flags(i.Arg)&syntax.FoldCase == 0 && i.Rune[0] != utf8.RuneError {
 		buf.WriteRune(i.Rune[0])
@@ -68,10 +67,10 @@ func onePassPrefix(p *syntax.Prog) (prefix string, complete bool, pc uint32) {
 	return buf.String(), complete, pc
 }
 
-// onePassNext selects the next actionable state of the prog, based on the input character.
-// It should only be called when i.Op == InstAlt or InstAltMatch, and from the one-pass machine.
-// One of the alternates may ultimately lead without input to end of line. If the instruction
-// is InstAltMatch the path to the InstMatch is in i.Out, the normal node in i.Next.
+// onePassNext 根据输入字符选择程序的下一个可操作状态。
+// 它只应在 i.Op == InstAlt 或 InstAltMatch 时从单遍机器中调用。
+// 其中一个备选分支最终可能在没有输入的情况下到达行尾。如果指令
+// 是 InstAltMatch，则到 InstMatch 的路径在 i.Out 中，正常节点在 i.Next 中。
 func onePassNext(i *onePassInst, r rune) uint32 {
 	next := i.MatchRunePos(r)
 	if next >= 0 {
@@ -92,7 +91,7 @@ func iop(i *syntax.Inst) syntax.InstOp {
 	return op
 }
 
-// Sparse Array implementation is used as a queueOnePass.
+// 稀疏数组实现被用作 queueOnePass。
 type queueOnePass struct {
 	sparse          []uint32
 	dense           []uint32
@@ -143,11 +142,11 @@ func newQueue(size int) (q *queueOnePass) {
 	}
 }
 
-// mergeRuneSets merges two non-intersecting runesets, and returns the merged result,
-// and a NextIp array. The idea is that if a rune matches the OnePassRunes at index
-// i, NextIp[i/2] is the target. If the input sets intersect, an empty runeset and a
-// NextIp array with the single element mergeFailed is returned.
-// The code assumes that both inputs contain ordered and non-intersecting rune pairs.
+// mergeRuneSets 合并两个不相交的 rune 集合，并返回合并结果
+// 和一个 NextIp 数组。其思路是，如果一个 rune 匹配索引 i 处的
+// OnePassRunes，则 NextIp[i/2] 是目标。如果输入集合相交，则返回
+// 一个空的 rune 集合和一个仅包含单个元素 mergeFailed 的 NextIp 数组。
+// 该代码假设两个输入都包含有序且不相交的 rune 对。
 const mergeFailed = uint32(0xffffffff)
 
 var (
@@ -204,7 +203,7 @@ func mergeRuneSets(leftRunes, rightRunes *[]rune, leftPC, rightPC uint32) ([]run
 	return merged, next
 }
 
-// cleanupOnePass drops working memory, and restores certain shortcut instructions.
+// cleanupOnePass 释放工作内存，并恢复某些快捷指令。
 func cleanupOnePass(prog *onePassProg, original *syntax.Prog) {
 	for ix, instOriginal := range original.Inst {
 		switch instOriginal.Op {
@@ -218,7 +217,7 @@ func cleanupOnePass(prog *onePassProg, original *syntax.Prog) {
 	}
 }
 
-// onePassCopy creates a copy of the original Prog, as we'll be modifying it.
+// onePassCopy 创建原始 Prog 的副本，因为我们将对其进行修改。
 func onePassCopy(prog *syntax.Prog) *onePassProg {
 	p := &onePassProg{
 		Start:  prog.Start,
@@ -229,9 +228,9 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
 		p.Inst[i] = onePassInst{Inst: inst}
 	}
 
-	// rewrites one or more common Prog constructs that enable some otherwise
-	// non-onepass Progs to be onepass. A:BD (for example) means an InstAlt at
-	// ip A, that points to ips B & C.
+	// 重写一个或多个常见的 Prog 结构，使一些原本
+	// 非单遍的 Prog 可以成为单遍。A:BD（例如）表示在
+	// ip A 处的 InstAlt，指向 ip B 和 C。
 	// A:BC + B:DA => A:BC + B:CD
 	// A:BC + B:DC => A:DC + B:DC
 	for pc := range p.Inst {
@@ -242,7 +241,7 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
 			// A:Bx + B:Ay
 			p_A_Other := &p.Inst[pc].Out
 			p_A_Alt := &p.Inst[pc].Arg
-			// make sure a target is another Alt
+			// 确保目标是另一个 Alt
 			instAlt := p.Inst[*p_A_Alt]
 			if !(instAlt.Op == syntax.InstAlt || instAlt.Op == syntax.InstAltMatch) {
 				p_A_Alt, p_A_Other = p_A_Other, p_A_Alt
@@ -252,12 +251,12 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
 				}
 			}
 			instOther := p.Inst[*p_A_Other]
-			// Analyzing both legs pointing to Alts is for another day
+			// 分析两条分支都指向 Alt 的情况留待以后
 			if instOther.Op == syntax.InstAlt || instOther.Op == syntax.InstAltMatch {
-				// too complicated
+				// 太复杂
 				continue
 			}
-			// simple empty transition loop
+			// 简单的空转换循环
 			// A:BC + B:DA => A:BC + B:DC
 			p_B_Alt := &p.Inst[*p_A_Alt].Out
 			p_B_Other := &p.Inst[*p_A_Alt].Arg
@@ -272,7 +271,7 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
 				*p_B_Alt = *p_A_Other
 			}
 
-			// empty transition to common target
+			// 空转换到公共目标
 			// A:BC + B:DC => A:DC + B:DC
 			if *p_A_Other == *p_B_Alt {
 				*p_A_Alt = *p_B_Other
@@ -285,13 +284,13 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
 var anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
 var anyRune = []rune{0, unicode.MaxRune}
 
-// makeOnePass creates a onepass Prog, if possible. It is possible if at any alt,
-// the match engine can always tell which branch to take. The routine may modify
-// p if it is turned into a onepass Prog. If it isn't possible for this to be a
-// onepass Prog, the Prog nil is returned. makeOnePass is recursive
-// to the size of the Prog.
+// makeOnePass 如果可能的话，创建一个单遍 Prog。如果在任何 alt 处，
+// 匹配引擎总是可以确定该走哪个分支，则这是可能的。如果将其
+// 转换为单遍 Prog，该例程可能会修改 p。如果无法将其转换为
+// 单遍 Prog，则返回 nil Prog。makeOnePass 的递归深度
+// 与 Prog 的大小成正比。
 func makeOnePass(p *onePassProg) *onePassProg {
-	// If the machine is very long, it's not worth the time to check if we can use one pass.
+	// 如果机器非常长，不值得花时间检查是否可以使用单遍。
 	if len(p.Inst) >= 1000 {
 		return nil
 	}
@@ -303,8 +302,8 @@ func makeOnePass(p *onePassProg) *onePassProg {
 		onePassRunes = make([][]rune, len(p.Inst))
 	)
 
-	// check that paths from Alt instructions are unambiguous, and rebuild the new
-	// program as a onepass program
+	// 检查从 Alt 指令出发的路径是否无歧义，并将新程序
+	// 重建为单遍程序
 	check = func(pc uint32, m []bool) (ok bool) {
 		ok = true
 		inst := &p.Inst[pc]
@@ -315,14 +314,14 @@ func makeOnePass(p *onePassProg) *onePassProg {
 		switch inst.Op {
 		case syntax.InstAlt, syntax.InstAltMatch:
 			ok = check(inst.Out, m) && check(inst.Arg, m)
-			// check no-input paths to InstMatch
+			// 检查到 InstMatch 的无输入路径
 			matchOut := m[inst.Out]
 			matchArg := m[inst.Arg]
 			if matchOut && matchArg {
 				ok = false
 				break
 			}
-			// Match on empty goes in inst.Out
+			// 空匹配放入 inst.Out
 			if matchArg {
 				inst.Out, inst.Arg = inst.Arg, inst.Out
 				matchOut, matchArg = matchArg, matchOut
@@ -332,7 +331,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 				inst.Op = syntax.InstAltMatch
 			}
 
-			// build a dispatch operator from the two legs of the alt.
+			// 从 alt 的两条分支构建一个分发操作符。
 			onePassRunes[pc], inst.Next = mergeRuneSets(
 				&onePassRunes[inst.Out], &onePassRunes[inst.Arg], inst.Out, inst.Arg)
 			if len(inst.Next) > 0 && inst.Next[0] == mergeFailed {
@@ -342,7 +341,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 		case syntax.InstCapture, syntax.InstNop:
 			ok = check(inst.Out, m)
 			m[pc] = m[inst.Out]
-			// pass matching runes back through these no-ops.
+			// 将匹配的 rune 通过这些空操作传递回来。
 			onePassRunes[pc] = append([]rune{}, onePassRunes[inst.Out]...)
 			inst.Next = make([]uint32, len(onePassRunes[pc])/2+1)
 			for i := range inst.Next {
@@ -393,7 +392,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
 			}
 			instQueue.insert(inst.Out)
 			runes := []rune{}
-			// expand case-folded runes
+			// 展开大小写折叠的 rune
 			if syntax.Flags(inst.Arg)&syntax.FoldCase != 0 {
 				r0 := inst.Rune[0]
 				runes = append(runes, r0, r0)
@@ -452,15 +451,15 @@ func makeOnePass(p *onePassProg) *onePassProg {
 	return p
 }
 
-// compileOnePass returns a new *syntax.Prog suitable for onePass execution if the original Prog
-// can be recharacterized as a one-pass regexp program, or syntax.nil if the
-// Prog cannot be converted. For a one pass prog, the fundamental condition that must
-// be true is: at any InstAlt, there must be no ambiguity about what branch to  take.
+// compileOnePass 如果原始 Prog 可以被重新定性为单遍正则表达式程序，
+// 则返回适用于 onePass 执行的新 *syntax.Prog，否则返回 nil。
+// 对于单遍程序，必须满足的基本条件是：在任何 InstAlt 处，
+// 对于该走哪个分支不得有歧义。
 func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
 	if prog.Start == 0 {
 		return nil
 	}
-	// onepass regexp is anchored
+	// 单遍正则表达式是锚定的
 	if prog.Inst[prog.Start].Op != syntax.InstEmptyWidth ||
 		syntax.EmptyOp(prog.Inst[prog.Start].Arg)&syntax.EmptyBeginText != syntax.EmptyBeginText {
 		return nil
@@ -472,8 +471,8 @@ func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
 			break
 		}
 	}
-	// If we have alternates, every instruction leading to InstMatch must be EmptyEndText.
-	// Also, any match on empty text must be $.
+	// 如果有备选分支，每条通向 InstMatch 的指令都必须是 EmptyEndText。
+	// 此外，任何对空文本的匹配必须是 $。
 	for _, inst := range prog.Inst {
 		opOut := prog.Inst[inst.Out].Op
 		switch inst.Op {
@@ -494,11 +493,11 @@ func compileOnePass(prog *syntax.Prog) (p *onePassProg) {
 			}
 		}
 	}
-	// Creates a slightly optimized copy of the original Prog
-	// that cleans up some Prog idioms that block valid onepass programs
+	// 创建原始 Prog 的略微优化副本，
+	// 清理一些阻碍有效单遍程序的 Prog 惯用模式
 	p = onePassCopy(prog)
 
-	// checkAmbiguity on InstAlts, build onepass Prog if possible
+	// 检查 InstAlt 上的歧义，如果可能则构建单遍 Prog
 	p = makeOnePass(p)
 
 	if p != nil {

@@ -10,44 +10,44 @@ import (
 	"sync"
 )
 
-// A queue is a 'sparse array' holding pending threads of execution.
-// See https://research.swtch.com/2008/03/using-uninitialized-memory-for-fun-and.html
+// queue 是一个持有待执行线程的"稀疏数组"。
+// 参见 https://research.swtch.com/2008/03/using-uninitialized-memory-for-fun-and.html
 type queue struct {
 	sparse []uint32
 	dense  []entry
 }
 
-// An entry is an entry on a queue.
-// It holds both the instruction pc and the actual thread.
-// Some queue entries are just place holders so that the machine
-// knows it has considered that pc. Such entries have t == nil.
+// entry 是队列上的一个条目。
+// 它同时持有指令计数器 pc 和实际线程。
+// 一些队列条目只是占位符，以便机器
+// 知道它已经考虑过该 pc。这些条目的 t == nil。
 type entry struct {
 	pc uint32
 	t  *thread
 }
 
-// A thread is the state of a single path through the machine:
-// an instruction and a corresponding capture array.
-// See https://swtch.com/~rsc/regexp/regexp2.html
+// thread 是机器中单条路径的状态：
+// 一个指令和一个对应的捕获数组。
+// 参见 https://swtch.com/~rsc/regexp/regexp2.html
 type thread struct {
 	inst *syntax.Inst
 	cap  []int
 }
 
-// A machine holds all the state during an NFA simulation for p.
+// machine 持有 p 的 NFA 模拟期间的所有状态。
 type machine struct {
-	re       *Regexp      // corresponding Regexp
-	p        *syntax.Prog // compiled program
-	q0, q1   queue        // two queues for runq, nextq
-	pool     []*thread    // pool of available threads
-	matched  bool         // whether a match was found
-	matchcap []int        // capture information for the match
+	re       *Regexp      // 对应的 Regexp
+	p        *syntax.Prog // 编译后的程序
+	q0, q1   queue        // runq 和 nextq 的两个队列
+	pool     []*thread    // 可用线程池
+	matched  bool         // 是否找到了匹配
+	matchcap []int        // 匹配的捕获信息
 
 	inputs inputs
 }
 
 type inputs struct {
-	// cached inputs, to avoid allocation
+	// 缓存的输入，以避免分配
 	bytes  inputBytes
 	string inputString
 	reader inputReader
@@ -71,8 +71,8 @@ func (i *inputs) newReader(r io.RuneReader) input {
 }
 
 func (i *inputs) clear() {
-	// We need to clear 1 of these.
-	// Avoid the expense of clearing the others (pointer write barrier).
+	// 我们需要清除其中 1 个。
+	// 避免清除其他项的开销（指针写屏障）。
 	if i.bytes.str != nil {
 		i.bytes.str = nil
 	} else if i.reader.r != nil {
@@ -99,8 +99,8 @@ func (m *machine) init(ncap int) {
 	m.matchcap = m.matchcap[:ncap]
 }
 
-// alloc allocates a new thread with the given instruction.
-// It uses the free pool if possible.
+// alloc 用给定的指令分配一个新线程。
+// 如果可能，它使用空闲池。
 func (m *machine) alloc(i *syntax.Inst) *thread {
 	var t *thread
 	if n := len(m.pool); n > 0 {
@@ -114,11 +114,11 @@ func (m *machine) alloc(i *syntax.Inst) *thread {
 	return t
 }
 
-// A lazyFlag is a lazily-evaluated syntax.EmptyOp,
-// for checking zero-width flags like ^ $ \A \z \B \b.
-// It records the pair of relevant runes and does not
-// determine the implied flags until absolutely necessary
-// (most of the time, that means never).
+// lazyFlag 是一个延迟求值的 syntax.EmptyOp，
+// 用于检查零宽度标志，如 ^ $ \A \z \B \b。
+// 它记录相关的 rune 对，并且不会在
+// 绝对必要之前确定隐含的标志
+// （大多数情况下，这意味着永远不会）。
 type lazyFlag uint64
 
 func newLazyFlag(r1, r2 rune) lazyFlag {
@@ -169,12 +169,12 @@ func (f lazyFlag) match(op syntax.EmptyOp) bool {
 	return op == 0
 }
 
-// match runs the machine over the input starting at pos.
-// It reports whether a match was found.
-// If so, m.matchcap holds the submatch information.
+// match 从 pos 开始在输入上运行机器。
+// 它报告是否找到了匹配。
+// 如果找到，m.matchcap 持有子匹配信息。
 func (m *machine) match(i input, pos int) bool {
 	startCond := m.re.cond
-	if startCond == ^syntax.EmptyOp(0) { // impossible
+	if startCond == ^syntax.EmptyOp(0) { // 不可能满足
 		return false
 	}
 	m.matched = false
@@ -197,15 +197,15 @@ func (m *machine) match(i input, pos int) bool {
 	for {
 		if len(runq.dense) == 0 {
 			if startCond&syntax.EmptyBeginText != 0 && pos != 0 {
-				// Anchored match, past beginning of text.
+				// 锚定匹配，已超过文本开头。
 				break
 			}
 			if m.matched {
-				// Have match; finished exploring alternatives.
+				// 已有匹配；完成了对替代方案的探索。
 				break
 			}
 			if len(m.re.prefix) > 0 && r1 != m.re.prefixRune && i.canCheckPrefix() {
-				// Match requires literal prefix; fast search for it.
+				// 匹配需要字面前缀；快速搜索它。
 				advance := i.index(m.re, pos)
 				if advance < 0 {
 					break
@@ -227,8 +227,8 @@ func (m *machine) match(i input, pos int) bool {
 			break
 		}
 		if len(m.matchcap) == 0 && m.matched {
-			// Found a match and not paying attention
-			// to where it is, so any match will do.
+			// 找到了匹配但不关心匹配的位置，
+			// 所以任何匹配都可以。
 			break
 		}
 		pos += width
@@ -242,7 +242,7 @@ func (m *machine) match(i input, pos int) bool {
 	return m.matched
 }
 
-// clear frees all threads on the thread queue.
+// clear 释放线程队列上的所有线程。
 func (m *machine) clear(q *queue) {
 	for _, d := range q.dense {
 		if d.t != nil {
@@ -252,11 +252,11 @@ func (m *machine) clear(q *queue) {
 	q.dense = q.dense[:0]
 }
 
-// step executes one step of the machine, running each of the threads
-// on runq and appending new threads to nextq.
-// The step processes the rune c (which may be endOfText),
-// which starts at position pos and ends at nextPos.
-// nextCond gives the setting for the empty-width flags after c.
+// step 执行机器的一步，运行 runq 上的每个线程
+// 并将新线程追加到 nextq。
+// 该步骤处理 rune c（可能是 endOfText），
+// 它从位置 pos 开始，到 nextPos 结束。
+// nextCond 给出 c 之后的零宽度标志设置。
 func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond *lazyFlag) {
 	longest := m.re.longest
 	for j := 0; j < len(runq.dense); j++ {
@@ -281,7 +281,7 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond *l
 				copy(m.matchcap, t.cap)
 			}
 			if !longest {
-				// First-match mode: cut off all lower-priority threads.
+				// 首次匹配模式：切断所有低优先级线程。
 				for _, d := range runq.dense[j+1:] {
 					if d.t != nil {
 						m.pool = append(m.pool, d.t)
@@ -310,10 +310,9 @@ func (m *machine) step(runq, nextq *queue, pos, nextPos int, c rune, nextCond *l
 	runq.dense = runq.dense[:0]
 }
 
-// add adds an entry to q for pc, unless the q already has such an entry.
-// It also recursively adds an entry for all instructions reachable from pc by following
-// empty-width conditions satisfied by cond.  pos gives the current position
-// in the input.
+// add 为 pc 向 q 添加一个条目，除非 q 已经有这样的条目。
+// 它还递归地为从 pc 出发、通过满足 cond 的零宽度条件
+// 可到达的所有指令添加条目。pos 给出输入中的当前位置。
 func (m *machine) add(q *queue, pc uint32, pos int, cap []int, cond *lazyFlag, t *thread) *thread {
 Again:
 	if pc == 0 {
@@ -393,10 +392,10 @@ func freeOnePassMachine(m *onePassMachine) {
 	onePassPool.Put(m)
 }
 
-// doOnePass implements r.doExecute using the one-pass execution engine.
+// doOnePass 使用单遍执行引擎实现 r.doExecute。
 func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap int, dstCap []int) []int {
 	startCond := re.cond
-	if startCond == ^syntax.EmptyOp(0) { // impossible
+	if startCond == ^syntax.EmptyOp(0) { // 不可能满足
 		return nil
 	}
 
@@ -428,10 +427,10 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 	}
 	pc := re.onepass.Start
 	inst := &re.onepass.Inst[pc]
-	// If there is a simple literal prefix, skip over it.
+	// 如果有简单的字面前缀，跳过它。
 	if pos == 0 && flag.match(syntax.EmptyOp(inst.Arg)) &&
 		len(re.prefix) > 0 && i.canCheckPrefix() {
-		// Match requires literal prefix; fast search for it.
+		// 匹配需要字面前缀；快速搜索它。
 		if !i.hasPrefix(re) {
 			goto Return
 		}
@@ -468,7 +467,7 @@ func (re *Regexp) doOnePass(ir io.RuneReader, ib []byte, is string, pos, ncap in
 			if r == '\n' {
 				goto Return
 			}
-		// peek at the input rune to see which branch of the Alt to take
+		// 预览输入 rune 以确定 Alt 的哪个分支
 		case syntax.InstAlt, syntax.InstAltMatch:
 			pc = int(onePassNext(inst, r))
 			continue
@@ -509,18 +508,18 @@ Return:
 	return dstCap
 }
 
-// doMatch reports whether either r, b or s match the regexp.
+// doMatch 报告 r、b 或 s 是否匹配该正则表达式。
 func (re *Regexp) doMatch(r io.RuneReader, b []byte, s string) bool {
 	return re.doExecute(r, b, s, 0, 0, nil) != nil
 }
 
-// doExecute finds the leftmost match in the input, appends the position
-// of its subexpressions to dstCap and returns dstCap.
+// doExecute 在输入中找到最左匹配，将其子表达式的位置
+// 追加到 dstCap 并返回 dstCap。
 //
-// nil is returned if no matches are found and non-nil if matches are found.
+// 如果未找到匹配则返回 nil，如果找到匹配则返回非 nil。
 func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap int, dstCap []int) []int {
 	if dstCap == nil {
-		// Make sure 'return dstCap' is non-nil.
+		// 确保 'return dstCap' 是非 nil 的。
 		dstCap = arrayNoInts[:0:0]
 	}
 
@@ -549,6 +548,5 @@ func (re *Regexp) doExecute(r io.RuneReader, b []byte, s string, pos int, ncap i
 	return dstCap
 }
 
-// arrayNoInts is returned by doExecute match if nil dstCap is passed
-// to it with ncap=0.
+// arrayNoInts 在传入 nil dstCap 且 ncap=0 时由 doExecute 匹配返回。
 var arrayNoInts [0]int

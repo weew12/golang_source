@@ -12,8 +12,8 @@ import (
 	"unicode/utf8"
 )
 
-// An Error describes a failure to parse a regular expression
-// and gives the offending expression.
+// Error 描述解析正则表达式的失败，
+// 并给出有问题的表达式。
 type Error struct {
 	Code ErrorCode
 	Expr string
@@ -23,14 +23,14 @@ func (e *Error) Error() string {
 	return "error parsing regexp: " + e.Code.String() + ": `" + e.Expr + "`"
 }
 
-// An ErrorCode describes a failure to parse a regular expression.
+// ErrorCode 描述解析正则表达式的失败。
 type ErrorCode string
 
 const (
-	// Unexpected error
+	// 意外错误
 	ErrInternalError ErrorCode = "regexp/syntax: internal error"
 
-	// Parse errors
+	// 解析错误
 	ErrInvalidCharClass      ErrorCode = "invalid character class"
 	ErrInvalidCharRange      ErrorCode = "invalid character class range"
 	ErrInvalidEscape         ErrorCode = "invalid escape sequence"
@@ -52,7 +52,7 @@ func (e ErrorCode) String() string {
 	return string(e)
 }
 
-// Flags control the behavior of the parser and record information about regexp context.
+// Flags 控制解析器的行为并记录正则表达式上下文的信息。
 type Flags uint16
 
 const (
@@ -73,69 +73,69 @@ const (
 	POSIX Flags = 0                                         // POSIX syntax
 )
 
-// Pseudo-ops for parsing stack.
+// 解析栈的伪操作。
 const (
 	opLeftParen = opPseudo + iota
 	opVerticalBar
 )
 
-// maxHeight is the maximum height of a regexp parse tree.
-// It is somewhat arbitrarily chosen, but the idea is to be large enough
-// that no one will actually hit in real use but at the same time small enough
-// that recursion on the Regexp tree will not hit the 1GB Go stack limit.
-// The maximum amount of stack for a single recursive frame is probably
-// closer to 1kB, so this could potentially be raised, but it seems unlikely
-// that people have regexps nested even this deeply.
-// We ran a test on Google's C++ code base and turned up only
-// a single use case with depth > 100; it had depth 128.
-// Using depth 1000 should be plenty of margin.
-// As an optimization, we don't even bother calculating heights
-// until we've allocated at least maxHeight Regexp structures.
+// maxHeight 是正则表达式解析树的最大高度。
+// 这个值的选择有些随意，但其思想是足够大以使
+// 实际使用中没有人会真正触及，同时又足够小以使
+// 在 Regexp 树上的递归不会达到 1GB 的 Go 栈限制。
+// 单个递归帧的最大栈使用量可能接近 1kB，
+// 所以这个值可能可以提高，但似乎不太可能
+// 有人会将正则表达式嵌套到这么深的层次。
+// 我们在 Google 的 C++ 代码库上进行了测试，
+// 只发现一个深度 > 100 的用例；其深度为 128。
+// 使用深度 1000 应该有足够的余量。
+// 作为优化，我们甚至不计算高度，
+// 直到分配了至少 maxHeight 个 Regexp 结构。
 const maxHeight = 1000
 
-// maxSize is the maximum size of a compiled regexp in Insts.
-// It too is somewhat arbitrarily chosen, but the idea is to be large enough
-// to allow significant regexps while at the same time small enough that
-// the compiled form will not take up too much memory.
-// 128 MB is enough for a 3.3 million Inst structures, which roughly
-// corresponds to a 3.3 MB regexp.
+// maxSize 是编译后的正则表达式以 Inst 为单位的最大大小。
+// 这个值的选择也有些随意，但其思想是足够大以允许
+// 有意义的正则表达式，同时又足够小以使
+// 编译后的形式不会占用太多内存。
+// 128 MB 足以容纳 330 万个 Inst 结构，
+// 大致对应于 3.3 MB 的正则表达式。
 const (
 	maxSize  = 128 << 20 / instSize
 	instSize = 5 * 8 // byte, 2 uint32, slice is 5 64-bit words
 )
 
-// maxRunes is the maximum number of runes allowed in a regexp tree
-// counting the runes in all the nodes.
-// Ignoring character classes p.numRunes is always less than the length of the regexp.
-// Character classes can make it much larger: each \pL adds 1292 runes.
-// 128 MB is enough for 32M runes, which is over 26k \pL instances.
-// Note that repetitions do not make copies of the rune slices,
-// so \pL{1000} is only one rune slice, not 1000.
-// We could keep a cache of character classes we've seen,
-// so that all the \pL we see use the same rune list,
-// but that doesn't remove the problem entirely:
-// consider something like [\pL01234][\pL01235][\pL01236]...[\pL^&*()].
-// And because the Rune slice is exposed directly in the Regexp,
-// there is not an opportunity to change the representation to allow
-// partial sharing between different character classes.
-// So the limit is the best we can do.
+// maxRunes 是正则表达式树中允许的最大 rune 数量，
+// 计算所有节点中的 rune 总数。
+// 忽略字符类时，p.numRunes 始终小于正则表达式的长度。
+// 字符类可以使其大得多：每个 \pL 添加 1292 个 rune。
+// 128 MB 足以容纳 3200 万个 rune，即超过 26k 个 \pL 实例。
+// 注意重复不会复制 rune 切片，
+// 所以 \pL{1000} 只有一个 rune 切片，而不是 1000 个。
+// 我们可以保留一个已见过的字符类缓存，
+// 使所有 \pL 使用相同的 rune 列表，
+// 但这并不能完全消除问题：
+// 考虑类似 [\pL01234][\pL01235][\pL01236]...[\pL^&*()] 的情况。
+// 而且因为 Rune 切片直接在 Regexp 中暴露，
+// 没有机会更改表示以允许
+// 不同字符类之间的部分共享。
+// 所以限制是我们能做的最好的。
 const (
 	maxRunes = 128 << 20 / runeSize
 	runeSize = 4 // rune is int32
 )
 
 type parser struct {
-	flags       Flags     // parse mode flags
-	stack       []*Regexp // stack of parsed expressions
+	flags       Flags     // 解析模式标志
+	stack       []*Regexp // 已解析表达式的栈
 	free        *Regexp
-	numCap      int // number of capturing groups seen
+	numCap      int // 已见捕获组的数量
 	wholeRegexp string
-	tmpClass    []rune            // temporary char class work space
-	numRegexp   int               // number of regexps allocated
-	numRunes    int               // number of runes in char classes
-	repeats     int64             // product of all repetitions seen
-	height      map[*Regexp]int   // regexp height, for height limit check
-	size        map[*Regexp]int64 // regexp compiled size, for size limit check
+	tmpClass    []rune            // 临时字符类工作空间
+	numRegexp   int               // 已分配的正则表达式数量
+	numRunes    int               // 字符类中的 rune 数量
+	repeats     int64             // 所有已见重复的乘积
+	height      map[*Regexp]int   // 正则表达式高度，用于高度限制检查
+	size        map[*Regexp]int64 // 正则表达式编译大小，用于大小限制检查
 }
 
 func (p *parser) newRegexp(op Op) *Regexp {
@@ -169,11 +169,11 @@ func (p *parser) checkLimits(re *Regexp) {
 
 func (p *parser) checkSize(re *Regexp) {
 	if p.size == nil {
-		// We haven't started tracking size yet.
-		// Do a relatively cheap check to see if we need to start.
-		// Maintain the product of all the repeats we've seen
-		// and don't track if the total number of regexp nodes
-		// we've seen times the repeat product is in budget.
+		// 尚未开始跟踪大小。
+		// 先进行一个相对廉价的检查，看是否需要开始跟踪。
+		// 维护所有已见重复的乘积，
+		// 如果已见的正则表达式节点总数乘以重复乘积仍在预算内，
+		// 则不跟踪。
 		if p.repeats == 0 {
 			p.repeats = 1
 		}
@@ -195,9 +195,9 @@ func (p *parser) checkSize(re *Regexp) {
 			return
 		}
 
-		// We need to start tracking size.
-		// Make the map and belatedly populate it
-		// with info about everything we've constructed so far.
+		// 需要开始跟踪大小了。
+		// 创建映射并补充填充
+		// 到目前为止已构建的所有内容的信息。
 		p.size = make(map[*Regexp]int64)
 		for _, re := range p.stack {
 			p.checkSize(re)
@@ -287,13 +287,13 @@ func (p *parser) calcHeight(re *Regexp, force bool) int {
 	return h
 }
 
-// Parse stack manipulation.
+// 解析栈操作。
 
-// push pushes the regexp re onto the parse stack and returns the regexp.
+// push 将正则表达式 re 压入解析栈并返回该正则表达式。
 func (p *parser) push(re *Regexp) *Regexp {
 	p.numRunes += len(re.Rune)
 	if re.Op == OpCharClass && len(re.Rune) == 2 && re.Rune[0] == re.Rune[1] {
-		// Single rune.
+		// 单个 rune。
 		if p.maybeConcat(re.Rune[0], p.flags&^FoldCase) {
 			return nil
 		}
@@ -308,17 +308,17 @@ func (p *parser) push(re *Regexp) *Regexp {
 			re.Rune[0]+1 == re.Rune[1] &&
 			unicode.SimpleFold(re.Rune[0]) == re.Rune[1] &&
 			unicode.SimpleFold(re.Rune[1]) == re.Rune[0] {
-		// Case-insensitive rune like [Aa] or [Δδ].
+		// 大小写不敏感的 rune，如 [Aa] 或 [Δδ]。
 		if p.maybeConcat(re.Rune[0], p.flags|FoldCase) {
 			return nil
 		}
 
-		// Rewrite as (case-insensitive) literal.
+		// 重写为（大小写不敏感的）字面量。
 		re.Op = OpLiteral
 		re.Rune = re.Rune[:1]
 		re.Flags = p.flags | FoldCase
 	} else {
-		// Incremental concatenation.
+		// 增量连接。
 		p.maybeConcat(-1, 0)
 	}
 
@@ -327,15 +327,14 @@ func (p *parser) push(re *Regexp) *Regexp {
 	return re
 }
 
-// maybeConcat implements incremental concatenation
-// of literal runes into string nodes. The parser calls this
-// before each push, so only the top fragment of the stack
-// might need processing. Since this is called before a push,
-// the topmost literal is no longer subject to operators like *
-// (Otherwise ab* would turn into (ab)*.)
-// If r >= 0 and there's a node left over, maybeConcat uses it
-// to push r with the given flags.
-// maybeConcat reports whether r was pushed.
+// maybeConcat 实现将字面 rune 增量连接到字符串节点中。
+// 解析器在每次 push 之前调用此函数，所以只有栈顶片段
+// 可能需要处理。由于这在 push 之前调用，
+// 最顶部的字面量不再受 * 等操作符的影响
+// （否则 ab* 会变成 (ab)*。）
+// 如果 r >= 0 且有剩余节点，maybeConcat 使用它
+// 以给定的标志 push r。
+// maybeConcat 报告 r 是否已被 push。
 func (p *parser) maybeConcat(r rune, flags Flags) bool {
 	n := len(p.stack)
 	if n < 2 {
@@ -348,10 +347,10 @@ func (p *parser) maybeConcat(r rune, flags Flags) bool {
 		return false
 	}
 
-	// Push re1 into re2.
+	// 将 re1 推入 re2。
 	re2.Rune = append(re2.Rune, re1.Rune...)
 
-	// Reuse re1 if possible.
+	// 如果可能的话重用 re1。
 	if r >= 0 {
 		re1.Rune = re1.Rune0[:1]
 		re1.Rune[0] = r
@@ -364,7 +363,7 @@ func (p *parser) maybeConcat(r rune, flags Flags) bool {
 	return false // did not push r
 }
 
-// literal pushes a literal regexp for the rune r on the stack.
+// literal 为 rune r 压入一个字面正则表达式到栈上。
 func (p *parser) literal(r rune) {
 	re := p.newRegexp(OpLiteral)
 	re.Flags = p.flags
@@ -376,7 +375,7 @@ func (p *parser) literal(r rune) {
 	p.push(re)
 }
 
-// minFoldRune returns the minimum rune fold-equivalent to r.
+// minFoldRune 返回与 r 大小写折叠等价的最小 rune。
 func minFoldRune(r rune) rune {
 	if r < minFold || r > maxFold {
 		return r
@@ -389,18 +388,18 @@ func minFoldRune(r rune) rune {
 	return m
 }
 
-// op pushes a regexp with the given op onto the stack
-// and returns that regexp.
+// op 将具有给定操作的正则表达式压入栈
+// 并返回该正则表达式。
 func (p *parser) op(op Op) *Regexp {
 	re := p.newRegexp(op)
 	re.Flags = p.flags
 	return p.push(re)
 }
 
-// repeat replaces the top stack element with itself repeated according to op, min, max.
-// before is the regexp suffix starting at the repetition operator.
-// after is the regexp suffix following after the repetition operator.
-// repeat returns an updated 'after' and an error, if any.
+// repeat 用根据 op、min、max 重复自身的结果替换栈顶元素。
+// before 是从重复操作符开始的正则表达式后缀。
+// after 是重复操作符之后的正则表达式后缀。
+// repeat 返回更新后的 'after' 和错误（如果有）。
 func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (string, error) {
 	flags := p.flags
 	if p.flags&PerlX != 0 {
@@ -440,15 +439,14 @@ func (p *parser) repeat(op Op, min, max int, before, after, lastRepeat string) (
 	return after, nil
 }
 
-// repeatIsValid reports whether the repetition re is valid.
-// Valid means that the combination of the top-level repetition
-// and any inner repetitions does not exceed n copies of the
-// innermost thing.
-// This function rewalks the regexp tree and is called for every repetition,
-// so we have to worry about inducing quadratic behavior in the parser.
-// We avoid this by only calling repeatIsValid when min or max >= 2.
-// In that case the depth of any >= 2 nesting can only get to 9 without
-// triggering a parse error, so each subtree can only be rewalked 9 times.
+// repeatIsValid 报告重复 re 是否有效。
+// 有效意味着顶层重复与任何内部重复的组合
+// 不会超过最内层元素的 n 个副本。
+// 此函数重新遍历正则表达式树，并在每次重复时调用，
+// 所以我们必须担心在解析器中引发二次方行为。
+// 我们通过仅在 min 或 max >= 2 时调用 repeatIsValid 来避免这一点。
+// 在这种情况下，任何 >= 2 的嵌套深度只能达到 9
+// 而不会触发解析错误，所以每个子树只能被重新遍历 9 次。
 func repeatIsValid(re *Regexp, n int) bool {
 	if re.Op == OpRepeat {
 		m := re.Max
@@ -473,11 +471,11 @@ func repeatIsValid(re *Regexp, n int) bool {
 	return true
 }
 
-// concat replaces the top of the stack (above the topmost '|' or '(') with its concatenation.
+// concat 用连接结果替换栈顶（在最顶层的 '|' 或 '(' 之上）。
 func (p *parser) concat() *Regexp {
 	p.maybeConcat(-1, 0)
 
-	// Scan down to find pseudo-operator | or (.
+	// 向下扫描找到伪操作符 | 或 (。
 	i := len(p.stack)
 	for i > 0 && p.stack[i-1].Op < opPseudo {
 		i--
@@ -485,7 +483,7 @@ func (p *parser) concat() *Regexp {
 	subs := p.stack[i:]
 	p.stack = p.stack[:i]
 
-	// Empty concatenation is special case.
+	// 空连接是特殊情况。
 	if len(subs) == 0 {
 		return p.push(p.newRegexp(OpEmptyMatch))
 	}
@@ -493,10 +491,10 @@ func (p *parser) concat() *Regexp {
 	return p.push(p.collapse(subs, OpConcat))
 }
 
-// alternate replaces the top of the stack (above the topmost '(') with its alternation.
+// alternate 用交替结果替换栈顶（在最顶层的 '(' 之上）。
 func (p *parser) alternate() *Regexp {
-	// Scan down to find pseudo-operator (.
-	// There are no | above (.
+	// 向下扫描找到伪操作符 (。
+	// ( 上面没有 |。
 	i := len(p.stack)
 	for i > 0 && p.stack[i-1].Op < opPseudo {
 		i--
@@ -504,14 +502,14 @@ func (p *parser) alternate() *Regexp {
 	subs := p.stack[i:]
 	p.stack = p.stack[:i]
 
-	// Make sure top class is clean.
-	// All the others already are (see swapVerticalBar).
+	// 确保栈顶的字符类是干净的。
+	// 其他的已经是了（参见 swapVerticalBar）。
 	if len(subs) > 0 {
 		cleanAlt(subs[len(subs)-1])
 	}
 
-	// Empty alternate is special case
-	// (shouldn't happen but easy to handle).
+	// 空交替是特殊情况
+	// （不应该发生但容易处理）。
 	if len(subs) == 0 {
 		return p.push(p.newRegexp(OpNoMatch))
 	}
@@ -519,7 +517,7 @@ func (p *parser) alternate() *Regexp {
 	return p.push(p.collapse(subs, OpAlternate))
 }
 
-// cleanAlt cleans re for eventual inclusion in an alternation.
+// cleanAlt 清理 re 以便最终包含在交替中。
 func cleanAlt(re *Regexp) {
 	switch re.Op {
 	case OpCharClass:
@@ -535,17 +533,16 @@ func cleanAlt(re *Regexp) {
 			return
 		}
 		if cap(re.Rune)-len(re.Rune) > 100 {
-			// re.Rune will not grow any more.
-			// Make a copy or inline to reclaim storage.
+			// re.Rune 不会再增长了。
+			// 复制或内联以回收存储空间。
 			re.Rune = append(re.Rune0[:0], re.Rune...)
 		}
 	}
 }
 
-// collapse returns the result of applying op to sub.
-// If sub contains op nodes, they all get hoisted up
-// so that there is never a concat of a concat or an
-// alternate of an alternate.
+// collapse 返回对 sub 应用 op 的结果。
+// 如果 sub 包含 op 节点，它们都会被提升上来，
+// 使得不会出现连接的连接或交替的交替。
 func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 	if len(subs) == 1 {
 		return subs[0]
@@ -571,19 +568,19 @@ func (p *parser) collapse(subs []*Regexp, op Op) *Regexp {
 	return re
 }
 
-// factor factors common prefixes from the alternation list sub.
-// It returns a replacement list that reuses the same storage and
-// frees (passes to p.reuse) any removed *Regexps.
+// factor 从交替列表 sub 中提取公共前缀。
+// 它返回一个重用相同存储空间的替换列表，
+// 并释放（通过 p.reuse）任何被移除的 *Regexp。
 //
-// For example,
+// 例如，
 //
 //	ABC|ABD|AEF|BCX|BCY
 //
-// simplifies by literal prefix extraction to
+// 通过字面前缀提取简化为
 //
 //	A(B(C|D)|EF)|BC(X|Y)
 //
-// which simplifies by character class introduction to
+// 再通过引入字符类简化为
 //
 //	A(B[CD]|EF)|BC[XY]
 func (p *parser) factor(sub []*Regexp) []*Regexp {
@@ -591,18 +588,17 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 		return sub
 	}
 
-	// Round 1: Factor out common literal prefixes.
+	// 第 1 轮：提取公共字面前缀。
 	var str []rune
 	var strflags Flags
 	start := 0
 	out := sub[:0]
 	for i := 0; i <= len(sub); i++ {
-		// Invariant: the Regexps that were in sub[0:start] have been
-		// used or marked for reuse, and the slice space has been reused
-		// for out (len(out) <= start).
+		// 不变量：sub[0:start] 中的 Regexp 已被使用或标记为可重用，
+		// 切片空间已被 out 重用（len(out) <= start）。
 		//
-		// Invariant: sub[start:i] consists of regexps that all begin
-		// with str as modified by strflags.
+		// 不变量：sub[start:i] 由所有以 str（经 strflags 修饰）开头的
+		// 正则表达式组成。
 		var istr []rune
 		var iflags Flags
 		if i < len(sub) {
@@ -613,26 +609,26 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 					same++
 				}
 				if same > 0 {
-					// Matches at least one rune in current range.
-					// Keep going around.
+					// 在当前范围内至少匹配了一个 rune。
+					// 继续循环。
 					str = str[:same]
 					continue
 				}
 			}
 		}
 
-		// Found end of a run with common leading literal string:
-		// sub[start:i] all begin with str[:len(str)], but sub[i]
-		// does not even begin with str[0].
+		// 找到了具有公共前导字面字符串的连续段的末尾：
+		// sub[start:i] 都以 str[:len(str)] 开头，但 sub[i]
+		// 甚至不以 str[0] 开头。
 		//
-		// Factor out common string and append factored expression to out.
+		// 提取公共字符串并将提取后的表达式追加到 out。
 		if i == start {
-			// Nothing to do - run of length 0.
+			// 无需操作——长度为 0 的连续段。
 		} else if i == start+1 {
-			// Just one: don't bother factoring.
+			// 只有一个：不需要提取。
 			out = append(out, sub[start])
 		} else {
-			// Construct factored form: prefix(suffix1|suffix2|...)
+			// 构造提取后的形式：prefix(suffix1|suffix2|...)
 			prefix := p.newRegexp(OpLiteral)
 			prefix.Flags = strflags
 			prefix.Rune = append(prefix.Rune[:0], str...)
@@ -641,37 +637,35 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 				sub[j] = p.removeLeadingString(sub[j], len(str))
 				p.checkLimits(sub[j])
 			}
-			suffix := p.collapse(sub[start:i], OpAlternate) // recurse
+			suffix := p.collapse(sub[start:i], OpAlternate) // 递归
 
 			re := p.newRegexp(OpConcat)
 			re.Sub = append(re.Sub[:0], prefix, suffix)
 			out = append(out, re)
 		}
 
-		// Prepare for next iteration.
+		// 为下一次迭代做准备。
 		start = i
 		str = istr
 		strflags = iflags
 	}
 	sub = out
 
-	// Round 2: Factor out common simple prefixes,
-	// just the first piece of each concatenation.
-	// This will be good enough a lot of the time.
+	// 第 2 轮：提取公共的简单前缀，
+	// 仅取每个连接的第一个片段。
+	// 大多数情况下这就足够好了。
 	//
-	// Complex subexpressions (e.g. involving quantifiers)
-	// are not safe to factor because that collapses their
-	// distinct paths through the automaton, which affects
-	// correctness in some cases.
+	// 复杂子表达式（例如涉及量词的）
+	// 不能安全地提取，因为这会合并它们
+	// 在自动机中的不同路径，在某些情况下会影响正确性。
 	start = 0
 	out = sub[:0]
 	var first *Regexp
 	for i := 0; i <= len(sub); i++ {
-		// Invariant: the Regexps that were in sub[0:start] have been
-		// used or marked for reuse, and the slice space has been reused
-		// for out (len(out) <= start).
+		// 不变量：sub[0:start] 中的 Regexp 已被使用或标记为可重用，
+		// 切片空间已被 out 重用（len(out) <= start）。
 		//
-		// Invariant: sub[start:i] consists of regexps that all begin with ifirst.
+		// 不变量：sub[start:i] 由所有以 ifirst 开头的正则表达式组成。
 		var ifirst *Regexp
 		if i < len(sub) {
 			ifirst = p.leadingRegexp(sub[i])
@@ -682,17 +676,17 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 			}
 		}
 
-		// Found end of a run with common leading regexp:
-		// sub[start:i] all begin with first but sub[i] does not.
+		// 找到了具有公共前导正则表达式的连续段的末尾：
+		// sub[start:i] 都以 first 开头，但 sub[i] 不是。
 		//
-		// Factor out common regexp and append factored expression to out.
+		// 提取公共正则表达式并将提取后的表达式追加到 out。
 		if i == start {
-			// Nothing to do - run of length 0.
+			// 无需操作——长度为 0 的连续段。
 		} else if i == start+1 {
-			// Just one: don't bother factoring.
+			// 只有一个：不需要提取。
 			out = append(out, sub[start])
 		} else {
-			// Construct factored form: prefix(suffix1|suffix2|...)
+			// 构造提取后的形式：prefix(suffix1|suffix2|...)
 			prefix := first
 			for j := start; j < i; j++ {
 				reuse := j != start // prefix came from sub[start]
@@ -706,35 +700,33 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 			out = append(out, re)
 		}
 
-		// Prepare for next iteration.
+		// 为下一次迭代做准备。
 		start = i
 		first = ifirst
 	}
 	sub = out
 
-	// Round 3: Collapse runs of single literals into character classes.
+	// 第 3 轮：将连续的单字面量折叠为字符类。
 	start = 0
 	out = sub[:0]
 	for i := 0; i <= len(sub); i++ {
-		// Invariant: the Regexps that were in sub[0:start] have been
-		// used or marked for reuse, and the slice space has been reused
-		// for out (len(out) <= start).
+		// 不变量：sub[0:start] 中的 Regexp 已被使用或标记为可重用，
+		// 切片空间已被 out 重用（len(out) <= start）。
 		//
-		// Invariant: sub[start:i] consists of regexps that are either
-		// literal runes or character classes.
+		// 不变量：sub[start:i] 由字面 rune 或字符类组成。
 		if i < len(sub) && isCharClass(sub[i]) {
 			continue
 		}
 
-		// sub[i] is not a char or char class;
-		// emit char class for sub[start:i]...
+		// sub[i] 不是字符或字符类；
+		// 为 sub[start:i] 生成字符类...
 		if i == start {
-			// Nothing to do - run of length 0.
+			// 无需操作——长度为 0 的连续段。
 		} else if i == start+1 {
 			out = append(out, sub[start])
 		} else {
-			// Make new char class.
-			// Start with most complex regexp in sub[start].
+			// 创建新的字符类。
+			// 从 sub[start] 中最复杂的正则表达式开始。
 			max := start
 			for j := start + 1; j < i; j++ {
 				if sub[max].Op < sub[j].Op || sub[max].Op == sub[j].Op && len(sub[max].Rune) < len(sub[j].Rune) {
@@ -751,7 +743,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 			out = append(out, sub[start])
 		}
 
-		// ... and then emit sub[i].
+		// ... 然后输出 sub[i]。
 		if i < len(sub) {
 			out = append(out, sub[i])
 		}
@@ -759,7 +751,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 	}
 	sub = out
 
-	// Round 4: Collapse runs of empty matches into a single empty match.
+	// 第 4 轮：将连续的空匹配折叠为单个空匹配。
 	start = 0
 	out = sub[:0]
 	for i := range sub {
@@ -773,8 +765,8 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
 	return sub
 }
 
-// leadingString returns the leading literal string that re begins with.
-// The string refers to storage in re or its children.
+// leadingString 返回 re 以之开头的前导字面字符串。
+// 该字符串引用 re 或其子节点中的存储空间。
 func (p *parser) leadingString(re *Regexp) ([]rune, Flags) {
 	if re.Op == OpConcat && len(re.Sub) > 0 {
 		re = re.Sub[0]
@@ -785,12 +777,12 @@ func (p *parser) leadingString(re *Regexp) ([]rune, Flags) {
 	return re.Rune, re.Flags & FoldCase
 }
 
-// removeLeadingString removes the first n leading runes
-// from the beginning of re. It returns the replacement for re.
+// removeLeadingString 从 re 开头移除前 n 个前导 rune。
+// 它返回 re 的替换结果。
 func (p *parser) removeLeadingString(re *Regexp, n int) *Regexp {
 	if re.Op == OpConcat && len(re.Sub) > 0 {
-		// Removing a leading string in a concatenation
-		// might simplify the concatenation.
+		// 移除连接中的前导字符串
+		// 可能会简化连接。
 		sub := re.Sub[0]
 		sub = p.removeLeadingString(sub, n)
 		re.Sub[0] = sub
@@ -798,7 +790,7 @@ func (p *parser) removeLeadingString(re *Regexp, n int) *Regexp {
 			p.reuse(sub)
 			switch len(re.Sub) {
 			case 0, 1:
-				// Impossible but handle.
+				// 不可能发生但需要处理。
 				re.Op = OpEmptyMatch
 				re.Sub = nil
 			case 2:
@@ -822,8 +814,8 @@ func (p *parser) removeLeadingString(re *Regexp, n int) *Regexp {
 	return re
 }
 
-// leadingRegexp returns the leading regexp that re begins with.
-// The regexp refers to storage in re or its children.
+// leadingRegexp 返回 re 以之开头的前导正则表达式。
+// 该正则表达式引用 re 或其子节点中的存储空间。
 func (p *parser) leadingRegexp(re *Regexp) *Regexp {
 	if re.Op == OpEmptyMatch {
 		return nil
@@ -838,9 +830,9 @@ func (p *parser) leadingRegexp(re *Regexp) *Regexp {
 	return re
 }
 
-// removeLeadingRegexp removes the leading regexp in re.
-// It returns the replacement for re.
-// If reuse is true, it passes the removed regexp (if no longer needed) to p.reuse.
+// removeLeadingRegexp 移除 re 中的前导正则表达式。
+// 它返回 re 的替换结果。
+// 如果 reuse 为 true，则将被移除的正则表达式（如果不再需要）传递给 p.reuse。
 func (p *parser) removeLeadingRegexp(re *Regexp, reuse bool) *Regexp {
 	if re.Op == OpConcat && len(re.Sub) > 0 {
 		if reuse {
@@ -903,14 +895,14 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 	}()
 
 	if flags&Literal != 0 {
-		// Trivial parser for literal string.
+		// 字面字符串的简单解析器。
 		if err := checkUTF8(s); err != nil {
 			return nil, err
 		}
 		return literalRegexp(s, flags), nil
 	}
 
-	// Otherwise, must do real work.
+	// 否则，必须进行实际工作。
 	var (
 		p          parser
 		c          rune
@@ -932,7 +924,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 
 		case '(':
 			if p.flags&PerlX != 0 && len(t) >= 2 && t[1] == '?' {
-				// Flag changes and non-capturing groups.
+				// 标志更改和非捕获组。
 				if t, err = p.parsePerlFlags(t); err != nil {
 					return nil, err
 				}
@@ -995,13 +987,13 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			before := t
 			min, max, after, ok := p.parseRepeat(t)
 			if !ok {
-				// If the repeat cannot be parsed, { is a literal.
+				// 如果无法解析重复，{ 就是字面量。
 				p.literal('{')
 				t = t[1:]
 				break
 			}
 			if min < 0 || min > 1000 || max > 1000 || max >= 0 && min > max {
-				// Numbers were too big, or max is present and min > max.
+				// 数字太大，或者存在 max 且 min > max。
 				return nil, &Error{ErrInvalidRepeatSize, before[:len(before)-len(after)]}
 			}
 			if after, err = p.repeat(op, min, max, before, after, lastRepeat); err != nil {
@@ -1050,7 +1042,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			re := p.newRegexp(OpCharClass)
 			re.Flags = p.flags
 
-			// Look for Unicode character group like \p{Han}
+			// 查找 Unicode 字符组，如 \p{Han}
 			if len(t) >= 2 && (t[1] == 'p' || t[1] == 'P') {
 				r, rest, err := p.parseUnicodeClass(t, re.Rune0[:0])
 				if err != nil {
@@ -1064,7 +1056,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 				}
 			}
 
-			// Perl character class escape.
+			// Perl 字符类转义。
 			if r, rest := p.parsePerlClassEscape(t, re.Rune0[:0]); r != nil {
 				re.Rune = r
 				t = rest
@@ -1073,7 +1065,7 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 			}
 			p.reuse(re)
 
-			// Ordinary single-character escape.
+			// 普通的单字符转义。
 			if c, t, err = p.parseEscape(t); err != nil {
 				return nil, err
 			}
@@ -1096,9 +1088,9 @@ func parse(s string, flags Flags) (_ *Regexp, err error) {
 	return p.stack[0], nil
 }
 
-// parseRepeat parses {min} (max=min) or {min,} (max=-1) or {min,max}.
-// If s is not of that form, it returns ok == false.
-// If s has the right form but the values are too big, it returns min == -1, ok == true.
+// parseRepeat 解析 {min}（max=min）或 {min,}（max=-1）或 {min,max}。
+// 如果 s 不是这种形式，则返回 ok == false。
+// 如果 s 具有正确的形式但值太大，则返回 min == -1, ok == true。
 func (p *parser) parseRepeat(s string) (min, max int, rest string, ok bool) {
 	if s == "" || s[0] != '{' {
 		return
@@ -1135,27 +1127,27 @@ func (p *parser) parseRepeat(s string) (min, max int, rest string, ok bool) {
 	return
 }
 
-// parsePerlFlags parses a Perl flag setting or non-capturing group or both,
-// like (?i) or (?: or (?i:.  It removes the prefix from s and updates the parse state.
-// The caller must have ensured that s begins with "(?".
+// parsePerlFlags 解析 Perl 标志设置或非捕获组或两者，
+// 如 (?i) 或 (?: 或 (?i:。它从 s 中移除前缀并更新解析状态。
+// 调用者必须确保 s 以 "(?" 开头。
 func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 	t := s
 
-	// Check for named captures, first introduced in Python's regexp library.
-	// As usual, there are three slightly different syntaxes:
+	// 检查命名捕获，最初在 Python 的正则表达式库中引入。
+	// 和往常一样，有三种略微不同的语法：
 	//
-	//   (?P<name>expr)   the original, introduced by Python
-	//   (?<name>expr)    the .NET alteration, adopted by Perl 5.10
-	//   (?'name'expr)    another .NET alteration, adopted by Perl 5.10
+	//   (?P<name>expr)   原始形式，由 Python 引入
+	//   (?<name>expr)    .NET 的变体，被 Perl 5.10 采用
+	//   (?'name'expr)    .NET 的另一个变体，被 Perl 5.10 采用
 	//
-	// Perl 5.10 gave in and implemented the Python version too,
-	// but they claim that the last two are the preferred forms.
-	// PCRE and languages based on it (specifically, PHP and Ruby)
-	// support all three as well. EcmaScript 4 uses only the Python form.
+	// Perl 5.10 最终也实现了 Python 版本，
+	// 但他们声称后两种是首选形式。
+	// PCRE 及基于它的语言（特别是 PHP 和 Ruby）
+	// 也支持所有三种形式。EcmaScript 4 只使用 Python 形式。
 	//
-	// In both the open source world (via Code Search) and the
-	// Google source tree, (?P<expr>name) and (?<expr>name) are the
-	// dominant forms of named captures and both are supported.
+	// 在开源世界（通过 Code Search）和
+	// Google 源码树中，(?P<expr>name) 和 (?<expr>name) 是
+	// 命名捕获的主要形式，两者都受支持。
 	startsWithP := len(t) > 4 && t[2] == 'P' && t[3] == '<'
 	startsWithName := len(t) > 3 && t[2] == '<'
 
@@ -1166,7 +1158,7 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 			exprStartPos = 3
 		}
 
-		// Pull out name.
+		// 提取名称。
 		end := strings.IndexRune(t, '>')
 		if end < 0 {
 			if err = checkUTF8(t); err != nil {
@@ -1184,7 +1176,7 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 			return "", &Error{ErrInvalidNamedCapture, capture}
 		}
 
-		// Like ordinary capture, but named.
+		// 与普通捕获类似，但有名称。
 		p.numCap++
 		re := p.op(opLeftParen)
 		re.Cap = p.numCap
@@ -1192,7 +1184,7 @@ func (p *parser) parsePerlFlags(s string) (rest string, err error) {
 		return t[end+1:], nil
 	}
 
-	// Non-capturing group. Might also twiddle Perl flags.
+	// 非捕获组。也可能调整 Perl 标志。
 	var c rune
 	t = t[2:] // skip (?
 	flags := p.flags
@@ -1207,7 +1199,7 @@ Loop:
 		default:
 			break Loop
 
-		// Flags.
+		// 标志。
 		case 'i':
 			flags |= FoldCase
 			sawFlag = true
@@ -1221,18 +1213,18 @@ Loop:
 			flags |= NonGreedy
 			sawFlag = true
 
-		// Switch to negation.
+		// 切换到取反。
 		case '-':
 			if sign < 0 {
 				break Loop
 			}
 			sign = -1
-			// Invert flags so that | above turn into &^ and vice versa.
-			// We'll invert flags again before using it below.
+			// 反转标志，使得上面的 | 变成 &^，反之亦然。
+			// 在下面使用之前我们会再次反转标志。
 			flags = ^flags
 			sawFlag = false
 
-		// End of flags, starting group or not.
+		// 标志结束，开始分组与否。
 		case ':', ')':
 			if sign < 0 {
 				if !sawFlag {
@@ -1241,7 +1233,7 @@ Loop:
 				flags = ^flags
 			}
 			if c == ':' {
-				// Open new group
+				// 打开新分组
 				p.op(opLeftParen)
 			}
 			p.flags = flags
@@ -1252,11 +1244,10 @@ Loop:
 	return "", &Error{ErrInvalidPerlOp, s[:len(s)-len(t)]}
 }
 
-// isValidCaptureName reports whether name
-// is a valid capture name: [A-Za-z0-9_]+.
-// PCRE limits names to 32 bytes.
-// Python rejects names starting with digits.
-// We don't enforce either of those.
+// isValidCaptureName 报告 name 是否是有效的捕获名称：[A-Za-z0-9_]+。
+// PCRE 将名称限制为 32 字节。
+// Python 拒绝以数字开头的名称。
+// 我们不强制执行这两个限制。
 func isValidCaptureName(name string) bool {
 	if name == "" {
 		return false
@@ -1269,12 +1260,12 @@ func isValidCaptureName(name string) bool {
 	return true
 }
 
-// parseInt parses a decimal integer.
+// parseInt 解析一个十进制整数。
 func (p *parser) parseInt(s string) (n int, rest string, ok bool) {
 	if s == "" || s[0] < '0' || '9' < s[0] {
 		return
 	}
-	// Disallow leading zeros.
+	// 不允许前导零。
 	if len(s) >= 2 && s[0] == '0' && '0' <= s[1] && s[1] <= '9' {
 		return
 	}
@@ -1284,10 +1275,10 @@ func (p *parser) parseInt(s string) (n int, rest string, ok bool) {
 	}
 	rest = s
 	ok = true
-	// Have digits, compute value.
+	// 已有数字，计算值。
 	t = t[:len(t)-len(s)]
 	for i := 0; i < len(t); i++ {
-		// Avoid overflow.
+		// 避免溢出。
 		if n >= 1e8 {
 			n = -1
 			break
@@ -1297,8 +1288,8 @@ func (p *parser) parseInt(s string) (n int, rest string, ok bool) {
 	return
 }
 
-// can this be represented as a character class?
-// single-rune literal string, char class, ., and .|\n.
+// 这能否表示为字符类？
+// 单 rune 字面字符串、字符类、. 和 .|\n。
 func isCharClass(re *Regexp) bool {
 	return re.Op == OpLiteral && len(re.Rune) == 1 ||
 		re.Op == OpCharClass ||
@@ -1306,7 +1297,7 @@ func isCharClass(re *Regexp) bool {
 		re.Op == OpAnyChar
 }
 
-// does re match r?
+// re 是否匹配 r？
 func matchRune(re *Regexp, r rune) bool {
 	switch re.Op {
 	case OpLiteral:
@@ -1326,22 +1317,22 @@ func matchRune(re *Regexp, r rune) bool {
 	return false
 }
 
-// parseVerticalBar handles a | in the input.
+// parseVerticalBar 处理输入中的 |。
 func (p *parser) parseVerticalBar() {
 	p.concat()
 
-	// The concatenation we just parsed is on top of the stack.
-	// If it sits above an opVerticalBar, swap it below
-	// (things below an opVerticalBar become an alternation).
-	// Otherwise, push a new vertical bar.
+	// 我们刚刚解析的连接在栈顶。
+	// 如果它位于 opVerticalBar 之上，将它交换到下面
+	// （opVerticalBar 下面的内容将成为交替）。
+	// 否则，压入一个新的竖线。
 	if !p.swapVerticalBar() {
 		p.op(opVerticalBar)
 	}
 }
 
-// mergeCharClass makes dst = dst|src.
-// The caller must ensure that dst.Op >= src.Op,
-// to reduce the amount of copying.
+// mergeCharClass 使 dst = dst|src。
+// 调用者必须确保 dst.Op >= src.Op，
+// 以减少复制量。
 func mergeCharClass(dst, src *Regexp) {
 	switch dst.Op {
 	case OpAnyChar:
@@ -1369,17 +1360,17 @@ func mergeCharClass(dst, src *Regexp) {
 	}
 }
 
-// If the top of the stack is an element followed by an opVerticalBar
-// swapVerticalBar swaps the two and returns true.
-// Otherwise it returns false.
+// 如果栈顶是一个元素后面跟着一个 opVerticalBar，
+// swapVerticalBar 交换两者并返回 true。
+// 否则返回 false。
 func (p *parser) swapVerticalBar() bool {
-	// If above and below vertical bar are literal or char class,
-	// can merge into a single char class.
+	// 如果竖线上方和下方都是字面量或字符类，
+	// 可以合并为单个字符类。
 	n := len(p.stack)
 	if n >= 3 && p.stack[n-2].Op == opVerticalBar && isCharClass(p.stack[n-1]) && isCharClass(p.stack[n-3]) {
 		re1 := p.stack[n-1]
 		re3 := p.stack[n-3]
-		// Make re3 the more complex of the two.
+		// 使 re3 成为两者中更复杂的那个。
 		if re1.Op > re3.Op {
 			re1, re3 = re3, re1
 			p.stack[n-3] = re3
@@ -1395,8 +1386,8 @@ func (p *parser) swapVerticalBar() bool {
 		re2 := p.stack[n-2]
 		if re2.Op == opVerticalBar {
 			if n >= 3 {
-				// Now out of reach.
-				// Clean opportunistically.
+				// 现在已经不可达了。
+				// 趁机清理。
 				cleanAlt(p.stack[n-3])
 			}
 			p.stack[n-2] = re1
@@ -1407,7 +1398,7 @@ func (p *parser) swapVerticalBar() bool {
 	return false
 }
 
-// parseRightParen handles a ) in the input.
+// parseRightParen 处理输入中的 )。
 func (p *parser) parseRightParen() error {
 	p.concat()
 	if p.swapVerticalBar() {
@@ -1426,10 +1417,10 @@ func (p *parser) parseRightParen() error {
 	if re2.Op != opLeftParen {
 		return &Error{ErrUnexpectedParen, p.wholeRegexp}
 	}
-	// Restore flags at time of paren.
+	// 恢复括号时的标志。
 	p.flags = re2.Flags
 	if re2.Cap == 0 {
-		// Just for grouping.
+		// 仅用于分组。
 		p.push(re1)
 	} else {
 		re2.Op = OpCapture
@@ -1440,8 +1431,7 @@ func (p *parser) parseRightParen() error {
 	return nil
 }
 
-// parseEscape parses an escape sequence at the beginning of s
-// and returns the rune.
+// parseEscape 解析 s 开头的转义序列并返回对应的 rune。
 func (p *parser) parseEscape(s string) (r rune, rest string, err error) {
 	t := s[1:]
 	if t == "" {
@@ -1456,22 +1446,22 @@ Switch:
 	switch c {
 	default:
 		if c < utf8.RuneSelf && !isalnum(c) {
-			// Escaped non-word characters are always themselves.
-			// PCRE is not quite so rigorous: it accepts things like
+			// 转义的非单词字符总是它们自身。
+			// PCRE 不那么严格：它接受诸如
 			// \q, but we don't. We once rejected \_, but too many
 			// programs and people insist on using it, so allow \_.
 			return c, t, nil
 		}
 
-	// Octal escapes.
+	// 八进制转义。
 	case '1', '2', '3', '4', '5', '6', '7':
-		// Single non-zero digit is a backreference; not supported
+		// 单个非零数字是反向引用；不支持
 		if t == "" || t[0] < '0' || t[0] > '7' {
 			break
 		}
 		fallthrough
 	case '0':
-		// Consume up to three octal digits; already have one.
+		// 消耗最多三个八进制数字；已经有一个了。
 		r = c - '0'
 		for i := 1; i < 3; i++ {
 			if t == "" || t[0] < '0' || t[0] > '7' {
@@ -1482,7 +1472,7 @@ Switch:
 		}
 		return r, t, nil
 
-	// Hexadecimal escapes.
+	// 十六进制转义。
 	case 'x':
 		if t == "" {
 			break
@@ -1491,10 +1481,10 @@ Switch:
 			return 0, "", err
 		}
 		if c == '{' {
-			// Any number of digits in braces.
-			// Perl accepts any text at all; it ignores all text
-			// after the first non-hex digit. We require only hex digits,
-			// and at least one.
+			// 花括号中任意数量的数字。
+			// Perl 接受任何文本；它忽略第一个非十六进制数字
+			// 之后的所有文本。我们只要求十六进制数字，
+			// 且至少一个。
 			nhex := 0
 			r = 0
 			for {
@@ -1523,7 +1513,7 @@ Switch:
 			return r, t, nil
 		}
 
-		// Easy case: two hex digits.
+		// 简单情况：两个十六进制数字。
 		x := unhex(c)
 		if c, t, err = nextRune(t); err != nil {
 			return 0, "", err
@@ -1556,15 +1546,14 @@ Switch:
 	return 0, "", &Error{ErrInvalidEscape, s[:len(s)-len(t)]}
 }
 
-// parseClassChar parses a character class character at the beginning of s
-// and returns it.
+// parseClassChar 解析 s 开头的字符类字符并返回它。
 func (p *parser) parseClassChar(s, wholeClass string) (r rune, rest string, err error) {
 	if s == "" {
 		return 0, "", &Error{Code: ErrMissingBracket, Expr: wholeClass}
 	}
 
-	// Allow regular escape sequences even though
-	// many need not be escaped in this context.
+	// 允许常规转义序列，即使
+	// 在此上下文中许多不需要转义。
 	if s[0] == '\\' {
 		return p.parseEscape(s)
 	}
@@ -1579,9 +1568,8 @@ type charGroup struct {
 
 //go:generate perl make_perl_groups.pl perl_groups.go
 
-// parsePerlClassEscape parses a leading Perl character class escape like \d
-// from the beginning of s. If one is present, it appends the characters to r
-// and returns the new slice r and the remainder of the string.
+// parsePerlClassEscape 从 s 开头解析前导 Perl 字符类转义（如 \d）。
+// 如果存在，则将字符追加到 r 并返回新的切片 r 和字符串的剩余部分。
 func (p *parser) parsePerlClassEscape(s string, r []rune) (out []rune, rest string) {
 	if p.flags&PerlX == 0 || len(s) < 2 || s[0] != '\\' {
 		return
@@ -1593,9 +1581,8 @@ func (p *parser) parsePerlClassEscape(s string, r []rune) (out []rune, rest stri
 	return p.appendGroup(r, g), s[2:]
 }
 
-// parseNamedClass parses a leading POSIX named character class like [:alnum:]
-// from the beginning of s. If one is present, it appends the characters to r
-// and returns the new slice r and the remainder of the string.
+// parseNamedClass 从 s 开头解析前导 POSIX 命名字符类（如 [:alnum:]）。
+// 如果存在，则将字符追加到 r 并返回新的切片 r 和字符串的剩余部分。
 func (p *parser) parseNamedClass(s string, r []rune) (out []rune, rest string, err error) {
 	if len(s) < 2 || s[0] != '[' || s[1] != ':' {
 		return
@@ -1652,14 +1639,14 @@ var asciiFoldTable = &unicode.RangeTable{
 	},
 }
 
-// categoryAliases is a lazily constructed copy of unicode.CategoryAliases
-// but with the keys passed through canonicalName, to support inexact matches.
+// categoryAliases 是 unicode.CategoryAliases 的延迟构建副本，
+// 但其键经过 canonicalName 处理，以支持不精确匹配。
 var categoryAliases struct {
 	once sync.Once
 	m    map[string]string
 }
 
-// initCategoryAliases initializes categoryAliases by canonicalizing unicode.CategoryAliases.
+// initCategoryAliases 通过规范化 unicode.CategoryAliases 来初始化 categoryAliases。
 func initCategoryAliases() {
 	categoryAliases.m = make(map[string]string)
 	for name, actual := range unicode.CategoryAliases {
@@ -1667,11 +1654,11 @@ func initCategoryAliases() {
 	}
 }
 
-// canonicalName returns the canonical lookup string for name.
-// The canonical name has a leading uppercase letter and then lowercase letters,
-// and it omits all underscores, spaces, and hyphens.
-// (We could have used all lowercase, but this way most package unicode
-// map keys are already canonical.)
+// canonicalName 返回 name 的规范查找字符串。
+// 规范名称以大写字母开头，后跟小写字母，
+// 并省略所有下划线、空格和连字符。
+// （我们本可以全部使用小写，但这样大多数 unicode 包的
+// 映射键已经是规范的了。）
 func canonicalName(name string) string {
 	var b []byte
 	first := true
@@ -1692,7 +1679,7 @@ func canonicalName(name string) string {
 		}
 		if b == nil {
 			if c == name[i] && c != ' ' {
-				// No changes so far, avoid allocating b.
+				// 到目前为止没有变化，避免分配 b。
 				continue
 			}
 			b = make([]byte, i, len(name))
@@ -1709,14 +1696,14 @@ func canonicalName(name string) string {
 	return string(b)
 }
 
-// unicodeTable returns the unicode.RangeTable identified by name
-// and the table of additional fold-equivalent code points.
-// If sign < 0, the result should be inverted.
+// unicodeTable 返回由 name 标识的 unicode.RangeTable
+// 以及额外的大小写折叠等价码点表。
+// 如果 sign < 0，结果应被取反。
 func unicodeTable(name string) (tab, fold *unicode.RangeTable, sign int) {
 	name = canonicalName(name)
 
-	// Special cases: Any, Assigned, and ASCII.
-	// Also LC is the only non-canonical Categories key, so handle it here.
+	// 特殊情况：Any、Assigned 和 ASCII。
+	// 此外 LC 是唯一非规范的 Categories 键，所以在此处理。
 	switch name {
 	case "Any":
 		return anyTable, anyTable, +1
@@ -1734,9 +1721,9 @@ func unicodeTable(name string) (tab, fold *unicode.RangeTable, sign int) {
 		return t, unicode.FoldScript[name], +1
 	}
 
-	// unicode.CategoryAliases makes liberal use of underscores in its names
-	// (they are defined that way by Unicode), but we want to match ignoring
-	// the underscores, so make our own map with canonical names.
+	// unicode.CategoryAliases 在其名称中大量使用下划线
+	// （Unicode 就是这样定义的），但我们希望忽略
+	// 下划线进行匹配，所以用规范名称创建自己的映射。
 	categoryAliases.once.Do(initCategoryAliases)
 	if actual := categoryAliases.m[name]; actual != "" {
 		t := unicode.Categories[actual]
@@ -1745,15 +1732,14 @@ func unicodeTable(name string) (tab, fold *unicode.RangeTable, sign int) {
 	return nil, nil, 0
 }
 
-// parseUnicodeClass parses a leading Unicode character class like \p{Han}
-// from the beginning of s. If one is present, it appends the characters to r
-// and returns the new slice r and the remainder of the string.
+// parseUnicodeClass 从 s 开头解析前导 Unicode 字符类（如 \p{Han}）。
+// 如果存在，则将字符追加到 r 并返回新的切片 r 和字符串的剩余部分。
 func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string, err error) {
 	if p.flags&UnicodeGroups == 0 || len(s) < 2 || s[0] != '\\' || s[1] != 'p' && s[1] != 'P' {
 		return
 	}
 
-	// Committed to parse or return error.
+	// 已确定要解析或返回错误。
 	sign := +1
 	if s[1] == 'P' {
 		sign = -1
@@ -1765,11 +1751,11 @@ func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string,
 	}
 	var seq, name string
 	if c != '{' {
-		// Single-letter name.
+		// 单字母名称。
 		seq = s[:len(s)-len(t)]
 		name = seq[2:]
 	} else {
-		// Name is in braces.
+		// 名称在花括号中。
 		end := strings.IndexRune(s, '}')
 		if end < 0 {
 			if err = checkUTF8(s); err != nil {
@@ -1784,7 +1770,7 @@ func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string,
 		}
 	}
 
-	// Group can have leading negation too.  \p{^Han} == \P{Han}, \P{^Han} == \p{Han}.
+	// 组也可以有前导取反。\p{^Han} == \P{Han}，\P{^Han} == \p{Han}。
 	if name != "" && name[0] == '^' {
 		sign = -sign
 		name = name[1:]
@@ -1805,9 +1791,8 @@ func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string,
 			r = appendNegatedTable(r, tab)
 		}
 	} else {
-		// Merge and clean tab and fold in a temporary buffer.
-		// This is necessary for the negative case and just tidy
-		// for the positive case.
+		// 在临时缓冲区中合并和清理 tab 和 fold。
+		// 这对于取反情况是必要的，对于正常情况只是整理。
 		tmp := p.tmpClass[:0]
 		tmp = appendTable(tmp, tab)
 		tmp = appendTable(tmp, fold)
@@ -1822,8 +1807,7 @@ func (p *parser) parseUnicodeClass(s string, r []rune) (out []rune, rest string,
 	return r, t, nil
 }
 
-// parseClass parses a character class at the beginning of s
-// and pushes it onto the parse stack.
+// parseClass 解析 s 开头的字符类并将其压入解析栈。
 func (p *parser) parseClass(s string) (rest string, err error) {
 	t := s[1:] // chop [
 	re := p.newRegexp(OpCharClass)
@@ -1835,8 +1819,8 @@ func (p *parser) parseClass(s string) (rest string, err error) {
 		sign = -1
 		t = t[1:]
 
-		// If character class does not match \n, add it here,
-		// so that negation later will do the right thing.
+		// 如果字符类不匹配 \n，在此添加它，
+		// 以便后续的取反能正确工作。
 		if p.flags&ClassNL == 0 {
 			re.Rune = append(re.Rune, '\n', '\n')
 		}
@@ -1845,15 +1829,15 @@ func (p *parser) parseClass(s string) (rest string, err error) {
 	class := re.Rune
 	first := true // ] and - are okay as first char in class
 	for t == "" || t[0] != ']' || first {
-		// POSIX: - is only okay unescaped as first or last in class.
-		// Perl: - is okay anywhere.
+		// POSIX：- 只有作为字符类中的第一个或最后一个时才能不转义。
+		// Perl：- 在任何位置都可以。
 		if t != "" && t[0] == '-' && p.flags&PerlX == 0 && !first && (len(t) == 1 || t[1] != ']') {
 			_, size := utf8.DecodeRuneInString(t[1:])
 			return "", &Error{Code: ErrInvalidCharRange, Expr: t[:1+size]}
 		}
 		first = false
 
-		// Look for POSIX [:alnum:] etc.
+		// 查找 POSIX [:alnum:] 等。
 		if len(t) > 2 && t[0] == '[' && t[1] == ':' {
 			nclass, nt, err := p.parseNamedClass(t, class)
 			if err != nil {
@@ -1865,7 +1849,7 @@ func (p *parser) parseClass(s string) (rest string, err error) {
 			}
 		}
 
-		// Look for Unicode character group like \p{Han}.
+		// 查找 Unicode 字符组，如 \p{Han}。
 		nclass, nt, err := p.parseUnicodeClass(t, class)
 		if err != nil {
 			return "", err
@@ -1875,13 +1859,13 @@ func (p *parser) parseClass(s string) (rest string, err error) {
 			continue
 		}
 
-		// Look for Perl character class symbols (extension).
+		// 查找 Perl 字符类符号（扩展）。
 		if nclass, nt := p.parsePerlClassEscape(t, class); nclass != nil {
 			class, t = nclass, nt
 			continue
 		}
 
-		// Single character or simple range.
+		// 单个字符或简单范围。
 		rng := t
 		var lo, hi rune
 		if lo, t, err = p.parseClassChar(t, s); err != nil {
@@ -1907,7 +1891,7 @@ func (p *parser) parseClass(s string) (rest string, err error) {
 	}
 	t = t[1:] // chop ]
 
-	// Use &re.Rune instead of &class to avoid allocation.
+	// 使用 &re.Rune 而不是 &class 以避免分配。
 	re.Rune = class
 	class = cleanClass(&re.Rune)
 	if sign < 0 {
@@ -1918,11 +1902,10 @@ func (p *parser) parseClass(s string) (rest string, err error) {
 	return t, nil
 }
 
-// cleanClass sorts the ranges (pairs of elements of r),
-// merges them, and eliminates duplicates.
+// cleanClass 对范围（r 的元素对）进行排序、合并，并消除重复。
 func cleanClass(rp *[]rune) []rune {
 
-	// Sort by lo increasing, hi decreasing to break ties.
+	// 按 lo 升序排序，hi 降序以打破平局。
 	sort.Sort(ranges{rp})
 
 	r := *rp
@@ -1930,7 +1913,7 @@ func cleanClass(rp *[]rune) []rune {
 		return r
 	}
 
-	// Merge abutting, overlapping.
+	// 合并相邻的、重叠的范围。
 	w := 2 // write index
 	for i := 2; i < len(r); i += 2 {
 		lo, hi := r[i], r[i+1]
@@ -1950,8 +1933,8 @@ func cleanClass(rp *[]rune) []rune {
 	return r[:w]
 }
 
-// inCharClass reports whether r is in the class.
-// It assumes the class has been cleaned by cleanClass.
+// inCharClass 报告 r 是否在该字符类中。
+// 它假设该字符类已被 cleanClass 清理过。
 func inCharClass(r rune, class []rune) bool {
 	_, ok := sort.Find(len(class)/2, func(i int) int {
 		lo, hi := class[2*i], class[2*i+1]
@@ -1966,7 +1949,7 @@ func inCharClass(r rune, class []rune) bool {
 	return ok
 }
 
-// appendLiteral returns the result of appending the literal x to the class r.
+// appendLiteral 返回将字面量 x 追加到字符类 r 的结果。
 func appendLiteral(r []rune, x rune, flags Flags) []rune {
 	if flags&FoldCase != 0 {
 		return appendFoldedRange(r, x, x)
@@ -1974,12 +1957,12 @@ func appendLiteral(r []rune, x rune, flags Flags) []rune {
 	return appendRange(r, x, x)
 }
 
-// appendRange returns the result of appending the range lo-hi to the class r.
+// appendRange 返回将范围 lo-hi 追加到字符类 r 的结果。
 func appendRange(r []rune, lo, hi rune) []rune {
-	// Expand last range or next to last range if it overlaps or abuts.
-	// Checking two ranges helps when appending case-folded
-	// alphabets, so that one range can be expanding A-Z and the
-	// other expanding a-z.
+	// 如果与最后一个或倒数第二个范围重叠或相邻，则扩展它。
+	// 检查两个范围在追加大小写折叠的
+	// 字母表时很有帮助，这样一个范围可以扩展 A-Z，
+	// 另一个可以扩展 a-z。
 	n := len(r)
 	for i := 2; i <= 4; i += 2 { // twice, using i=2, i=4
 		if n >= i {
@@ -2006,16 +1989,16 @@ const (
 	maxFold = 0x1e943
 )
 
-// appendFoldedRange returns the result of appending the range lo-hi
-// and its case folding-equivalent runes to the class r.
+// appendFoldedRange 返回将范围 lo-hi 及其大小写折叠等价 rune
+// 追加到字符类 r 的结果。
 func appendFoldedRange(r []rune, lo, hi rune) []rune {
-	// Optimizations.
+	// 优化。
 	if lo <= minFold && hi >= maxFold {
-		// Range is full: folding can't add more.
+		// 范围已满：折叠不能添加更多。
 		return appendRange(r, lo, hi)
 	}
 	if hi < minFold || lo > maxFold {
-		// Range is outside folding possibilities.
+		// 范围在折叠可能性之外。
 		return appendRange(r, lo, hi)
 	}
 	if lo < minFold {
@@ -2029,7 +2012,7 @@ func appendFoldedRange(r []rune, lo, hi rune) []rune {
 		hi = maxFold
 	}
 
-	// Brute force. Depend on appendRange to coalesce ranges on the fly.
+	// 暴力方法。依赖 appendRange 动态合并范围。
 	for c := lo; c <= hi; c++ {
 		r = appendRange(r, c, c)
 		f := unicode.SimpleFold(c)
@@ -2041,8 +2024,8 @@ func appendFoldedRange(r []rune, lo, hi rune) []rune {
 	return r
 }
 
-// appendClass returns the result of appending the class x to the class r.
-// It assume x is clean.
+// appendClass 返回将字符类 x 追加到字符类 r 的结果。
+// 它假设 x 是已清理的。
 func appendClass(r []rune, x []rune) []rune {
 	for i := 0; i < len(x); i += 2 {
 		r = appendRange(r, x[i], x[i+1])
@@ -2050,7 +2033,7 @@ func appendClass(r []rune, x []rune) []rune {
 	return r
 }
 
-// appendFoldedClass returns the result of appending the case folding of the class x to the class r.
+// appendFoldedClass 返回将字符类 x 的大小写折叠追加到字符类 r 的结果。
 func appendFoldedClass(r []rune, x []rune) []rune {
 	for i := 0; i < len(x); i += 2 {
 		r = appendFoldedRange(r, x[i], x[i+1])
@@ -2058,8 +2041,8 @@ func appendFoldedClass(r []rune, x []rune) []rune {
 	return r
 }
 
-// appendNegatedClass returns the result of appending the negation of the class x to the class r.
-// It assumes x is clean.
+// appendNegatedClass 返回将字符类 x 的取反追加到字符类 r 的结果。
+// 它假设 x 是已清理的。
 func appendNegatedClass(r []rune, x []rune) []rune {
 	nextLo := '\u0000'
 	for i := 0; i < len(x); i += 2 {
@@ -2075,7 +2058,7 @@ func appendNegatedClass(r []rune, x []rune) []rune {
 	return r
 }
 
-// appendTable returns the result of appending x to the class r.
+// appendTable 返回将 x 追加到字符类 r 的结果。
 func appendTable(r []rune, x *unicode.RangeTable) []rune {
 	for _, xr := range x.R16 {
 		lo, hi, stride := rune(xr.Lo), rune(xr.Hi), rune(xr.Stride)
@@ -2100,7 +2083,7 @@ func appendTable(r []rune, x *unicode.RangeTable) []rune {
 	return r
 }
 
-// appendNegatedTable returns the result of appending the negation of x to the class r.
+// appendNegatedTable 返回将 x 的取反追加到字符类 r 的结果。
 func appendNegatedTable(r []rune, x *unicode.RangeTable) []rune {
 	nextLo := '\u0000' // lo end of next class to add
 	for _, xr := range x.R16 {
@@ -2141,8 +2124,8 @@ func appendNegatedTable(r []rune, x *unicode.RangeTable) []rune {
 	return r
 }
 
-// negateClass overwrites r and returns r's negation.
-// It assumes the class r is already clean.
+// negateClass 覆写 r 并返回 r 的取反结果。
+// 它假设字符类 r 已经是清理过的。
 func negateClass(r []rune) []rune {
 	nextLo := '\u0000' // lo end of next class to add
 	w := 0             // write index
@@ -2157,17 +2140,16 @@ func negateClass(r []rune) []rune {
 	}
 	r = r[:w]
 	if nextLo <= unicode.MaxRune {
-		// It's possible for the negation to have one more
-		// range - this one - than the original class, so use append.
+		// 取反可能比原始字符类多出一个
+		// 范围——就是这个——所以使用 append。
 		r = append(r, nextLo, unicode.MaxRune)
 	}
 	return r
 }
 
-// ranges implements sort.Interface on a []rune.
-// The choice of receiver type definition is strange
-// but avoids an allocation since we already have
-// a *[]rune.
+// ranges 在 []rune 上实现 sort.Interface。
+// 接收者类型定义的选择看起来奇怪，
+// 但由于我们已经有一个 *[]rune，这样可以避免分配。
 type ranges struct {
 	p *[]rune
 }

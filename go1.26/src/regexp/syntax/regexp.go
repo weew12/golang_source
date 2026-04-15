@@ -4,8 +4,8 @@
 
 package syntax
 
-// Note to implementers:
-// In this package, re is always a *Regexp and r is always a rune.
+// 给实现者的注意事项：
+// 在此包中，re 始终是 *Regexp，r 始终是 rune。
 
 import (
 	"slices"
@@ -14,27 +14,27 @@ import (
 	"unicode"
 )
 
-// A Regexp is a node in a regular expression syntax tree.
+// Regexp 是正则表达式语法树中的一个节点。
 type Regexp struct {
-	Op       Op // operator
+	Op       Op // 操作符
 	Flags    Flags
-	Sub      []*Regexp  // subexpressions, if any
-	Sub0     [1]*Regexp // storage for short Sub
-	Rune     []rune     // matched runes, for OpLiteral, OpCharClass
-	Rune0    [2]rune    // storage for short Rune
-	Min, Max int        // min, max for OpRepeat
-	Cap      int        // capturing index, for OpCapture
-	Name     string     // capturing name, for OpCapture
+	Sub      []*Regexp  // 子表达式（如果有）
+	Sub0     [1]*Regexp // 短 Sub 的存储
+	Rune     []rune     // 匹配的 rune，用于 OpLiteral、OpCharClass
+	Rune0    [2]rune    // 短 Rune 的存储
+	Min, Max int        // OpRepeat 的最小值和最大值
+	Cap      int        // 捕获索引，用于 OpCapture
+	Name     string     // 捕获名称，用于 OpCapture
 }
 
 //go:generate stringer -type Op -trimprefix Op
 
-// An Op is a single regular expression operator.
+// Op 是单个正则表达式操作符。
 type Op uint8
 
-// Operators are listed in precedence order, tightest binding to weakest.
-// Character class operators are listed simplest to most complex
-// (OpLiteral, OpCharClass, OpAnyCharNotNL, OpAnyChar).
+// 操作符按优先级顺序列出，从最紧密绑定到最松散绑定。
+// 字符类操作符从最简单到最复杂列出
+// （OpLiteral、OpCharClass、OpAnyCharNotNL、OpAnyChar）。
 
 const (
 	OpNoMatch        Op = 1 + iota // matches no strings
@@ -58,9 +58,9 @@ const (
 	OpAlternate                    // matches alternation of Subs
 )
 
-const opPseudo Op = 128 // where pseudo-ops start
+const opPseudo Op = 128 // 伪操作开始的位置
 
-// Equal reports whether x and y have identical structure.
+// Equal 报告 x 和 y 是否具有相同的结构。
 func (x *Regexp) Equal(y *Regexp) bool {
 	if x == nil || y == nil {
 		return x == y
@@ -70,7 +70,7 @@ func (x *Regexp) Equal(y *Regexp) bool {
 	}
 	switch x.Op {
 	case OpEndText:
-		// The parse flags remember whether this is \z or \Z.
+		// 解析标志记住这是 \z 还是 \Z。
 		if x.Flags&WasDollar != y.Flags&WasDollar {
 			return false
 		}
@@ -99,7 +99,7 @@ func (x *Regexp) Equal(y *Regexp) bool {
 	return true
 }
 
-// printFlags is a bit set indicating which flags (including non-capturing parens) to print around a regexp.
+// printFlags 是一个位集合，指示在正则表达式周围打印哪些标志（包括非捕获括号）。
 type printFlags uint8
 
 const (
@@ -111,8 +111,8 @@ const (
 	negShift = 5                    // flagI<<negShift is (?-i:
 )
 
-// addSpan enables the flags f around start..last,
-// by setting flags[start] = f and flags[last] = flagOff.
+// addSpan 通过设置 flags[start] = f 和 flags[last] = flagOff，
+// 在 start..last 周围启用标志 f。
 func addSpan(start, last *Regexp, f printFlags, flags *map[*Regexp]printFlags) {
 	if *flags == nil {
 		*flags = make(map[*Regexp]printFlags)
@@ -121,11 +121,11 @@ func addSpan(start, last *Regexp, f printFlags, flags *map[*Regexp]printFlags) {
 	(*flags)[last] |= flagOff // maybe start==last
 }
 
-// calcFlags calculates the flags to print around each subexpression in re,
-// storing that information in (*flags)[sub] for each affected subexpression.
-// The first time an entry needs to be written to *flags, calcFlags allocates the map.
-// calcFlags also calculates the flags that must be active or can't be active
-// around re and returns those flags.
+// calcFlags 计算在 re 中每个子表达式周围要打印的标志，
+// 将该信息存储在 (*flags)[sub] 中（针对每个受影响的子表达式）。
+// 第一次需要向 *flags 写入条目时，calcFlags 会分配该 map。
+// calcFlags 还计算在 re 周围必须激活或不能激活的标志
+// 并返回这些标志。
 func calcFlags(re *Regexp, flags *map[*Regexp]printFlags) (must, cant printFlags) {
 	switch re.Op {
 	default:
@@ -221,7 +221,7 @@ func calcFlags(re *Regexp, flags *map[*Regexp]printFlags) (must, cant printFlags
 	}
 }
 
-// writeRegexp writes the Perl syntax for the regular expression re to b.
+// writeRegexp 将正则表达式 re 的 Perl 语法写入 b。
 func writeRegexp(b *strings.Builder, re *Regexp, f printFlags, flags map[*Regexp]printFlags) {
 	f |= flags[re]
 	if f&flagPrec != 0 && f&^(flagOff|flagPrec) != 0 && f&flagOff != 0 {
@@ -278,8 +278,8 @@ func writeRegexp(b *strings.Builder, re *Regexp, f printFlags, flags map[*Regexp
 		if len(re.Rune) == 0 {
 			b.WriteString(`^\x00-\x{10FFFF}`)
 		} else if re.Rune[0] == 0 && re.Rune[len(re.Rune)-1] == unicode.MaxRune && len(re.Rune) > 2 {
-			// Contains 0 and MaxRune. Probably a negated class.
-			// Print the gaps.
+			// 包含 0 和 MaxRune。可能是一个取反类。
+			// 打印间隙。
 			b.WriteRune('^')
 			for i := 1; i < len(re.Rune)-1; i += 2 {
 				lo, hi := re.Rune[i]+1, re.Rune[i+1]-1
@@ -433,7 +433,7 @@ func escape(b *strings.Builder, r rune, force bool) {
 	}
 }
 
-// MaxCap walks the regexp to find the maximum capture index.
+// MaxCap 遍历正则表达式以找到最大捕获索引。
 func (re *Regexp) MaxCap() int {
 	m := 0
 	if re.Op == OpCapture {
@@ -447,7 +447,7 @@ func (re *Regexp) MaxCap() int {
 	return m
 }
 
-// CapNames walks the regexp to find the names of capturing groups.
+// CapNames 遍历正则表达式以找到捕获组的名称。
 func (re *Regexp) CapNames() []string {
 	names := make([]string, re.MaxCap()+1)
 	re.capNames(names)

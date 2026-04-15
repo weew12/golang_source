@@ -6,16 +6,16 @@ package syntax
 
 import "unicode"
 
-// A patchList is a list of instruction pointers that need to be filled in (patched).
-// Because the pointers haven't been filled in yet, we can reuse their storage
-// to hold the list. It's kind of sleazy, but works well in practice.
-// See https://swtch.com/~rsc/regexp/regexp1.html for inspiration.
+// patchList 是一个需要填充（修补）的指令指针列表。
+// 因为这些指针还没有被填充，我们可以复用它们的存储空间
+// 来持有列表。这有点取巧，但在实践中效果很好。
+// 参见 https://swtch.com/~rsc/regexp/regexp1.html 获取灵感。
 //
-// These aren't really pointers: they're integers, so we can reinterpret them
-// this way without using package unsafe. A value l.head denotes
-// p.inst[l.head>>1].Out (l.head&1==0) or .Arg (l.head&1==1).
-// head == 0 denotes the empty list, okay because we start every program
-// with a fail instruction, so we'll never want to point at its output link.
+// 这些并不是真正的指针：它们是整数，所以我们可以不使用 unsafe 包
+// 就以这种方式重新解释它们。值 l.head 表示
+// p.inst[l.head>>1].Out（l.head&1==0）或 .Arg（l.head&1==1）。
+// head == 0 表示空列表，这是可以的，因为我们以 fail 指令开始
+// 每个程序，所以我们永远不会想指向它的输出链接。
 type patchList struct {
 	head, tail uint32
 }
@@ -55,19 +55,19 @@ func (l1 patchList) append(p *Prog, l2 patchList) patchList {
 	return patchList{l1.head, l2.tail}
 }
 
-// A frag represents a compiled program fragment.
+// frag 表示一个已编译的程序片段。
 type frag struct {
-	i        uint32    // index of first instruction
-	out      patchList // where to record end instruction
-	nullable bool      // whether fragment can match empty string
+	i        uint32    // 第一条指令的索引
+	out      patchList // 记录结束指令的位置
+	nullable bool      // 片段是否可以匹配空字符串
 }
 
 type compiler struct {
 	p *Prog
 }
 
-// Compile compiles the regexp into a program to be executed.
-// The regexp should have been simplified already (returned from re.Simplify).
+// Compile 将正则表达式编译为待执行的程序。
+// 正则表达式应该已经被简化（从 re.Simplify 返回）。
 func Compile(re *Regexp) (*Prog, error) {
 	var c compiler
 	c.init()
@@ -79,7 +79,7 @@ func Compile(re *Regexp) (*Prog, error) {
 
 func (c *compiler) init() {
 	c.p = new(Prog)
-	c.p.NumCap = 2 // implicit ( and ) for whole match $0
+	c.p.NumCap = 2 // 整个匹配 $0 的隐含 ( 和 )
 	c.inst(InstFail)
 }
 
@@ -159,7 +159,7 @@ func (c *compiler) compile(re *Regexp) frag {
 }
 
 func (c *compiler) inst(op InstOp) frag {
-	// TODO: impose length limit
+	// TODO: 施加长度限制
 	f := frag{i: uint32(len(c.p.Inst)), nullable: true}
 	c.p.Inst = append(c.p.Inst, Inst{Op: op})
 	return f
@@ -187,19 +187,19 @@ func (c *compiler) cap(arg uint32) frag {
 }
 
 func (c *compiler) cat(f1, f2 frag) frag {
-	// concat of failure is failure
+	// failure 的连接仍是 failure
 	if f1.i == 0 || f2.i == 0 {
 		return frag{}
 	}
 
-	// TODO: elide nop
+	// TODO: 省略 nop
 
 	f1.out.patch(c.p, f2.i)
 	return frag{f1.i, f2.out, f1.nullable && f2.nullable}
 }
 
 func (c *compiler) alt(f1, f2 frag) frag {
-	// alt of failure is other
+	// failure 的交替是另一个
 	if f1.i == 0 {
 		return f2
 	}
@@ -230,11 +230,11 @@ func (c *compiler) quest(f1 frag, nongreedy bool) frag {
 	return f
 }
 
-// loop returns the fragment for the main loop of a plus or star.
-// For plus, it can be used after changing the entry to f1.i.
-// For star, it can be used directly when f1 can't match an empty string.
-// (When f1 can match an empty string, f1* must be implemented as (f1+)?
-// to get the priority match order correct.)
+// loop 返回 plus 或 star 主循环的片段。
+// 对于 plus，可以在将入口更改为 f1.i 后使用。
+// 对于 star，当 f1 不能匹配空字符串时可以直接使用。
+// （当 f1 可以匹配空字符串时，f1* 必须实现为 (f1+)?
+// 以获得正确的优先匹配顺序。）
 func (c *compiler) loop(f1 frag, nongreedy bool) frag {
 	f := c.inst(InstAlt)
 	i := &c.p.Inst[f.i]
@@ -251,8 +251,8 @@ func (c *compiler) loop(f1 frag, nongreedy bool) frag {
 
 func (c *compiler) star(f1 frag, nongreedy bool) frag {
 	if f1.nullable {
-		// Use (f1+)? to get priority match order correct.
-		// See golang.org/issue/46123.
+		// 使用 (f1+)? 以获得正确的优先匹配顺序。
+		// 参见 golang.org/issue/46123。
 		return c.quest(c.plus(f1, nongreedy), nongreedy)
 	}
 	return c.loop(f1, nongreedy)
@@ -274,15 +274,15 @@ func (c *compiler) rune(r []rune, flags Flags) frag {
 	f.nullable = false
 	i := &c.p.Inst[f.i]
 	i.Rune = r
-	flags &= FoldCase // only relevant flag is FoldCase
+	flags &= FoldCase // 唯一相关的标志是 FoldCase
 	if len(r) != 1 || unicode.SimpleFold(r[0]) == r[0] {
-		// and sometimes not even that
+		// 有时甚至连这个也不是
 		flags &^= FoldCase
 	}
 	i.Arg = uint32(flags)
 	f.out = makePatchList(f.i << 1)
 
-	// Special cases for exec machine.
+	// 执行机器的特殊情况。
 	switch {
 	case flags&FoldCase == 0 && (len(r) == 1 || len(r) == 2 && r[0] == r[1]):
 		i.Op = InstRune1
