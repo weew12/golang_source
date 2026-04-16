@@ -16,11 +16,9 @@ import (
 	"text/template/parse"
 )
 
-// escapeTemplate rewrites the named template, which must be
-// associated with t, to guarantee that the output of any of the named
-// templates is properly escaped. If no error is returned, then the named templates have
-// been modified. Otherwise the named templates have been rendered
-// unusable.
+// escapeTemplate 重写命名模板（必须与 t 关联），以保证任何命名模板的输出
+// 都被正确转义。如果没有返回错误，则命名模板已被修改。
+// 否则命名模板已被标记为不可用。
 func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
 	c, _ := tmpl.esc.escapeTree(context{}, node, name, 0)
 	var err error
@@ -30,7 +28,7 @@ func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
 		err = &Error{ErrEndContext, nil, name, 0, fmt.Sprintf("ends in a non-text context: %v", c)}
 	}
 	if err != nil {
-		// Prevent execution of unsafe templates.
+		// 阻止执行不安全的模板。
 		if t := tmpl.set[name]; t != nil {
 			t.escapeErr = err
 			t.text.Tree = nil
@@ -46,10 +44,10 @@ func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
 	return nil
 }
 
-// evalArgs formats the list of arguments into a string. It is equivalent to
-// fmt.Sprint(args...), except that it dereferences all pointers.
+// evalArgs 将参数列表格式化为字符串。它等价于
+// fmt.Sprint(args...)，但会解引用所有指针。
 func evalArgs(args ...any) string {
-	// Optimization for simple common case of a single string argument.
+	// 针对单个字符串参数的简单常见情况的优化。
 	if len(args) == 1 {
 		if s, ok := args[0].(string); ok {
 			return s
@@ -61,7 +59,7 @@ func evalArgs(args ...any) string {
 	return fmt.Sprint(args...)
 }
 
-// funcMap maps command names to functions that render their inputs safe.
+// funcMap 将命令名称映射到使其输入安全的函数。
 var funcMap = template.FuncMap{
 	"_html_template_attrescaper":      attrEscaper,
 	"_html_template_commentescaper":   commentEscaper,
@@ -82,37 +80,33 @@ var funcMap = template.FuncMap{
 	"_eval_args_":                     evalArgs,
 }
 
-// escaper collects type inferences about templates and changes needed to make
-// templates injection safe.
+// escaper 收集关于模板的类型推断和使模板注入安全所需的更改。
 type escaper struct {
-	// ns is the nameSpace that this escaper is associated with.
+	// ns 是此 escaper 关联的 nameSpace。
 	ns *nameSpace
-	// output[templateName] is the output context for a templateName that
-	// has been mangled to include its input context.
+	// output[templateName] 是已被名称改编以包含其输入上下文的 templateName 的输出上下文。
 	output map[string]context
-	// derived[c.mangle(name)] maps to a template derived from the template
-	// named name templateName for the start context c.
+	// derived[c.mangle(name)] 映射到从名为 name 的模板在起始上下文 c 下派生的模板。
 	derived map[string]*template.Template
-	// called[templateName] is a set of called mangled template names.
+	// called[templateName] 是已调用的改编模板名称的集合。
 	called map[string]bool
-	// xxxNodeEdits are the accumulated edits to apply during commit.
-	// Such edits are not applied immediately in case a template set
-	// executes a given template in different escaping contexts.
+	// xxxNodeEdits 是在 commit 期间要应用的累积编辑。
+	// 这些编辑不会立即应用，以防模板集在不同的转义上下文中执行给定模板。
 	actionNodeEdits   map[*parse.ActionNode][]string
 	templateNodeEdits map[*parse.TemplateNode]string
 	textNodeEdits     map[*parse.TextNode][]byte
-	// rangeContext holds context about the current range loop.
+	// rangeContext 保存关于当前 range 循环的上下文。
 	rangeContext *rangeContext
 }
 
-// rangeContext holds information about the current range loop.
+// rangeContext 保存关于当前 range 循环的信息。
 type rangeContext struct {
-	outer     *rangeContext // outer loop
-	breaks    []context     // context at each break action
-	continues []context     // context at each continue action
+	outer     *rangeContext // 外层循环
+	breaks    []context     // 每个 break action 处的上下文
+	continues []context     // 每个 continue action 处的上下文
 }
 
-// makeEscaper creates a blank escaper for the given set.
+// makeEscaper 为给定的集合创建一个空白的 escaper。
 func makeEscaper(n *nameSpace) escaper {
 	return escaper{
 		n,
@@ -126,14 +120,12 @@ func makeEscaper(n *nameSpace) escaper {
 	}
 }
 
-// filterFailsafe is an innocuous word that is emitted in place of unsafe values
-// by sanitizer functions. It is not a keyword in any programming language,
-// contains no special characters, is not empty, and when it appears in output
-// it is distinct enough that a developer can find the source of the problem
-// via a search engine.
+// filterFailsafe 是一个无害的词，由净化函数代替不安全的值输出。
+// 它不是任何编程语言的关键字，不包含特殊字符，不为空，
+// 并且当它出现在输出中时足够独特，开发者可以通过搜索引擎找到问题的来源。
 const filterFailsafe = "ZgotmplZ"
 
-// escape escapes a template node.
+// escape 转义一个模板节点。
 func (e *escaper) escape(c context, n parse.Node) context {
 	switch n := n.(type) {
 	case *parse.ActionNode:
@@ -168,24 +160,21 @@ var debugAllowActionJSTmpl = godebug.New("jstmpllitinterp")
 
 var htmlmetacontenturlescape = godebug.New("htmlmetacontenturlescape")
 
-// escapeAction escapes an action template node.
+// escapeAction 转义一个 action 模板节点。
 func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	if len(n.Pipe.Decl) != 0 {
-		// A local variable assignment, not an interpolation.
+		// 局部变量赋值，不是插值。
 		return c
 	}
 	c = nudge(c)
-	// Check for disallowed use of predefined escapers in the pipeline.
+	// 检查管道中是否有不允许的预定义转义器使用。
 	for pos, idNode := range n.Pipe.Cmds {
 		node, ok := idNode.Args[0].(*parse.IdentifierNode)
 		if !ok {
-			// A predefined escaper "esc" will never be found as an identifier in a
-			// Chain or Field node, since:
-			// - "esc.x ..." is invalid, since predefined escapers return strings, and
-			//   strings do not have methods, keys or fields.
-			// - "... .esc" is invalid, since predefined escapers are global functions,
-			//   not methods or fields of any types.
-			// Therefore, it is safe to ignore these two node types.
+			// 预定义转义器 "esc" 永远不会作为 Chain 或 Field 节点中的标识符出现，因为：
+			// - "esc.x ..." 是无效的，因为预定义转义器返回字符串，字符串没有方法、键或字段。
+			// - "... .esc" 是无效的，因为预定义转义器是全局函数，不是任何类型的方法或字段。
+			// 因此，忽略这两种节点类型是安全的。
 			continue
 		}
 		ident := node.Ident
@@ -226,20 +215,19 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 			panic(c.urlPart.String())
 		}
 	case stateMetaContent:
-		// Handled below in delim check.
+		// 在下面的 delim 检查中处理。
 	case stateMetaContentURL:
 		if htmlmetacontenturlescape.Value() != "0" {
 			s = append(s, "_html_template_urlfilter")
 		} else {
-			// We don't have a great place to increment this, since it's hard to
-			// know if we actually escape any urls in _html_template_urlfilter,
-			// since it has no information about what context it is being
-			// executed in etc. This is probably the best we can do.
+			// 我们没有一个很好的地方来递增这个计数，因为很难知道我们是否
+			// 实际在 _html_template_urlfilter 中转义了任何 URL，
+			// 因为它没有关于执行上下文等的信息。这可能是我们能做的最好的了。
 			htmlmetacontenturlescape.IncNonDefault()
 		}
 	case stateJS:
 		s = append(s, "_html_template_jsvalescaper")
-		// A slash after a value starts a div operator.
+		// 值之后的斜杠开始一个除法运算符。
 		c.jsCtx = jsCtxDivOp
 	case stateJSDqStr, stateJSSqStr:
 		s = append(s, "_html_template_jsstrescaper")
@@ -254,7 +242,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	case stateRCDATA:
 		s = append(s, "_html_template_rcdataescaper")
 	case stateAttr:
-		// Handled below in delim check.
+		// 在下面的 delim 检查中处理。
 	case stateAttrName, stateTag:
 		c.state = stateAttrName
 		s = append(s, "_html_template_htmlnamefilter")
@@ -269,7 +257,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	}
 	switch c.delim {
 	case delimNone:
-		// No extra-escaping needed for raw text content.
+		// 原始文本内容不需要额外转义。
 	case delimSpaceOrTagEnd:
 		s = append(s, "_html_template_nospaceescaper")
 	default:
@@ -279,35 +267,32 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
 	return c
 }
 
-// ensurePipelineContains ensures that the pipeline ends with the commands with
-// the identifiers in s in order. If the pipeline ends with a predefined escaper
-// (i.e. "html" or "urlquery"), merge it with the identifiers in s.
+// ensurePipelineContains 确保管道按顺序以 s 中标识符对应的命令结尾。
+// 如果管道以预定义转义器（即 "html" 或 "urlquery"）结尾，则将其与 s 中的标识符合并。
 func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	if len(s) == 0 {
-		// Do not rewrite pipeline if we have no escapers to insert.
+		// 如果没有要插入的转义器，不重写管道。
 		return
 	}
-	// Precondition: p.Cmds contains at most one predefined escaper and the
-	// escaper will be present at p.Cmds[len(p.Cmds)-1]. This precondition is
-	// always true because of the checks in escapeAction.
+	// 前置条件：p.Cmds 最多包含一个预定义转义器，且该转义器位于
+	// p.Cmds[len(p.Cmds)-1]。由于 escapeAction 中的检查，此前置条件始终为真。
 	pipelineLen := len(p.Cmds)
 	if pipelineLen > 0 {
 		lastCmd := p.Cmds[pipelineLen-1]
 		if idNode, ok := lastCmd.Args[0].(*parse.IdentifierNode); ok {
 			if esc := idNode.Ident; predefinedEscapers[esc] {
-				// Pipeline ends with a predefined escaper.
+				// 管道以预定义转义器结尾。
 				if len(p.Cmds) == 1 && len(lastCmd.Args) > 1 {
-					// Special case: pipeline is of the form {{ esc arg1 arg2 ... argN }},
-					// where esc is the predefined escaper, and arg1...argN are its arguments.
-					// Convert this into the equivalent form
-					// {{ _eval_args_ arg1 arg2 ... argN | esc }}, so that esc can be easily
-					// merged with the escapers in s.
+					// 特殊情况：管道形式为 {{ esc arg1 arg2 ... argN }}，
+					// 其中 esc 是预定义转义器，arg1...argN 是其参数。
+					// 将其转换为等价形式
+					// {{ _eval_args_ arg1 arg2 ... argN | esc }}，以便 esc 可以轻松
+					// 与 s 中的转义器合并。
 					lastCmd.Args[0] = parse.NewIdentifier("_eval_args_").SetTree(nil).SetPos(lastCmd.Args[0].Position())
 					p.Cmds = appendCmd(p.Cmds, newIdentCmd(esc, p.Position()))
 					pipelineLen++
 				}
-				// If any of the commands in s that we are about to insert is equivalent
-				// to the predefined escaper, use the predefined escaper instead.
+				// 如果我们即将插入的 s 中的任何命令等价于预定义转义器，则使用预定义转义器代替。
 				dup := false
 				for i, escaper := range s {
 					if escFnsEq(esc, escaper) {
@@ -316,14 +301,13 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 					}
 				}
 				if dup {
-					// The predefined escaper will already be inserted along with the
-					// escapers in s, so do not copy it to the rewritten pipeline.
+					// 预定义转义器将与 s 中的转义器一起被插入，因此不要将其复制到重写的管道中。
 					pipelineLen--
 				}
 			}
 		}
 	}
-	// Rewrite the pipeline, creating the escapers in s at the end of the pipeline.
+	// 重写管道，在管道末尾创建 s 中的转义器。
 	newCmds := make([]*parse.CommandNode, pipelineLen, pipelineLen+len(s))
 	insertedIdents := make(map[string]bool)
 	for i := 0; i < pipelineLen; i++ {
@@ -335,51 +319,42 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
 	}
 	for _, name := range s {
 		if !insertedIdents[normalizeEscFn(name)] {
-			// When two templates share an underlying parse tree via the use of
-			// AddParseTree and one template is executed after the other, this check
-			// ensures that escapers that were already inserted into the pipeline on
-			// the first escaping pass do not get inserted again.
+			// 当两个模板通过 AddParseTree 共享底层解析树，且一个模板在另一个之后执行时，
+			// 此检查确保在第一次转义过程中已插入管道的转义器不会被再次插入。
 			newCmds = appendCmd(newCmds, newIdentCmd(name, p.Position()))
 		}
 	}
 	p.Cmds = newCmds
 }
 
-// predefinedEscapers contains template predefined escapers that are equivalent
-// to some contextual escapers. Keep in sync with equivEscapers.
+// predefinedEscapers 包含等价于某些上下文转义器的模板预定义转义器。与 equivEscapers 保持同步。
 var predefinedEscapers = map[string]bool{
 	"html":     true,
 	"urlquery": true,
 }
 
-// equivEscapers matches contextual escapers to equivalent predefined
-// template escapers.
+// equivEscapers 将上下文转义器匹配到等价的预定义模板转义器。
 var equivEscapers = map[string]string{
-	// The following pairs of HTML escapers provide equivalent security
-	// guarantees, since they all escape '\000', '\'', '"', '&', '<', and '>'.
+	// 以下 HTML 转义器对提供等价的安全保证，因为它们都转义 '\000'、'\''、'"'、'&'、'<' 和 '>'。
 	"_html_template_attrescaper":   "html",
 	"_html_template_htmlescaper":   "html",
 	"_html_template_rcdataescaper": "html",
-	// These two URL escapers produce URLs safe for embedding in a URL query by
-	// percent-encoding all the reserved characters specified in RFC 3986 Section
-	// 2.2
+	// 这两个 URL 转义器通过对 RFC 3986 第 2.2 节中指定的所有保留字符进行百分号编码，
+	// 生成可安全嵌入 URL 查询的 URL。
 	"_html_template_urlescaper": "urlquery",
-	// These two functions are not actually equivalent; urlquery is stricter as it
-	// escapes reserved characters (e.g. '#'), while _html_template_urlnormalizer
-	// does not. It is therefore only safe to replace _html_template_urlnormalizer
-	// with urlquery (this happens in ensurePipelineContains), but not the otherI've
-	// way around. We keep this entry around to preserve the behavior of templates
-	// written before Go 1.9, which might depend on this substitution taking place.
+	// 这两个函数实际上并不等价；urlquery 更严格，因为它转义保留字符（如 '#'），
+	// 而 _html_template_urlnormalizer 不会。因此只有将 _html_template_urlnormalizer
+	// 替换为 urlquery 是安全的（这在 ensurePipelineContains 中发生），反过来则不安全。
+	// 我们保留此条目以保持在 Go 1.9 之前编写的模板的行为，这些模板可能依赖于此替换的发生。
 	"_html_template_urlnormalizer": "urlquery",
 }
 
-// escFnsEq reports whether the two escaping functions are equivalent.
+// escFnsEq 报告两个转义函数是否等价。
 func escFnsEq(a, b string) bool {
 	return normalizeEscFn(a) == normalizeEscFn(b)
 }
 
-// normalizeEscFn(a) is equal to normalizeEscFn(b) for any pair of names of
-// escaper functions a and b that are equivalent.
+// normalizeEscFn(a) 等于 normalizeEscFn(b)，对于任何等价的转义器函数名称对 a 和 b。
 func normalizeEscFn(e string) string {
 	if norm := equivEscapers[e]; norm != "" {
 		return norm
@@ -387,8 +362,7 @@ func normalizeEscFn(e string) string {
 	return e
 }
 
-// redundantFuncs[a][b] implies that funcMap[b](funcMap[a](x)) == funcMap[a](x)
-// for all x.
+// redundantFuncs[a][b] 意味着对所有 x，funcMap[b](funcMap[a](x)) == funcMap[a](x)。
 var redundantFuncs = map[string]map[string]bool{
 	"_html_template_commentescaper": {
 		"_html_template_attrescaper": true,
@@ -411,8 +385,7 @@ var redundantFuncs = map[string]map[string]bool{
 	},
 }
 
-// appendCmd appends the given command to the end of the command pipeline
-// unless it is redundant with the last command.
+// appendCmd 将给定命令追加到命令管道末尾，除非它与最后一个命令冗余。
 func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.CommandNode {
 	if n := len(cmds); n != 0 {
 		last, okLast := cmds[n-1].Args[0].(*parse.IdentifierNode)
@@ -424,7 +397,7 @@ func appendCmd(cmds []*parse.CommandNode, cmd *parse.CommandNode) []*parse.Comma
 	return append(cmds, cmd)
 }
 
-// newIdentCmd produces a command containing a single identifier node.
+// newIdentCmd 生成一个包含单个标识符节点的命令。
 func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
 	return &parse.CommandNode{
 		NodeType: parse.NodeCommand,
@@ -432,42 +405,38 @@ func newIdentCmd(identifier string, pos parse.Pos) *parse.CommandNode {
 	}
 }
 
-// nudge returns the context that would result from following empty string
-// transitions from the input context.
-// For example, parsing:
+// nudge 返回从输入上下文跟随空字符串转换后产生的上下文。
+// 例如，解析：
 //
 //	`<a href=`
 //
-// will end in context{stateBeforeValue, attrURL}, but parsing one extra rune:
+// 将以 context{stateBeforeValue, attrURL} 结束，但再解析一个字符：
 //
 //	`<a href=x`
 //
-// will end in context{stateURL, delimSpaceOrTagEnd, ...}.
-// There are two transitions that happen when the 'x' is seen:
-// (1) Transition from a before-value state to a start-of-value state without
+// 将以 context{stateURL, delimSpaceOrTagEnd, ...} 结束。
+// 当看到 'x' 时发生两个转换：
+// (1) 从 before-value 状态转换到 start-of-value 状态，不消耗任何字符。
 //
-//	consuming any character.
-//
-// (2) Consume 'x' and transition past the first value character.
-// In this case, nudging produces the context after (1) happens.
+// (2) 消耗 'x' 并转换过第一个值字符。
+// 在这种情况下，nudge 产生 (1) 发生后的上下文。
 func nudge(c context) context {
 	switch c.state {
 	case stateTag:
-		// In `<foo {{.}}`, the action should emit an attribute.
+		// 在 `<foo {{.}}` 中，action 应发出一个属性。
 		c.state = stateAttrName
 	case stateBeforeValue:
-		// In `<foo bar={{.}}`, the action is an undelimited value.
+		// 在 `<foo bar={{.}}` 中，action 是一个无分隔符的值。
 		c.state, c.delim, c.attr = attrStartStates[c.attr], delimSpaceOrTagEnd, attrNone
 	case stateAfterName:
-		// In `<foo bar {{.}}`, the action is an attribute name.
+		// 在 `<foo bar {{.}}` 中，action 是一个属性名。
 		c.state, c.attr = stateAttrName, attrNone
 	}
 	return c
 }
 
-// join joins the two contexts of a branch template node. The result is an
-// error context if either of the input contexts are error contexts, or if the
-// input contexts differ.
+// join 合并分支模板节点的两个上下文。如果任一输入上下文是错误上下文，
+// 或输入上下文不同，则结果为错误上下文。
 func join(a, b context, node parse.Node, nodeName string) context {
 	if a.state == stateError {
 		return a
@@ -488,7 +457,7 @@ func join(a, b context, node parse.Node, nodeName string) context {
 	c := a
 	c.urlPart = b.urlPart
 	if c.eq(b) {
-		// The contexts differ only by urlPart.
+		// 上下文仅在 urlPart 上不同。
 		c.urlPart = urlPartUnknown
 		return c
 	}
@@ -496,16 +465,15 @@ func join(a, b context, node parse.Node, nodeName string) context {
 	c = a
 	c.jsCtx = b.jsCtx
 	if c.eq(b) {
-		// The contexts differ only by jsCtx.
+		// 上下文仅在 jsCtx 上不同。
 		c.jsCtx = jsCtxUnknown
 		return c
 	}
 
-	// Allow a nudged context to join with an unnudged one.
-	// This means that
+	// 允许调整后的上下文与未调整的上下文合并。
+	// 这意味着
 	//   <p title={{if .C}}{{.}}{{end}}
-	// ends in an unquoted value state even though the else branch
-	// ends in stateBeforeValue.
+	// 即使 else 分支在 stateBeforeValue 中结束，也以未加引号的值状态结束。
 	if c, d := nudge(a), nudge(b); !(c.eq(a) && d.eq(b)) {
 		if e := join(c, d, node, nodeName); e.state != stateError {
 			return e
@@ -518,7 +486,7 @@ func join(a, b context, node parse.Node, nodeName string) context {
 	}
 }
 
-// escapeBranch escapes a branch template node: "if", "range" and "with".
+// escapeBranch 转义分支模板节点："if"、"range" 和 "with"。
 func (e *escaper) escapeBranch(c context, n *parse.BranchNode, nodeName string) context {
 	if nodeName == "range" {
 		e.rangeContext = &rangeContext{outer: e.rangeContext}
@@ -533,17 +501,15 @@ func (e *escaper) escapeBranch(c context, n *parse.BranchNode, nodeName string) 
 			return c0
 		}
 
-		// The "true" branch of a "range" node can execute multiple times.
-		// We check that executing n.List once results in the same context
-		// as executing n.List twice.
+		// "range" 节点的 "true" 分支可以执行多次。
+		// 我们检查执行 n.List 一次是否与执行 n.List 两次产生相同的上下文。
 		e.rangeContext = &rangeContext{outer: e.rangeContext}
 		c1, _ := e.escapeListConditionally(c0, n.List, nil)
 		c0 = join(c0, c1, n, nodeName)
 		if c0.state == stateError {
 			e.rangeContext = e.rangeContext.outer
-			// Make clear that this is a problem on loop re-entry
-			// since developers tend to overlook that branch when
-			// debugging templates.
+			// 明确表示这是循环重新进入时的问题，
+			// 因为开发者在调试模板时往往会忽略该分支。
 			c0.err.Line = n.Line
 			c0.err.Description = "on range loop re-entry: " + c0.err.Description
 			return c0
@@ -559,9 +525,8 @@ func (e *escaper) escapeBranch(c context, n *parse.BranchNode, nodeName string) 
 }
 
 func joinRange(c0 context, rc *rangeContext) context {
-	// Merge contexts at break and continue statements into overall body context.
-	// In theory we could treat breaks differently from continues, but for now it is
-	// enough to treat them both as going back to the start of the loop (which may then stop).
+	// 将 break 和 continue 语句处的上下文合并到整体循环体上下文中。
+	// 理论上我们可以区别对待 break 和 continue，但目前将它们都视为返回循环开始处（然后可能停止）就足够了。
 	for _, c := range rc.breaks {
 		c0 = join(c0, c, c.n, "range")
 		if c0.state == stateError {
@@ -581,7 +546,7 @@ func joinRange(c0 context, rc *rangeContext) context {
 	return c0
 }
 
-// escapeList escapes a list template node.
+// escapeList 转义一个列表模板节点。
 func (e *escaper) escapeList(c context, n *parse.ListNode) context {
 	if n == nil {
 		return c
@@ -595,19 +560,18 @@ func (e *escaper) escapeList(c context, n *parse.ListNode) context {
 	return c
 }
 
-// escapeListConditionally escapes a list node but only preserves edits and
-// inferences in e if the inferences and output context satisfy filter.
-// It returns the best guess at an output context, and the result of the filter
-// which is the same as whether e was updated.
+// escapeListConditionally 转义一个列表节点，但仅当推断和输出上下文满足 filter 时
+// 才保留 e 中的编辑和推断。它返回对输出上下文的最佳猜测，以及 filter 的结果
+// （与 e 是否被更新相同）。
 func (e *escaper) escapeListConditionally(c context, n *parse.ListNode, filter func(*escaper, context) bool) (context, bool) {
 	e1 := makeEscaper(e.ns)
 	e1.rangeContext = e.rangeContext
-	// Make type inferences available to f.
+	// 使类型推断对 f 可用。
 	maps.Copy(e1.output, e.output)
 	c = e1.escapeList(c, n)
 	ok := filter != nil && filter(&e1, c)
 	if ok {
-		// Copy inferences and edits from e1 back into e.
+		// 将推断和编辑从 e1 复制回 e。
 		maps.Copy(e.output, e1.output)
 		maps.Copy(e.derived, e1.derived)
 		maps.Copy(e.called, e1.called)
@@ -624,7 +588,7 @@ func (e *escaper) escapeListConditionally(c context, n *parse.ListNode, filter f
 	return c, ok
 }
 
-// escapeTemplate escapes a {{template}} call node.
+// escapeTemplate 转义一个 {{template}} 调用节点。
 func (e *escaper) escapeTemplate(c context, n *parse.TemplateNode) context {
 	c, name := e.escapeTree(c, n, n.Name, n.Line)
 	if name != n.Name {
@@ -633,21 +597,18 @@ func (e *escaper) escapeTemplate(c context, n *parse.TemplateNode) context {
 	return c
 }
 
-// escapeTree escapes the named template starting in the given context as
-// necessary and returns its output context.
+// escapeTree 根据需要从给定上下文开始转义命名模板，并返回其输出上下文。
 func (e *escaper) escapeTree(c context, node parse.Node, name string, line int) (context, string) {
-	// Mangle the template name with the input context to produce a reliable
-	// identifier.
+	// 将模板名称与输入上下文进行名称改编以生成可靠的标识符。
 	dname := c.mangle(name)
 	e.called[dname] = true
 	if out, ok := e.output[dname]; ok {
-		// Already escaped.
+		// 已经转义过。
 		return out, dname
 	}
 	t := e.template(name)
 	if t == nil {
-		// Two cases: The template exists but is empty, or has never been mentioned at
-		// all. Distinguish the cases in the error messages.
+		// 两种情况：模板存在但为空，或从未被提及。在错误消息中区分这两种情况。
 		if e.ns.set[name] != nil {
 			return context{
 				state: stateError,
@@ -660,8 +621,8 @@ func (e *escaper) escapeTree(c context, node parse.Node, name string, line int) 
 		}, dname
 	}
 	if dname != name {
-		// Use any template derived during an earlier call to escapeTemplate
-		// with different top level templates, or clone if necessary.
+		// 使用在早先对 escapeTemplate 的调用中用不同顶层模板派生的任何模板，
+		// 或在必要时进行克隆。
 		dt := e.template(dname)
 		if dt == nil {
 			dt = template.New(dname)
@@ -673,17 +634,16 @@ func (e *escaper) escapeTree(c context, node parse.Node, name string, line int) 
 	return e.computeOutCtx(c, t), dname
 }
 
-// computeOutCtx takes a template and its start context and computes the output
-// context while storing any inferences in e.
+// computeOutCtx 接受模板及其起始上下文，计算输出上下文并将任何推断存储在 e 中。
 func (e *escaper) computeOutCtx(c context, t *template.Template) context {
-	// Propagate context over the body.
+	// 将上下文传播到整个主体。
 	c1, ok := e.escapeTemplateBody(c, t)
 	if !ok {
-		// Look for a fixed point by assuming c1 as the output context.
+		// 通过假设 c1 为输出上下文来查找不动点。
 		if c2, ok2 := e.escapeTemplateBody(c1, t); ok2 {
 			c1, ok = c2, true
 		}
-		// Use c1 as the error context if neither assumption worked.
+		// 如果两种假设都不成立，则使用 c1 作为错误上下文。
 	}
 	if !ok && c1.state != stateError {
 		return context{
@@ -694,36 +654,32 @@ func (e *escaper) computeOutCtx(c context, t *template.Template) context {
 	return c1
 }
 
-// escapeTemplateBody escapes the given template assuming the given output
-// context, and returns the best guess at the output context and whether the
-// assumption was correct.
+// escapeTemplateBody 假设给定的输出上下文来转义给定的模板，
+// 返回对输出上下文的最佳猜测以及假设是否正确。
 func (e *escaper) escapeTemplateBody(c context, t *template.Template) (context, bool) {
 	filter := func(e1 *escaper, c1 context) bool {
 		if c1.state == stateError {
-			// Do not update the input escaper, e.
+			// 不更新输入 escaper e。
 			return false
 		}
 		if !e1.called[t.Name()] {
-			// If t is not recursively called, then c1 is an
-			// accurate output context.
+			// 如果 t 没有被递归调用，则 c1 是准确的输出上下文。
 			return true
 		}
-		// c1 is accurate if it matches our assumed output context.
+		// 如果 c1 与我们假设的输出上下文匹配，则 c1 是准确的。
 		return c.eq(c1)
 	}
-	// We need to assume an output context so that recursive template calls
-	// take the fast path out of escapeTree instead of infinitely recurring.
-	// Naively assuming that the input context is the same as the output
-	// works >90% of the time.
+	// 我们需要假设一个输出上下文，以便递归模板调用走 escapeTree 的快速路径，
+	// 而不是无限递归。简单地假设输入上下文与输出相同，超过 90% 的情况下都有效。
 	e.output[t.Name()] = c
 	return e.escapeListConditionally(c, t.Tree.Root, filter)
 }
 
-// delimEnds maps each delim to a string of characters that terminate it.
+// delimEnds 将每个 delim 映射到终止它的字符串。
 var delimEnds = [...]string{
 	delimDoubleQuote: `"`,
 	delimSingleQuote: "'",
-	// Determined empirically by running the below in various browsers.
+	// 通过在各种浏览器中运行以下代码经验性确定。
 	// var div = document.createElement("DIV");
 	// for (var i = 0; i < 0x10000; ++i) {
 	//   div.innerHTML = "<span title=x" + String.fromCharCode(i) + "-bar>";
@@ -734,13 +690,11 @@ var delimEnds = [...]string{
 }
 
 var (
-	// Per WHATWG HTML specification, section 4.12.1.3, there are extremely
-	// complicated rules for how to handle the set of opening tags <!--,
-	// <script, and </script when they appear in JS literals (i.e. strings,
-	// regexs, and comments). The specification suggests a simple solution,
-	// rather than implementing the arcane ABNF, which involves simply escaping
-	// the opening bracket with \x3C. We use the below regex for this, since it
-	// makes doing the case-insensitive find-replace much simpler.
+	// 根据 WHATWG HTML 规范第 4.12.1.3 节，处理 <!--、<script 和 </script
+	// 开始标签在 JS 字面量（即字符串、正则表达式和注释）中出现时有极其复杂的规则。
+	// 规范建议使用一个简单的解决方案，而不是实现晦涩的 ABNF，
+	// 即简单地用 \x3C 转义开始括号。我们使用下面的正则表达式来实现，
+	// 因为它使不区分大小写的查找替换更加简单。
 	specialScriptTagRE          = regexp.MustCompile("(?i)<(script|/script|!--)")
 	specialScriptTagReplacement = []byte("\\x3C$1")
 )
@@ -755,7 +709,7 @@ func escapeSpecialScriptTags(s []byte) []byte {
 
 var doctypeBytes = []byte("<!DOCTYPE")
 
-// escapeText escapes a text template node.
+// escapeText 转义一个文本模板节点。
 func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 	s, written, i, b := n.Text, 0, 0, new(bytes.Buffer)
 	for i != len(s) {
@@ -782,12 +736,9 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 			switch c.state {
 			case stateJSBlockCmt:
 				// https://es5.github.io/#x7.4:
-				// "Comments behave like white space and are
-				// discarded except that, if a MultiLineComment
-				// contains a line terminator character, then
-				// the entire comment is considered to be a
-				// LineTerminator for purposes of parsing by
-				// the syntactic grammar."
+				// "注释的行为类似于空白，会被丢弃，但如果 MultiLineComment
+				// 包含行终止符字符，则整个注释被视为
+				// LineTerminator，用于语法解析。"
 				if bytes.ContainsAny(s[written:i1], "\n\r\u2028\u2029") {
 					b.WriteByte('\n')
 				} else {
@@ -799,13 +750,13 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 			written = i1
 		}
 		if c.state != c1.state && isComment(c1.state) && c1.delim == delimNone {
-			// Preserve the portion between written and the comment start.
+			// 保留 written 和注释开始之间的部分。
 			cs := i1 - 2
 			if c1.state == stateHTMLCmt || c1.state == stateJSHTMLOpenCmt {
-				// "<!--" instead of "/*" or "//"
+				// "<!--" 而不是 "/*" 或 "//"
 				cs -= 2
 			} else if c1.state == stateJSHTMLCloseCmt {
-				// "-->" instead of "/*" or "//"
+				// "-->" 而不是 "/*" 或 "//"
 				cs -= 1
 			}
 			b.Write(s[written:cs])
@@ -831,21 +782,20 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
 	return c
 }
 
-// contextAfterText starts in context c, consumes some tokens from the front of
-// s, then returns the context after those tokens and the unprocessed suffix.
+// contextAfterText 从上下文 c 开始，从 s 的前面消耗一些标记，
+// 然后返回这些标记之后的上下文和未处理的后缀。
 func contextAfterText(c context, s []byte) (context, int) {
 	if c.delim == delimNone {
 		c1, i := tSpecialTagEnd(c, s)
 		if i == 0 {
-			// A special end tag (`</script>`) has been seen and
-			// all content preceding it has been consumed.
+			// 已经看到特殊结束标签（`</script>`），且其前面的所有内容都已被消耗。
 			return c1, 0
 		}
-		// Consider all content up to any end tag.
+		// 考虑到任何结束标签为止的所有内容。
 		return transitionFunc[c.state](c, s[:i])
 	}
 
-	// We are at the beginning of an attribute value.
+	// 我们位于属性值的开头。
 
 	i := bytes.IndexAny(s, delimEnds[c.delim])
 	if i == -1 {
@@ -853,12 +803,12 @@ func contextAfterText(c context, s []byte) (context, int) {
 	}
 	if c.delim == delimSpaceOrTagEnd {
 		// https://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
-		// lists the runes below as error characters.
-		// Error out because HTML parsers may differ on whether
-		// "<a id= onclick=f("     ends inside id's or onclick's value,
-		// "<a class=`foo "        ends inside a value,
-		// "<a style=font:'Arial'" needs open-quote fixup.
-		// IE treats '`' as a quotation character.
+		// 下面列出的字符被视为错误字符。
+		// 报错是因为 HTML 解析器对以下情况可能有不同理解：
+		// "<a id= onclick=f("     是否在 id 或 onclick 的值内部结束，
+		// "<a class=`foo "        是否在值内部结束，
+		// "<a style=font:'Arial'" 需要开引号修复。
+		// IE 将 '`' 视为引号字符。
 		if j := bytes.IndexAny(s[:i], "\"'<=`"); j >= 0 {
 			return context{
 				state: stateError,
@@ -867,10 +817,10 @@ func contextAfterText(c context, s []byte) (context, int) {
 		}
 	}
 	if i == len(s) {
-		// Remain inside the attribute.
-		// Decode the value so non-HTML rules can easily handle
+		// 保持在属性内部。
+		// 解码值以便非 HTML 规则可以轻松处理
 		//     <button onclick="alert(&quot;Hi!&quot;)">
-		// without having to entity decode token boundaries.
+		// 而无需对标记边界进行实体解码。
 		for u := []byte(html.UnescapeString(string(s))); len(u) != 0; {
 			c1, i1 := transitionFunc[c.state](c, u)
 			c, u = c1, u[i1:]
@@ -880,21 +830,20 @@ func contextAfterText(c context, s []byte) (context, int) {
 
 	element := c.element
 
-	// If this is a non-JS "type" attribute inside "script" tag, do not treat the contents as JS.
+	// 如果这是 "script" 标签内的非 JS "type" 属性，则不将内容视为 JS。
 	if c.state == stateAttr && c.element == elementScript && c.attr == attrScriptType && !isJSType(string(s[:i])) {
 		element = elementNone
 	}
 
 	if c.delim != delimSpaceOrTagEnd {
-		// Consume any quote.
+		// 消耗任何引号。
 		i++
 	}
-	// On exiting an attribute, we discard all state information
-	// except the state and element.
+	// 退出属性时，我们丢弃除 state 和 element 之外的所有状态信息。
 	return context{state: stateTag, element: element}, i
 }
 
-// editActionNode records a change to an action pipeline for later commit.
+// editActionNode 记录对 action 管道的更改以供稍后提交。
 func (e *escaper) editActionNode(n *parse.ActionNode, cmds []string) {
 	if _, ok := e.actionNodeEdits[n]; ok {
 		panic(fmt.Sprintf("node %s shared between templates", n))
@@ -902,7 +851,7 @@ func (e *escaper) editActionNode(n *parse.ActionNode, cmds []string) {
 	e.actionNodeEdits[n] = cmds
 }
 
-// editTemplateNode records a change to a {{template}} callee for later commit.
+// editTemplateNode 记录对 {{template}} 被调用者的更改以供稍后提交。
 func (e *escaper) editTemplateNode(n *parse.TemplateNode, callee string) {
 	if _, ok := e.templateNodeEdits[n]; ok {
 		panic(fmt.Sprintf("node %s shared between templates", n))
@@ -910,7 +859,7 @@ func (e *escaper) editTemplateNode(n *parse.TemplateNode, callee string) {
 	e.templateNodeEdits[n] = callee
 }
 
-// editTextNode records a change to a text node for later commit.
+// editTextNode 记录对文本节点的更改以供稍后提交。
 func (e *escaper) editTextNode(n *parse.TextNode, text []byte) {
 	if _, ok := e.textNodeEdits[n]; ok {
 		panic(fmt.Sprintf("node %s shared between templates", n))
@@ -918,14 +867,14 @@ func (e *escaper) editTextNode(n *parse.TextNode, text []byte) {
 	e.textNodeEdits[n] = text
 }
 
-// commit applies changes to actions and template calls needed to contextually
-// autoescape content and adds any derived templates to the set.
+// commit 应用对 action 和模板调用所需的更改以进行上下文自动转义，
+// 并将任何派生模板添加到集合中。
 func (e *escaper) commit() {
 	for name := range e.output {
 		e.template(name).Funcs(funcMap)
 	}
-	// Any template from the name space associated with this escaper can be used
-	// to add derived templates to the underlying text/template name space.
+	// 与此 escaper 关联的名称空间中的任何模板都可用于
+	// 将派生模板添加到底层 text/template 名称空间。
 	tmpl := e.arbitraryTemplate()
 	for _, t := range e.derived {
 		if _, err := tmpl.text.AddParseTree(t.Name(), t.Tree); err != nil {
@@ -941,18 +890,17 @@ func (e *escaper) commit() {
 	for n, s := range e.textNodeEdits {
 		n.Text = s
 	}
-	// Reset state that is specific to this commit so that the same changes are
-	// not re-applied to the template on subsequent calls to commit.
+	// 重置特定于此次提交的状态，以便在后续调用 commit 时不会将相同的更改重新应用到模板。
 	e.called = make(map[string]bool)
 	e.actionNodeEdits = make(map[*parse.ActionNode][]string)
 	e.templateNodeEdits = make(map[*parse.TemplateNode]string)
 	e.textNodeEdits = make(map[*parse.TextNode][]byte)
 }
 
-// template returns the named template given a mangled template name.
+// template 根据改编后的模板名称返回命名模板。
 func (e *escaper) template(name string) *template.Template {
-	// Any template from the name space associated with this escaper can be used
-	// to look up templates in the underlying text/template name space.
+	// 与此 escaper 关联的名称空间中的任何模板都可用于
+	// 在底层 text/template 名称空间中查找模板。
 	t := e.arbitraryTemplate().text.Lookup(name)
 	if t == nil {
 		t = e.derived[name]
@@ -960,8 +908,7 @@ func (e *escaper) template(name string) *template.Template {
 	return t
 }
 
-// arbitraryTemplate returns an arbitrary template from the name space
-// associated with e and panics if no templates are found.
+// arbitraryTemplate 从与 e 关联的名称空间中返回一个任意模板，如果没有找到模板则 panic。
 func (e *escaper) arbitraryTemplate() *Template {
 	for _, t := range e.ns.set {
 		return t
@@ -969,43 +916,39 @@ func (e *escaper) arbitraryTemplate() *Template {
 	panic("no templates in name space")
 }
 
-// Forwarding functions so that clients need only import this package
-// to reach the general escaping functions of text/template.
+// 转发函数，使客户端只需导入此包即可使用 text/template 的通用转义函数。
 
-// HTMLEscape writes to w the escaped HTML equivalent of the plain text data b.
+// HTMLEscape 将纯文本数据 b 的转义 HTML 等价物写入 w。
 func HTMLEscape(w io.Writer, b []byte) {
 	template.HTMLEscape(w, b)
 }
 
-// HTMLEscapeString returns the escaped HTML equivalent of the plain text data s.
+// HTMLEscapeString 返回纯文本数据 s 的转义 HTML 等价物。
 func HTMLEscapeString(s string) string {
 	return template.HTMLEscapeString(s)
 }
 
-// HTMLEscaper returns the escaped HTML equivalent of the textual
-// representation of its arguments.
+// HTMLEscaper 返回其参数的文本表示的转义 HTML 等价物。
 func HTMLEscaper(args ...any) string {
 	return template.HTMLEscaper(args...)
 }
 
-// JSEscape writes to w the escaped JavaScript equivalent of the plain text data b.
+// JSEscape 将纯文本数据 b 的转义 JavaScript 等价物写入 w。
 func JSEscape(w io.Writer, b []byte) {
 	template.JSEscape(w, b)
 }
 
-// JSEscapeString returns the escaped JavaScript equivalent of the plain text data s.
+// JSEscapeString 返回纯文本数据 s 的转义 JavaScript 等价物。
 func JSEscapeString(s string) string {
 	return template.JSEscapeString(s)
 }
 
-// JSEscaper returns the escaped JavaScript equivalent of the textual
-// representation of its arguments.
+// JSEscaper 返回其参数的文本表示的转义 JavaScript 等价物。
 func JSEscaper(args ...any) string {
 	return template.JSEscaper(args...)
 }
 
-// URLQueryEscaper returns the escaped value of the textual representation of
-// its arguments in a form suitable for embedding in a URL query.
+// URLQueryEscaper 返回其参数的文本表示的转义值，格式适合嵌入 URL 查询。
 func URLQueryEscaper(args ...any) string {
 	return template.URLQueryEscaper(args...)
 }

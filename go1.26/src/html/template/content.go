@@ -9,87 +9,74 @@ import (
 	"reflect"
 )
 
-// Strings of content from a trusted source.
+// 来自可信来源的内容字符串。
 type (
-	// CSS encapsulates known safe content that matches any of:
-	//   1. The CSS3 stylesheet production, such as `p { color: purple }`.
-	//   2. The CSS3 rule production, such as `a[href=~"https:"].foo#bar`.
-	//   3. CSS3 declaration productions, such as `color: red; margin: 2px`.
-	//   4. The CSS3 value production, such as `rgba(0, 0, 255, 127)`.
-	// See https://www.w3.org/TR/css3-syntax/#parsing and
+	// CSS 封装了已知安全的内容，匹配以下任意一种：
+	//   1. CSS3 样式表产生式，如 `p { color: purple }`。
+	//   2. CSS3 规则产生式，如 `a[href=~"https:"].foo#bar`。
+	//   3. CSS3 声明产生式，如 `color: red; margin: 2px`。
+	//   4. CSS3 值产生式，如 `rgba(0, 0, 255, 127)`。
+	// 参见 https://www.w3.org/TR/css3-syntax/#parsing 和
 	// https://web.archive.org/web/20090211114933/http://w3.org/TR/css3-syntax#style
 	//
-	// Use of this type presents a security risk:
-	// the encapsulated content should come from a trusted source,
-	// as it will be included verbatim in the template output.
+	// 使用此类型存在安全风险：
+	// 封装的内容应来自可信来源，因为它将被原样包含在模板输出中。
 	CSS string
 
-	// HTML encapsulates a known safe HTML document fragment.
-	// It should not be used for HTML from a third-party, or HTML with
-	// unclosed tags or comments. The outputs of a sound HTML sanitizer
-	// and a template escaped by this package are fine for use with HTML.
+	// HTML 封装了已知安全的 HTML 文档片段。
+	// 它不应用于来自第三方的 HTML，或包含未闭合标签或注释的 HTML。
+	// 可靠的 HTML 净化器的输出和经本包转义的模板输出可以安全地用于 HTML。
 	//
-	// Use of this type presents a security risk:
-	// the encapsulated content should come from a trusted source,
-	// as it will be included verbatim in the template output.
+	// 使用此类型存在安全风险：
+	// 封装的内容应来自可信来源，因为它将被原样包含在模板输出中。
 	HTML string
 
-	// HTMLAttr encapsulates an HTML attribute from a trusted source,
-	// for example, ` dir="ltr"`.
+	// HTMLAttr 封装了来自可信来源的 HTML 属性，
+	// 例如 ` dir="ltr"`。
 	//
-	// Use of this type presents a security risk:
-	// the encapsulated content should come from a trusted source,
-	// as it will be included verbatim in the template output.
+	// 使用此类型存在安全风险：
+	// 封装的内容应来自可信来源，因为它将被原样包含在模板输出中。
 	HTMLAttr string
 
-	// JS encapsulates a known safe EcmaScript5 Expression, for example,
-	// `(x + y * z())`.
-	// Template authors are responsible for ensuring that typed expressions
-	// do not break the intended precedence and that there is no
-	// statement/expression ambiguity as when passing an expression like
-	// "{ foo: bar() }\n['foo']()", which is both a valid Expression and a
-	// valid Program with a very different meaning.
+	// JS 封装了已知安全的 EcmaScript5 表达式，例如 `(x + y * z())`。
+	// 模板作者有责任确保类型化表达式不会破坏预期的优先级，
+	// 并且不存在语句/表达式歧义，例如传递像
+	// "{ foo: bar() }\n['foo']()" 这样的表达式，
+	// 它既是有效的 Expression 也是有效的 Program，但含义完全不同。
 	//
-	// Use of this type presents a security risk:
-	// the encapsulated content should come from a trusted source,
-	// as it will be included verbatim in the template output.
+	// 使用此类型存在安全风险：
+	// 封装的内容应来自可信来源，因为它将被原样包含在模板输出中。
 	//
-	// Using JS to include valid but untrusted JSON is not safe.
-	// A safe alternative is to parse the JSON with json.Unmarshal and then
-	// pass the resultant object into the template, where it will be
-	// converted to sanitized JSON when presented in a JavaScript context.
+	// 使用 JS 包含有效但不可信的 JSON 是不安全的。
+	// 一个安全的替代方案是使用 json.Unmarshal 解析 JSON，然后将结果对象
+	// 传递到模板中，在 JavaScript 上下文中呈现时它将被转换为净化后的 JSON。
 	JS string
 
-	// JSStr encapsulates a sequence of characters meant to be embedded
-	// between quotes in a JavaScript expression.
-	// The string must match a series of StringCharacters:
-	//   StringCharacter :: SourceCharacter but not `\` or LineTerminator
+	// JSStr 封装了一系列字符，旨在嵌入 JavaScript 表达式中引号之间。
+	// 该字符串必须匹配一系列 StringCharacter：
+	//   StringCharacter :: SourceCharacter 但不包括 `\` 或 LineTerminator
 	//                    | EscapeSequence
-	// Note that LineContinuations are not allowed.
-	// JSStr("foo\\nbar") is fine, but JSStr("foo\\\nbar") is not.
+	// 注意不允许 LineContinuation。
+	// JSStr("foo\\nbar") 是可以的，但 JSStr("foo\\\nbar") 不行。
 	//
-	// Use of this type presents a security risk:
-	// the encapsulated content should come from a trusted source,
-	// as it will be included verbatim in the template output.
+	// 使用此类型存在安全风险：
+	// 封装的内容应来自可信来源，因为它将被原样包含在模板输出中。
 	JSStr string
 
-	// URL encapsulates a known safe URL or URL substring (see RFC 3986).
-	// A URL like `javascript:checkThatFormNotEditedBeforeLeavingPage()`
-	// from a trusted source should go in the page, but by default dynamic
-	// `javascript:` URLs are filtered out since they are a frequently
-	// exploited injection vector.
+	// URL 封装了已知安全的 URL 或 URL 子串（参见 RFC 3986）。
+	// 来自可信来源的 URL（如 `javascript:checkThatFormNotEditedBeforeLeavingPage()`）
+	// 应该被包含在页面中，但默认情况下动态 `javascript:` URL 会被过滤掉，
+	// 因为它们是经常被利用的注入向量。
 	//
-	// Use of this type presents a security risk:
-	// the encapsulated content should come from a trusted source,
-	// as it will be included verbatim in the template output.
+	// 使用此类型存在安全风险：
+	// 封装的内容应来自可信来源，因为它将被原样包含在模板输出中。
 	URL string
 
-	// Srcset encapsulates a known safe srcset attribute
-	// (see https://w3c.github.io/html/semantics-embedded-content.html#element-attrdef-img-srcset).
+	// Srcset 封装了已知安全的 srcset 属性
+	// （参见 https://w3c.github.io/html/semantics-embedded-content.html#element-attrdef-img-srcset）。
 	//
-	// Use of this type presents a security risk:
-	// the encapsulated content should come from a trusted source,
-	// as it will be included verbatim in the template output.
+	// 使用此类型存在安全风险：
+	// 封装的内容应来自可信来源，因为它将被原样包含在模板输出中。
 	Srcset string
 )
 
@@ -104,20 +91,18 @@ const (
 	contentTypeJSStr
 	contentTypeURL
 	contentTypeSrcset
-	// contentTypeUnsafe is used in attr.go for values that affect how
-	// embedded content and network messages are formed, vetted,
-	// or interpreted; or which credentials network messages carry.
+	// contentTypeUnsafe 在 attr.go 中用于影响嵌入内容和网络消息的
+	// 形成、审核或解释方式的值；或网络消息携带的凭据。
 	contentTypeUnsafe
 )
 
-// indirect returns the value, after dereferencing as many times
-// as necessary to reach the base type (or nil).
+// indirect 返回值，在必要时进行多次解引用以到达基本类型（或 nil）。
 func indirect(a any) any {
 	if a == nil {
 		return nil
 	}
 	if t := reflect.TypeOf(a); t.Kind() != reflect.Pointer {
-		// Avoid creating a reflect.Value if it's not a pointer.
+		// 如果不是指针，则避免创建 reflect.Value。
 		return a
 	}
 	v := reflect.ValueOf(a)
@@ -132,9 +117,8 @@ var (
 	fmtStringerType = reflect.TypeFor[fmt.Stringer]()
 )
 
-// indirectToStringerOrError returns the value, after dereferencing as many times
-// as necessary to reach the base type (or nil) or an implementation of fmt.Stringer
-// or error.
+// indirectToStringerOrError 返回值，在必要时进行多次解引用以到达基本类型（或 nil）
+// 或 fmt.Stringer 或 error 的实现。
 func indirectToStringerOrError(a any) any {
 	if a == nil {
 		return nil
@@ -146,8 +130,8 @@ func indirectToStringerOrError(a any) any {
 	return v.Interface()
 }
 
-// stringify converts its arguments to a string and the type of the content.
-// All pointers are dereferenced, as in the text/template package.
+// stringify 将其参数转换为字符串和内容类型。
+// 所有指针都会被解引用，与 text/template 包中的行为一致。
 func stringify(args ...any) (string, contentType) {
 	if len(args) == 1 {
 		switch s := indirect(args[0]).(type) {
@@ -171,9 +155,9 @@ func stringify(args ...any) (string, contentType) {
 	}
 	i := 0
 	for _, arg := range args {
-		// We skip untyped nil arguments for backward compatibility.
-		// Without this they would be output as <nil>, escaped.
-		// See issue 25875.
+		// 为了向后兼容，我们跳过无类型的 nil 参数。
+		// 否则它们将被输出为转义后的 <nil>。
+		// 参见 issue 25875。
 		if arg == nil {
 			continue
 		}

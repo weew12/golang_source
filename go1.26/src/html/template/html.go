@@ -11,7 +11,7 @@ import (
 	"unicode/utf8"
 )
 
-// htmlNospaceEscaper escapes for inclusion in unquoted attribute values.
+// htmlNospaceEscaper 转义内容以便嵌入未加引号的属性值中。
 func htmlNospaceEscaper(args ...any) string {
 	s, t := stringify(args...)
 	if s == "" {
@@ -23,7 +23,7 @@ func htmlNospaceEscaper(args ...any) string {
 	return htmlReplacer(s, htmlNospaceReplacementTable, false)
 }
 
-// attrEscaper escapes for inclusion in quoted attribute values.
+// attrEscaper 转义内容以便嵌入加引号的属性值中。
 func attrEscaper(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeHTML {
@@ -32,7 +32,7 @@ func attrEscaper(args ...any) string {
 	return htmlReplacer(s, htmlReplacementTable, true)
 }
 
-// rcdataEscaper escapes for inclusion in an RCDATA element body.
+// rcdataEscaper 转义内容以便嵌入 RCDATA 元素体中。
 func rcdataEscaper(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeHTML {
@@ -41,7 +41,7 @@ func rcdataEscaper(args ...any) string {
 	return htmlReplacer(s, htmlReplacementTable, true)
 }
 
-// htmlEscaper escapes for inclusion in HTML text.
+// htmlEscaper 转义内容以便嵌入 HTML 文本中。
 func htmlEscaper(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeHTML {
@@ -50,14 +50,12 @@ func htmlEscaper(args ...any) string {
 	return htmlReplacer(s, htmlReplacementTable, true)
 }
 
-// htmlReplacementTable contains the runes that need to be escaped
-// inside a quoted attribute value or in a text node.
+// htmlReplacementTable 包含在加引号的属性值或文本节点内部需要转义的 rune。
 var htmlReplacementTable = []string{
 	// https://www.w3.org/TR/html5/syntax.html#attribute-value-(unquoted)-state
-	// U+0000 NULL Parse error. Append a U+FFFD REPLACEMENT
-	// CHARACTER character to the current attribute's value.
+	// U+0000 NULL 解析错误。将 U+FFFD 替换字符追加到当前属性的值中。
 	// "
-	// and similarly
+	// 以及类似地
 	// https://www.w3.org/TR/html5/syntax.html#before-attribute-value-state
 	0:    "\uFFFD",
 	'"':  "&#34;",
@@ -68,8 +66,8 @@ var htmlReplacementTable = []string{
 	'>':  "&gt;",
 }
 
-// htmlNormReplacementTable is like htmlReplacementTable but without '&' to
-// avoid over-encoding existing entities.
+// htmlNormReplacementTable 类似于 htmlReplacementTable，但不包含 '&'
+// 以避免对已有实体过度编码。
 var htmlNormReplacementTable = []string{
 	0:    "\uFFFD",
 	'"':  "&#34;",
@@ -79,10 +77,8 @@ var htmlNormReplacementTable = []string{
 	'>':  "&gt;",
 }
 
-// htmlNospaceReplacementTable contains the runes that need to be escaped
-// inside an unquoted attribute value.
-// The set of runes escaped is the union of the HTML specials and
-// those determined by running the JS below in browsers:
+// htmlNospaceReplacementTable 包含在未加引号的属性值内部需要转义的 rune。
+// 转义的 rune 集合是 HTML 特殊字符与在浏览器中运行以下 JS 确定的字符的并集：
 // <div id=d></div>
 // <script>(function () {
 // var a = [], d = document.getElementById("d"), i, c, s;
@@ -111,14 +107,13 @@ var htmlNospaceReplacementTable = []string{
 	'<':  "&lt;",
 	'=':  "&#61;",
 	'>':  "&gt;",
-	// A parse error in the attribute value (unquoted) and
-	// before attribute value states.
-	// Treated as a quoting character by IE.
+	// 在属性值（未加引号）和属性值之前状态中的解析错误。
+	// 被 IE 视为引号字符。
 	'`': "&#96;",
 }
 
-// htmlNospaceNormReplacementTable is like htmlNospaceReplacementTable but
-// without '&' to avoid over-encoding existing entities.
+// htmlNospaceNormReplacementTable 类似于 htmlNospaceReplacementTable，但不包含 '&'
+// 以避免对已有实体过度编码。
 var htmlNospaceNormReplacementTable = []string{
 	0:    "&#xfffd;",
 	'\t': "&#9;",
@@ -133,21 +128,19 @@ var htmlNospaceNormReplacementTable = []string{
 	'<':  "&lt;",
 	'=':  "&#61;",
 	'>':  "&gt;",
-	// A parse error in the attribute value (unquoted) and
-	// before attribute value states.
-	// Treated as a quoting character by IE.
+	// 在属性值（未加引号）和属性值之前状态中的解析错误。
+	// 被 IE 视为引号字符。
 	'`': "&#96;",
 }
 
-// htmlReplacer returns s with runes replaced according to replacementTable
-// and when badRunes is true, certain bad runes are allowed through unescaped.
+// htmlReplacer 返回将 s 中的 rune 根据 replacementTable 替换后的结果，
+// 当 badRunes 为 true 时，某些坏 rune 允许不经转义通过。
 func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 	written, b := 0, new(strings.Builder)
 	r, w := rune(0), 0
 	for i := 0; i < len(s); i += w {
-		// Cannot use 'for range s' because we need to preserve the width
-		// of the runes in the input. If we see a decoding error, the input
-		// width will not be utf8.Runelen(r) and we will overrun the buffer.
+		// 不能使用 'for range s'，因为我们需要保留输入中 rune 的宽度。
+		// 如果遇到解码错误，输入宽度将不等于 utf8.RuneLen(r)，我们将溢出缓冲区。
 		r, w = utf8.DecodeRuneInString(s[i:])
 		if int(r) < len(replacementTable) {
 			if repl := replacementTable[r]; len(repl) != 0 {
@@ -159,8 +152,8 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 				written = i + w
 			}
 		} else if badRunes {
-			// No-op.
-			// IE does not allow these ranges in unquoted attrs.
+			// 空操作。
+			// IE 不允许在未加引号的属性中使用这些范围。
 		} else if 0xfdd0 <= r && r <= 0xfdef || 0xfff0 <= r && r <= 0xffff {
 			if written == 0 {
 				b.Grow(len(s))
@@ -176,24 +169,24 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
 	return b.String()
 }
 
-// stripTags takes a snippet of HTML and returns only the text content.
-// For example, `<b>&iexcl;Hi!</b> <script>...</script>` -> `&iexcl;Hi! `.
+// stripTags 接受一段 HTML 片段并仅返回文本内容。
+// 例如，`<b>&iexcl;Hi!</b> <script>...</script>` -> `&iexcl;Hi! `。
 func stripTags(html string) string {
 	var b strings.Builder
 	s, c, i, allText := []byte(html), context{}, 0, true
-	// Using the transition funcs helps us avoid mangling
-	// `<div title="1>2">` or `I <3 Ponies!`.
+	// 使用转换函数帮助我们避免破坏
+	// `<div title="1>2">` 或 `I <3 Ponies!`。
 	for i != len(s) {
 		if c.delim == delimNone {
 			st := c.state
-			// Use RCDATA instead of parsing into JS or CSS styles.
+			// 使用 RCDATA 而不是解析为 JS 或 CSS 样式。
 			if c.element != elementNone && !isInTag(st) {
 				st = stateRCDATA
 			}
 			d, nread := transitionFunc[st](c, s[i:])
 			i1 := i + nread
 			if c.state == stateText || c.state == stateRCDATA {
-				// Emit text up to the start of the tag or comment.
+				// 输出到标签或注释开始位置之前的文本。
 				j := i1
 				if d.state != c.state {
 					for j1 := j - 1; j1 >= i; j1-- {
@@ -215,7 +208,7 @@ func stripTags(html string) string {
 			break
 		}
 		if c.delim != delimSpaceOrTagEnd {
-			// Consume any quote.
+			// 消耗任何引号。
 			i1++
 		}
 		c, i = context{state: stateTag, element: c.element}, i1
@@ -228,24 +221,22 @@ func stripTags(html string) string {
 	return b.String()
 }
 
-// htmlNameFilter accepts valid parts of an HTML attribute or tag name or
-// a known-safe HTML attribute.
+// htmlNameFilter 接受 HTML 属性或标签名称的有效部分，或已知安全的 HTML 属性。
 func htmlNameFilter(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeHTMLAttr {
 		return s
 	}
 	if len(s) == 0 {
-		// Avoid violation of structure preservation.
-		// <input checked {{.K}}={{.V}}>.
-		// Without this, if .K is empty then .V is the value of
-		// checked, but otherwise .V is the value of the attribute
-		// named .K.
+		// 避免违反结构保持属性。
+		// <input checked {{.K}}={{.V}}>。
+		// 如果没有这个检查，当 .K 为空时 .V 是 checked 的值，
+		// 否则 .V 是名为 .K 的属性的值。
 		return filterFailsafe
 	}
 	s = strings.ToLower(s)
 	if t := attrType(s); t != contentTypePlain {
-		// TODO: Split attr and element name part filters so we can recognize known attributes.
+		// TODO: 拆分属性和元素名称部分过滤器，以便我们能识别已知属性。
 		return filterFailsafe
 	}
 	for _, r := range s {
@@ -259,12 +250,10 @@ func htmlNameFilter(args ...any) string {
 	return s
 }
 
-// commentEscaper returns the empty string regardless of input.
-// Comment content does not correspond to any parsed structure or
-// human-readable content, so the simplest and most secure policy is to drop
-// content interpolated into comments.
-// This approach is equally valid whether or not static comment content is
-// removed from the template.
+// commentEscaper 无论输入是什么都返回空字符串。
+// 注释内容不对应任何已解析的结构或人类可读的内容，
+// 因此最简单和最安全的策略是丢弃插值到注释中的内容。
+// 无论静态注释内容是否从模板中移除，此方法都同样有效。
 func commentEscaper(args ...any) string {
 	return ""
 }

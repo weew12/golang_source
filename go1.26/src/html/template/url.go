@@ -9,28 +9,22 @@ import (
 	"strings"
 )
 
-// urlFilter returns its input unless it contains an unsafe scheme in which
-// case it defangs the entire URL.
+// urlFilter 返回其输入，除非输入包含不安全的 scheme，
+// 此时会使整个 URL 失效。
 //
-// Schemes that cause unintended side effects that are irreversible without user
-// interaction are considered unsafe. For example, clicking on a "javascript:"
-// link can immediately trigger JavaScript code execution.
+// 导致无法在没有用户交互的情况下逆转的意外副作用的 scheme 被视为不安全。
+// 例如，点击 "javascript:" 链接会立即触发 JavaScript 代码执行。
 //
-// This filter conservatively assumes that all schemes other than the following
-// are unsafe:
-//   - http:   Navigates to a new website, and may open a new window or tab.
-//     These side effects can be reversed by navigating back to the
-//     previous website, or closing the window or tab. No irreversible
-//     changes will take place without further user interaction with
-//     the new website.
-//   - https:  Same as http.
-//   - mailto: Opens an email program and starts a new draft. This side effect
-//     is not irreversible until the user explicitly clicks send; it
-//     can be undone by closing the email program.
+// 此过滤器保守地假设除以下 scheme 外的所有 scheme 都是不安全的：
+//   - http:   导航到新网站，可能会打开新窗口或标签页。
+//     这些副作用可以通过导航回之前的网站或关闭窗口或标签页来逆转。
+//     在与新网站进一步交互之前不会发生不可逆的更改。
+//   - https:  与 http 相同。
+//   - mailto: 打开电子邮件程序并开始新草稿。此副作用在用户
+//     明确点击发送之前是不可逆的；可以通过关闭电子邮件程序来撤销。
 //
-// To allow URLs containing other schemes to bypass this filter, developers must
-// explicitly indicate that such a URL is expected and safe by encapsulating it
-// in a template.URL value.
+// 要允许包含其他 scheme 的 URL 绕过此过滤器，开发者必须
+// 通过将其封装在 template.URL 值中来明确表示此类 URL 是预期的且安全的。
 func urlFilter(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeURL {
@@ -42,8 +36,7 @@ func urlFilter(args ...any) string {
 	return s
 }
 
-// isSafeURL is true if s is a relative URL or if URL has a protocol in
-// (http, https, mailto).
+// isSafeURL 在 s 是相对 URL 或 URL 的协议属于 (http, https, mailto) 时返回 true。
 func isSafeURL(s string) bool {
 	if protocol, _, ok := strings.Cut(s, ":"); ok && !strings.Contains(protocol, "/") {
 		if !strings.EqualFold(protocol, "http") && !strings.EqualFold(protocol, "https") && !strings.EqualFold(protocol, "mailto") {
@@ -53,23 +46,22 @@ func isSafeURL(s string) bool {
 	return true
 }
 
-// urlEscaper produces an output that can be embedded in a URL query.
-// The output can be embedded in an HTML attribute without further escaping.
+// urlEscaper 产生可以嵌入 URL 查询中的输出。
+// 输出可以嵌入 HTML 属性中而无需进一步转义。
 func urlEscaper(args ...any) string {
 	return urlProcessor(false, args...)
 }
 
-// urlNormalizer normalizes URL content so it can be embedded in a quote-delimited
-// string or parenthesis delimited url(...).
-// The normalizer does not encode all HTML specials. Specifically, it does not
-// encode '&' so correct embedding in an HTML attribute requires escaping of
-// '&' to '&amp;'.
+// urlNormalizer 规范化 URL 内容，使其可以嵌入引号分隔的字符串
+// 或括号分隔的 url(...) 中。
+// 规范化器不编码所有 HTML 特殊字符。具体来说，它不编码 '&'，
+// 因此正确嵌入 HTML 属性需要将 '&' 转义为 '&amp;'。
 func urlNormalizer(args ...any) string {
 	return urlProcessor(true, args...)
 }
 
-// urlProcessor normalizes (when norm is true) or escapes its input to produce
-// a valid hierarchical or opaque URL part.
+// urlProcessor 规范化（当 norm 为 true 时）或转义其输入以产生
+// 有效的层级或不透明 URL 部分。
 func urlProcessor(norm bool, args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeURL {
@@ -82,44 +74,40 @@ func urlProcessor(norm bool, args ...any) string {
 	return s
 }
 
-// processURLOnto appends a normalized URL corresponding to its input to b
-// and reports whether the appended content differs from s.
+// processURLOnto 将与其输入对应的规范化 URL 追加到 b，
+// 并报告追加的内容是否与 s 不同。
 func processURLOnto(s string, norm bool, b *strings.Builder) bool {
 	b.Grow(len(s) + 16)
 	written := 0
-	// The byte loop below assumes that all URLs use UTF-8 as the
-	// content-encoding. This is similar to the URI to IRI encoding scheme
-	// defined in section 3.1 of  RFC 3987, and behaves the same as the
-	// EcmaScript builtin encodeURIComponent.
-	// It should not cause any misencoding of URLs in pages with
-	// Content-type: text/html;charset=UTF-8.
+	// 下面的字节循环假设所有 URL 使用 UTF-8 作为内容编码。
+	// 这类似于 RFC 3987 第 3.1 节定义的 URI 到 IRI 编码方案，
+	// 并且与 EcmaScript 内置函数 encodeURIComponent 行为相同。
+	// 在 Content-type: text/html;charset=UTF-8 的页面中，
+	// 它不应导致 URL 的错误编码。
 	for i, n := 0, len(s); i < n; i++ {
 		c := s[i]
 		switch c {
-		// Single quote and parens are sub-delims in RFC 3986, but we
-		// escape them so the output can be embedded in single
-		// quoted attributes and unquoted CSS url(...) constructs.
-		// Single quotes are reserved in URLs, but are only used in
-		// the obsolete "mark" rule in an appendix in RFC 3986
-		// so can be safely encoded.
+		// 单引号和括号是 RFC 3986 中的 sub-delims，但我们对它们进行转义，
+		// 以便输出可以嵌入单引号属性和未加引号的 CSS url(...) 结构中。
+		// 单引号在 URL 中是保留的，但仅在 RFC 3986 附录中已废弃的
+		// "mark" 规则中使用，因此可以安全编码。
 		case '!', '#', '$', '&', '*', '+', ',', '/', ':', ';', '=', '?', '@', '[', ']':
 			if norm {
 				continue
 			}
-		// Unreserved according to RFC 3986 sec 2.3
-		// "For consistency, percent-encoded octets in the ranges of
-		// ALPHA (%41-%5A and %61-%7A), DIGIT (%30-%39), hyphen (%2D),
-		// period (%2E), underscore (%5F), or tilde (%7E) should not be
-		// created by URI producers
+		// 根据 RFC 3986 第 2.3 节为非保留字符
+		// "为保持一致性，URI 生产者不应创建范围在
+		// ALPHA (%41-%5A 和 %61-%7A)、DIGIT (%30-%39)、连字符 (%2D)、
+		// 句号 (%2E)、下划线 (%5F) 或波浪号 (%7E) 中的百分号编码八位组"
 		case '-', '.', '_', '~':
 			continue
 		case '%':
-			// When normalizing do not re-encode valid escapes.
+			// 规范化时不重新编码有效的转义。
 			if norm && i+2 < len(s) && isHex(s[i+1]) && isHex(s[i+2]) {
 				continue
 			}
 		default:
-			// Unreserved according to RFC 3986 sec 2.3
+			// 根据 RFC 3986 第 2.3 节为非保留字符
 			if 'a' <= c && c <= 'z' {
 				continue
 			}
@@ -138,21 +126,20 @@ func processURLOnto(s string, norm bool, b *strings.Builder) bool {
 	return written != 0
 }
 
-// Filters and normalizes srcset values which are comma separated
-// URLs followed by metadata.
+// srcsetFilterAndEscaper 过滤和规范化 srcset 值，
+// 这些值是以逗号分隔的 URL 后跟元数据。
 func srcsetFilterAndEscaper(args ...any) string {
 	s, t := stringify(args...)
 	switch t {
 	case contentTypeSrcset:
 		return s
 	case contentTypeURL:
-		// Normalizing gets rid of all HTML whitespace
-		// which separate the image URL from its metadata.
+		// 规范化会去除所有将图片 URL 与其元数据分隔的 HTML 空白。
 		var b strings.Builder
 		if processURLOnto(s, true, &b) {
 			s = b.String()
 		}
-		// Additionally, commas separate one source from another.
+		// 此外，逗号将一个源与另一个源分隔。
 		return strings.ReplaceAll(s, ",", "%2c")
 	}
 
@@ -169,11 +156,11 @@ func srcsetFilterAndEscaper(args ...any) string {
 	return b.String()
 }
 
-// Derived from https://play.golang.org/p/Dhmj7FORT5
+// 源自 https://play.golang.org/p/Dhmj7FORT5
 const htmlSpaceAndASCIIAlnumBytes = "\x00\x36\x00\x00\x01\x00\xff\x03\xfe\xff\xff\x07\xfe\xff\xff\x07"
 
-// isHTMLSpace is true iff c is a whitespace character per
-// https://infra.spec.whatwg.org/#ascii-whitespace
+// isHTMLSpace 当且仅当 c 是根据
+// https://infra.spec.whatwg.org/#ascii-whitespace 定义的空白字符时为 true。
 func isHTMLSpace(c byte) bool {
 	return (c <= 0x20) && 0 != (htmlSpaceAndASCIIAlnumBytes[c>>3]&(1<<uint(c&0x7)))
 }
@@ -195,8 +182,8 @@ func filterSrcsetElement(s string, left int, right int, b *strings.Builder) {
 		}
 	}
 	if url := s[start:end]; isSafeURL(url) {
-		// If image metadata is only spaces or alnums then
-		// we don't need to URL normalize it.
+		// 如果图片元数据仅包含空格或字母数字，
+		// 则不需要对其进行 URL 规范化。
 		metadataOk := true
 		for i := end; i < right; i++ {
 			if !isHTMLSpaceOrASCIIAlnum(s[i]) {

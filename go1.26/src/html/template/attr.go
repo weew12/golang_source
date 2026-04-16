@@ -8,13 +8,13 @@ import (
 	"strings"
 )
 
-// attrTypeMap[n] describes the value of the given attribute.
-// If an attribute affects (or can mask) the encoding or interpretation of
-// other content, or affects the contents, idempotency, or credentials of a
-// network message, then the value in this map is contentTypeUnsafe.
-// This map is derived from HTML5, specifically
+// attrTypeMap[n] 描述给定属性的值类型。
+// 如果某个属性会影响（或可能掩盖）其他内容的编码或解释方式，
+// 或者影响网络消息的内容、幂等性或凭据，
+// 则该映射中对应的值为 contentTypeUnsafe。
+// 此映射派生自 HTML5，具体来自
 // https://www.w3.org/TR/html5/Overview.html#attributes-1
-// as well as "%URI"-typed attributes from
+// 以及来自以下文档的 "%URI" 类型属性
 // https://www.w3.org/TR/html4/index/attributes.html
 var attrTypeMap = map[string]contentType{
 	"accept":          contentTypePlain,
@@ -89,9 +89,9 @@ var attrTypeMap = map[string]contentType{
 	"multiple":        contentTypePlain,
 	"name":            contentTypePlain,
 	"novalidate":      contentTypeUnsafe,
-	// Skip handler names from
+	// 跳过以下文档中的事件处理器名称
 	// https://www.w3.org/TR/html5/webappapis.html#event-handlers-on-elements,-document-objects,-and-window-objects
-	// since we have special handling in attrType.
+	// 因为我们在 attrType 中有专门的处理逻辑。
 	"open":        contentTypePlain,
 	"optimum":     contentTypePlain,
 	"pattern":     contentTypeUnsafe,
@@ -135,37 +135,33 @@ var attrTypeMap = map[string]contentType{
 	"xmlns":       contentTypeURL,
 }
 
-// attrType returns a conservative (upper-bound on authority) guess at the
-// type of the lowercase named attribute.
+// attrType 返回对小写命名属性类型的保守（权限上界）猜测。
 func attrType(name string) contentType {
 	if strings.HasPrefix(name, "data-") {
-		// Strip data- so that custom attribute heuristics below are
-		// widely applied.
-		// Treat data-action as URL below.
+		// 去除 data- 前缀，以便下方的自定义属性启发式规则能被广泛应用。
+		// 将 data-action 视为下方的 URL 类型。
 		name = name[5:]
 	} else if prefix, short, ok := strings.Cut(name, ":"); ok {
 		if prefix == "xmlns" {
 			return contentTypeURL
 		}
-		// Treat svg:href and xlink:href as href below.
+		// 将 svg:href 和 xlink:href 视为下方的 href。
 		name = short
 	}
 	if t, ok := attrTypeMap[name]; ok {
 		return t
 	}
-	// Treat partial event handler names as script.
+	// 将部分事件处理器名称视为脚本。
 	if strings.HasPrefix(name, "on") {
 		return contentTypeJS
 	}
 
-	// Heuristics to prevent "javascript:..." injection in custom
-	// data attributes and custom attributes like g:tweetUrl.
+	// 用于防止 "javascript:..." 注入到自定义 data 属性和
+	// 自定义属性（如 g:tweetUrl）中的启发式规则。
 	// https://www.w3.org/TR/html5/dom.html#embedding-custom-non-visible-data-with-the-data-*-attributes
-	// "Custom data attributes are intended to store custom data
-	//  private to the page or application, for which there are no
-	//  more appropriate attributes or elements."
-	// Developers seem to store URL content in data URLs that start
-	// or end with "URI" or "URL".
+	// "自定义 data 属性旨在存储页面或应用程序私有的自定义数据，
+	//  对于这些数据没有更合适的属性或元素可用。"
+	// 开发者似乎会将 URL 内容存储在以 "URI" 或 "URL" 开头或结尾的 data URL 中。
 	if strings.Contains(name, "src") ||
 		strings.Contains(name, "uri") ||
 		strings.Contains(name, "url") {

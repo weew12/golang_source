@@ -12,57 +12,52 @@ import (
 	"unicode/utf8"
 )
 
-// endsWithCSSKeyword reports whether b ends with an ident that
-// case-insensitively matches the lower-case kw.
+// endsWithCSSKeyword 报告 b 是否以一个不区分大小写地匹配小写 kw 的标识符结尾。
 func endsWithCSSKeyword(b []byte, kw string) bool {
 	i := len(b) - len(kw)
 	if i < 0 {
-		// Too short.
+		// 太短。
 		return false
 	}
 	if i != 0 {
 		r, _ := utf8.DecodeLastRune(b[:i])
 		if isCSSNmchar(r) {
-			// Too long.
+			// 太长。
 			return false
 		}
 	}
-	// Many CSS keywords, such as "!important" can have characters encoded,
-	// but the URI production does not allow that according to
-	// https://www.w3.org/TR/css3-syntax/#TOK-URI
-	// This does not attempt to recognize encoded keywords. For example,
-	// given "\75\72\6c" and "url" this return false.
+	// 许多 CSS 关键字（如 "!important"）可以包含编码字符，
+	// 但根据 https://www.w3.org/TR/css3-syntax/#TOK-URI ，URI 产生式不允许这样做。
+	// 此函数不尝试识别编码后的关键字。例如，
+	// 给定 "\75\72\6c" 和 "url"，此函数返回 false。
 	return string(bytes.ToLower(b[i:])) == kw
 }
 
-// isCSSNmchar reports whether rune is allowed anywhere in a CSS identifier.
+// isCSSNmchar 报告该 rune 是否允许出现在 CSS 标识符的任何位置。
 func isCSSNmchar(r rune) bool {
-	// Based on the CSS3 nmchar production but ignores multi-rune escape
-	// sequences.
+	// 基于 CSS3 nmchar 产生式，但忽略多 rune 转义序列。
 	// https://www.w3.org/TR/css3-syntax/#SUBTOK-nmchar
 	return 'a' <= r && r <= 'z' ||
 		'A' <= r && r <= 'Z' ||
 		'0' <= r && r <= '9' ||
 		r == '-' ||
 		r == '_' ||
-		// Non-ASCII cases below.
+		// 以下为非 ASCII 情况。
 		0x80 <= r && r <= 0xd7ff ||
 		0xe000 <= r && r <= 0xfffd ||
 		0x10000 <= r && r <= 0x10ffff
 }
 
-// decodeCSS decodes CSS3 escapes given a sequence of stringchars.
-// If there is no change, it returns the input, otherwise it returns a slice
-// backed by a new array.
-// https://www.w3.org/TR/css3-syntax/#SUBTOK-stringchar defines stringchar.
+// decodeCSS 对给定的 stringchar 序列解码 CSS3 转义。
+// 如果没有变化，返回输入；否则返回由新数组支持的切片。
+// https://www.w3.org/TR/css3-syntax/#SUBTOK-stringchar 定义了 stringchar。
 func decodeCSS(s []byte) []byte {
 	i := bytes.IndexByte(s, '\\')
 	if i == -1 {
 		return s
 	}
-	// The UTF-8 sequence for a codepoint is never longer than 1 + the
-	// number hex digits need to represent that codepoint, so len(s) is an
-	// upper bound on the output length.
+	// 码点的 UTF-8 序列长度永远不会超过 1 加上表示该码点所需的
+	// 十六进制位数，因此 len(s) 是输出长度的上界。
 	b := make([]byte, 0, len(s))
 	for len(s) != 0 {
 		i := bytes.IndexByte(s, '\\')
@@ -87,12 +82,11 @@ func decodeCSS(s []byte) []byte {
 				r, j = r/16, j-1
 			}
 			n := utf8.EncodeRune(b[len(b):cap(b)], r)
-			// The optional space at the end allows a hex
-			// sequence to be followed by a literal hex.
+			// 末尾的可选空格允许十六进制序列后面跟随字面十六进制字符。
 			// string(decodeCSS([]byte(`\A B`))) == "\nB"
 			b, s = b[:len(b)+n], skipCSSSpace(s[j:])
 		} else {
-			// `\\` decodes to `\` and `\"` to `"`.
+			// `\\` 解码为 `\`，`\"` 解码为 `"`。
 			_, n := utf8.DecodeRune(s[1:])
 			b, s = append(b, s[1:1+n]...), s[1+n:]
 		}
@@ -100,12 +94,12 @@ func decodeCSS(s []byte) []byte {
 	return b
 }
 
-// isHex reports whether the given character is a hex digit.
+// isHex 报告给定字符是否是十六进制数字。
 func isHex(c byte) bool {
 	return '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
 }
 
-// hexDecode decodes a short hex digit sequence: "10" -> 16.
+// hexDecode 解码短十六进制数字序列："10" -> 16。
 func hexDecode(s []byte) rune {
 	n := '\x00'
 	for _, c := range s {
@@ -124,7 +118,7 @@ func hexDecode(s []byte) rune {
 	return n
 }
 
-// skipCSSSpace returns a suffix of c, skipping over a single space.
+// skipCSSSpace 返回 c 的后缀，跳过单个空白字符。
 func skipCSSSpace(c []byte) []byte {
 	if len(c) == 0 {
 		return c
@@ -134,9 +128,8 @@ func skipCSSSpace(c []byte) []byte {
 	case '\t', '\n', '\f', ' ':
 		return c[1:]
 	case '\r':
-		// This differs from CSS3's wc production because it contains a
-		// probable spec error whereby wc contains all the single byte
-		// sequences in nl (newline) but not CRLF.
+		// 这与 CSS3 的 wc 产生式不同，因为后者包含一个可能的规范错误，
+		// 即 wc 包含 nl（换行）中的所有单字节序列但不包含 CRLF。
 		if len(c) >= 2 && c[1] == '\n' {
 			return c[2:]
 		}
@@ -145,7 +138,7 @@ func skipCSSSpace(c []byte) []byte {
 	return c
 }
 
-// isCSSSpace reports whether b is a CSS space char as defined in wc.
+// isCSSSpace 报告 b 是否是 wc 中定义的 CSS 空白字符。
 func isCSSSpace(b byte) bool {
 	switch b {
 	case '\t', '\n', '\f', '\r', ' ':
@@ -154,13 +147,13 @@ func isCSSSpace(b byte) bool {
 	return false
 }
 
-// cssEscaper escapes HTML and CSS special characters using \<hex>+ escapes.
+// cssEscaper 使用 \<hex>+ 转义来转义 HTML 和 CSS 特殊字符。
 func cssEscaper(args ...any) string {
 	s, _ := stringify(args...)
 	var b strings.Builder
 	r, w, written := rune(0), 0, 0
 	for i := 0; i < len(s); i += w {
-		// See comment in htmlEscaper.
+		// 参见 htmlEscaper 中的注释。
 		r, w = utf8.DecodeRuneInString(s[i:])
 		var repl string
 		switch {
@@ -192,8 +185,8 @@ var cssReplacementTable = []string{
 	'\n': `\a`,
 	'\f': `\c`,
 	'\r': `\d`,
-	// Encode HTML specials as hex so the output can be embedded
-	// in HTML attributes without further encoding.
+	// 将 HTML 特殊字符编码为十六进制，以便输出可以嵌入到
+	// HTML 属性中而无需进一步编码。
 	'"':  `\22`,
 	'&':  `\26`,
 	'\'': `\27`,
@@ -213,11 +206,10 @@ var cssReplacementTable = []string{
 var expressionBytes = []byte("expression")
 var mozBindingBytes = []byte("mozbinding")
 
-// cssValueFilter allows innocuous CSS values in the output including CSS
-// quantities (10px or 25%), ID or class literals (#foo, .bar), keyword values
-// (inherit, blue), and colors (#888).
-// It filters out unsafe values, such as those that affect token boundaries,
-// and anything that might execute scripts.
+// cssValueFilter 允许输出中包含无害的 CSS 值，包括 CSS 数量（10px 或 25%）、
+// ID 或 class 字面量（#foo、.bar）、关键字值（inherit、blue）和颜色（#888）。
+// 它过滤掉不安全的值，例如那些影响 token 边界的值，
+// 以及任何可能执行脚本的内容。
 func cssValueFilter(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeCSS {
@@ -225,24 +217,20 @@ func cssValueFilter(args ...any) string {
 	}
 	b, id := decodeCSS([]byte(s)), make([]byte, 0, 64)
 
-	// CSS3 error handling is specified as honoring string boundaries per
-	// https://www.w3.org/TR/css3-syntax/#error-handling :
-	//     Malformed declarations. User agents must handle unexpected
-	//     tokens encountered while parsing a declaration by reading until
-	//     the end of the declaration, while observing the rules for
-	//     matching pairs of (), [], {}, "", and '', and correctly handling
-	//     escapes. For example, a malformed declaration may be missing a
-	//     property, colon (:) or value.
-	// So we need to make sure that values do not have mismatched bracket
-	// or quote characters to prevent the browser from restarting parsing
-	// inside a string that might embed JavaScript source.
+	// CSS3 错误处理规定要遵循字符串边界，
+	// 参见 https://www.w3.org/TR/css3-syntax/#error-handling ：
+	//     格式错误的声明。用户代理必须通过读取到声明末尾来处理解析声明时
+	//     遇到的意外 token，同时遵守 ()、[]、{}、""、'' 的匹配对规则，
+	//     并正确处理转义。例如，格式错误的声明可能缺少属性、冒号 (:) 或值。
+	// 因此我们需要确保值中没有不匹配的括号或引号字符，
+	// 以防止浏览器在可能嵌入 JavaScript 源码的字符串内部重新开始解析。
 	for i, c := range b {
 		switch c {
 		case 0, '"', '\'', '(', ')', '/', ';', '@', '[', '\\', ']', '`', '{', '}', '<', '>':
 			return filterFailsafe
 		case '-':
-			// Disallow <!-- or -->.
-			// -- should not appear in valid identifiers.
+			// 禁止 <!-- 或 -->。
+			// -- 不应出现在有效标识符中。
 			if i != 0 && b[i-1] == '-' {
 				return filterFailsafe
 			}

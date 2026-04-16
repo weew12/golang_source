@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package html provides functions for escaping and unescaping HTML text.
+// Package html 提供用于转义和反转义 HTML 文本的函数。
 package html
 
 import (
@@ -10,11 +10,10 @@ import (
 	"unicode/utf8"
 )
 
-// These replacements permit compatibility with old numeric entities that
-// assumed Windows-1252 encoding.
+// 这些替换允许与假定 Windows-1252 编码的旧数字实体保持兼容。
 // https://html.spec.whatwg.org/multipage/parsing.html#numeric-character-reference-end-state
 var replacementTable = [...]rune{
-	'\u20AC', // First entry is what 0x80 should be replaced with.
+	'\u20AC', // 第一个条目是 0x80 应被替换为的字符。
 	'\u0081',
 	'\u201A',
 	'\u0192',
@@ -45,20 +44,20 @@ var replacementTable = [...]rune{
 	'\u0153',
 	'\u009D',
 	'\u017E',
-	'\u0178', // Last entry is 0x9F.
-	// 0x00->'\uFFFD' is handled programmatically.
-	// 0x0D->'\u000D' is a no-op.
+	'\u0178', // 最后一个条目是 0x9F。
+	// 0x00->'\uFFFD' 通过程序逻辑处理。
+	// 0x0D->'\u000D' 是空操作。
 }
 
-// unescapeEntity reads an entity like "&lt;" from b[src:] and writes the
-// corresponding "<" to b[dst:], returning the incremented dst and src cursors.
-// Precondition: b[src] == '&' && dst <= src.
+// unescapeEntity 从 b[src:] 读取类似 "&lt;" 的实体，并将对应的 "<" 写入 b[dst:]，
+// 返回递增后的 dst 和 src 游标。
+// 前置条件：b[src] == '&' && dst <= src。
 func unescapeEntity(b []byte, dst, src int, entity map[string]rune, entity2 map[string][2]rune) (dst1, src1 int) {
 	const attribute = false
 
 	// http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
 
-	// i starts at 1 because we already know that s[0] == '&'.
+	// i 从 1 开始，因为我们已经知道 s[0] == '&'。
 	i, s := 1, b[src:]
 
 	if len(s) <= 1 {
@@ -67,7 +66,7 @@ func unescapeEntity(b []byte, dst, src int, entity map[string]rune, entity2 map[
 	}
 
 	if s[i] == '#' {
-		if len(s) <= 3 { // We need to have at least "&#.".
+		if len(s) <= 3 { // 我们至少需要 "&#."。
 			b[dst] = b[src]
 			return dst + 1, src + 1
 		}
@@ -104,29 +103,28 @@ func unescapeEntity(b []byte, dst, src int, entity map[string]rune, entity2 map[
 			break
 		}
 
-		if i <= 3 { // No characters matched.
+		if i <= 3 { // 没有匹配到任何字符。
 			b[dst] = b[src]
 			return dst + 1, src + 1
 		}
 
 		if 0x80 <= x && x <= 0x9F {
-			// Replace characters from Windows-1252 with UTF-8 equivalents.
+			// 将 Windows-1252 字符替换为对应的 UTF-8 等效字符。
 			x = replacementTable[x-0x80]
 		} else if x == 0 || (0xD800 <= x && x <= 0xDFFF) || x > 0x10FFFF {
-			// Replace invalid characters with the replacement character.
+			// 将无效字符替换为替换字符。
 			x = '\uFFFD'
 		}
 
 		return dst + utf8.EncodeRune(b[dst:], x), src + i
 	}
 
-	// Consume the maximum number of characters possible, with the
-	// consumed characters matching one of the named references.
+	// 尽可能消耗最多的字符，使已消耗的字符匹配某个命名引用。
 
 	for i < len(s) {
 		c := s[i]
 		i++
-		// Lower-cased characters are more common in entities, so we check for them first.
+		// 小写字符在实体中更常见，所以我们优先检查它们。
 		if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' {
 			continue
 		}
@@ -138,9 +136,9 @@ func unescapeEntity(b []byte, dst, src int, entity map[string]rune, entity2 map[
 
 	entityName := s[1:i]
 	if len(entityName) == 0 {
-		// No-op.
+		// 空操作。
 	} else if attribute && entityName[len(entityName)-1] != ';' && len(s) > i && s[i] == '=' {
-		// No-op.
+		// 空操作。
 	} else if x := entity[string(entityName)]; x != 0 {
 		return dst + utf8.EncodeRune(b[dst:], x), src + i
 	} else if x := entity2[string(entityName)]; x[0] != 0 {
@@ -165,25 +163,23 @@ func unescapeEntity(b []byte, dst, src int, entity map[string]rune, entity2 map[
 
 var htmlEscaper = strings.NewReplacer(
 	`&`, "&amp;",
-	`'`, "&#39;", // "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
+	`'`, "&#39;", // "&#39;" 比 "&apos;" 更短，且 apos 直到 HTML5 才被加入 HTML。
 	`<`, "&lt;",
 	`>`, "&gt;",
-	`"`, "&#34;", // "&#34;" is shorter than "&quot;".
+	`"`, "&#34;", // "&#34;" 比 "&quot;" 更短。
 )
 
-// EscapeString escapes special characters like "<" to become "&lt;". It
-// escapes only five such characters: <, >, &, ' and ".
-// [UnescapeString](EscapeString(s)) == s always holds, but the converse isn't
-// always true.
+// EscapeString 将特殊字符（如 "<"）转义为 "&lt;"。
+// 它仅转义五个这样的字符：<、>、&、' 和 "。
+// [UnescapeString](EscapeString(s)) == s 始终成立，但反过来并不总是成立。
 func EscapeString(s string) string {
 	return htmlEscaper.Replace(s)
 }
 
-// UnescapeString unescapes entities like "&lt;" to become "<". It unescapes a
-// larger range of entities than [EscapeString] escapes. For example, "&aacute;"
-// unescapes to "á", as does "&#225;" and "&#xE1;".
-// UnescapeString([EscapeString](s)) == s always holds, but the converse isn't
-// always true.
+// UnescapeString 将实体（如 "&lt;"）反转义为 "<"。它能反转义的实体范围
+// 比 [EscapeString] 转义的范围更大。例如，"&aacute;" 会被反转义为 "á"，
+// "&#225;" 和 "&#xE1;" 也是如此。
+// UnescapeString([EscapeString](s)) == s 始终成立，但反过来并不总是成立。
 func UnescapeString(s string) string {
 	i := strings.IndexByte(s, '&')
 

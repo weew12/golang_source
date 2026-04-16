@@ -14,84 +14,77 @@ import (
 	"unicode/utf8"
 )
 
-// jsWhitespace contains all of the JS whitespace characters, as defined
-// by the \s character class.
-// See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions/Character_classes.
+// jsWhitespace 包含所有 JS 空白字符，由 \s 字符类定义。
+// 参见 https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_expressions/Character_classes。
 const jsWhitespace = "\f\n\r\t\v\u0020\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
 
-// nextJSCtx returns the context that determines whether a slash after the
-// given run of tokens starts a regular expression instead of a division
-// operator: / or /=.
+// nextJSCtx 返回确定给定 token 序列之后的斜杠是开始一个正则表达式还是
+// 除法运算符（/ 或 /=）的上下文。
 //
-// This assumes that the token run does not include any string tokens, comment
-// tokens, regular expression literal tokens, or division operators.
+// 此函数假设 token 序列不包含任何字符串 token、注释 token、
+// 正则表达式字面量 token 或除法运算符。
 //
-// This fails on some valid but nonsensical JavaScript programs like
-// "x = ++/foo/i" which is quite different than "x++/foo/i", but is not known to
-// fail on any known useful programs. It is based on the draft
-// JavaScript 2.0 lexical grammar and requires one token of lookbehind:
+// 对于某些有效但无意义的 JavaScript 程序（如 "x = ++/foo/i"，与 "x++/foo/i" 完全不同），
+// 此函数会失败，但目前未发现在任何已知有用的程序上失败。
+// 它基于 JavaScript 2.0 词法语法草案，需要一个 token 的回溯：
 // https://www.mozilla.org/js/language/js20-2000-07/rationale/syntax.html
 func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
-	// Trim all JS whitespace characters
+	// 去除所有 JS 空白字符
 	s = bytes.TrimRight(s, jsWhitespace)
 	if len(s) == 0 {
 		return preceding
 	}
 
-	// All cases below are in the single-byte UTF-8 group.
+	// 以下所有 case 都在单字节 UTF-8 组中。
 	switch c, n := s[len(s)-1], len(s); c {
 	case '+', '-':
-		// ++ and -- are not regexp preceders, but + and - are whether
-		// they are used as infix or prefix operators.
+		// ++ 和 -- 不是正则表达式前驱，但 + 和 - 无论用作中缀还是前缀运算符都是。
 		start := n - 1
-		// Count the number of adjacent dashes or pluses.
+		// 计算相邻的减号或加号数量。
 		for start > 0 && s[start-1] == c {
 			start--
 		}
 		if (n-start)&1 == 1 {
-			// Reached for trailing minus signs since "---" is the
-			// same as "-- -".
+			// 对于尾部减号会到达此处，因为 "---" 等同于 "-- -"。
 			return jsCtxRegexp
 		}
 		return jsCtxDivOp
 	case '.':
-		// Handle "42."
+		// 处理 "42."。
 		if n != 1 && '0' <= s[n-2] && s[n-2] <= '9' {
 			return jsCtxDivOp
 		}
 		return jsCtxRegexp
-	// Suffixes for all punctuators from section 7.7 of the language spec
-	// that only end binary operators not handled above.
+	// 语言规范第 7.7 节中所有标点符号的后缀，
+	// 这些标点符号仅结束上面未处理的二元运算符。
 	case ',', '<', '>', '=', '*', '%', '&', '|', '^', '?':
 		return jsCtxRegexp
-	// Suffixes for all punctuators from section 7.7 of the language spec
-	// that are prefix operators not handled above.
+	// 语言规范第 7.7 节中所有标点符号的后缀，
+	// 这些标点符号是上面未处理的前缀运算符。
 	case '!', '~':
 		return jsCtxRegexp
-	// Matches all the punctuators from section 7.7 of the language spec
-	// that are open brackets not handled above.
+	// 匹配语言规范第 7.7 节中所有标点符号，
+	// 这些标点符号是上面未处理的开括号。
 	case '(', '[':
 		return jsCtxRegexp
-	// Matches all the punctuators from section 7.7 of the language spec
-	// that precede expression starts.
+	// 匹配语言规范第 7.7 节中所有标点符号，
+	// 这些标点符号出现在表达式开始之前。
 	case ':', ';', '{':
 		return jsCtxRegexp
-	// CAVEAT: the close punctuators ('}', ']', ')') precede div ops and
-	// are handled in the default except for '}' which can precede a
-	// division op as in
+	// 注意：闭括号（'}'、']'、')'）出现在除法运算符之前，
+	// 在 default 分支中处理，但 '}' 可以出现在除法运算符之前，如
 	//    ({ valueOf: function () { return 42 } } / 2
-	// which is valid, but, in practice, developers don't divide object
-	// literals, so our heuristic works well for code like
+	// 这是有效的，但实际上开发者不会对对象字面量做除法，
+	// 因此我们的启发式规则对以下代码效果很好：
 	//    function () { ... }  /foo/.test(x) && sideEffect();
-	// The ')' punctuator can precede a regular expression as in
+	// ')' 标点符号可以出现在正则表达式之前，如
 	//     if (b) /foo/.test(x) && ...
-	// but this is much less likely than
+	// 但这比以下情况出现的可能性小得多：
 	//     (a + b) / c
 	case '}':
 		return jsCtxRegexp
 	default:
-		// Look for an IdentifierName and see if it is a keyword that
-		// can precede a regular expression.
+		// 查找 IdentifierName 并判断它是否是可以出现在正则表达式之前的关键字。
 		j := n
 		for j > 0 && isJSIdentPart(rune(s[j-1])) {
 			j--
@@ -100,14 +93,12 @@ func nextJSCtx(s []byte, preceding jsCtx) jsCtx {
 			return jsCtxRegexp
 		}
 	}
-	// Otherwise is a punctuator not listed above, or
-	// a string which precedes a div op, or an identifier
-	// which precedes a div op.
+	// 否则是上面未列出的标点符号，
+	// 或者是出现在除法运算符之前的字符串，或者是出现在除法运算符之前的标识符。
 	return jsCtxDivOp
 }
 
-// regexpPrecederKeywords is a set of reserved JS keywords that can precede a
-// regular expression in JS source.
+// regexpPrecederKeywords 是一组可以在 JS 源码中出现在正则表达式之前的保留 JS 关键字。
 var regexpPrecederKeywords = map[string]bool{
 	"break":      true,
 	"case":       true,
@@ -127,13 +118,12 @@ var regexpPrecederKeywords = map[string]bool{
 
 var jsonMarshalType = reflect.TypeFor[json.Marshaler]()
 
-// indirectToJSONMarshaler returns the value, after dereferencing as many times
-// as necessary to reach the base type (or nil) or an implementation of json.Marshal.
+// indirectToJSONMarshaler 返回值，在必要时进行多次解引用以到达基本类型（或 nil）
+// 或 json.Marshal 的实现。
 func indirectToJSONMarshaler(a any) any {
-	// text/template now supports passing untyped nil as a func call
-	// argument, so we must support it. Otherwise we'd panic below, as one
-	// cannot call the Type or Interface methods on an invalid
-	// reflect.Value. See golang.org/issue/18716.
+	// text/template 现在支持将无类型 nil 作为函数调用参数传递，
+	// 因此我们必须支持它。否则我们将在下面 panic，因为无法对无效的
+	// reflect.Value 调用 Type 或 Interface 方法。参见 golang.org/issue/18716。
 	if a == nil {
 		return nil
 	}
@@ -147,8 +137,8 @@ func indirectToJSONMarshaler(a any) any {
 
 var scriptTagRe = regexp.MustCompile("(?i)<(/?)script")
 
-// jsValEscaper escapes its inputs to a JS Expression (section 11.14) that has
-// neither side-effects nor free variables outside (NaN, Infinity).
+// jsValEscaper 将其输入转义为一个 JS 表达式（第 11.14 节），
+// 该表达式没有副作用也没有外部自由变量（NaN、Infinity 除外）。
 func jsValEscaper(args ...any) string {
 	var a any
 	if len(args) == 1 {
@@ -157,10 +147,10 @@ func jsValEscaper(args ...any) string {
 		case JS:
 			return string(t)
 		case JSStr:
-			// TODO: normalize quotes.
+			// TODO: 规范化引号。
 			return `"` + string(t) + `"`
 		case json.Marshaler:
-			// Do not treat as a Stringer.
+			// 不作为 Stringer 处理。
 		case fmt.Stringer:
 			a = t.String()
 		}
@@ -170,28 +160,25 @@ func jsValEscaper(args ...any) string {
 		}
 		a = fmt.Sprint(args...)
 	}
-	// TODO: detect cycles before calling Marshal which loops infinitely on
-	// cyclic data. This may be an unacceptable DoS risk.
+	// TODO: 在调用 Marshal 之前检测循环，因为 Marshal 对循环数据会无限循环。
+	// 这可能是一个不可接受的 DoS 风险。
 	b, err := json.Marshal(a)
 	if err != nil {
-		// While the standard JSON marshaler does not include user controlled
-		// information in the error message, if a type has a MarshalJSON method,
-		// the content of the error message is not guaranteed. Since we insert
-		// the error into the template, as part of a comment, we attempt to
-		// prevent the error from either terminating the comment, or the script
-		// block itself.
+		// 虽然标准 JSON 编组器不会在错误消息中包含用户控制的信息，
+		// 但如果类型有 MarshalJSON 方法，则错误消息的内容无法保证。
+		// 由于我们将错误作为注释的一部分插入模板中，因此我们尝试
+		// 防止错误终止注释或脚本块本身。
 		//
-		// In particular we:
-		//   * replace "*/" comment end tokens with "* /", which does not
-		//     terminate the comment
-		//   * replace "<script" and "</script" with "\x3Cscript" and "\x3C/script"
-		//     (case insensitively), and "<!--" with "\x3C!--", which prevents
-		//     confusing script block termination semantics
+		// 具体来说，我们：
+		//   * 将 "*/" 注释结束标记替换为 "* /"，这不会终止注释
+		//   * 将 "<script" 和 "</script" 替换为 "\x3Cscript" 和 "\x3C/script"
+		//     （不区分大小写），将 "<!--" 替换为 "\x3C!--"，
+		//     以防止混淆脚本块终止语义
 		//
-		// We also put a space before the comment so that if it is flush against
-		// a division operator it is not turned into a line comment:
+		// 我们还在注释前放置一个空格，以便如果它紧挨除法运算符，
+		// 不会被变成行注释：
 		//     x/{{y}}
-		// turning into
+		// 变成
 		//     x//* error marshaling y:
 		//          second line of error message */null
 		errStr := err.Error()
@@ -201,28 +188,28 @@ func jsValEscaper(args ...any) string {
 		return fmt.Sprintf(" /* %s */null ", errStr)
 	}
 
-	// TODO: maybe post-process output to prevent it from containing
-	// "<!--", "-->", "<![CDATA[", "]]>", or "</script"
-	// in case custom marshalers produce output containing those.
-	// Note: Do not use \x escaping to save bytes because it is not JSON compatible and this escaper
-	// supports ld+json content-type.
+	// TODO: 可能需要后处理输出以防止其包含
+	// "<!--"、"-->"、"<![CDATA["、"]]>" 或 "</script"，
+	// 以防自定义编组器产生包含这些内容的输出。
+	// 注意：不要使用 \x 转义来节省字节，因为它不兼容 JSON，
+	// 而此转义器支持 ld+json 内容类型。
 	if len(b) == 0 {
-		// In, `x=y/{{.}}*z` a json.Marshaler that produces "" should
-		// not cause the output `x=y/*z`.
+		// 在 `x=y/{{.}}*z` 中，产生 "" 的 json.Marshaler 不应导致
+		// 输出 `x=y/*z`。
 		return " null "
 	}
 	first, _ := utf8.DecodeRune(b)
 	last, _ := utf8.DecodeLastRune(b)
 	var buf strings.Builder
-	// Prevent IdentifierNames and NumericLiterals from running into
-	// keywords: in, instanceof, typeof, void
+	// 防止 IdentifierName 和 NumericLiteral 与关键字连在一起：
+	// in、instanceof、typeof、void
 	pad := isJSIdentPart(first) || isJSIdentPart(last)
 	if pad {
 		buf.WriteByte(' ')
 	}
 	written := 0
-	// Make sure that json.Marshal escapes codepoints U+2028 & U+2029
-	// so it falls within the subset of JSON which is valid JS.
+	// 确保 json.Marshal 转义码点 U+2028 和 U+2029，
+	// 使其处于有效 JS 的 JSON 子集范围内。
 	for i := 0; i < len(b); {
 		rune, n := utf8.DecodeRune(b[i:])
 		repl := ""
@@ -248,9 +235,9 @@ func jsValEscaper(args ...any) string {
 	return string(b)
 }
 
-// jsStrEscaper produces a string that can be included between quotes in
-// JavaScript source, in JavaScript embedded in an HTML5 <script> element,
-// or in an HTML5 event handler attribute such as onclick.
+// jsStrEscaper 产生一个可以包含在 JavaScript 源码中引号之间、
+// 嵌入 HTML5 <script> 元素中的 JavaScript 中、
+// 或 HTML5 事件处理器属性（如 onclick）中的字符串。
 func jsStrEscaper(args ...any) string {
 	s, t := stringify(args...)
 	if t == contentTypeJSStr {
@@ -264,30 +251,28 @@ func jsTmplLitEscaper(args ...any) string {
 	return replace(s, jsBqStrReplacementTable)
 }
 
-// jsRegexpEscaper behaves like jsStrEscaper but escapes regular expression
-// specials so the result is treated literally when included in a regular
-// expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
-// the literal text of {{.X}} followed by the string "bar".
+// jsRegexpEscaper 行为类似于 jsStrEscaper，但会转义正则表达式特殊字符，
+// 使结果在包含于正则表达式字面量中时被当作字面文本处理。
+// /foo{{.X}}bar/ 匹配字符串 "foo" 后跟 {{.X}} 的字面文本再跟字符串 "bar"。
 func jsRegexpEscaper(args ...any) string {
 	s, _ := stringify(args...)
 	s = replace(s, jsRegexpReplacementTable)
 	if s == "" {
-		// /{{.X}}/ should not produce a line comment when .X == "".
+		// 当 .X == "" 时，/{{.X}}/ 不应产生行注释。
 		return "(?:)"
 	}
 	return s
 }
 
-// replace replaces each rune r of s with replacementTable[r], provided that
-// r < len(replacementTable). If replacementTable[r] is the empty string then
-// no replacement is made.
-// It also replaces runes U+2028 and U+2029 with the raw strings `\u2028` and
-// `\u2029`.
+// replace 将 s 中的每个 rune r 替换为 replacementTable[r]，
+// 前提是 r < len(replacementTable)。如果 replacementTable[r] 为空字符串，
+// 则不进行替换。
+// 它还将 rune U+2028 和 U+2029 替换为原始字符串 `\u2028` 和 `\u2029`。
 func replace(s string, replacementTable []string) string {
 	var b strings.Builder
 	r, w, written := rune(0), 0, 0
 	for i := 0; i < len(s); i += w {
-		// See comment in htmlEscaper.
+		// 参见 htmlEscaper 中的注释。
 		r, w = utf8.DecodeRuneInString(s[i:])
 		var repl string
 		switch {
@@ -322,7 +307,7 @@ var lowUnicodeReplacementTable = []string{
 	'\b': `\u0008`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\u000b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" 在 IE 6 上等于 "v"。
 	'\f': `\f`,
 	'\r': `\r`,
 	0xe:  `\u000e`, 0xf: `\u000f`, 0x10: `\u0010`, 0x11: `\u0011`, 0x12: `\u0012`, 0x13: `\u0013`,
@@ -334,11 +319,11 @@ var jsStrReplacementTable = []string{
 	0:    `\u0000`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\u000b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" 在 IE 6 上等于 "v"。
 	'\f': `\f`,
 	'\r': `\r`,
-	// Encode HTML specials as hex so the output can be embedded
-	// in HTML attributes without further encoding.
+	// 将 HTML 特殊字符编码为十六进制，以便输出可以嵌入
+	// HTML 属性中而无需进一步编码。
 	'"':  `\u0022`,
 	'`':  `\u0060`,
 	'&':  `\u0026`,
@@ -350,17 +335,17 @@ var jsStrReplacementTable = []string{
 	'\\': `\\`,
 }
 
-// jsBqStrReplacementTable is like jsStrReplacementTable except it also contains
-// the special characters for JS template literals: $, {, and }.
+// jsBqStrReplacementTable 类似于 jsStrReplacementTable，但还包含
+// JS 模板字面量的特殊字符：$、{ 和 }。
 var jsBqStrReplacementTable = []string{
 	0:    `\u0000`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\u000b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" 在 IE 6 上等于 "v"。
 	'\f': `\f`,
 	'\r': `\r`,
-	// Encode HTML specials as hex so the output can be embedded
-	// in HTML attributes without further encoding.
+	// 将 HTML 特殊字符编码为十六进制，以便输出可以嵌入
+	// HTML 属性中而无需进一步编码。
 	'"':  `\u0022`,
 	'`':  `\u0060`,
 	'&':  `\u0026`,
@@ -375,17 +360,17 @@ var jsBqStrReplacementTable = []string{
 	'}':  `\u007d`,
 }
 
-// jsStrNormReplacementTable is like jsStrReplacementTable but does not
-// overencode existing escapes since this table has no entry for `\`.
+// jsStrNormReplacementTable 类似于 jsStrReplacementTable，但不会过度编码
+// 已有的转义，因为此表没有 `\` 的条目。
 var jsStrNormReplacementTable = []string{
 	0:    `\u0000`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\u000b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" 在 IE 6 上等于 "v"。
 	'\f': `\f`,
 	'\r': `\r`,
-	// Encode HTML specials as hex so the output can be embedded
-	// in HTML attributes without further encoding.
+	// 将 HTML 特殊字符编码为十六进制，以便输出可以嵌入
+	// HTML 属性中而无需进一步编码。
 	'"':  `\u0022`,
 	'&':  `\u0026`,
 	'\'': `\u0027`,
@@ -399,11 +384,11 @@ var jsRegexpReplacementTable = []string{
 	0:    `\u0000`,
 	'\t': `\t`,
 	'\n': `\n`,
-	'\v': `\u000b`, // "\v" == "v" on IE 6.
+	'\v': `\u000b`, // "\v" 在 IE 6 上等于 "v"。
 	'\f': `\f`,
 	'\r': `\r`,
-	// Encode HTML specials as hex so the output can be embedded
-	// in HTML attributes without further encoding.
+	// 将 HTML 特殊字符编码为十六进制，以便输出可以嵌入
+	// HTML 属性中而无需进一步编码。
 	'"':  `\u0022`,
 	'$':  `\$`,
 	'&':  `\u0026`,
@@ -427,10 +412,9 @@ var jsRegexpReplacementTable = []string{
 	'}':  `\}`,
 }
 
-// isJSIdentPart reports whether the given rune is a JS identifier part.
-// It does not handle all the non-Latin letters, joiners, and combining marks,
-// but it does handle every codepoint that can occur in a numeric literal or
-// a keyword.
+// isJSIdentPart 报告给定的 rune 是否是 JS 标识符部分。
+// 它不处理所有非拉丁字母、连接符和组合标记，
+// 但处理了可以出现在数字字面量或关键字中的每个码点。
 func isJSIdentPart(r rune) bool {
 	switch {
 	case r == '$':
@@ -447,16 +431,16 @@ func isJSIdentPart(r rune) bool {
 	return false
 }
 
-// isJSType reports whether the given MIME type should be considered JavaScript.
+// isJSType 报告给定的 MIME 类型是否应被视为 JavaScript。
 //
-// It is used to determine whether a script tag with a type attribute is a javascript container.
+// 它用于确定带有 type 属性的 script 标签是否是 JavaScript 容器。
 func isJSType(mimeType string) bool {
-	// per
+	// 根据
 	//   https://www.w3.org/TR/html5/scripting-1.html#attr-script-type
 	//   https://tools.ietf.org/html/rfc7231#section-3.1.1
 	//   https://tools.ietf.org/html/rfc4329#section-3
 	//   https://www.ietf.org/rfc/rfc4627.txt
-	// discard parameters
+	// 丢弃参数
 	mimeType, _, _ = strings.Cut(mimeType, ";")
 	mimeType = strings.ToLower(mimeType)
 	mimeType = strings.TrimSpace(mimeType)

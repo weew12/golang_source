@@ -9,26 +9,23 @@ import (
 	"text/template/parse"
 )
 
-// context describes the state an HTML parser must be in when it reaches the
-// portion of HTML produced by evaluating a particular template node.
+// context 描述 HTML 解析器在到达由特定模板节点求值产生的 HTML 部分时必须处于的状态。
 //
-// The zero value of type context is the start context for a template that
-// produces an HTML fragment as defined at
-// https://www.w3.org/TR/html5/syntax.html#the-end
-// where the context element is null.
+// context 类型的零值是生成 HTML 片段的模板的起始上下文，
+// 如 https://www.w3.org/TR/html5/syntax.html#the-end 所定义，
+// 其中上下文元素为 null。
 type context struct {
 	state   state
 	delim   delim
 	urlPart urlPart
 	jsCtx   jsCtx
-	// jsBraceDepth contains the current depth, for each JS template literal
-	// string interpolation expression, of braces we've seen. This is used to
-	// determine if the next } will close a JS template literal string
-	// interpolation expression or not.
+	// jsBraceDepth 包含每个 JS 模板字面量字符串插值表达式中
+	// 我们已遇到的花括号的当前深度。这用于确定下一个 } 是否会
+	// 关闭 JS 模板字面量字符串插值表达式。
 	jsBraceDepth []int
 	attr         attr
 	element      element
-	n            parse.Node // for range break/continue
+	n            parse.Node // 用于 range break/continue
 	err          *Error
 }
 
@@ -40,7 +37,7 @@ func (c context) String() string {
 	return fmt.Sprintf("{%v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.attr, c.element, err)
 }
 
-// eq reports whether two contexts are equal.
+// eq 报告两个上下文是否相等。
 func (c context) eq(d context) bool {
 	return c.state == d.state &&
 		c.delim == d.delim &&
@@ -51,10 +48,9 @@ func (c context) eq(d context) bool {
 		c.err == d.err
 }
 
-// mangle produces an identifier that includes a suffix that distinguishes it
-// from template names mangled with different contexts.
+// mangle 生成一个包含后缀的标识符，使其与使用不同上下文混淆的模板名称区分开来。
 func (c context) mangle(templateName string) string {
-	// The mangled name for the default context is the input templateName.
+	// 默认上下文的混淆名称就是输入的 templateName。
 	if c.state == stateText {
 		return templateName
 	}
@@ -77,95 +73,92 @@ func (c context) mangle(templateName string) string {
 	return s
 }
 
-// state describes a high-level HTML parser state.
+// state 描述高层级的 HTML 解析器状态。
 //
-// It bounds the top of the element stack, and by extension the HTML insertion
-// mode, but also contains state that does not correspond to anything in the
-// HTML5 parsing algorithm because a single token production in the HTML
-// grammar may contain embedded actions in a template. For instance, the quoted
-// HTML attribute produced by
+// 它限定了元素栈的顶部，进而限定了 HTML 插入模式，
+// 但也包含与 HTML5 解析算法中任何内容都不对应的状态，
+// 因为 HTML 语法中的单个 token 产生式在模板中可能包含嵌入的 action。
+// 例如，由以下代码产生的带引号的 HTML 属性
 //
 //	<div title="Hello {{.World}}">
 //
-// is a single token in HTML's grammar but in a template spans several nodes.
+// 在 HTML 语法中是单个 token，但在模板中跨越多个节点。
 type state uint8
 
 //go:generate stringer -type state
 
 const (
-	// stateText is parsed character data. An HTML parser is in
-	// this state when its parse position is outside an HTML tag,
-	// directive, comment, and special element body.
+	// stateText 是已解析的字符数据。当 HTML 解析器的解析位置在 HTML 标签、
+	// 指令、注释和特殊元素体之外时，处于此状态。
 	stateText state = iota
-	// stateTag occurs before an HTML attribute or the end of a tag.
+	// stateTag 出现在 HTML 属性之前或标签结束之前。
 	stateTag
-	// stateAttrName occurs inside an attribute name.
-	// It occurs between the ^'s in ` ^name^ = value`.
+	// stateAttrName 出现在属性名称内部。
+	// 它出现在 ` ^name^ = value` 中 ^ 标记之间。
 	stateAttrName
-	// stateAfterName occurs after an attr name has ended but before any
-	// equals sign. It occurs between the ^'s in ` name^ ^= value`.
+	// stateAfterName 出现在属性名称结束之后但等号之前。
+	// 它出现在 ` name^ ^= value` 中 ^ 标记之间。
 	stateAfterName
-	// stateBeforeValue occurs after the equals sign but before the value.
-	// It occurs between the ^'s in ` name =^ ^value`.
+	// stateBeforeValue 出现在等号之后但值之前。
+	// 它出现在 ` name =^ ^value` 中 ^ 标记之间。
 	stateBeforeValue
-	// stateHTMLCmt occurs inside an <!-- HTML comment -->.
+	// stateHTMLCmt 出现在 <!-- HTML 注释 --> 内部。
 	stateHTMLCmt
-	// stateRCDATA occurs inside an RCDATA element (<textarea> or <title>)
-	// as described at https://www.w3.org/TR/html5/syntax.html#elements-0
+	// stateRCDATA 出现在 RCDATA 元素（<textarea> 或 <title>）内部，
+	// 如 https://www.w3.org/TR/html5/syntax.html#elements-0 所述。
 	stateRCDATA
-	// stateAttr occurs inside an HTML attribute whose content is text.
+	// stateAttr 出现在内容为文本的 HTML 属性内部。
 	stateAttr
-	// stateURL occurs inside an HTML attribute whose content is a URL.
+	// stateURL 出现在内容为 URL 的 HTML 属性内部。
 	stateURL
-	// stateSrcset occurs inside an HTML srcset attribute.
+	// stateSrcset 出现在 HTML srcset 属性内部。
 	stateSrcset
-	// stateJS occurs inside an event handler or script element.
+	// stateJS 出现在事件处理器或 script 元素内部。
 	stateJS
-	// stateJSDqStr occurs inside a JavaScript double quoted string.
+	// stateJSDqStr 出现在 JavaScript 双引号字符串内部。
 	stateJSDqStr
-	// stateJSSqStr occurs inside a JavaScript single quoted string.
+	// stateJSSqStr 出现在 JavaScript 单引号字符串内部。
 	stateJSSqStr
-	// stateJSTmplLit occurs inside a JavaScript back quoted string.
+	// stateJSTmplLit 出现在 JavaScript 反引号字符串内部。
 	stateJSTmplLit
-	// stateJSRegexp occurs inside a JavaScript regexp literal.
+	// stateJSRegexp 出现在 JavaScript 正则表达式字面量内部。
 	stateJSRegexp
-	// stateJSBlockCmt occurs inside a JavaScript /* block comment */.
+	// stateJSBlockCmt 出现在 JavaScript /* 块注释 */ 内部。
 	stateJSBlockCmt
-	// stateJSLineCmt occurs inside a JavaScript // line comment.
+	// stateJSLineCmt 出现在 JavaScript // 行注释内部。
 	stateJSLineCmt
-	// stateJSHTMLOpenCmt occurs inside a JavaScript <!-- HTML-like comment.
+	// stateJSHTMLOpenCmt 出现在 JavaScript <!-- 类 HTML 注释内部。
 	stateJSHTMLOpenCmt
-	// stateJSHTMLCloseCmt occurs inside a JavaScript --> HTML-like comment.
+	// stateJSHTMLCloseCmt 出现在 JavaScript --> 类 HTML 注释内部。
 	stateJSHTMLCloseCmt
-	// stateCSS occurs inside a <style> element or style attribute.
+	// stateCSS 出现在 <style> 元素或 style 属性内部。
 	stateCSS
-	// stateCSSDqStr occurs inside a CSS double quoted string.
+	// stateCSSDqStr 出现在 CSS 双引号字符串内部。
 	stateCSSDqStr
-	// stateCSSSqStr occurs inside a CSS single quoted string.
+	// stateCSSSqStr 出现在 CSS 单引号字符串内部。
 	stateCSSSqStr
-	// stateCSSDqURL occurs inside a CSS double quoted url("...").
+	// stateCSSDqURL 出现在 CSS 双引号 url("...") 内部。
 	stateCSSDqURL
-	// stateCSSSqURL occurs inside a CSS single quoted url('...').
+	// stateCSSSqURL 出现在 CSS 单引号 url('...') 内部。
 	stateCSSSqURL
-	// stateCSSURL occurs inside a CSS unquoted url(...).
+	// stateCSSURL 出现在 CSS 无引号 url(...) 内部。
 	stateCSSURL
-	// stateCSSBlockCmt occurs inside a CSS /* block comment */.
+	// stateCSSBlockCmt 出现在 CSS /* 块注释 */ 内部。
 	stateCSSBlockCmt
-	// stateCSSLineCmt occurs inside a CSS // line comment.
+	// stateCSSLineCmt 出现在 CSS // 行注释内部。
 	stateCSSLineCmt
-	// stateError is an infectious error state outside any valid
-	// HTML/CSS/JS construct.
+	// stateError 是一种传染性错误状态，处于任何有效
+	// HTML/CSS/JS 结构之外。
 	stateError
-	// stateMetaContent occurs inside a HTML meta element content attribute.
+	// stateMetaContent 出现在 HTML meta 元素的 content 属性内部。
 	stateMetaContent
-	// stateMetaContentURL occurs inside a "url=" tag in a HTML meta element content attribute.
+	// stateMetaContentURL 出现在 HTML meta 元素 content 属性中的 "url=" 标记内部。
 	stateMetaContentURL
-	// stateDead marks unreachable code after a {{break}} or {{continue}}.
+	// stateDead 标记 {{break}} 或 {{continue}} 之后不可达的代码。
 	stateDead
 )
 
-// isComment is true for any state that contains content meant for template
-// authors & maintainers, not for end-users or machines.
+// isComment 对于包含面向模板作者和维护者（而非终端用户或机器）内容的任何状态返回 true。
 func isComment(s state) bool {
 	switch s {
 	case stateHTMLCmt, stateJSBlockCmt, stateJSLineCmt, stateJSHTMLOpenCmt, stateJSHTMLCloseCmt, stateCSSBlockCmt, stateCSSLineCmt:
@@ -174,7 +167,7 @@ func isComment(s state) bool {
 	return false
 }
 
-// isInTag return whether s occurs solely inside an HTML tag.
+// isInTag 返回 s 是否仅出现在 HTML 标签内部。
 func isInTag(s state) bool {
 	switch s {
 	case stateTag, stateAttrName, stateAfterName, stateBeforeValue, stateAttr:
@@ -183,13 +176,11 @@ func isInTag(s state) bool {
 	return false
 }
 
-// isInScriptLiteral returns true if s is one of the literal states within a
-// <script> tag, and as such occurrences of "<!--", "<script", and "</script"
-// need to be treated specially.
+// isInScriptLiteral 在 s 是 <script> 标签内的字面量状态之一时返回 true，
+// 因此 "<!--"、"<script" 和 "</script" 的出现需要被特殊处理。
 func isInScriptLiteral(s state) bool {
-	// Ignore the comment states (stateJSBlockCmt, stateJSLineCmt,
-	// stateJSHTMLOpenCmt, stateJSHTMLCloseCmt) because their content is already
-	// omitted from the output.
+	// 忽略注释状态（stateJSBlockCmt、stateJSLineCmt、
+	// stateJSHTMLOpenCmt、stateJSHTMLCloseCmt），因为它们的内容已从输出中省略。
 	switch s {
 	case stateJSDqStr, stateJSSqStr, stateJSTmplLit, stateJSRegexp:
 		return true
@@ -197,103 +188,97 @@ func isInScriptLiteral(s state) bool {
 	return false
 }
 
-// delim is the delimiter that will end the current HTML attribute.
+// delim 是将结束当前 HTML 属性的分隔符。
 type delim uint8
 
 //go:generate stringer -type delim
 
 const (
-	// delimNone occurs outside any attribute.
+	// delimNone 出现在任何属性之外。
 	delimNone delim = iota
-	// delimDoubleQuote occurs when a double quote (") closes the attribute.
+	// delimDoubleQuote 在双引号 (") 关闭属性时出现。
 	delimDoubleQuote
-	// delimSingleQuote occurs when a single quote (') closes the attribute.
+	// delimSingleQuote 在单引号 (') 关闭属性时出现。
 	delimSingleQuote
-	// delimSpaceOrTagEnd occurs when a space or right angle bracket (>)
-	// closes the attribute.
+	// delimSpaceOrTagEnd 在空格或右尖括号 (>) 关闭属性时出现。
 	delimSpaceOrTagEnd
 )
 
-// urlPart identifies a part in an RFC 3986 hierarchical URL to allow different
-// encoding strategies.
+// urlPart 标识 RFC 3986 分层 URL 中的某个部分，以允许使用不同的编码策略。
 type urlPart uint8
 
 //go:generate stringer -type urlPart
 
 const (
-	// urlPartNone occurs when not in a URL, or possibly at the start:
-	// ^ in "^http://auth/path?k=v#frag".
+	// urlPartNone 在不处于 URL 中或可能在 URL 起始位置时出现：
+	// "^http://auth/path?k=v#frag" 中的 ^。
 	urlPartNone urlPart = iota
-	// urlPartPreQuery occurs in the scheme, authority, or path; between the
-	// ^s in "h^ttp://auth/path^?k=v#frag".
+	// urlPartPreQuery 出现在 scheme、authority 或 path 中；
+	// "h^ttp://auth/path^?k=v#frag" 中 ^ 标记之间。
 	urlPartPreQuery
-	// urlPartQueryOrFrag occurs in the query portion between the ^s in
-	// "http://auth/path?^k=v#frag^".
+	// urlPartQueryOrFrag 出现在查询部分中；
+	// "http://auth/path?^k=v#frag^" 中 ^ 标记之间。
 	urlPartQueryOrFrag
-	// urlPartUnknown occurs due to joining of contexts both before and
-	// after the query separator.
+	// urlPartUnknown 由于查询分隔符前后上下文的合并而出现。
 	urlPartUnknown
 )
 
-// jsCtx determines whether a '/' starts a regular expression literal or a
-// division operator.
+// jsCtx 确定 '/' 是开始一个正则表达式字面量还是一个除法运算符。
 type jsCtx uint8
 
 //go:generate stringer -type jsCtx
 
 const (
-	// jsCtxRegexp occurs where a '/' would start a regexp literal.
+	// jsCtxRegexp 出现在 '/' 会开始一个正则表达式字面量的位置。
 	jsCtxRegexp jsCtx = iota
-	// jsCtxDivOp occurs where a '/' would start a division operator.
+	// jsCtxDivOp 出现在 '/' 会开始一个除法运算符的位置。
 	jsCtxDivOp
-	// jsCtxUnknown occurs where a '/' is ambiguous due to context joining.
+	// jsCtxUnknown 出现在由于上下文合并导致 '/' 含义不明确的位置。
 	jsCtxUnknown
 )
 
-// element identifies the HTML element when inside a start tag or special body.
-// Certain HTML element (for example <script> and <style>) have bodies that are
-// treated differently from stateText so the element type is necessary to
-// transition into the correct context at the end of a tag and to identify the
-// end delimiter for the body.
+// element 标识处于开始标签或特殊体内部时的 HTML 元素。
+// 某些 HTML 元素（例如 <script> 和 <style>）的体的处理方式
+// 与 stateText 不同，因此元素类型对于在标签结束时
+// 过渡到正确的上下文以及标识体的结束分隔符是必要的。
 type element uint8
 
 //go:generate stringer -type element
 
 const (
-	// elementNone occurs outside a special tag or special element body.
+	// elementNone 出现在特殊标签或特殊元素体之外。
 	elementNone element = iota
-	// elementScript corresponds to the raw text <script> element
-	// with JS MIME type or no type attribute.
+	// elementScript 对应具有 JS MIME 类型或没有 type 属性的原始文本 <script> 元素。
 	elementScript
-	// elementStyle corresponds to the raw text <style> element.
+	// elementStyle 对应原始文本 <style> 元素。
 	elementStyle
-	// elementTextarea corresponds to the RCDATA <textarea> element.
+	// elementTextarea 对应 RCDATA <textarea> 元素。
 	elementTextarea
-	// elementTitle corresponds to the RCDATA <title> element.
+	// elementTitle 对应 RCDATA <title> 元素。
 	elementTitle
-	// elementMeta corresponds to the HTML <meta> element.
+	// elementMeta 对应 HTML <meta> 元素。
 	elementMeta
 )
 
 //go:generate stringer -type attr
 
-// attr identifies the current HTML attribute when inside the attribute,
-// that is, starting from stateAttrName until stateTag/stateText (exclusive).
+// attr 标识处于属性内部时的当前 HTML 属性，
+// 即从 stateAttrName 开始直到 stateTag/stateText（不含）。
 type attr uint8
 
 const (
-	// attrNone corresponds to a normal attribute or no attribute.
+	// attrNone 对应普通属性或无属性。
 	attrNone attr = iota
-	// attrScript corresponds to an event handler attribute.
+	// attrScript 对应事件处理器属性。
 	attrScript
-	// attrScriptType corresponds to the type attribute in script HTML element
+	// attrScriptType 对应 script HTML 元素中的 type 属性。
 	attrScriptType
-	// attrStyle corresponds to the style attribute whose value is CSS.
+	// attrStyle 对应值为 CSS 的 style 属性。
 	attrStyle
-	// attrURL corresponds to an attribute whose value is a URL.
+	// attrURL 对应值为 URL 的属性。
 	attrURL
-	// attrSrcset corresponds to a srcset attribute.
+	// attrSrcset 对应 srcset 属性。
 	attrSrcset
-	// attrMetaContent corresponds to the content attribute in meta HTML element.
+	// attrMetaContent 对应 meta HTML 元素中的 content 属性。
 	attrMetaContent
 )
