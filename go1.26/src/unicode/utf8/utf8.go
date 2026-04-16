@@ -2,24 +2,24 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package utf8 implements functions and constants to support text encoded in
-// UTF-8. It includes functions to translate between runes and UTF-8 byte sequences.
-// See https://en.wikipedia.org/wiki/UTF-8
+// utf8 包实现了支持 UTF-8 编码文本的函数和常量。
+// 它包含在 rune 和 UTF-8 字节序列之间进行转换的函数。
+// 参见 https://en.wikipedia.org/wiki/UTF-8
 package utf8
 
-// The conditions RuneError==unicode.ReplacementChar and
-// MaxRune==unicode.MaxRune are verified in the tests.
-// Defining them locally avoids this package depending on package unicode.
+// RuneError==unicode.ReplacementChar 和 MaxRune==unicode.MaxRune
+// 这些条件在测试中已验证。
+// 在本地定义它们可以避免此包依赖 unicode 包。
 
-// Numbers fundamental to the encoding.
+// 编码的基本数值。
 const (
-	RuneError = '\uFFFD'     // the "error" Rune or "Unicode replacement character"
-	RuneSelf  = 0x80         // characters below RuneSelf are represented as themselves in a single byte.
-	MaxRune   = '\U0010FFFF' // Maximum valid Unicode code point.
-	UTFMax    = 4            // maximum number of bytes of a UTF-8 encoded Unicode character.
+	RuneError = '\uFFFD'     // "错误" Rune 或 "Unicode 替换字符"
+	RuneSelf  = 0x80         // 低于 RuneSelf 的字符在单个字节中以自身表示。
+	MaxRune   = '\U0010FFFF' // 最大有效 Unicode 码点。
+	UTFMax    = 4            // UTF-8 编码的 Unicode 字符的最大字节数。
 )
 
-// Code points in the surrogate range are not valid for UTF-8.
+// 代理项范围内的码点对 UTF-8 无效。
 const (
 	surrogateMin = 0xD800
 	surrogateMax = 0xDFFF
@@ -42,16 +42,15 @@ const (
 	rune2Max = 1<<11 - 1
 	rune3Max = 1<<16 - 1
 
-	// The default lowest and highest continuation byte.
+	// 默认的最低和最高延续字节。
 	locb = 0b10000000
 	hicb = 0b10111111
 
-	// These names of these constants are chosen to give nice alignment in the
-	// table below. The first nibble is an index into acceptRanges or F for
-	// special one-byte cases. The second nibble is the Rune length or the
-	// Status for the special one-byte case.
-	xx = 0xF1 // invalid: size 1
-	as = 0xF0 // ASCII: size 1
+	// 这些常量的名称经过选择以在下方的表格中提供良好的对齐。
+	// 第一个半字节是 acceptRanges 的索引，或者 F 表示特殊的单字节情况。
+	// 第二个半字节是 Rune 长度，或者是特殊单字节情况的状态。
+	xx = 0xF1 // 无效：大小 1
+	as = 0xF0 // ASCII：大小 1
 	s1 = 0x02 // accept 0, size 2
 	s2 = 0x13 // accept 1, size 3
 	s3 = 0x03 // accept 0, size 3
@@ -67,7 +66,7 @@ const (
 	runeErrorByte2 = tx | RuneError&maskx
 )
 
-// first is information about the first byte in a UTF-8 sequence.
+// first 是关于 UTF-8 序列中第一个字节的信息。
 var first = [256]uint8{
 	//   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
 	as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, // 0x00-0x0F
@@ -89,14 +88,13 @@ var first = [256]uint8{
 	s5, s6, s6, s6, s7, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, // 0xF0-0xFF
 }
 
-// acceptRange gives the range of valid values for the second byte in a UTF-8
-// sequence.
+// acceptRange 给出 UTF-8 序列中第二个字节的有效值范围。
 type acceptRange struct {
-	lo uint8 // lowest value for second byte.
-	hi uint8 // highest value for second byte.
+	lo uint8 // 第二个字节的最低值。
+	hi uint8 // 第二个字节的最高值。
 }
 
-// acceptRanges has size 16 to avoid bounds checks in the code that uses it.
+// acceptRanges 的大小为 16，以避免使用它的代码中的边界检查。
 var acceptRanges = [16]acceptRange{
 	0: {locb, hicb},
 	1: {0xA0, hicb},
@@ -105,8 +103,8 @@ var acceptRanges = [16]acceptRange{
 	4: {locb, 0x8F},
 }
 
-// FullRune reports whether the bytes in p begin with a full UTF-8 encoding of a rune.
-// An invalid encoding is considered a full Rune since it will convert as a width-1 error rune.
+// FullRune 报告 p 中的字节是否以一个完整的 UTF-8 编码的 rune 开头。
+// 无效编码被视为完整的 Rune，因为它将作为宽度为 1 的错误 rune 进行转换。
 func FullRune(p []byte) bool {
 	n := len(p)
 	if n == 0 {
@@ -114,9 +112,9 @@ func FullRune(p []byte) bool {
 	}
 	x := first[p[0]]
 	if n >= int(x&7) {
-		return true // ASCII, invalid or valid.
+		return true // ASCII、无效或有效。
 	}
-	// Must be short or invalid.
+	// 必定是短的或无效的。
 	accept := acceptRanges[x>>4]
 	if n > 1 && (p[1] < accept.lo || accept.hi < p[1]) {
 		return true
@@ -126,7 +124,7 @@ func FullRune(p []byte) bool {
 	return false
 }
 
-// FullRuneInString is like FullRune but its input is a string.
+// FullRuneInString 类似于 [FullRune]，但其输入为字符串。
 func FullRuneInString(s string) bool {
 	n := len(s)
 	if n == 0 {
@@ -134,9 +132,9 @@ func FullRuneInString(s string) bool {
 	}
 	x := first[s[0]]
 	if n >= int(x&7) {
-		return true // ASCII, invalid, or valid.
+		return true // ASCII、无效或有效。
 	}
-	// Must be short or invalid.
+	// 必定是短的或无效的。
 	accept := acceptRanges[x>>4]
 	if n > 1 && (s[1] < accept.lo || accept.hi < s[1]) {
 		return true
@@ -146,18 +144,15 @@ func FullRuneInString(s string) bool {
 	return false
 }
 
-// DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and
-// its width in bytes. If p is empty it returns ([RuneError], 0). Otherwise, if
-// the encoding is invalid, it returns (RuneError, 1). Both are impossible
-// results for correct, non-empty UTF-8.
+// DecodeRune 解包 p 中的第一个 UTF-8 编码并返回该 rune 及其字节宽度。
+// 如果 p 为空，则返回 ([RuneError], 0)。否则，如果编码无效，
+// 则返回 (RuneError, 1)。对于正确的非空 UTF-8，这两种结果都是不可能的。
 //
-// An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
-// out of range, or is not the shortest possible UTF-8 encoding for the
-// value. No other validation is performed.
+// 如果编码不是正确的 UTF-8、编码的 rune 超出范围、
+// 或不是该值最短的 UTF-8 编码，则该编码无效。不执行其他验证。
 func DecodeRune(p []byte) (r rune, size int) {
-	// Inlineable fast path for ASCII characters; see #48195.
-	// This implementation is weird but effective at rendering the
-	// function inlineable.
+	// ASCII 字符的可内联快速路径；参见 #48195。
+	// 此实现方式看起来奇怪，但能有效地使函数可内联。
 	for _, b := range p {
 		if b < RuneSelf {
 			return rune(b), 1
@@ -176,10 +171,9 @@ func decodeRuneSlow(p []byte) (r rune, size int) {
 	p0 := p[0]
 	x := first[p0]
 	if x >= as {
-		// The following code simulates an additional check for x == xx and
-		// handling the ASCII and invalid cases accordingly. This mask-and-or
-		// approach prevents an additional branch.
-		mask := rune(x) << 31 >> 31 // Create 0x0000 or 0xFFFF.
+		// 以下代码模拟了对 x == xx 的额外检查，
+		// 并相应地处理 ASCII 和无效情况。这种掩码与或的方法避免了额外的分支。
+		mask := rune(x) << 31 >> 31 // 创建 0x0000 或 0xFFFF。
 		return rune(p[0])&^mask | RuneError&mask, 1
 	}
 	sz := int(x & 7)
@@ -191,7 +185,7 @@ func decodeRuneSlow(p []byte) (r rune, size int) {
 	if b1 < accept.lo || accept.hi < b1 {
 		return RuneError, 1
 	}
-	if sz <= 2 { // <= instead of == to help the compiler eliminate some bounds checks
+	if sz <= 2 { // 使用 <= 而非 == 以帮助编译器消除一些边界检查
 		return rune(p0&mask2)<<6 | rune(b1&maskx), 2
 	}
 	b2 := p[2]
@@ -208,18 +202,15 @@ func decodeRuneSlow(p []byte) (r rune, size int) {
 	return rune(p0&mask4)<<18 | rune(b1&maskx)<<12 | rune(b2&maskx)<<6 | rune(b3&maskx), 4
 }
 
-// DecodeRuneInString is like [DecodeRune] but its input is a string. If s is
-// empty it returns ([RuneError], 0). Otherwise, if the encoding is invalid, it
-// returns (RuneError, 1). Both are impossible results for correct, non-empty
-// UTF-8.
+// DecodeRuneInString 类似于 [DecodeRune]，但其输入为字符串。如果 s 为空，
+// 则返回 ([RuneError], 0)。否则，如果编码无效，则返回 (RuneError, 1)。
+// 对于正确的非空 UTF-8，这两种结果都是不可能的。
 //
-// An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
-// out of range, or is not the shortest possible UTF-8 encoding for the
-// value. No other validation is performed.
+// 如果编码不是正确的 UTF-8、编码的 rune 超出范围、
+// 或不是该值最短的 UTF-8 编码，则该编码无效。不执行其他验证。
 func DecodeRuneInString(s string) (r rune, size int) {
-	// Inlineable fast path for ASCII characters; see #48195.
-	// This implementation is a bit weird but effective at rendering the
-	// function inlineable.
+	// ASCII 字符的可内联快速路径；参见 #48195。
+	// 此实现方式看起来有点奇怪，但能有效地使函数可内联。
 	if s != "" && s[0] < RuneSelf {
 		return rune(s[0]), 1
 	} else {
@@ -236,10 +227,9 @@ func decodeRuneInStringSlow(s string) (rune, int) {
 	s0 := s[0]
 	x := first[s0]
 	if x >= as {
-		// The following code simulates an additional check for x == xx and
-		// handling the ASCII and invalid cases accordingly. This mask-and-or
-		// approach prevents an additional branch.
-		mask := rune(x) << 31 >> 31 // Create 0x0000 or 0xFFFF.
+		// 以下代码模拟了对 x == xx 的额外检查，
+		// 并相应地处理 ASCII 和无效情况。这种掩码与或的方法避免了额外的分支。
+		mask := rune(x) << 31 >> 31 // 创建 0x0000 或 0xFFFF。
 		return rune(s[0])&^mask | RuneError&mask, 1
 	}
 	sz := int(x & 7)
@@ -251,7 +241,7 @@ func decodeRuneInStringSlow(s string) (rune, int) {
 	if s1 < accept.lo || accept.hi < s1 {
 		return RuneError, 1
 	}
-	if sz <= 2 { // <= instead of == to help the compiler eliminate some bounds checks
+	if sz <= 2 { // 使用 <= 而非 == 以帮助编译器消除一些边界检查
 		return rune(s0&mask2)<<6 | rune(s1&maskx), 2
 	}
 	s2 := s[2]
@@ -268,14 +258,12 @@ func decodeRuneInStringSlow(s string) (rune, int) {
 	return rune(s0&mask4)<<18 | rune(s1&maskx)<<12 | rune(s2&maskx)<<6 | rune(s3&maskx), 4
 }
 
-// DecodeLastRune unpacks the last UTF-8 encoding in p and returns the rune and
-// its width in bytes. If p is empty it returns ([RuneError], 0). Otherwise, if
-// the encoding is invalid, it returns (RuneError, 1). Both are impossible
-// results for correct, non-empty UTF-8.
+// DecodeLastRune 解包 p 中的最后一个 UTF-8 编码并返回该 rune 及其字节宽度。
+// 如果 p 为空，则返回 ([RuneError], 0)。否则，如果编码无效，
+// 则返回 (RuneError, 1)。对于正确的非空 UTF-8，这两种结果都是不可能的。
 //
-// An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
-// out of range, or is not the shortest possible UTF-8 encoding for the
-// value. No other validation is performed.
+// 如果编码不是正确的 UTF-8、编码的 rune 超出范围、
+// 或不是该值最短的 UTF-8 编码，则该编码无效。不执行其他验证。
 func DecodeLastRune(p []byte) (r rune, size int) {
 	end := len(p)
 	if end == 0 {
@@ -286,9 +274,7 @@ func DecodeLastRune(p []byte) (r rune, size int) {
 	if r < RuneSelf {
 		return r, 1
 	}
-	// guard against O(n^2) behavior when traversing
-	// backwards through strings with long sequences of
-	// invalid UTF-8.
+	// 防止在反向遍历包含长序列无效 UTF-8 的字符串时出现 O(n^2) 行为。
 	lim := max(end-UTFMax, 0)
 	for start--; start >= lim; start-- {
 		if RuneStart(p[start]) {
@@ -305,14 +291,12 @@ func DecodeLastRune(p []byte) (r rune, size int) {
 	return r, size
 }
 
-// DecodeLastRuneInString is like [DecodeLastRune] but its input is a string. If
-// s is empty it returns ([RuneError], 0). Otherwise, if the encoding is invalid,
-// it returns (RuneError, 1). Both are impossible results for correct,
-// non-empty UTF-8.
+// DecodeLastRuneInString 类似于 [DecodeLastRune]，但其输入为字符串。
+// 如果 s 为空，则返回 ([RuneError], 0)。否则，如果编码无效，
+// 则返回 (RuneError, 1)。对于正确的非空 UTF-8，这两种结果都是不可能的。
 //
-// An encoding is invalid if it is incorrect UTF-8, encodes a rune that is
-// out of range, or is not the shortest possible UTF-8 encoding for the
-// value. No other validation is performed.
+// 如果编码不是正确的 UTF-8、编码的 rune 超出范围、
+// 或不是该值最短的 UTF-8 编码，则该编码无效。不执行其他验证。
 func DecodeLastRuneInString(s string) (r rune, size int) {
 	end := len(s)
 	if end == 0 {
@@ -323,9 +307,7 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
 	if r < RuneSelf {
 		return r, 1
 	}
-	// guard against O(n^2) behavior when traversing
-	// backwards through strings with long sequences of
-	// invalid UTF-8.
+	// 防止在反向遍历包含长序列无效 UTF-8 的字符串时出现 O(n^2) 行为。
 	lim := max(end-UTFMax, 0)
 	for start--; start >= lim; start-- {
 		if RuneStart(s[start]) {
@@ -342,8 +324,8 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
 	return r, size
 }
 
-// RuneLen returns the number of bytes in the UTF-8 encoding of the rune.
-// It returns -1 if the rune is not a valid value to encode in UTF-8.
+// RuneLen 返回该 rune 的 UTF-8 编码的字节数。
+// 如果该 rune 不是可用 UTF-8 编码的有效值，则返回 -1。
 func RuneLen(r rune) int {
 	switch {
 	case r < 0:
@@ -362,11 +344,11 @@ func RuneLen(r rune) int {
 	return -1
 }
 
-// EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
-// If the rune is out of range, it writes the encoding of [RuneError].
-// It returns the number of bytes written.
+// EncodeRune 将 rune 的 UTF-8 编码写入 p（必须足够大）。
+// 如果 rune 超出范围，则写入 [RuneError] 的编码。
+// 返回写入的字节数。
 func EncodeRune(p []byte, r rune) int {
-	// This function is inlineable for fast handling of ASCII.
+	// 此函数可内联以快速处理 ASCII。
 	if uint32(r) <= rune1Max {
 		p[0] = byte(r)
 		return 1
@@ -375,28 +357,28 @@ func EncodeRune(p []byte, r rune) int {
 }
 
 func encodeRuneNonASCII(p []byte, r rune) int {
-	// Negative values are erroneous. Making it unsigned addresses the problem.
+	// 负值是错误的。将其转换为无符号可以解决此问题。
 	switch i := uint32(r); {
 	case i <= rune2Max:
-		_ = p[1] // eliminate bounds checks
+		_ = p[1] // 消除边界检查
 		p[0] = t2 | byte(r>>6)
 		p[1] = tx | byte(r)&maskx
 		return 2
 	case i < surrogateMin, surrogateMax < i && i <= rune3Max:
-		_ = p[2] // eliminate bounds checks
+		_ = p[2] // 消除边界检查
 		p[0] = t3 | byte(r>>12)
 		p[1] = tx | byte(r>>6)&maskx
 		p[2] = tx | byte(r)&maskx
 		return 3
 	case i > rune3Max && i <= MaxRune:
-		_ = p[3] // eliminate bounds checks
+		_ = p[3] // 消除边界检查
 		p[0] = t4 | byte(r>>18)
 		p[1] = tx | byte(r>>12)&maskx
 		p[2] = tx | byte(r>>6)&maskx
 		p[3] = tx | byte(r)&maskx
 		return 4
 	default:
-		_ = p[2] // eliminate bounds checks
+		_ = p[2] // 消除边界检查
 		p[0] = runeErrorByte0
 		p[1] = runeErrorByte1
 		p[2] = runeErrorByte2
@@ -404,11 +386,10 @@ func encodeRuneNonASCII(p []byte, r rune) int {
 	}
 }
 
-// AppendRune appends the UTF-8 encoding of r to the end of p and
-// returns the extended buffer. If the rune is out of range,
-// it appends the encoding of [RuneError].
+// AppendRune 将 r 的 UTF-8 编码追加到 p 的末尾并返回扩展后的缓冲区。
+// 如果 rune 超出范围，则追加 [RuneError] 的编码。
 func AppendRune(p []byte, r rune) []byte {
-	// This function is inlineable for fast handling of ASCII.
+	// 此函数可内联以快速处理 ASCII。
 	if uint32(r) <= rune1Max {
 		return append(p, byte(r))
 	}
@@ -416,7 +397,7 @@ func AppendRune(p []byte, r rune) []byte {
 }
 
 func appendRuneNonASCII(p []byte, r rune) []byte {
-	// Negative values are erroneous. Making it unsigned addresses the problem.
+	// 负值是错误的。将其转换为无符号可以解决此问题。
 	switch i := uint32(r); {
 	case i <= rune2Max:
 		return append(p, t2|byte(r>>6), tx|byte(r)&maskx)
@@ -429,21 +410,21 @@ func appendRuneNonASCII(p []byte, r rune) []byte {
 	}
 }
 
-// RuneCount returns the number of runes in p. Erroneous and short
-// encodings are treated as single runes of width 1 byte.
+// RuneCount 返回 p 中的 rune 数量。错误和过短的编码被视为
+// 宽度为 1 字节的单个 rune。
 func RuneCount(p []byte) int {
 	np := len(p)
 	var n int
 	for ; n < np; n++ {
 		if c := p[n]; c >= RuneSelf {
-			// non-ASCII slow path
+			// 非 ASCII 慢速路径
 			return n + RuneCountInString(string(p[n:]))
 		}
 	}
 	return n
 }
 
-// RuneCountInString is like [RuneCount] but its input is a string.
+// RuneCountInString 类似于 [RuneCount]，但其输入为字符串。
 func RuneCountInString(s string) (n int) {
 	for range s {
 		n++
@@ -451,9 +432,8 @@ func RuneCountInString(s string) (n int) {
 	return n
 }
 
-// RuneStart reports whether the byte could be the first byte of an encoded,
-// possibly invalid rune. Second and subsequent bytes always have the top two
-// bits set to 10.
+// RuneStart 报告该字节是否可能是一个已编码（可能无效）rune 的第一个字节。
+// 第二个及后续字节的最高两位始终设置为 10。
 func RuneStart(b byte) bool { return b&0xC0 != 0x80 }
 
 const ptrSize = 4 << (^uintptr(0) >> 63)
@@ -466,21 +446,20 @@ func word[T string | []byte](s T) uintptr {
 	return uintptr(uint64(s[0]) | uint64(s[1])<<8 | uint64(s[2])<<16 | uint64(s[3])<<24 | uint64(s[4])<<32 | uint64(s[5])<<40 | uint64(s[6])<<48 | uint64(s[7])<<56)
 }
 
-// Valid reports whether p consists entirely of valid UTF-8-encoded runes.
+// Valid 报告 p 是否完全由有效的 UTF-8 编码的 rune 组成。
 func Valid(p []byte) bool {
-	// This optimization avoids the need to recompute the capacity
-	// when generating code for slicing p, bringing it to parity with
-	// ValidString, which was 20% faster on long ASCII strings.
+	// 此优化避免了在生成 p 的切片代码时重新计算容量的需要，
+	// 使其与 ValidString 持平，后者在长 ASCII 字符串上快 20%。
 	p = p[:len(p):len(p)]
 
 	for len(p) > 0 {
 		p0 := p[0]
 		if p0 < RuneSelf {
 			p = p[1:]
-			// If there's one ASCII byte, there are probably more.
-			// Advance quickly through ASCII-only data.
-			// Note: using > instead of >= here is intentional. That avoids
-			// needing pointing-past-the-end fixup on the slice operations.
+			// 如果有一个 ASCII 字节，可能还有更多。
+			// 快速跳过纯 ASCII 数据。
+			// 注意：这里有意使用 > 而非 >=。这避免了在切片操作中
+			// 需要进行指向末尾之后的修正。
 			if len(p) > ptrSize && word(p)&hiBits == 0 {
 				p = p[ptrSize:]
 				if len(p) > 2*ptrSize && (word(p)|word(p[ptrSize:]))&hiBits == 0 {
@@ -512,22 +491,22 @@ func Valid(p []byte) bool {
 			}
 			p = p[4:]
 		default:
-			return false // illegal starter byte
+			return false // 非法的起始字节
 		}
 	}
 	return true
 }
 
-// ValidString reports whether s consists entirely of valid UTF-8-encoded runes.
+// ValidString 报告 s 是否完全由有效的 UTF-8 编码的 rune 组成。
 func ValidString(s string) bool {
 	for len(s) > 0 {
 		s0 := s[0]
 		if s0 < RuneSelf {
 			s = s[1:]
-			// If there's one ASCII byte, there are probably more.
-			// Advance quickly through ASCII-only data.
-			// Note: using > instead of >= here is intentional. That avoids
-			// needing pointing-past-the-end fixup on the slice operations.
+			// 如果有一个 ASCII 字节，可能还有更多。
+			// 快速跳过纯 ASCII 数据。
+			// 注意：这里有意使用 > 而非 >=。这避免了在切片操作中
+			// 需要进行指向末尾之后的修正。
 			if len(s) > ptrSize && word(s)&hiBits == 0 {
 				s = s[ptrSize:]
 				if len(s) > 2*ptrSize && (word(s)|word(s[ptrSize:]))&hiBits == 0 {
@@ -559,14 +538,14 @@ func ValidString(s string) bool {
 			}
 			s = s[4:]
 		default:
-			return false // illegal starter byte
+			return false // 非法的起始字节
 		}
 	}
 	return true
 }
 
-// ValidRune reports whether r can be legally encoded as UTF-8.
-// Code points that are out of range or a surrogate half are illegal.
+// ValidRune 报告 r 是否可以合法地编码为 UTF-8。
+// 超出范围的码点或代理项半值是非法的。
 func ValidRune(r rune) bool {
 	switch {
 	case 0 <= r && r < surrogateMin:

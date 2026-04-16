@@ -4,7 +4,7 @@
 
 package unicode
 
-// IsDigit reports whether the rune is a decimal digit.
+// IsDigit 报告该 rune 是否为十进制数字。
 func IsDigit(r rune) bool {
 	if r <= MaxLatin1 {
 		return '0' <= r && r <= '9'

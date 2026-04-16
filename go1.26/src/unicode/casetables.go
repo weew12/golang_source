@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// TODO: This file contains the special casing rules for Turkish and Azeri only.
-// It should encompass all the languages with special casing rules
-// and be generated automatically, but that requires some API
-// development first.
+// TODO: 此文件仅包含土耳其语和阿塞拜疆语的特殊大小写规则。
+// 它应该涵盖所有具有特殊大小写规则的语言并自动生成，
+// 但这需要先进行一些 API 开发。
 
 package unicode
 
