@@ -2,18 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package maps defines various functions useful with maps of any type.
+// Package maps 定义了对任何类型的 map 都有用的各种函数。
 //
-// This package does not have any special handling for non-reflexive keys
-// (keys k where k != k), such as floating-point NaNs.
+// 此包对非自反键（keys k where k != k），如浮点 NaN，没有特殊处理。
 package maps
 
 import (
 	_ "unsafe"
 )
 
-// Equal reports whether two maps contain the same key/value pairs.
-// Values are compared using ==.
+// Equal 报告两个 map 是否包含相同的键/值对。
+// 值使用 == 进行比较。
 func Equal[M1, M2 ~map[K]V, K, V comparable](m1 M1, m2 M2) bool {
 	if len(m1) != len(m2) {
 		return false
@@ -26,8 +25,8 @@ func Equal[M1, M2 ~map[K]V, K, V comparable](m1 M1, m2 M2) bool {
 	return true
 }
 
-// EqualFunc is like Equal, but compares values using eq.
-// Keys are still compared with ==.
+// EqualFunc 类似于 Equal，但使用 eq 比较值。
+// 键仍然使用 == 比较。
 func EqualFunc[M1 ~map[K]V1, M2 ~map[K]V2, K comparable, V1, V2 any](m1 M1, m2 M2, eq func(V1, V2) bool) bool {
 	if len(m1) != len(m2) {
 		return false
@@ -45,27 +44,26 @@ func EqualFunc[M1 ~map[K]V1, M2 ~map[K]V2, K comparable, V1, V2 any](m1 M1, m2 M
 //go:linkname clone maps.clone
 func clone(m any) any
 
-// Clone returns a copy of m.  This is a shallow clone:
-// the new keys and values are set using ordinary assignment.
+// Clone 返回 m 的副本。这是一个浅拷贝：
+// 新的键和值使用普通赋值进行设置。
 func Clone[M ~map[K]V, K comparable, V any](m M) M {
-	// Preserve nil in case it matters.
+	// 保留 nil 以防重要。
 	if m == nil {
 		return nil
 	}
 	return clone(m).(M)
 }
 
-// Copy copies all key/value pairs in src adding them to dst.
-// When a key in src is already present in dst,
-// the value in dst will be overwritten by the value associated
-// with the key in src.
+// Copy 将 src 中的所有键/值对复制到 dst。
+// 当 src 中的键已存在于 dst 时，
+// dst 中的值将被 src 中与该键关联的值覆盖。
 func Copy[M1 ~map[K]V, M2 ~map[K]V, K comparable, V any](dst M1, src M2) {
 	for k, v := range src {
 		dst[k] = v
 	}
 }
 
-// DeleteFunc deletes any key/value pairs from m for which del returns true.
+// DeleteFunc 从 m 中删除所有使 del 返回 true 的键/值对。
 func DeleteFunc[M ~map[K]V, K comparable, V any](m M, del func(K, V) bool) {
 	for k, v := range m {
 		if del(k, v) {
