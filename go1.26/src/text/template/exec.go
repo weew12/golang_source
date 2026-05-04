@@ -15,10 +15,8 @@ import (
 	"text/template/parse"
 )
 
-// maxExecDepth specifies the maximum stack depth of templates within
-// templates. This limit is only practically reached by accidentally
-// recursive template invocations. This limit allows us to return
-// an error instead of triggering a stack overflow.
+// maxExecDepth 指定模板中模板的最大执行栈深度。此限制仅在意外递归模板调用时实际达到。
+// 这允许我们返回错误而不是触发栈溢出。
 var maxExecDepth = initMaxExecDepth()
 
 func initMaxExecDepth() int {
@@ -28,40 +26,39 @@ func initMaxExecDepth() int {
 	return 100000
 }
 
-// state represents the state of an execution. It's not part of the
-// template so that multiple executions of the same template
-// can execute in parallel.
+// state 表示执行的状态。它不是模板的一部分，
+// 因此同一模板的多次执行可以并行进行。
 type state struct {
 	tmpl  *Template
 	wr    io.Writer
-	node  parse.Node // current node, for errors
-	vars  []variable // push-down stack of variable values.
-	depth int        // the height of the stack of executing templates.
+	node  parse.Node // 当前节点，用于错误报告
+	vars  []variable // 变量值的下推栈。
+	depth int        // 执行中的模板栈的高度。
 }
 
-// variable holds the dynamic value of a variable such as $, $x etc.
+// variable 保存变量（如 $、$x 等）的动态值。
 type variable struct {
 	name  string
 	value reflect.Value
 }
 
-// push pushes a new variable on the stack.
+// push 将新变量压入栈中。
 func (s *state) push(name string, value reflect.Value) {
 	s.vars = append(s.vars, variable{name, value})
 }
 
-// mark returns the length of the variable stack.
+// mark 返回变量栈的长度。
 func (s *state) mark() int {
 	return len(s.vars)
 }
 
-// pop pops the variable stack up to the mark.
+// pop 将变量栈弹出到标记处。
 func (s *state) pop(mark int) {
 	s.vars = s.vars[0:mark]
 }
 
-// setVar overwrites the last declared variable with the given name.
-// Used by variable assignments.
+// setVar 用给定的名称覆盖最后声明的变量。
+// 用于变量赋值。
 func (s *state) setVar(name string, value reflect.Value) {
 	for i := s.mark() - 1; i >= 0; i-- {
 		if s.vars[i].name == name {
@@ -72,12 +69,12 @@ func (s *state) setVar(name string, value reflect.Value) {
 	s.errorf("undefined variable: %s", name)
 }
 
-// setTopVar overwrites the top-nth variable on the stack. Used by range iterations.
+// setTopVar 覆盖栈上的第 n 个变量。用于 range 迭代。
 func (s *state) setTopVar(n int, value reflect.Value) {
 	s.vars[len(s.vars)-n].value = value
 }
 
-// varValue returns the value of the named variable.
+// varValue 返回命名变量的值。
 func (s *state) varValue(name string) reflect.Value {
 	for i := s.mark() - 1; i >= 0; i-- {
 		if s.vars[i].name == name {
@@ -100,27 +97,25 @@ func isMissing(v reflect.Value) bool {
 	return v.IsValid() && v.Type() == missingValReflectType
 }
 
-// at marks the state to be on node n, for error reporting.
+// at 标记状态在节点 n 上，用于错误报告。
 func (s *state) at(node parse.Node) {
 	s.node = node
 }
 
-// doublePercent returns the string with %'s replaced by %%, if necessary,
-// so it can be used safely inside a Printf format string.
+// doublePercent 如果需要，将字符串中的 % 替换为 %%，
+// 以便可以安全地用于 Printf 格式字符串。
 func doublePercent(str string) string {
 	return strings.ReplaceAll(str, "%", "%%")
 }
 
-// TODO: It would be nice if ExecError was more broken down, but
-// the way ErrorContext embeds the template name makes the
-// processing too clumsy.
+// TODO: 如果 ExecError 更细分会更好，但 ErrorContext 嵌入模板名称的方式
+// 使处理过于笨拙。
 
-// ExecError is the custom error type returned when Execute has an
-// error evaluating its template. (If a write error occurs, the actual
-// error is returned; it will not be of type ExecError.)
+// ExecError 是 Execute 在求值模板时出错时返回的自定义错误类型。
+//（如果发生写入错误，则返回实际错误；它不会是 ExecError 类型。）
 type ExecError struct {
-	Name string // Name of template.
-	Err  error  // Pre-formatted error.
+	Name string // 模板名称。
+	Err  error  // 预格式化的错误。
 }
 
 func (e ExecError) Error() string {
@@ -131,7 +126,7 @@ func (e ExecError) Unwrap() error {
 	return e.Err
 }
 
-// errorf records an ExecError and terminates processing.
+// errorf 记录 ExecError 并终止处理。
 func (s *state) errorf(format string, args ...any) {
 	name := doublePercent(s.tmpl.Name())
 	if s.node == nil {
@@ -146,12 +141,11 @@ func (s *state) errorf(format string, args ...any) {
 	})
 }
 
-// writeError is the wrapper type used internally when Execute has an
-// error writing to its output. We strip the wrapper in errRecover.
-// Note that this is not an implementation of error, so it cannot escape
-// from the package as an error value.
+// writeError 是 Execute 在写入输出时出错时内部使用的包装类型。
+// 我们在 errRecover 中剥离包装。注意这不是 error 的实现，
+// 因此它不能作为错误值从包中逃逸。
 type writeError struct {
-	Err error // Original error.
+	Err error // 原始错误。
 }
 
 func (s *state) writeError(err error) {
@@ -160,8 +154,7 @@ func (s *state) writeError(err error) {
 	})
 }
 
-// errRecover is the handler that turns panics into returns from the top
-// level of Parse.
+// errRecover 是将 panic 转换为从 Parse 顶层返回的处理程序。
 func errRecover(errp *error) {
 	e := recover()
 	if e != nil {
@@ -169,22 +162,19 @@ func errRecover(errp *error) {
 		case runtime.Error:
 			panic(e)
 		case writeError:
-			*errp = err.Err // Strip the wrapper.
+			*errp = err.Err // 剥离包装。
 		case ExecError:
-			*errp = err // Keep the wrapper.
+			*errp = err // 保留包装。
 		default:
 			panic(e)
 		}
 	}
 }
 
-// ExecuteTemplate applies the template associated with t that has the given name
-// to the specified data object and writes the output to wr.
-// If an error occurs executing the template or writing its output,
-// execution stops, but partial results may already have been written to
-// the output writer.
-// A template may be executed safely in parallel, although if parallel
-// executions share a Writer the output may be interleaved.
+// ExecuteTemplate 将与 t 关联的具有给定名称的模板应用于指定的数据对象，
+// 并将输出写入 wr。如果执行模板或写入其输出时发生错误，
+// 执行停止，但部分结果可能已写入输出 writer。
+// 模板可以安全地并行执行，尽管如果并行执行共享一个 Writer，输出可能会交错。
 func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 	tmpl := t.Lookup(name)
 	if tmpl == nil {
@@ -193,16 +183,12 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data any) error {
 	return tmpl.Execute(wr, data)
 }
 
-// Execute applies a parsed template to the specified data object,
-// and writes the output to wr.
-// If an error occurs executing the template or writing its output,
-// execution stops, but partial results may already have been written to
-// the output writer.
-// A template may be executed safely in parallel, although if parallel
-// executions share a Writer the output may be interleaved.
+// Execute 将解析后的模板应用于指定的数据对象，并将输出写入 wr。
+// 如果执行模板或写入其输出时发生错误，执行停止，但部分结果可能已写入输出 writer。
+// 模板可以安全地并行执行，尽管如果并行执行共享一个 Writer，输出可能会交错。
 //
-// If data is a [reflect.Value], the template applies to the concrete
-// value that the reflect.Value holds, as in [fmt.Print].
+// 如果 data 是 [reflect.Value]，模板应用于 reflect.Value 持有的具体值，
+// 如同 [fmt.Print]。
 func (t *Template) Execute(wr io.Writer, data any) error {
 	return t.execute(wr, data)
 }
@@ -225,10 +211,9 @@ func (t *Template) execute(wr io.Writer, data any) (err error) {
 	return
 }
 
-// DefinedTemplates returns a string listing the defined templates,
-// prefixed by the string "; defined templates are: ". If there are none,
-// it returns the empty string. For generating an error message here
-// and in [html/template].
+// DefinedTemplates 返回一个字符串，列出已定义的模板，
+// 前缀为 "; defined templates are: "。如果没有，则返回空字符串。
+// 用于在此处和 [html/template] 中生成错误消息。
 func (t *Template) DefinedTemplates() string {
 	if t.common == nil {
 		return ""
@@ -250,20 +235,19 @@ func (t *Template) DefinedTemplates() string {
 	return b.String()
 }
 
-// Sentinel errors for use with panic to signal early exits from range loops.
+// 用于 panic 的哨兵错误，用于从 range 循环中提前退出。
 var (
 	walkBreak    = errors.New("break")
 	walkContinue = errors.New("continue")
 )
 
-// Walk functions step through the major pieces of the template structure,
-// generating output as they go.
+// Walk 函数逐步执行模板结构的主要部分，生成输出。
 func (s *state) walk(dot reflect.Value, node parse.Node) {
 	s.at(node)
 	switch node := node.(type) {
 	case *parse.ActionNode:
-		// Do not pop variables so they persist until next end.
-		// Also, if the action declares variables, don't print the result.
+		// 不要弹出变量，以便它们持续到下一个 end。
+		// 此外，如果动作声明了变量，不要打印结果。
 		val := s.evalPipeline(dot, node.Pipe)
 		if len(node.Pipe.Decl) == 0 {
 			s.printValue(node, val)
@@ -294,8 +278,8 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
 	}
 }
 
-// walkIfOrWith walks an 'if' or 'with' node. The two control structures
-// are identical in behavior except that 'with' sets dot.
+// walkIfOrWith 遍历 'if' 或 'with' 节点。这两种控制结构的行为相同，
+// 除了 'with' 设置 dot。
 func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.PipeNode, list, elseList *parse.ListNode) {
 	defer s.pop(s.mark())
 	val := s.evalPipeline(dot, pipe)
@@ -314,9 +298,8 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
 	}
 }
 
-// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
-// and whether the value has a meaningful truth value. This is the definition of
-// truth used by if and other such actions.
+// IsTrue 报告值是否"真"（在其类型的零值意义上），
+// 以及值是否有有意义的真值。这是 if 和其他类似动作使用的真值定义。
 func IsTrue(val any) (truth, ok bool) {
 	return isTrue(reflect.ValueOf(val))
 }
@@ -504,24 +487,21 @@ func (s *state) walkTemplate(dot reflect.Value, t *parse.TemplateNode) {
 	if s.depth == maxExecDepth {
 		s.errorf("exceeded maximum template depth (%v)", maxExecDepth)
 	}
-	// Variables declared by the pipeline persist.
+	// 变量由管道声明会持久化。
 	dot = s.evalPipeline(dot, t.Pipe)
 	newState := *s
 	newState.depth++
 	newState.tmpl = tmpl
-	// No dynamic scoping: template invocations inherit no variables.
+	// 没有动态作用域：模板调用不继承变量。
 	newState.vars = []variable{{"$", dot}}
 	newState.walk(dot, tmpl.Root)
 }
 
-// Eval functions evaluate pipelines, commands, and their elements and extract
-// values from the data structure by examining fields, calling methods, and so on.
-// The printing of those values happens only through walk functions.
+// Eval 函数求值管道、命令及其元素，并通过检查字段、调用方法等
+// 从数据结构中提取值。这些值的打印只通过 walk 函数进行。
 
-// evalPipeline returns the value acquired by evaluating a pipeline. If the
-// pipeline has a variable declaration, the variable will be pushed on the
-// stack. Callers should therefore pop the stack after they are finished
-// executing commands depending on the pipeline value.
+// evalPipeline 返回通过求值管道获得的值。如果管道有变量声明，
+// 变量将被压入栈中。因此，调用者在依赖于管道值执行命令后应弹出栈。
 func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value reflect.Value) {
 	if pipe == nil {
 		return
@@ -529,8 +509,8 @@ func (s *state) evalPipeline(dot reflect.Value, pipe *parse.PipeNode) (value ref
 	s.at(pipe)
 	value = missingVal
 	for _, cmd := range pipe.Cmds {
-		value = s.evalCommand(dot, cmd, value) // previous value is this one's final arg.
-		// If the object has type interface{}, dig down one level to the thing inside.
+		value = s.evalCommand(dot, cmd, value) // 前一个值是这一个的最终参数。
+		// 如果对象有 type interface{}，向下深入一层到内部的东西。
 		if value.Kind() == reflect.Interface && value.Type().NumMethod() == 0 {
 			value = value.Elem()
 		}
@@ -559,10 +539,10 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 	case *parse.ChainNode:
 		return s.evalChainNode(dot, n, cmd.Args, final)
 	case *parse.IdentifierNode:
-		// Must be a function.
+		// 必须是函数。
 		return s.evalFunction(dot, n, cmd, cmd.Args, final)
 	case *parse.PipeNode:
-		// Parenthesized pipeline. The arguments are all inside the pipeline; final must be absent.
+		// 带括号的管道。参数都在管道内部；final 必须不存在。
 		s.notAFunction(cmd.Args, final)
 		return s.evalPipeline(dot, n)
 	case *parse.VariableNode:
@@ -586,14 +566,12 @@ func (s *state) evalCommand(dot reflect.Value, cmd *parse.CommandNode, final ref
 	panic("not reached")
 }
 
-// idealConstant is called to return the value of a number in a context where
-// we don't know the type. In that case, the syntax of the number tells us
-// its type, and we use Go rules to resolve. Note there is no such thing as
-// a uint ideal constant in this situation - the value must be of int type.
+// idealConstant 在我们不知道类型的上下文中调用以返回数字的值。
+// 在这种情况下，数字的语法告诉我们它的类型，我们使用 Go 规则来解析。
+// 注意在这种情况下不存在 uint 理想常量——值必须是 int 类型。
 func (s *state) idealConstant(constant *parse.NumberNode) reflect.Value {
-	// These are ideal constants but we don't know the type
-	// and we have no context.  (If it was a method argument,
-	// we'd know what we need.) The syntax guides us to some extent.
+	// 这些是理想常量，但我们不知道类型也没有上下文。（如果是方法参数，我们会知道需要什么。）
+	// 语法在某种程度上指导我们。
 	s.at(constant)
 	switch {
 	case constant.IsComplex:
@@ -654,15 +632,14 @@ func (s *state) evalVariableNode(dot reflect.Value, variable *parse.VariableNode
 	return s.evalFieldChain(dot, value, variable, variable.Ident[1:], args, final)
 }
 
-// evalFieldChain evaluates .X.Y.Z possibly followed by arguments.
-// dot is the environment in which to evaluate arguments, while
-// receiver is the value being walked along the chain.
+// evalFieldChain 求值 .X.Y.Z，可能后跟参数。
+// dot 是求值参数的环境，而 receiver 是沿着链遍历的值。
 func (s *state) evalFieldChain(dot, receiver reflect.Value, node parse.Node, ident []string, args []parse.Node, final reflect.Value) reflect.Value {
 	n := len(ident)
 	for i := 0; i < n-1; i++ {
 		receiver = s.evalField(dot, ident[i], node, nil, missingVal, receiver)
 	}
-	// Now if it's a method, it gets the arguments.
+	// 现在如果是方法，它会得到参数。
 	return s.evalField(dot, ident[n-1], node, args, final, receiver)
 }
 
@@ -676,12 +653,11 @@ func (s *state) evalFunction(dot reflect.Value, node *parse.IdentifierNode, cmd 
 	return s.evalCall(dot, function, isBuiltin, cmd, name, args, final)
 }
 
-// evalField evaluates an expression like (.Field) or (.Field arg1 arg2).
-// The 'final' argument represents the return value from the preceding
-// value of the pipeline, if any.
+// evalField 求值类似 (.Field) 或 (.Field arg1 arg2) 的表达式。
+// 'final' 参数表示前一个管道值的返回值（如果有）。
 func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, args []parse.Node, final, receiver reflect.Value) reflect.Value {
 	if !receiver.IsValid() {
-		if s.tmpl.option.missingKey == mapError { // Treat invalid value as missing map key.
+		if s.tmpl.option.missingKey == mapError { // 将无效值视为缺失的映射键。
 			s.errorf("nil data; no entry for key %q", fieldName)
 		}
 		return zero
@@ -689,14 +665,13 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 	typ := receiver.Type()
 	receiver, isNil := indirect(receiver)
 	if receiver.Kind() == reflect.Interface && isNil {
-		// Calling a method on a nil interface can't work. The
-		// MethodByName method call below would panic.
+		// 在 nil 接口上调用方法不能工作。
+		// 下面的 MethodByName 方法调用会 panic。
 		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
 		return zero
 	}
 
-	// Unless it's an interface, need to get to a value of type *T to guarantee
-	// we see all methods of T and *T.
+	// 除非是接口，需要获取类型 *T 的值以保证我们看到 T 和 *T 的所有方法。
 	ptr := receiver
 	if ptr.Kind() != reflect.Interface && ptr.Kind() != reflect.Pointer && ptr.CanAddr() {
 		ptr = ptr.Addr()
@@ -705,7 +680,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 		return s.evalCall(dot, method, false, node, fieldName, args, final)
 	}
 	hasArgs := len(args) > 1 || !isMissing(final)
-	// It's not a method; must be a field of a struct or an element of a map.
+	// 不是方法；必须是结构体的字段或映射的元素。
 	switch receiver.Kind() {
 	case reflect.Struct:
 		tField, ok := receiver.Type().FieldByName(fieldName)
@@ -717,14 +692,14 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 			if err != nil {
 				s.errorf("%v", err)
 			}
-			// If it's a function, we must call it.
+			// 如果是函数，我们必须调用它。
 			if hasArgs {
 				s.errorf("%s has arguments but cannot be invoked as function", fieldName)
 			}
 			return field
 		}
 	case reflect.Map:
-		// If it's a map, attempt to use the field name as a key.
+		// 如果是映射，尝试使用字段名作为键。
 		nameVal := reflect.ValueOf(fieldName)
 		if nameVal.Type().AssignableTo(receiver.Type().Key()) {
 			if hasArgs {
@@ -734,7 +709,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 			if !result.IsValid() {
 				switch s.tmpl.option.missingKey {
 				case mapInvalid:
-					// Just use the invalid value.
+					// 只使用无效值。
 				case mapZeroValue:
 					result = reflect.Zero(receiver.Type().Elem())
 				case mapError:
@@ -747,8 +722,7 @@ func (s *state) evalField(dot reflect.Value, fieldName string, node parse.Node, 
 		etyp := receiver.Type().Elem()
 		if etyp.Kind() == reflect.Struct {
 			if _, ok := etyp.FieldByName(fieldName); !ok {
-				// If there's no such field, say "can't evaluate"
-				// instead of "nil pointer evaluating".
+				// 如果没有这样的字段，说"无法求值"而不是"nil 指针求值"。
 				break
 			}
 		}
@@ -766,12 +740,11 @@ var (
 	reflectValueType = reflect.TypeFor[reflect.Value]()
 )
 
-// evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
-// it looks just like a function call. The arg list, if non-nil, includes (in the manner of the shell), arg[0]
-// as the function itself.
+// evalCall 执行函数或方法调用。如果是方法，fun 已经绑定了接收者，
+// 所以它看起来就像函数调用。如果 arg 列表非空，它（以 shell 的方式）包括 arg[0] 作为函数本身。
 func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node, name string, args []parse.Node, final reflect.Value) reflect.Value {
 	if args != nil {
-		args = args[1:] // Zeroth arg is function name/node; not passed to function.
+		args = args[1:] // 第零个 arg 是函数名/节点；不传递给函数。
 	}
 	typ := fun.Type()
 	numIn := len(args)
@@ -780,7 +753,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 	}
 	numFixed := len(args)
 	if typ.IsVariadic() {
-		numFixed = typ.NumIn() - 1 // last arg is the variadic one.
+		numFixed = typ.NumIn() - 1 // 最后一个 arg 是可变参数。
 		if numIn < numFixed {
 			s.errorf("wrong number of args for %s: want at least %d got %d", name, typ.NumIn()-1, len(args))
 		}
@@ -798,67 +771,64 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 		return v
 	}
 
-	// Special case for builtin and/or, which short-circuit.
+	// 内置 and/or 的特殊情况，它们会短路。
 	if isBuiltin && (name == "and" || name == "or") {
 		argType := typ.In(0)
 		var v reflect.Value
 		for _, arg := range args {
 			v = s.evalArg(dot, argType, arg).Interface().(reflect.Value)
 			if truth(v) == (name == "or") {
-				// This value was already unwrapped
-				// by the .Interface().(reflect.Value).
+				// 这个值已经被 .Interface().(reflect.Value) 解包了
 				return v
 			}
 		}
 		if !final.Equal(missingVal) {
-			// The last argument to and/or is coming from
-			// the pipeline. We didn't short circuit on an earlier
-			// argument, so we are going to return this one.
-			// We don't have to evaluate final, but we do
-			// have to check its type. Then, since we are
-			// going to return it, we have to unwrap it.
+			// and/or 的最后一个参数来自管道。
+			// 我们没有在 earlier 参数上短路，所以我们要返回这个参数。
+			// 我们不必求值 final，但我们确实要检查它的类型。
+			// 然后，因为我们将要返回它，我们必须解包它。
 			v = unwrap(s.validateType(final, argType))
 		}
 		return v
 	}
 
-	// Build the arg list.
+	// 构建 arg 列表。
 	argv := make([]reflect.Value, numIn)
-	// Args must be evaluated. Fixed args first.
+	// 必须求值参数。先求值固定参数。
 	i := 0
 	for ; i < numFixed && i < len(args); i++ {
 		argv[i] = s.evalArg(dot, typ.In(i), args[i])
 	}
-	// Now the ... args.
+	// 现在是 ... 参数。
 	if typ.IsVariadic() {
-		argType := typ.In(typ.NumIn() - 1).Elem() // Argument is a slice.
+		argType := typ.In(typ.NumIn() - 1).Elem() // 参数是一个切片。
 		for ; i < len(args); i++ {
 			argv[i] = s.evalArg(dot, argType, args[i])
 		}
 	}
-	// Add final value if necessary.
+	// 如有需要添加 final 值。
 	if !isMissing(final) {
 		t := typ.In(typ.NumIn() - 1)
 		if typ.IsVariadic() {
 			if numIn-1 < numFixed {
-				// The added final argument corresponds to a fixed parameter of the function.
-				// Validate against the type of the actual parameter.
+				// 添加的 final 参数对应于函数的固定参数。
+				// 根据实际参数的类型进行验证。
 				t = typ.In(numIn - 1)
 			} else {
-				// The added final argument corresponds to the variadic part.
-				// Validate against the type of the elements of the variadic slice.
+				// 添加的 final 参数对应于可变部分。
+				// 根据可变切片元素的类型进行验证。
 				t = t.Elem()
 			}
 		}
 		argv[i] = s.validateType(final, t)
 	}
 
-	// Special case for the "call" builtin.
-	// Insert the name of the callee function as the first argument.
+	// "call" 内置函数的特殊情况。
+	// 将被调用的函数名作为第一个参数插入。
 	if isBuiltin && name == "call" {
 		var calleeName string
 		if len(args) == 0 {
-			// final must be present or we would have errored out above.
+			// final 必须存在，否则我们会在上面出错。
 			calleeName = final.String()
 		} else {
 			calleeName = args[0].String()
@@ -868,8 +838,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 	}
 
 	v, err := safeCall(fun, argv)
-	// If we have an error that is not nil, stop execution and return that
-	// error to the caller.
+	// 如果有非 nil 的错误，停止执行并将错误返回给调用者。
 	if err != nil {
 		s.at(node)
 		s.errorf("error calling %s: %w", name, err)
@@ -877,7 +846,7 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
 	return unwrap(v)
 }
 
-// canBeNil reports whether an untyped nil can be assigned to the type. See reflect.Zero.
+// canBeNil 报告无类型的 nil 是否可以赋值给该类型。参见 reflect.Zero。
 func canBeNil(typ reflect.Type) bool {
 	switch typ.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
@@ -888,15 +857,15 @@ func canBeNil(typ reflect.Type) bool {
 	return false
 }
 
-// validateType guarantees that the value is valid and assignable to the type.
+// validateType 保证值有效且可赋值给类型。
 func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
 	if !value.IsValid() {
 		if typ == nil {
-			// An untyped nil interface{}. Accept as a proper nil value.
+			// 一个无类型的 nil interface{}。接受为适当的 nil 值。
 			return reflect.ValueOf(nil)
 		}
 		if canBeNil(typ) {
-			// Like above, but use the zero value of the non-nil type.
+			// 像上面一样，但使用非 nil 类型的零值。
 			return reflect.Zero(typ)
 		}
 		s.errorf("invalid value; expected %s", typ)
@@ -912,10 +881,10 @@ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Valu
 			}
 			// fallthrough
 		}
-		// Does one dereference or indirection work? We could do more, as we
-		// do with method receivers, but that gets messy and method receivers
-		// are much more constrained, so it makes more sense there than here.
-		// Besides, one is almost always all you need.
+		// 解引用或间接一次是否可以工作？我们可以做更多，
+		// 就像我们对方法接收者所做的那样，但这变得很乱，
+		// 而且方法接收者受到更多约束，所以在那里更有意义。
+		// 此外，几乎总是只需要一次。
 		switch {
 		case value.Kind() == reflect.Pointer && value.Type().Elem().AssignableTo(typ):
 			value = value.Elem()
@@ -1070,9 +1039,8 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n parse.Node) reflect.Valu
 	panic("not reached")
 }
 
-// indirect returns the item at the end of indirection, and a bool to indicate
-// if it's nil. If the returned bool is true, the returned value's kind will be
-// either a pointer or interface.
+// indirect 返回间接寻址末尾的项，并返回一个 bool 指示它是否为 nil。
+// 如果返回的 bool 为 true，返回值的 kind 将是 pointer 或 interface。
 func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
 	for ; v.Kind() == reflect.Pointer || v.Kind() == reflect.Interface; v = v.Elem() {
 		if v.IsNil() {
@@ -1082,10 +1050,9 @@ func indirect(v reflect.Value) (rv reflect.Value, isNil bool) {
 	return v, false
 }
 
-// indirectInterface returns the concrete value in an interface value,
-// or else the zero reflect.Value.
-// That is, if v represents the interface value x, the result is the same as reflect.ValueOf(x):
-// the fact that x was an interface value is forgotten.
+// indirectInterface 返回接口值中的具体值，否则返回零 reflect.Value。
+// 也就是说，如果 v 代表接口值 x，结果与 reflect.ValueOf(x) 相同：
+// x 是接口值这一事实被忘记了。
 func indirectInterface(v reflect.Value) reflect.Value {
 	if v.Kind() != reflect.Interface {
 		return v
@@ -1096,8 +1063,7 @@ func indirectInterface(v reflect.Value) reflect.Value {
 	return v.Elem()
 }
 
-// printValue writes the textual representation of the value to the output of
-// the template.
+// printValue 将值的文本表示写入模板的输出。
 func (s *state) printValue(n parse.Node, v reflect.Value) {
 	s.at(n)
 	iface, ok := printableValue(v)
@@ -1110,8 +1076,7 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
 	}
 }
 
-// printableValue returns the, possibly indirected, interface value inside v that
-// is best for a call to formatted printer.
+// printableValue 返回 v 中最适合调用格式化打印机的（可能是间接的）接口值。
 func printableValue(v reflect.Value) (any, bool) {
 	if v.Kind() == reflect.Pointer {
 		v, _ = indirect(v) // fmt.Fprint handles nil.

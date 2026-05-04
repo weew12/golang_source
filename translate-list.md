@@ -16,9 +16,9 @@
 - [X] regexp：实现正则表达式搜索
 - [X] html：提供HTML文本转义与反转义函数
 - [X] unicode：提供Unicode码点属性测试相关函数
-- [ ] text/scanner：UTF-8文本的扫描器与分词器
-- [ ] text/tabwriter：将制表符列转换为对齐文本的写入过滤器
-- [ ] text/template：实现数据驱动的文本生成模板
+- [X] text/scanner：UTF-8文本的扫描器与分词器
+- [X] text/tabwriter：将制表符列转换为对齐文本的写入过滤器
+- [X] text/template：实现数据驱动的文本生成模板
 - [ ] mime：实现MIME规范部分功能
 
 ## 第3部分 数据结构与算法

@@ -2,43 +2,39 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file contains the code to handle template options.
+// 此文件包含处理模板选项的代码。
 
 package template
 
 import "strings"
 
-// missingKeyAction defines how to respond to indexing a map with a key that is not present.
+// missingKeyAction 定义了在索引映射时键不存在时的响应方式。
 type missingKeyAction int
 
 const (
-	mapInvalid   missingKeyAction = iota // Return an invalid reflect.Value.
-	mapZeroValue                         // Return the zero value for the map element.
-	mapError                             // Error out
+	mapInvalid   missingKeyAction = iota // 返回无效的 reflect.Value。
+	mapZeroValue                         // 返回映射元素的零值。
+	mapError                             // 报错
 )
 
 type option struct {
 	missingKey missingKeyAction
 }
 
-// Option sets options for the template. Options are described by
-// strings, either a simple string or "key=value". There can be at
-// most one equals sign in an option string. If the option string
-// is unrecognized or otherwise invalid, Option panics.
+// Option 为模板设置选项。选项由字符串描述，可以是简单字符串或 "key=value"。
+// 选项字符串中最多只能有一个等号。如果选项字符串无法识别或无效，Option 会 panic。
 //
-// Known options:
+// 已知选项：
 //
-// missingkey: Control the behavior during execution if a map is
-// indexed with a key that is not present in the map.
+// missingkey: 控制如果在执行期间用不存在的键索引映射时的行为。
 //
-//	"missingkey=default" or "missingkey=invalid"
-//		The default behavior: Do nothing and continue execution.
-//		If printed, the result of the index operation is the string
-//		"<no value>".
+//	"missingkey=default" 或 "missingkey=invalid"
+//		默认行为：什么都不做，继续执行。
+//		如果打印，索引操作的结果是字符串 "<no value>"。
 //	"missingkey=zero"
-//		The operation returns the zero value for the map type's element.
+//		操作返回映射类型元素的零值。
 //	"missingkey=error"
-//		Execution stops immediately with an error.
+//		执行立即停止并报错。
 func (t *Template) Option(opt ...string) *Template {
 	t.init()
 	for _, s := range opt {

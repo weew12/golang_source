@@ -11,12 +11,12 @@ import (
 	"unicode/utf8"
 )
 
-// item represents a token or text string returned from the scanner.
+// item 表示从扫描器返回的词法记号或文本字符串。
 type item struct {
-	typ  itemType // The type of this item.
-	pos  Pos      // The starting position, in bytes, of this item in the input string.
-	val  string   // The value of this item.
-	line int      // The line number at the start of this item.
+	typ  itemType // 此 item 的类型。
+	pos  Pos      // 此 item 在输入字符串中的起始位置（字节）。
+	val  string   // 此 item 的值。
+	line int      // 此 item 起始处的行号。
 }
 
 func (i item) String() string {
@@ -33,46 +33,46 @@ func (i item) String() string {
 	return fmt.Sprintf("%q", i.val)
 }
 
-// itemType identifies the type of lex items.
+// itemType 标识词法项的类型。
 type itemType int
 
 const (
-	itemError        itemType = iota // error occurred; value is text of error
-	itemBool                         // boolean constant
-	itemChar                         // printable ASCII character; grab bag for comma etc.
-	itemCharConstant                 // character constant
-	itemComment                      // comment text
-	itemComplex                      // complex constant (1+2i); imaginary is just a number
-	itemAssign                       // equals ('=') introducing an assignment
-	itemDeclare                      // colon-equals (':=') introducing a declaration
+	itemError        itemType = iota // 发生错误；值为错误文本
+	itemBool                         // 布尔常量
+	itemChar                         // 可打印的 ASCII 字符；逗号等的杂项
+	itemCharConstant                 // 字符常量
+	itemComment                      // 注释文本
+	itemComplex                      // 复数常量 (1+2i)；虚数只是一个数字
+	itemAssign                       // 等号 ('=') 引入赋值
+	itemDeclare                      // 冒号等号 (':=') 引入声明
 	itemEOF
-	itemField      // alphanumeric identifier starting with '.'
-	itemIdentifier // alphanumeric identifier not starting with '.'
-	itemLeftDelim  // left action delimiter
-	itemLeftParen  // '(' inside action
-	itemNumber     // simple number, including imaginary
-	itemPipe       // pipe symbol
-	itemRawString  // raw quoted string (includes quotes)
-	itemRightDelim // right action delimiter
-	itemRightParen // ')' inside action
-	itemSpace      // run of spaces separating arguments
-	itemString     // quoted string (includes quotes)
-	itemText       // plain text
-	itemVariable   // variable starting with '$', such as '$' or  '$1' or '$hello'
-	// Keywords appear after all the rest.
-	itemKeyword  // used only to delimit the keywords
-	itemBlock    // block keyword
-	itemBreak    // break keyword
-	itemContinue // continue keyword
-	itemDot      // the cursor, spelled '.'
-	itemDefine   // define keyword
-	itemElse     // else keyword
-	itemEnd      // end keyword
-	itemIf       // if keyword
-	itemNil      // the untyped nil constant, easiest to treat as a keyword
-	itemRange    // range keyword
-	itemTemplate // template keyword
-	itemWith     // with keyword
+	itemField      // 以 '.' 开头的字母数字标识符
+	itemIdentifier // 不以 '.' 开头的字母数字标识符
+	itemLeftDelim  // 左动作分隔符
+	itemLeftParen  // 动作内的 '('
+	itemNumber     // 简单数字，包括虚数
+	itemPipe       // 管道符号
+	itemRawString  // 原始带引号字符串（包括引号）
+	itemRightDelim // 右动作分隔符
+	itemRightParen // 动作内的 ')'
+	itemSpace      // 分隔参数的空格序列
+	itemString     // 带引号字符串（包括引号）
+	itemText       // 纯文本
+	itemVariable   // 以 '$' 开头的变量，如 '$' 或 '$1' 或 '$hello'
+	// 关键字出现在所有其余之后。
+	itemKeyword  // 仅用于分隔关键字
+	itemBlock    // block 关键字
+	itemBreak    // break 关键字
+	itemContinue // continue 关键字
+	itemDot      // 游标，拼写为 '.'
+	itemDefine   // define 关键字
+	itemElse     // else 关键字
+	itemEnd      // end 关键字
+	itemIf       // if 关键字
+	itemNil      // 无类型的 nil 常量，最容易当作关键字处理
+	itemRange    // range 关键字
+	itemTemplate // template 关键字
+	itemWith     // with 关键字
 )
 
 var key = map[string]itemType{
@@ -92,48 +92,46 @@ var key = map[string]itemType{
 
 const eof = -1
 
-// Trimming spaces.
-// If the action begins "{{- " rather than "{{", then all space/tab/newlines
-// preceding the action are trimmed; conversely if it ends " -}}" the
-// leading spaces are trimmed. This is done entirely in the lexer; the
-// parser never sees it happen. We require an ASCII space (' ', \t, \r, \n)
-// to be present to avoid ambiguity with things like "{{-3}}". It reads
-// better with the space present anyway. For simplicity, only ASCII
-// does the job.
+// 修剪空格。
+// 如果动作以 "{{- " 而非 "{{" 开始，则所有在动作之前的 space/tab/newlines 都会被修剪；
+// 反之如果以 " -}}" 结束，则会修剪后续的前导空格。这完全在词法分析器中完成；
+// 解析器永远不会看到它发生。我们需要一个 ASCII 空格 (' ', \t, \r, \n)
+// 存在以避免与 "{{-3}}" 之类的东西产生歧义。
+// 无论如何，有空格存在时阅读起来更好。为简单起见，只有 ASCII 就行。
 const (
-	spaceChars    = " \t\r\n"  // These are the space characters defined by Go itself.
-	trimMarker    = '-'        // Attached to left/right delimiter, trims trailing spaces from preceding/following text.
-	trimMarkerLen = Pos(1 + 1) // marker plus space before or after
+	spaceChars    = " \t\r\n"  // 这些是 Go 自己定义的空格字符。
+	trimMarker    = '-'        // 附加到左/右分隔符，修剪前/后文本的尾随空格。
+	trimMarkerLen = Pos(1 + 1) // 标记加上之前或之后的空间
 )
 
-// stateFn represents the state of the scanner as a function that returns the next state.
+// stateFn 将扫描器的状态表示为返回下一个状态的函数。
 type stateFn func(*lexer) stateFn
 
-// lexer holds the state of the scanner.
+// lexer 持有扫描器的状态。
 type lexer struct {
-	name         string // the name of the input; used only for error reports
-	input        string // the string being scanned
-	leftDelim    string // start of action marker
-	rightDelim   string // end of action marker
-	pos          Pos    // current position in the input
-	start        Pos    // start position of this item
-	atEOF        bool   // we have hit the end of input and returned eof
-	parenDepth   int    // nesting depth of ( ) exprs
-	line         int    // 1+number of newlines seen
-	startLine    int    // start line of this item
-	item         item   // item to return to parser
-	insideAction bool   // are we inside an action?
+	name         string // 输入的名称；仅用于错误报告
+	input        string // 被扫描的字符串
+	leftDelim    string // 动作标记的开始
+	rightDelim   string // 动作标记的结束
+	pos          Pos    // 输入中的当前位置
+	start        Pos    // 此 item 的起始位置
+	atEOF        bool   // 我们已到达输入末尾并返回 eof
+	parenDepth   int    // ( ) 表达式的嵌套深度
+	line         int    // 1+看到的换行符数
+	startLine    int    // 此 item 的起始行
+	item         item   // 返回给解析器的 item
+	insideAction bool   // 我们是否在动作内部？
 	options      lexOptions
 }
 
-// lexOptions control behavior of the lexer. All default to false.
+// lexOptions 控制词法分析器的行为。默认都为 false。
 type lexOptions struct {
-	emitComment bool // emit itemComment tokens.
-	breakOK     bool // break keyword allowed
-	continueOK  bool // continue keyword allowed
+	emitComment bool // 发出 itemComment 词法项。
+	breakOK     bool // break 关键字允许
+	continueOK  bool // continue 关键字允许
 }
 
-// next returns the next rune in the input.
+// next 返回输入中的下一个 rune。
 func (l *lexer) next() rune {
 	if int(l.pos) >= len(l.input) {
 		l.atEOF = true
@@ -147,27 +145,26 @@ func (l *lexer) next() rune {
 	return r
 }
 
-// peek returns but does not consume the next rune in the input.
+// peek 返回但不消费输入中的下一个 rune。
 func (l *lexer) peek() rune {
 	r := l.next()
 	l.backup()
 	return r
 }
 
-// backup steps back one rune.
+// backup 后退一个 rune。
 func (l *lexer) backup() {
 	if !l.atEOF && l.pos > 0 {
 		r, w := utf8.DecodeLastRuneInString(l.input[:l.pos])
 		l.pos -= Pos(w)
-		// Correct newline count.
+		// 修正换行计数。
 		if r == '\n' {
 			l.line--
 		}
 	}
 }
 
-// thisItem returns the item at the current input point with the specified type
-// and advances the input.
+// thisItem 返回当前输入点的 item，具有指定的类型并推进输入。
 func (l *lexer) thisItem(t itemType) item {
 	i := item{t, l.start, l.input[l.start:l.pos], l.startLine}
 	l.start = l.pos
@@ -175,27 +172,26 @@ func (l *lexer) thisItem(t itemType) item {
 	return i
 }
 
-// emit passes the trailing text as an item back to the parser.
+// emit 将尾随文本作为 item 传回解析器。
 func (l *lexer) emit(t itemType) stateFn {
 	return l.emitItem(l.thisItem(t))
 }
 
-// emitItem passes the specified item to the parser.
+// emitItem 将指定的 item 传给解析器。
 func (l *lexer) emitItem(i item) stateFn {
 	l.item = i
 	return nil
 }
 
-// ignore skips over the pending input before this point.
-// It tracks newlines in the ignored text, so use it only
-// for text that is skipped without calling l.next.
+// ignore 跳过此点之前的待处理输入。
+// 它跟踪被忽略文本中的换行符，因此仅用于跳过而不调用 l.next 的文本。
 func (l *lexer) ignore() {
 	l.line += strings.Count(l.input[l.start:l.pos], "\n")
 	l.start = l.pos
 	l.startLine = l.line
 }
 
-// accept consumes the next rune if it's from the valid set.
+// accept 如果下一个 rune 来自有效集合，则消费它。
 func (l *lexer) accept(valid string) bool {
 	if strings.ContainsRune(valid, l.next()) {
 		return true
@@ -204,15 +200,15 @@ func (l *lexer) accept(valid string) bool {
 	return false
 }
 
-// acceptRun consumes a run of runes from the valid set.
+// acceptRun 消费来自有效集合的 rune 序列。
 func (l *lexer) acceptRun(valid string) {
 	for strings.ContainsRune(valid, l.next()) {
 	}
 	l.backup()
 }
 
-// errorf returns an error token and terminates the scan by passing
-// back a nil pointer that will be the next state, terminating l.nextItem.
+// errorf 返回错误词法项并通过返回将终止扫描的 nil 指针来终止扫描，
+// 该指针将是下一个状态，终止 l.nextItem。
 func (l *lexer) errorf(format string, args ...any) stateFn {
 	l.item = item{itemError, l.start, fmt.Sprintf(format, args...), l.startLine}
 	l.start = 0
@@ -221,8 +217,8 @@ func (l *lexer) errorf(format string, args ...any) stateFn {
 	return nil
 }
 
-// nextItem returns the next item from the input.
-// Called by the parser, not in the lexing goroutine.
+// nextItem 从输入返回下一个 item。
+// 由解析器调用，不在词法分析 goroutine 中。
 func (l *lexer) nextItem() item {
 	l.item = item{itemEOF, l.pos, "EOF", l.startLine}
 	state := lexText
@@ -237,7 +233,7 @@ func (l *lexer) nextItem() item {
 	}
 }
 
-// lex creates a new scanner for the input string.
+// lex 为输入字符串创建新的扫描器。
 func lex(name, input, left, right string) *lexer {
 	if left == "" {
 		left = leftDelim
@@ -257,7 +253,7 @@ func lex(name, input, left, right string) *lexer {
 	return l
 }
 
-// state functions
+// 状态函数
 
 const (
 	leftDelim    = "{{"
@@ -266,12 +262,12 @@ const (
 	rightComment = "*/"
 )
 
-// lexText scans until an opening action delimiter, "{{".
+// lexText 扫描直到遇到开行动作分隔符 "{{"。
 func lexText(l *lexer) stateFn {
 	if x := strings.Index(l.input[l.pos:], l.leftDelim); x >= 0 {
 		if x > 0 {
 			l.pos += Pos(x)
-			// Do we trim any trailing space?
+			// 我们修剪尾随空格吗？
 			trimLength := Pos(0)
 			delimEnd := l.pos + Pos(len(l.leftDelim))
 			if hasLeftTrimMarker(l.input[delimEnd:]) {
@@ -289,7 +285,7 @@ func lexText(l *lexer) stateFn {
 		return lexLeftDelim
 	}
 	l.pos = Pos(len(l.input))
-	// Correctly reached EOF.
+	// 正确到达 EOF。
 	if l.pos > l.start {
 		l.line += strings.Count(l.input[l.start:l.pos], "\n")
 		return l.emit(itemText)
@@ -297,29 +293,29 @@ func lexText(l *lexer) stateFn {
 	return l.emit(itemEOF)
 }
 
-// rightTrimLength returns the length of the spaces at the end of the string.
+// rightTrimLength 返回字符串末尾空格的长度。
 func rightTrimLength(s string) Pos {
 	return Pos(len(s) - len(strings.TrimRight(s, spaceChars)))
 }
 
-// atRightDelim reports whether the lexer is at a right delimiter, possibly preceded by a trim marker.
+// atRightDelim 报告词法分析器是否在右分隔符处，可能前面有修剪标记。
 func (l *lexer) atRightDelim() (delim, trimSpaces bool) {
-	if hasRightTrimMarker(l.input[l.pos:]) && strings.HasPrefix(l.input[l.pos+trimMarkerLen:], l.rightDelim) { // With trim marker.
+	if hasRightTrimMarker(l.input[l.pos:]) && strings.HasPrefix(l.input[l.pos+trimMarkerLen:], l.rightDelim) { // 带修剪标记。
 		return true, true
 	}
-	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) { // Without trim marker.
+	if strings.HasPrefix(l.input[l.pos:], l.rightDelim) { // 不带修剪标记。
 		return true, false
 	}
 	return false, false
 }
 
-// leftTrimLength returns the length of the spaces at the beginning of the string.
+// leftTrimLength 返回字符串开头空格的长度。
 func leftTrimLength(s string) Pos {
 	return Pos(len(s) - len(strings.TrimLeft(s, spaceChars)))
 }
 
-// lexLeftDelim scans the left delimiter, which is known to be present, possibly with a trim marker.
-// (The text to be trimmed has already been emitted.)
+// lexLeftDelim 扫描左分隔符，已知它存在，可能带有修剪标记。
+//（要修剪的文本已经被发出。）
 func lexLeftDelim(l *lexer) stateFn {
 	l.pos += Pos(len(l.leftDelim))
 	trimSpace := hasLeftTrimMarker(l.input[l.pos:])
@@ -340,7 +336,7 @@ func lexLeftDelim(l *lexer) stateFn {
 	return l.emitItem(i)
 }
 
-// lexComment scans a comment. The left comment marker is known to be present.
+// lexComment 扫描注释。已知左注释标记存在。
 func lexComment(l *lexer) stateFn {
 	l.pos += Pos(len(leftComment))
 	x := strings.Index(l.input[l.pos:], rightComment)
@@ -368,7 +364,7 @@ func lexComment(l *lexer) stateFn {
 	return lexText
 }
 
-// lexRightDelim scans the right delimiter, which is known to be present, possibly with a trim marker.
+// lexRightDelim 扫描右分隔符，已知它存在，可能带有修剪标记。
 func lexRightDelim(l *lexer) stateFn {
 	_, trimSpace := l.atRightDelim()
 	if trimSpace {
@@ -385,7 +381,7 @@ func lexRightDelim(l *lexer) stateFn {
 	return l.emitItem(i)
 }
 
-// lexInsideAction scans the elements inside action delimiters.
+// lexInsideAction 扫描动作分隔符内的元素。
 func lexInsideAction(l *lexer) stateFn {
 	// Either number, quoted string, or identifier.
 	// Spaces separate arguments; runs of spaces turn into itemSpace.
@@ -451,9 +447,9 @@ func lexInsideAction(l *lexer) stateFn {
 	}
 }
 
-// lexSpace scans a run of space characters.
-// We have not consumed the first space, which is known to be present.
-// Take care if there is a trim-marked right delimiter, which starts with a space.
+// lexSpace 扫描空格字符序列。
+// 我们还没有消费第一个空格，它是已知的。
+// 如果有修剪标记的右分隔符（以空格开头）要小心。
 func lexSpace(l *lexer) stateFn {
 	var r rune
 	var numSpaces int
@@ -465,23 +461,23 @@ func lexSpace(l *lexer) stateFn {
 		l.next()
 		numSpaces++
 	}
-	// Be careful about a trim-marked closing delimiter, which has a minus
-	// after a space. We know there is a space, so check for the '-' that might follow.
+	// 小心带修剪标记的闭合分隔符，它在空格后面有减号。
+	// 我们知道有一个空格，所以检查可能跟随的 '-'。
 	if hasRightTrimMarker(l.input[l.pos-1:]) && strings.HasPrefix(l.input[l.pos-1+trimMarkerLen:], l.rightDelim) {
-		l.backup() // Before the space.
+		l.backup() // 在空格之前。
 		if numSpaces == 1 {
-			return lexRightDelim // On the delim, so go right to that.
+			return lexRightDelim // 在分隔符上，直接进入。
 		}
 	}
 	return l.emit(itemSpace)
 }
 
-// lexIdentifier scans an alphanumeric.
+// lexIdentifier 扫描字母数字。
 func lexIdentifier(l *lexer) stateFn {
 	for {
 		switch r := l.next(); {
 		case isAlphaNumeric(r):
-			// absorb.
+			// 吸收。
 		default:
 			l.backup()
 			word := l.input[l.start:l.pos]
@@ -506,25 +502,23 @@ func lexIdentifier(l *lexer) stateFn {
 	}
 }
 
-// lexField scans a field: .Alphanumeric.
-// The . has been scanned.
+// lexField 扫描字段：.Alphanumeric。. 已经被扫描。
 func lexField(l *lexer) stateFn {
 	return lexFieldOrVariable(l, itemField)
 }
 
-// lexVariable scans a Variable: $Alphanumeric.
-// The $ has been scanned.
+// lexVariable 扫描变量：$Alphanumeric。$ 已经被扫描。
 func lexVariable(l *lexer) stateFn {
-	if l.atTerminator() { // Nothing interesting follows -> "$".
+	if l.atTerminator() { // 没有有趣的跟随 -> "$"。
 		return l.emit(itemVariable)
 	}
 	return lexFieldOrVariable(l, itemVariable)
 }
 
-// lexFieldOrVariable scans a field or variable: [.$]Alphanumeric.
-// The . or $ has been scanned.
+// lexFieldOrVariable 扫描字段或变量：[.$]Alphanumeric。
+// . 或 $ 已经被扫描。
 func lexFieldOrVariable(l *lexer, typ itemType) stateFn {
-	if l.atTerminator() { // Nothing interesting follows -> "." or "$".
+	if l.atTerminator() { // 没有有趣的跟随 -> "." 或 "$"。
 		if typ == itemVariable {
 			return l.emit(itemVariable)
 		}
@@ -544,10 +538,9 @@ func lexFieldOrVariable(l *lexer, typ itemType) stateFn {
 	return l.emit(typ)
 }
 
-// atTerminator reports whether the input is at valid termination character to
-// appear after an identifier. Breaks .X.Y into two pieces. Also catches cases
-// like "$x+2" not being acceptable without a space, in case we decide one
-// day to implement arithmetic.
+// atTerminator 报告输入是否在标识符后有效的终止字符处。
+// 将 .X.Y 分成两块。也捕获像 "$x+2" 这样没有空格不可接受的情况，
+// 以防我们某天决定实现算术。
 func (l *lexer) atTerminator() bool {
 	r := l.peek()
 	if isSpace(r) {
@@ -560,8 +553,8 @@ func (l *lexer) atTerminator() bool {
 	return strings.HasPrefix(l.input[l.pos:], l.rightDelim)
 }
 
-// lexChar scans a character constant. The initial quote is already
-// scanned. Syntax checking is done by the parser.
+// lexChar 扫描字符常量。初始引号已经被扫描。
+// 语法检查由解析器完成。
 func lexChar(l *lexer) stateFn {
 Loop:
 	for {
@@ -580,16 +573,15 @@ Loop:
 	return l.emit(itemCharConstant)
 }
 
-// lexNumber scans a number: decimal, octal, hex, float, or imaginary. This
-// isn't a perfect number scanner - for instance it accepts "." and "0x0.2"
-// and "089" - but when it's wrong the input is invalid and the parser (via
-// strconv) will notice.
+// lexNumber 扫描数字：十进制、八进制、十六进制、浮点数或虚数。
+// 这不是一个完美的数字扫描器——例如它接受 "." 和 "0x0.2" 和 "089"——
+// 但当它出错时输入无效，解析器（通过 strconv）会注意到。
 func lexNumber(l *lexer) stateFn {
 	if !l.scanNumber() {
 		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
 	}
 	if sign := l.peek(); sign == '+' || sign == '-' {
-		// Complex: 1+2i. No spaces, must end in 'i'.
+		// 复数：1+2i。没有空格，必须以 'i' 结尾。
 		if !l.scanNumber() || l.input[l.pos-1] != 'i' {
 			return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
 		}
@@ -599,12 +591,12 @@ func lexNumber(l *lexer) stateFn {
 }
 
 func (l *lexer) scanNumber() bool {
-	// Optional leading sign.
+	// 可选的前导符号。
 	l.accept("+-")
-	// Is it hex?
+	// 是十六进制吗？
 	digits := "0123456789_"
 	if l.accept("0") {
-		// Note: Leading 0 does not mean octal in floats.
+		// 注意：在浮点数中前导 0 不表示八进制。
 		if l.accept("xX") {
 			digits = "0123456789abcdefABCDEF_"
 		} else if l.accept("oO") {
@@ -625,9 +617,9 @@ func (l *lexer) scanNumber() bool {
 		l.accept("+-")
 		l.acceptRun("0123456789_")
 	}
-	// Is it imaginary?
+	// 是虚数吗？
 	l.accept("i")
-	// Next thing mustn't be alphanumeric.
+	// 下一个东西不能是字母数字。
 	if isAlphaNumeric(l.peek()) {
 		l.next()
 		return false
@@ -635,7 +627,7 @@ func (l *lexer) scanNumber() bool {
 	return true
 }
 
-// lexQuote scans a quoted string.
+// lexQuote 扫描带引号的字符串。
 func lexQuote(l *lexer) stateFn {
 Loop:
 	for {
@@ -654,7 +646,7 @@ Loop:
 	return l.emit(itemString)
 }
 
-// lexRawQuote scans a raw quoted string.
+// lexRawQuote 扫描原始带引号字符串。
 func lexRawQuote(l *lexer) stateFn {
 Loop:
 	for {
@@ -668,12 +660,12 @@ Loop:
 	return l.emit(itemRawString)
 }
 
-// isSpace reports whether r is a space character.
+// isSpace 报告 r 是否为空格字符。
 func isSpace(r rune) bool {
 	return r == ' ' || r == '\t' || r == '\r' || r == '\n'
 }
 
-// isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
+// isAlphaNumeric 报告 r 是否为字母、数字或下划线。
 func isAlphaNumeric(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }

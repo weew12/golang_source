@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Parse nodes.
+// 解析节点。
 
 package parse
 
@@ -12,77 +12,74 @@ import (
 	"strings"
 )
 
-var textFormat = "%s" // Changed to "%q" in tests for better error messages.
+var textFormat = "%s" // 在测试中更改为 "%q" 以获得更好的错误消息。
 
-// A Node is an element in the parse tree. The interface is trivial.
-// The interface contains an unexported method so that only
-// types local to this package can satisfy it.
+// Node 是解析树中的一个元素。接口很简单。
+// 接口包含一个未导出的方法，因此只有此包本地的类型可以满足它。
 type Node interface {
 	Type() NodeType
 	String() string
-	// Copy does a deep copy of the Node and all its components.
-	// To avoid type assertions, some XxxNodes also have specialized
-	// CopyXxx methods that return *XxxNode.
+	// Copy 对 Node 及其所有组件进行深层复制。
+	// 为了避免类型断言，一些 XxxNode 还有专门的 CopyXxx 方法返回 *XxxNode。
 	Copy() Node
-	Position() Pos // byte position of start of node in full original input string
-	// tree returns the containing *Tree.
-	// It is unexported so all implementations of Node are in this package.
+	Position() Pos // 节点在完整原始输入字符串中的字节位置
+	// tree 返回包含它的 *Tree。
+	// 它是未导出的，因此 Node 的所有实现都在此包中。
 	tree() *Tree
-	// writeTo writes the String output to the builder.
+	// writeTo 将 String 输出写入 builder。
 	writeTo(*strings.Builder)
 }
 
-// NodeType identifies the type of a parse tree node.
+// NodeType 标识解析树节点的类型。
 type NodeType int
 
-// Pos represents a byte position in the original input text from which
-// this template was parsed.
+// Pos 表示从解析此模板的原始输入文本中的字节位置。
 type Pos int
 
 func (p Pos) Position() Pos {
 	return p
 }
 
-// Type returns itself and provides an easy default implementation
-// for embedding in a Node. Embedded in all non-trivial Nodes.
+// Type 返回自身，并为嵌入到 Node 中提供简单的默认实现。
+// 嵌入在所有非平凡 Node 中。
 func (t NodeType) Type() NodeType {
 	return t
 }
 
 const (
-	NodeText       NodeType = iota // Plain text.
-	NodeAction                     // A non-control action such as a field evaluation.
-	NodeBool                       // A boolean constant.
-	NodeChain                      // A sequence of field accesses.
-	NodeCommand                    // An element of a pipeline.
-	NodeDot                        // The cursor, dot.
-	nodeElse                       // An else action. Not added to tree.
-	nodeEnd                        // An end action. Not added to tree.
-	NodeField                      // A field or method name.
-	NodeIdentifier                 // An identifier; always a function name.
-	NodeIf                         // An if action.
-	NodeList                       // A list of Nodes.
-	NodeNil                        // An untyped nil constant.
-	NodeNumber                     // A numerical constant.
-	NodePipe                       // A pipeline of commands.
-	NodeRange                      // A range action.
-	NodeString                     // A string constant.
-	NodeTemplate                   // A template invocation action.
-	NodeVariable                   // A $ variable.
-	NodeWith                       // A with action.
-	NodeComment                    // A comment.
-	NodeBreak                      // A break action.
-	NodeContinue                   // A continue action.
+	NodeText       NodeType = iota // 纯文本。
+	NodeAction                     // 非控制动作，如字段求值。
+	NodeBool                       // 布尔常量。
+	NodeChain                      // 字段访问序列。
+	NodeCommand                    // 管道的一个元素。
+	NodeDot                        // 游标，点。
+	nodeElse                       // else 动作。未添加到树中。
+	nodeEnd                        // end 动作。未添加到树中。
+	NodeField                      // 字段或方法名。
+	NodeIdentifier                 // 标识符；始终是函数名。
+	NodeIf                         // if 动作。
+	NodeList                       // Node 列表。
+	NodeNil                        // 无类型的 nil 常量。
+	NodeNumber                     // 数字常量。
+	NodePipe                       // 命令管道。
+	NodeRange                      // range 动作。
+	NodeString                     // 字符串常量。
+	NodeTemplate                   // 模板调用动作。
+	NodeVariable                   // $ 变量。
+	NodeWith                       // with 动作。
+	NodeComment                    // 注释。
+	NodeBreak                      // break 动作。
+	NodeContinue                   // continue 动作。
 )
 
-// Nodes.
+// 节点。
 
-// ListNode holds a sequence of nodes.
+// ListNode 持有节点序列。
 type ListNode struct {
 	NodeType
 	Pos
 	tr    *Tree
-	Nodes []Node // The element nodes in lexical order.
+	Nodes []Node // 按词法顺序的元素节点。
 }
 
 func (t *Tree) newList(pos Pos) *ListNode {
@@ -124,12 +121,12 @@ func (l *ListNode) Copy() Node {
 	return l.CopyList()
 }
 
-// TextNode holds plain text.
+// TextNode 持有纯文本。
 type TextNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Text []byte // The text; may span newlines.
+	Text []byte // 文本；可以跨越换行符。
 }
 
 func (t *Tree) newText(pos Pos, text string) *TextNode {
@@ -152,12 +149,12 @@ func (t *TextNode) Copy() Node {
 	return &TextNode{tr: t.tr, NodeType: NodeText, Pos: t.Pos, Text: append([]byte{}, t.Text...)}
 }
 
-// CommentNode holds a comment.
+// CommentNode 持有注释。
 type CommentNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Text string // Comment text.
+	Text string // 注释文本。
 }
 
 func (t *Tree) newComment(pos Pos, text string) *CommentNode {
@@ -184,15 +181,15 @@ func (c *CommentNode) Copy() Node {
 	return &CommentNode{tr: c.tr, NodeType: NodeComment, Pos: c.Pos, Text: c.Text}
 }
 
-// PipeNode holds a pipeline with optional declaration
+// PipeNode 持有带有可选声明的管道。
 type PipeNode struct {
 	NodeType
 	Pos
 	tr       *Tree
-	Line     int             // The line number in the input. Deprecated: Kept for compatibility.
-	IsAssign bool            // The variables are being assigned, not declared.
-	Decl     []*VariableNode // Variables in lexical order.
-	Cmds     []*CommandNode  // The commands in lexical order.
+	Line     int             // 输入中的行号。已弃用：为兼容性保留。
+	IsAssign bool            // 变量被赋值而非声明。
+	Decl     []*VariableNode // 按词法顺序的变量。
+	Cmds     []*CommandNode  // 按词法顺序的命令。
 }
 
 func (t *Tree) newPipeline(pos Pos, line int, vars []*VariableNode) *PipeNode {
@@ -255,15 +252,14 @@ func (p *PipeNode) Copy() Node {
 	return p.CopyPipe()
 }
 
-// ActionNode holds an action (something bounded by delimiters).
-// Control actions have their own nodes; ActionNode represents simple
-// ones such as field evaluations and parenthesized pipelines.
+// ActionNode 持有动作（由分隔符界定的内容）。
+// 控制动作有自己的节点；ActionNode 表示简单的动作，如字段求值和带括号的管道。
 type ActionNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Line int       // The line number in the input. Deprecated: Kept for compatibility.
-	Pipe *PipeNode // The pipeline in the action.
+	Line int       // 输入中的行号。已弃用：为兼容性保留。
+	Pipe *PipeNode // 动作中的管道。
 }
 
 func (t *Tree) newAction(pos Pos, line int, pipe *PipeNode) *ActionNode {
@@ -290,12 +286,12 @@ func (a *ActionNode) Copy() Node {
 	return a.tr.newAction(a.Pos, a.Line, a.Pipe.CopyPipe())
 }
 
-// CommandNode holds a command (a pipeline inside an evaluating action).
+// CommandNode 持有命令（求值动作中的管道）。
 type CommandNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Args []Node // Arguments in lexical order: Identifier, field, or constant.
+	Args []Node // 按词法顺序的参数：Identifier、field 或 constant。
 }
 
 func (t *Tree) newCommand(pos Pos) *CommandNode {
@@ -342,30 +338,30 @@ func (c *CommandNode) Copy() Node {
 	return n
 }
 
-// IdentifierNode holds an identifier.
+// IdentifierNode 持有标识符。
 type IdentifierNode struct {
 	NodeType
 	Pos
 	tr    *Tree
-	Ident string // The identifier's name.
+	Ident string // 标识符的名称。
 }
 
-// NewIdentifier returns a new [IdentifierNode] with the given identifier name.
+// NewIdentifier 返回一个具有给定标识符名称的新 [IdentifierNode]。
 func NewIdentifier(ident string) *IdentifierNode {
 	return &IdentifierNode{NodeType: NodeIdentifier, Ident: ident}
 }
 
-// SetPos sets the position. [NewIdentifier] is a public method so we can't modify its signature.
-// Chained for convenience.
-// TODO: fix one day?
+// SetPos 设置位置。[NewIdentifier] 是一个公共方法，所以我们不能修改其签名。
+// 为方便起见进行链式调用。
+// TODO: 有一天修复？
 func (i *IdentifierNode) SetPos(pos Pos) *IdentifierNode {
 	i.Pos = pos
 	return i
 }
 
-// SetTree sets the parent tree for the node. [NewIdentifier] is a public method so we can't modify its signature.
-// Chained for convenience.
-// TODO: fix one day?
+// SetTree 为节点设置父树。[NewIdentifier] 是一个公共方法，所以我们不能修改其签名。
+// 为方便起见进行链式调用。
+// TODO: 有一天修复？
 func (i *IdentifierNode) SetTree(t *Tree) *IdentifierNode {
 	i.tr = t
 	return i
@@ -387,13 +383,13 @@ func (i *IdentifierNode) Copy() Node {
 	return NewIdentifier(i.Ident).SetTree(i.tr).SetPos(i.Pos)
 }
 
-// VariableNode holds a list of variable names, possibly with chained field
-// accesses. The dollar sign is part of the (first) name.
+// VariableNode 持有变量名列表，可能带有链式字段访问。
+// 美元符号是（第一个）名称的一部分。
 type VariableNode struct {
 	NodeType
 	Pos
 	tr    *Tree
-	Ident []string // Variable name and fields in lexical order.
+	Ident []string // 变量名和字段，按词法顺序。
 }
 
 func (t *Tree) newVariable(pos Pos, ident string) *VariableNode {
@@ -423,7 +419,7 @@ func (v *VariableNode) Copy() Node {
 	return &VariableNode{tr: v.tr, NodeType: NodeVariable, Pos: v.Pos, Ident: append([]string{}, v.Ident...)}
 }
 
-// DotNode holds the special identifier '.'.
+// DotNode 持有特殊标识符 '.'。
 type DotNode struct {
 	NodeType
 	Pos
@@ -435,9 +431,9 @@ func (t *Tree) newDot(pos Pos) *DotNode {
 }
 
 func (d *DotNode) Type() NodeType {
-	// Override method on embedded NodeType for API compatibility.
-	// TODO: Not really a problem; could change API without effect but
-	// api tool complains.
+	// 为 API 兼容性覆盖嵌入的 NodeType 上的方法。
+	// TODO: 不是什么大问题；可以在不影响的情况下更改 API
+	// 但 api 工具有意见。
 	return NodeDot
 }
 
@@ -457,7 +453,7 @@ func (d *DotNode) Copy() Node {
 	return d.tr.newDot(d.Pos)
 }
 
-// NilNode holds the special identifier 'nil' representing an untyped nil constant.
+// NilNode 持有特殊标识符 'nil'，表示无类型的 nil 常量。
 type NilNode struct {
 	NodeType
 	Pos
@@ -469,9 +465,9 @@ func (t *Tree) newNil(pos Pos) *NilNode {
 }
 
 func (n *NilNode) Type() NodeType {
-	// Override method on embedded NodeType for API compatibility.
-	// TODO: Not really a problem; could change API without effect but
-	// api tool complains.
+	// 为 API 兼容性覆盖嵌入的 NodeType 上的方法。
+	// TODO: 不是什么大问题；可以在不影响的情况下更改 API
+	// 但 api 工具有意见。
 	return NodeNil
 }
 
@@ -491,18 +487,18 @@ func (n *NilNode) Copy() Node {
 	return n.tr.newNil(n.Pos)
 }
 
-// FieldNode holds a field (identifier starting with '.').
-// The names may be chained ('.x.y').
-// The period is dropped from each ident.
+// FieldNode 持有字段（以 '.' 开头的标识符）。
+// 名称可以链式调用（'.x.y'）。
+// 每个标识符中的句点被丢弃。
 type FieldNode struct {
 	NodeType
 	Pos
 	tr    *Tree
-	Ident []string // The identifiers in lexical order.
+	Ident []string // 按词法顺序的标识符。
 }
 
 func (t *Tree) newField(pos Pos, ident string) *FieldNode {
-	return &FieldNode{tr: t, NodeType: NodeField, Pos: pos, Ident: strings.Split(ident[1:], ".")} // [1:] to drop leading period
+	return &FieldNode{tr: t, NodeType: NodeField, Pos: pos, Ident: strings.Split(ident[1:], ".")} // [1:] 以丢弃前导句点
 }
 
 func (f *FieldNode) String() string {
@@ -526,27 +522,27 @@ func (f *FieldNode) Copy() Node {
 	return &FieldNode{tr: f.tr, NodeType: NodeField, Pos: f.Pos, Ident: append([]string{}, f.Ident...)}
 }
 
-// ChainNode holds a term followed by a chain of field accesses (identifier starting with '.').
-// The names may be chained ('.x.y').
-// The periods are dropped from each ident.
+// ChainNode 持有后面跟着字段链的项（以 '.' 开头的标识符）。
+// 名称可以链式调用（'.x.y'）。
+// 每个标识符中的句点被丢弃。
 type ChainNode struct {
 	NodeType
 	Pos
 	tr    *Tree
 	Node  Node
-	Field []string // The identifiers in lexical order.
+	Field []string // 按词法顺序的标识符。
 }
 
 func (t *Tree) newChain(pos Pos, node Node) *ChainNode {
 	return &ChainNode{tr: t, NodeType: NodeChain, Pos: pos, Node: node}
 }
 
-// Add adds the named field (which should start with a period) to the end of the chain.
+// Add 将命名字段（应该以句点开头）添加到链的末尾。
 func (c *ChainNode) Add(field string) {
 	if len(field) == 0 || field[0] != '.' {
 		panic("no dot in field")
 	}
-	field = field[1:] // Remove leading dot.
+	field = field[1:] // 删除前导句点。
 	if field == "" {
 		panic("empty field")
 	}
@@ -581,12 +577,12 @@ func (c *ChainNode) Copy() Node {
 	return &ChainNode{tr: c.tr, NodeType: NodeChain, Pos: c.Pos, Node: c.Node, Field: append([]string{}, c.Field...)}
 }
 
-// BoolNode holds a boolean constant.
+// BoolNode 持有布尔常量。
 type BoolNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	True bool // The value of the boolean constant.
+	True bool // 布尔常量的值。
 }
 
 func (t *Tree) newBool(pos Pos, true bool) *BoolNode {
@@ -612,22 +608,22 @@ func (b *BoolNode) Copy() Node {
 	return b.tr.newBool(b.Pos, b.True)
 }
 
-// NumberNode holds a number: signed or unsigned integer, float, or complex.
-// The value is parsed and stored under all the types that can represent the value.
-// This simulates in a small amount of code the behavior of Go's ideal constants.
+// NumberNode 持有数字：有符号或无符号整数、浮点数或复数。
+// 值被解析并存储在所有可以表示该值的类型下。
+// 这用少量代码模拟了 Go 理想常量的行为。
 type NumberNode struct {
 	NodeType
 	Pos
 	tr         *Tree
-	IsInt      bool       // Number has an integral value.
-	IsUint     bool       // Number has an unsigned integral value.
-	IsFloat    bool       // Number has a floating-point value.
-	IsComplex  bool       // Number is complex.
-	Int64      int64      // The signed integer value.
-	Uint64     uint64     // The unsigned integer value.
-	Float64    float64    // The floating-point value.
-	Complex128 complex128 // The complex value.
-	Text       string     // The original textual representation from the input.
+	IsInt      bool       // 数字有整数值。
+	IsUint     bool       // 数字有无符号整数值。
+	IsFloat    bool       // 数字有浮点值。
+	IsComplex  bool       // 数字是复数。
+	Int64      int64      // 有符号整数值。
+	Uint64     uint64     // 无符号整数值。
+	Float64    float64    // 浮点值。
+	Complex128 complex128 // 复数值。
+	Text       string     // 输入中的原始文本表示。
 }
 
 func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error) {
@@ -716,8 +712,8 @@ func (t *Tree) newNumber(pos Pos, text string, typ itemType) (*NumberNode, error
 	return n, nil
 }
 
-// simplifyComplex pulls out any other types that are represented by the complex number.
-// These all require that the imaginary part be zero.
+// simplifyComplex 提取复数表示的任何其他类型。
+// 这些都要求虚部为零。
 func (n *NumberNode) simplifyComplex() {
 	n.IsFloat = imag(n.Complex128) == 0
 	if n.IsFloat {
@@ -751,13 +747,13 @@ func (n *NumberNode) Copy() Node {
 	return nn
 }
 
-// StringNode holds a string constant. The value has been "unquoted".
+// StringNode 持有字符串常量。值已被"去引号"。
 type StringNode struct {
 	NodeType
 	Pos
 	tr     *Tree
-	Quoted string // The original text of the string, with quotes.
-	Text   string // The string, after quote processing.
+	Quoted string // 字符串的原始文本，带引号。
+	Text   string // 字符串，在引号处理之后。
 }
 
 func (t *Tree) newString(pos Pos, orig, text string) *StringNode {
@@ -780,8 +776,8 @@ func (s *StringNode) Copy() Node {
 	return s.tr.newString(s.Pos, s.Quoted, s.Text)
 }
 
-// endNode represents an {{end}} action.
-// It does not appear in the final parse tree.
+// endNode 表示 {{end}} 动作。
+// 它不出现在最终解析树中。
 type endNode struct {
 	NodeType
 	Pos
@@ -808,12 +804,12 @@ func (e *endNode) Copy() Node {
 	return e.tr.newEnd(e.Pos)
 }
 
-// elseNode represents an {{else}} action. Does not appear in the final tree.
+// elseNode 表示 {{else}} 动作。不出现在最终树中。
 type elseNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Line int // The line number in the input. Deprecated: Kept for compatibility.
+	Line int // 输入中的行号。已弃用：为兼容性保留。
 }
 
 func (t *Tree) newElse(pos Pos, line int) *elseNode {
@@ -840,15 +836,15 @@ func (e *elseNode) Copy() Node {
 	return e.tr.newElse(e.Pos, e.Line)
 }
 
-// BranchNode is the common representation of if, range, and with.
+// BranchNode 是 if、range 和 with 的公共表示。
 type BranchNode struct {
 	NodeType
 	Pos
 	tr       *Tree
-	Line     int       // The line number in the input. Deprecated: Kept for compatibility.
-	Pipe     *PipeNode // The pipeline to be evaluated.
-	List     *ListNode // What to execute if the value is non-empty.
-	ElseList *ListNode // What to execute if the value is empty (nil if absent).
+	Line     int       // 输入中的行号。已弃用：为兼容性保留。
+	Pipe     *PipeNode // 要求值的管道。
+	List     *ListNode // 如果值非空则执行的内容。
+	ElseList *ListNode // 如果值为空则执行的内容（如果不存在则为 nil）。
 }
 
 func (b *BranchNode) String() string {
@@ -899,7 +895,7 @@ func (b *BranchNode) Copy() Node {
 	}
 }
 
-// IfNode represents an {{if}} action and its commands.
+// IfNode 表示 {{if}} 动作及其命令。
 type IfNode struct {
 	BranchNode
 }
@@ -912,7 +908,7 @@ func (i *IfNode) Copy() Node {
 	return i.tr.newIf(i.Pos, i.Line, i.Pipe.CopyPipe(), i.List.CopyList(), i.ElseList.CopyList())
 }
 
-// BreakNode represents a {{break}} action.
+// BreakNode 表示 {{break}} 动作。
 type BreakNode struct {
 	tr *Tree
 	NodeType
@@ -929,7 +925,7 @@ func (b *BreakNode) String() string              { return "{{break}}" }
 func (b *BreakNode) tree() *Tree                 { return b.tr }
 func (b *BreakNode) writeTo(sb *strings.Builder) { sb.WriteString("{{break}}") }
 
-// ContinueNode represents a {{continue}} action.
+// ContinueNode 表示 {{continue}} 动作。
 type ContinueNode struct {
 	tr *Tree
 	NodeType
@@ -946,7 +942,7 @@ func (c *ContinueNode) String() string              { return "{{continue}}" }
 func (c *ContinueNode) tree() *Tree                 { return c.tr }
 func (c *ContinueNode) writeTo(sb *strings.Builder) { sb.WriteString("{{continue}}") }
 
-// RangeNode represents a {{range}} action and its commands.
+// RangeNode 表示 {{range}} 动作及其命令。
 type RangeNode struct {
 	BranchNode
 }
@@ -959,7 +955,7 @@ func (r *RangeNode) Copy() Node {
 	return r.tr.newRange(r.Pos, r.Line, r.Pipe.CopyPipe(), r.List.CopyList(), r.ElseList.CopyList())
 }
 
-// WithNode represents a {{with}} action and its commands.
+// WithNode 表示 {{with}} 动作及其命令。
 type WithNode struct {
 	BranchNode
 }
@@ -972,14 +968,14 @@ func (w *WithNode) Copy() Node {
 	return w.tr.newWith(w.Pos, w.Line, w.Pipe.CopyPipe(), w.List.CopyList(), w.ElseList.CopyList())
 }
 
-// TemplateNode represents a {{template}} action.
+// TemplateNode 表示 {{template}} 动作。
 type TemplateNode struct {
 	NodeType
 	Pos
 	tr   *Tree
-	Line int       // The line number in the input. Deprecated: Kept for compatibility.
-	Name string    // The name of the template (unquoted).
-	Pipe *PipeNode // The command to evaluate as dot for the template.
+	Line int       // 输入中的行号。已弃用：为兼容性保留。
+	Name string    // 模板的名称（不带引号）。
+	Pipe *PipeNode // 作为模板的 dot 求值的命令。
 }
 
 func (t *Tree) newTemplate(pos Pos, line int, name string, pipe *PipeNode) *TemplateNode {

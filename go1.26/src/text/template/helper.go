@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Helper functions to make constructing templates easier.
+// 辅助函数，使构造模板更容易。
 
 package template
 
@@ -14,11 +14,10 @@ import (
 	"path/filepath"
 )
 
-// Functions and methods to parse templates.
+// 解析模板的函数和方法。
 
-// Must is a helper that wraps a call to a function returning ([*Template], error)
-// and panics if the error is non-nil. It is intended for use in variable
-// initializations such as
+// Must 是一个辅助函数，包装返回 (*Template, error) 的函数调用，
+// 如果错误非 nil 则 panic。它旨在用于变量初始化，例如
 //
 //	var t = template.Must(template.New("name").Parse("text"))
 func Must(t *Template, err error) *Template {
@@ -28,40 +27,37 @@ func Must(t *Template, err error) *Template {
 	return t
 }
 
-// ParseFiles creates a new [Template] and parses the template definitions from
-// the named files. The returned template's name will have the base name and
-// parsed contents of the first file. There must be at least one file.
-// If an error occurs, parsing stops and the returned *Template is nil.
+// ParseFiles 创建一个新的 [Template] 并从命名文件解析模板定义。
+// 返回的模板的名称将是第一个文件的基本名称和解析内容。
+// 必须至少有一个文件。如果发生错误，解析停止，返回的 *Template 为 nil。
 //
-// When parsing multiple files with the same name in different directories,
-// the last one mentioned will be the one that results.
-// For instance, ParseFiles("a/foo", "b/foo") stores "b/foo" as the template
-// named "foo", while "a/foo" is unavailable.
+// 当解析不同目录中具有相同名称的多个文件时，
+// 最后提到的那个将是最终结果。例如，
+// ParseFiles("a/foo", "b/foo") 将 "b/foo" 存储为名为 "foo" 的模板，
+// 而 "a/foo" 不可用。
 func ParseFiles(filenames ...string) (*Template, error) {
 	return parseFiles(nil, readFileOS, filenames...)
 }
 
-// ParseFiles parses the named files and associates the resulting templates with
-// t. If an error occurs, parsing stops and the returned template is nil;
-// otherwise it is t. There must be at least one file.
-// Since the templates created by ParseFiles are named by the base
-// (see [filepath.Base]) names of the argument files, t should usually have the
-// name of one of the (base) names of the files. If it does not, depending on
-// t's contents before calling ParseFiles, t.Execute may fail. In that
-// case use t.ExecuteTemplate to execute a valid template.
+// ParseFiles 解析命名文件并将结果模板与 t 关联。
+// 如果发生错误，解析停止，返回的模板为 nil；否则为 t。
+// 必须至少有一个文件。由于 ParseFiles 创建的模板由参数文件的基本名称
+//（参见 [filepath.Base]）命名，t 通常应该具有文件的基本名称之一。
+// 如果不是，根据调用 ParseFiles 前 t 的内容，t.Execute 可能失败。
+// 在这种情况下，使用 t.ExecuteTemplate 执行有效模板。
 //
-// When parsing multiple files with the same name in different directories,
-// the last one mentioned will be the one that results.
+// 当解析不同目录中具有相同名称的多个文件时，
+// 最后提到的那个将是最终结果。
 func (t *Template) ParseFiles(filenames ...string) (*Template, error) {
 	t.init()
 	return parseFiles(t, readFileOS, filenames...)
 }
 
-// parseFiles is the helper for the method and function. If the argument
-// template is nil, it is created from the first file.
+// parseFiles 是方法和函数的辅助函数。如果参数模板为 nil，
+// 则从第一个文件创建它。
 func parseFiles(t *Template, readFile func(string) (string, []byte, error), filenames ...string) (*Template, error) {
 	if len(filenames) == 0 {
-		// Not really a problem, but be consistent.
+		// 实际上不是问题，但要保持一致。
 		return nil, fmt.Errorf("template: no files named in call to ParseFiles")
 	}
 	for _, filename := range filenames {
@@ -70,12 +66,11 @@ func parseFiles(t *Template, readFile func(string) (string, []byte, error), file
 			return nil, err
 		}
 		s := string(b)
-		// First template becomes return value if not already defined,
-		// and we use that one for subsequent New calls to associate
-		// all the templates together. Also, if this file has the same name
-		// as t, this file becomes the contents of t, so
+		// 如果尚未定义，第一个模板成为返回值，
+		// 我们使用那个模板进行后续 New 调用以将所有模板关联在一起。
+		// 此外，如果此文件与 t 同名，此文件成为 t 的内容，所以
 		//  t, err := New(name).Funcs(xxx).ParseFiles(name)
-		// works. Otherwise we create a new template associated with t.
+		// 可以工作。否则我们创建一个与 t 关联的新模板。
 		var tmpl *Template
 		if t == nil {
 			t = New(name)
@@ -93,33 +88,29 @@ func parseFiles(t *Template, readFile func(string) (string, []byte, error), file
 	return t, nil
 }
 
-// ParseGlob creates a new [Template] and parses the template definitions from
-// the files identified by the pattern. The files are matched according to the
-// semantics of [filepath.Match], and the pattern must match at least one file.
-// The returned template will have the [filepath.Base] name and (parsed)
-// contents of the first file matched by the pattern. ParseGlob is equivalent to
-// calling [ParseFiles] with the list of files matched by the pattern.
+// ParseGlob 创建一个新的 [Template] 并从 pattern 标识的文件解析模板定义。
+// 文件根据 [filepath.Match] 的语义匹配，pattern 必须至少匹配一个文件。
+// 返回的模板将具有匹配 pattern 的第一个文件的 [filepath.Base] 名称和（解析的）内容。
+// ParseGlob 等价于使用 pattern 匹配的文件列表调用 [ParseFiles]。
 //
-// When parsing multiple files with the same name in different directories,
-// the last one mentioned will be the one that results.
+// 当解析不同目录中具有相同名称的多个文件时，
+// 最后提到的那个将是最终结果。
 func ParseGlob(pattern string) (*Template, error) {
 	return parseGlob(nil, pattern)
 }
 
-// ParseGlob parses the template definitions in the files identified by the
-// pattern and associates the resulting templates with t. The files are matched
-// according to the semantics of [filepath.Match], and the pattern must match at
-// least one file. ParseGlob is equivalent to calling [Template.ParseFiles] with
-// the list of files matched by the pattern.
+// ParseGlob 解析由 pattern 标识的文件中的模板定义，并将结果模板与 t 关联。
+// 文件根据 [filepath.Match] 的语义匹配，pattern 必须至少匹配一个文件。
+// ParseGlob 等价于使用 pattern 匹配的文件列表调用 [Template.ParseFiles]。
 //
-// When parsing multiple files with the same name in different directories,
-// the last one mentioned will be the one that results.
+// 当解析不同目录中具有相同名称的多个文件时，
+// 最后提到的那个将是最终结果。
 func (t *Template) ParseGlob(pattern string) (*Template, error) {
 	t.init()
 	return parseGlob(t, pattern)
 }
 
-// parseGlob is the implementation of the function and method ParseGlob.
+// parseGlob 是函数和方法 ParseGlob 的实现。
 func parseGlob(t *Template, pattern string) (*Template, error) {
 	filenames, err := filepath.Glob(pattern)
 	if err != nil {
@@ -131,18 +122,18 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
 	return parseFiles(t, readFileOS, filenames...)
 }
 
-// ParseFS is like [Template.ParseFiles] or [Template.ParseGlob] but reads from the file system fsys
-// instead of the host operating system's file system.
-// It accepts a list of glob patterns (see [path.Match]).
-// (Note that most file names serve as glob patterns matching only themselves.)
+// ParseFS 类似于 [Template.ParseFiles] 或 [Template.ParseGlob]，
+// 但从文件系统 fsys 读取而不是从主机操作系统读取。
+// 它接受 glob 模式列表（参见 [path.Match]）。
+//（请注意，大多数文件名作为匹配仅自身的 glob 模式。）
 func ParseFS(fsys fs.FS, patterns ...string) (*Template, error) {
 	return parseFS(nil, fsys, patterns)
 }
 
-// ParseFS is like [Template.ParseFiles] or [Template.ParseGlob] but reads from the file system fsys
-// instead of the host operating system's file system.
-// It accepts a list of glob patterns (see [path.Match]).
-// (Note that most file names serve as glob patterns matching only themselves.)
+// ParseFS 类似于 [Template.ParseFiles] 或 [Template.ParseGlob]，
+// 但从文件系统 fsys 读取而不是从主机操作系统读取。
+// 它接受 glob 模式列表（参见 [path.Match]）。
+//（请注意，大多数文件名作为匹配仅自身的 glob 模式。）
 func (t *Template) ParseFS(fsys fs.FS, patterns ...string) (*Template, error) {
 	t.init()
 	return parseFS(t, fsys, patterns)

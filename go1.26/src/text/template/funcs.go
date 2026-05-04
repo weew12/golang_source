@@ -16,26 +16,22 @@ import (
 	"unicode/utf8"
 )
 
-// FuncMap is the type of the map defining the mapping from names to functions.
-// Each function must have either a single return value, or two return values of
-// which the second has type error. In that case, if the second (error)
-// return value evaluates to non-nil during execution, execution terminates and
-// Execute returns that error.
+// FuncMap 是定义从名称到函数映射的 map 类型。
+// 每个函数必须只有一个返回值，或两个返回值，其中第二个是 error 类型。
+// 在执行期间，如果第二个（错误）返回值求值为非 nil，执行终止，
+// Execute 返回该错误。
 //
-// Errors returned by Execute wrap the underlying error; call [errors.AsType] to
-// unwrap them.
+// Execute 返回的错误包装底层错误；调用 [errors.AsType] 来展开它们。
 //
-// When template execution invokes a function with an argument list, that list
-// must be assignable to the function's parameter types. Functions meant to
-// apply to arguments of arbitrary type can use parameters of type interface{} or
-// of type [reflect.Value]. Similarly, functions meant to return a result of arbitrary
-// type can return interface{} or [reflect.Value].
+// 当模板执行用参数列表调用函数时，该列表必须可赋值给函数的参数类型。
+// 适用于任意类型参数的函数可以使用类型为 interface{} 或 [reflect.Value] 的参数。
+// 类似地，注定返回任意类型结果的函数可以返回 interface{} 或 [reflect.Value]。
 type FuncMap map[string]any
 
-// builtins returns the FuncMap.
-// It is not a global variable so the linker can dead code eliminate
-// more when this isn't called. See golang.org/issue/36021.
-// TODO: revert this back to a global map once golang.org/issue/2559 is fixed.
+// builtins 返回 FuncMap。
+// 它不是全局变量，因此链接器在未调用此函数时可以更多地消除死代码。
+// 参见 golang.org/issue/36021。
+// TODO: 一旦 golang.org/issue/2559 被修复，就将其恢复为全局 map。
 func builtins() FuncMap {
 	return FuncMap{
 		"and":      and,
@@ -62,7 +58,7 @@ func builtins() FuncMap {
 	}
 }
 
-// builtinFuncs lazily computes & caches the builtinFuncs map.
+// builtinFuncs 延迟计算并缓存 builtinFuncs map。
 var builtinFuncs = sync.OnceValue(func() map[string]reflect.Value {
 	funcMap := builtins()
 	m := make(map[string]reflect.Value, len(funcMap))
@@ -70,7 +66,7 @@ var builtinFuncs = sync.OnceValue(func() map[string]reflect.Value {
 	return m
 })
 
-// addValueFuncs adds to values the functions in funcs, converting them to reflect.Values.
+// addValueFuncs 将 funcs 中的函数添加到 values，转换为 reflect.Values。
 func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
 	for name, fn := range in {
 		if !goodName(name) {
@@ -87,15 +83,14 @@ func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
 	}
 }
 
-// addFuncs adds to values the functions in funcs. It does no checking of the input -
-// call addValueFuncs first.
+// addFuncs 将 funcs 中的函数添加到 values。它不检查输入——先调用 addValueFuncs。
 func addFuncs(out, in FuncMap) {
 	for name, fn := range in {
 		out[name] = fn
 	}
 }
 
-// goodFunc reports whether the function or method has the right result signature.
+// goodFunc 报告函数或方法是否有正确的结果签名。
 func goodFunc(name string, typ reflect.Type) error {
 	// We allow functions with 1 result or 2 results where the second is an error.
 	switch numOut := typ.NumOut(); {
@@ -110,7 +105,7 @@ func goodFunc(name string, typ reflect.Type) error {
 	}
 }
 
-// goodName reports whether the function name is a valid identifier.
+// goodName 报告函数名是否是有效的标识符。
 func goodName(name string) bool {
 	if name == "" {
 		return false
@@ -127,7 +122,7 @@ func goodName(name string) bool {
 	return true
 }
 
-// findFunction looks for a function in the template, and global map.
+// findFunction 在模板和全局 map 中查找函数。
 func findFunction(name string, tmpl *Template) (v reflect.Value, isBuiltin, ok bool) {
 	if tmpl != nil && tmpl.common != nil {
 		tmpl.muFuncs.RLock()
@@ -142,8 +137,8 @@ func findFunction(name string, tmpl *Template) (v reflect.Value, isBuiltin, ok b
 	return reflect.Value{}, false, false
 }
 
-// prepareArg checks if value can be used as an argument of type argType, and
-// converts an invalid value to appropriate zero if possible.
+// prepareArg 检查值是否可以用作 argType 类型的参数，
+// 并在可能时将无效值转换为适当的零值。
 func prepareArg(value reflect.Value, argType reflect.Type) (reflect.Value, error) {
 	if !value.IsValid() {
 		if !canBeNil(argType) {
@@ -171,7 +166,7 @@ func intLike(typ reflect.Kind) bool {
 	return false
 }
 
-// indexArg checks if a reflect.Value can be used as an index, and converts it to int if possible.
+// indexArg 检查 reflect.Value 是否可以用作索引，并在可能时将其转换为 int。
 func indexArg(index reflect.Value, cap int) (int, error) {
 	var x int64
 	switch index.Kind() {
@@ -190,11 +185,10 @@ func indexArg(index reflect.Value, cap int) (int, error) {
 	return int(x), nil
 }
 
-// Indexing.
+// 索引。
 
-// index returns the result of indexing its first argument by the following
-// arguments. Thus "index x 1 2 3" is, in Go syntax, x[1][2][3]. Each
-// indexed item must be a map, slice, or array.
+// index 返回通过以下参数索引其第一个参数的结果。
+// 因此 "index x 1 2 3" 在 Go 语法中是 x[1][2][3]。每个索引项必须是映射、切片或数组。
 func index(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) {
 	item = indirectInterface(item)
 	if !item.IsValid() {
@@ -233,12 +227,12 @@ func index(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) 
 	return item, nil
 }
 
-// Slicing.
+// 切片。
 
-// slice returns the result of slicing its first argument by the remaining
-// arguments. Thus "slice x 1 2" is, in Go syntax, x[1:2], while "slice x"
-// is x[:], "slice x 1" is x[1:], and "slice x 1 2 3" is x[1:2:3]. The first
-// argument must be a string, slice, or array.
+// slice 返回用其余参数切片其第一个参数的结果。
+// 因此 "slice x 1 2" 在 Go 语法中是 x[1:2]，而 "slice x" 是 x[:]，
+// "slice x 1" 是 x[1:]，"slice x 1 2 3" 是 x[1:2:3]。
+// 第一个参数必须是字符串、切片或数组。
 func slice(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) {
 	item = indirectInterface(item)
 	if !item.IsValid() {
@@ -286,9 +280,9 @@ func slice(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) 
 	return item.Slice3(idx[0], idx[1], idx[2]), nil
 }
 
-// Length
+// 长度
 
-// length returns the length of the item, with an error if it has no defined length.
+// length 返回 item 的长度，如果长度未定义则返回错误。
 func length(item reflect.Value) (int, error) {
 	item, isNil := indirect(item)
 	if isNil {
@@ -301,14 +295,14 @@ func length(item reflect.Value) (int, error) {
 	return 0, fmt.Errorf("len of type %s", item.Type())
 }
 
-// Function invocation
+// 函数调用
 
 func emptyCall(fn reflect.Value, args ...reflect.Value) reflect.Value {
-	panic("unreachable") // implemented as a special case in evalCall
+	panic("unreachable") // 在 evalCall 中作为特殊情况实现
 }
 
-// call returns the result of evaluating the first argument as a function.
-// The function must return 1 result, or 2 results, the second of which is an error.
+// call 返回求值第一个参数为函数的结果。
+// 函数必须返回 1 个结果，或 2 个结果，第二个是错误。
 func call(name string, fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
 	fn = indirectInterface(fn)
 	if !fn.IsValid() {
@@ -351,8 +345,8 @@ func call(name string, fn reflect.Value, args ...reflect.Value) (reflect.Value, 
 	return safeCall(fn, argv)
 }
 
-// safeCall runs fun.Call(args), and returns the resulting value and error, if
-// any. If the call panics, the panic value is returned as an error.
+// safeCall 运行 fun.Call(args)，并返回结果值和错误（如果有）。
+// 如果调用 panic，panic 值作为错误返回。
 func safeCall(fun reflect.Value, args []reflect.Value) (val reflect.Value, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -377,26 +371,24 @@ func truth(arg reflect.Value) bool {
 	return t
 }
 
-// and computes the Boolean AND of its arguments, returning
-// the first false argument it encounters, or the last argument.
+// and 计算其参数的布尔 AND，返回遇到的第一个 false 参数或最后一个参数。
 func and(arg0 reflect.Value, args ...reflect.Value) reflect.Value {
-	panic("unreachable") // implemented as a special case in evalCall
+	panic("unreachable") // 在 evalCall 中作为特殊情况实现
 }
 
-// or computes the Boolean OR of its arguments, returning
-// the first true argument it encounters, or the last argument.
+// or 计算其参数的布尔 OR，返回遇到的第一个 true 参数或最后一个参数。
 func or(arg0 reflect.Value, args ...reflect.Value) reflect.Value {
-	panic("unreachable") // implemented as a special case in evalCall
+	panic("unreachable") // 在 evalCall 中作为特殊情况实现
 }
 
-// not returns the Boolean negation of its argument.
+// not 返回其参数的布尔否定。
 func not(arg reflect.Value) bool {
 	return !truth(arg)
 }
 
-// Comparison.
+// 比较
 
-// TODO: Perhaps allow comparison between signed and unsigned integers.
+// TODO: 也许允许有符号和无符号整数之间的比较。
 
 var (
 	errBadComparisonType = errors.New("invalid type for comparison")
@@ -433,7 +425,7 @@ func basicKind(v reflect.Value) (kind, error) {
 	return invalidKind, errBadComparisonType
 }
 
-// isNil returns true if v is the zero reflect.Value, or nil of its type.
+// isNil 如果 v 是零 reflect.Value 或其类型的 nil，则返回 true。
 func isNil(v reflect.Value) bool {
 	if !v.IsValid() {
 		return true
@@ -445,8 +437,8 @@ func isNil(v reflect.Value) bool {
 	return false
 }
 
-// canCompare reports whether v1 and v2 are both the same kind, or one is nil.
-// Called only when dealing with nillable types, or there's about to be an error.
+// canCompare 报告 v1 和 v2 是否都是同一种 kind，或者其中一个为 nil。
+// 仅在处理可 nil 类型时调用，或者即将出错时调用。
 func canCompare(v1, v2 reflect.Value) bool {
 	k1 := v1.Kind()
 	k2 := v2.Kind()
@@ -457,7 +449,7 @@ func canCompare(v1, v2 reflect.Value) bool {
 	return k1 == reflect.Invalid || k2 == reflect.Invalid
 }
 
-// eq evaluates the comparison a == b || a == c || ...
+// eq 求值比较 a == b || a == c || ...
 func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 	arg1 = indirectInterface(arg1)
 	if len(arg2) == 0 {
@@ -515,14 +507,14 @@ func eq(arg1 reflect.Value, arg2 ...reflect.Value) (bool, error) {
 	return false, nil
 }
 
-// ne evaluates the comparison a != b.
+// ne 求值比较 a != b。
 func ne(arg1, arg2 reflect.Value) (bool, error) {
-	// != is the inverse of ==.
+	// != 是 == 的反义。
 	equal, err := eq(arg1, arg2)
 	return !equal, err
 }
 
-// lt evaluates the comparison a < b.
+// lt 求值比较 a < b。
 func lt(arg1, arg2 reflect.Value) (bool, error) {
 	arg1 = indirectInterface(arg1)
 	k1, err := basicKind(arg1)
@@ -564,9 +556,9 @@ func lt(arg1, arg2 reflect.Value) (bool, error) {
 	return truth, nil
 }
 
-// le evaluates the comparison <= b.
+// le 求值比较 <= b。
 func le(arg1, arg2 reflect.Value) (bool, error) {
-	// <= is < or ==.
+	// <= 是 < 或 ==。
 	lessThan, err := lt(arg1, arg2)
 	if lessThan || err != nil {
 		return lessThan, err
@@ -574,9 +566,9 @@ func le(arg1, arg2 reflect.Value) (bool, error) {
 	return eq(arg1, arg2)
 }
 
-// gt evaluates the comparison a > b.
+// gt 求值比较 a > b。
 func gt(arg1, arg2 reflect.Value) (bool, error) {
-	// > is the inverse of <=.
+	// > 是 <= 的反义。
 	lessOrEqual, err := le(arg1, arg2)
 	if err != nil {
 		return false, err
@@ -584,9 +576,9 @@ func gt(arg1, arg2 reflect.Value) (bool, error) {
 	return !lessOrEqual, nil
 }
 
-// ge evaluates the comparison a >= b.
+// ge 求值比较 a >= b。
 func ge(arg1, arg2 reflect.Value) (bool, error) {
-	// >= is the inverse of <.
+	// >= 是 < 的反义。
 	lessThan, err := lt(arg1, arg2)
 	if err != nil {
 		return false, err
@@ -594,7 +586,7 @@ func ge(arg1, arg2 reflect.Value) (bool, error) {
 	return !lessThan, nil
 }
 
-// HTML escaping.
+// HTML 转义
 
 var (
 	htmlQuot = []byte("&#34;") // shorter than "&quot;"
@@ -605,7 +597,7 @@ var (
 	htmlNull = []byte("\uFFFD")
 )
 
-// HTMLEscape writes to w the escaped HTML equivalent of the plain text data b.
+// HTMLEscape 将纯文本数据 b 的转义 HTML 等效值写入 w。
 func HTMLEscape(w io.Writer, b []byte) {
 	last := 0
 	for i, c := range b {
@@ -633,9 +625,9 @@ func HTMLEscape(w io.Writer, b []byte) {
 	w.Write(b[last:])
 }
 
-// HTMLEscapeString returns the escaped HTML equivalent of the plain text data s.
+// HTMLEscapeString 返回纯文本数据 s 的转义 HTML 等效值。
 func HTMLEscapeString(s string) string {
-	// Avoid allocation if we can.
+	// 如果可以，避免分配。
 	if !strings.ContainsAny(s, "'\"&<>\000") {
 		return s
 	}
@@ -644,13 +636,12 @@ func HTMLEscapeString(s string) string {
 	return b.String()
 }
 
-// HTMLEscaper returns the escaped HTML equivalent of the textual
-// representation of its arguments.
+// HTMLEscaper 返回其参数文本表示的转义 HTML 等效值。
 func HTMLEscaper(args ...any) string {
 	return HTMLEscapeString(evalArgs(args))
 }
 
-// JavaScript escaping.
+// JavaScript 转义
 
 var (
 	jsLowUni = []byte(`\u00`)
@@ -665,7 +656,7 @@ var (
 	jsEq        = []byte(`\u003D`)
 )
 
-// JSEscape writes to w the escaped JavaScript equivalent of the plain text data b.
+// JSEscape 将纯文本数据 b 的转义 JavaScript 等效值写入 w。
 func JSEscape(w io.Writer, b []byte) {
 	last := 0
 	for i := 0; i < len(b); i++ {
@@ -716,9 +707,9 @@ func JSEscape(w io.Writer, b []byte) {
 	w.Write(b[last:])
 }
 
-// JSEscapeString returns the escaped JavaScript equivalent of the plain text data s.
+// JSEscapeString 返回纯文本数据 s 的转义 JavaScript 等效值。
 func JSEscapeString(s string) string {
-	// Avoid allocation if we can.
+	// 如果可以，避免分配。
 	if strings.IndexFunc(s, jsIsSpecial) < 0 {
 		return s
 	}
@@ -735,29 +726,26 @@ func jsIsSpecial(r rune) bool {
 	return r < ' ' || utf8.RuneSelf <= r
 }
 
-// JSEscaper returns the escaped JavaScript equivalent of the textual
-// representation of its arguments.
+// JSEscaper 返回其参数文本表示的转义 JavaScript 等效值。
 func JSEscaper(args ...any) string {
 	return JSEscapeString(evalArgs(args))
 }
 
-// URLQueryEscaper returns the escaped value of the textual representation of
-// its arguments in a form suitable for embedding in a URL query.
+// URLQueryEscaper 返回其参数文本表示的转义值，适用于嵌入 URL 查询。
 func URLQueryEscaper(args ...any) string {
 	return url.QueryEscape(evalArgs(args))
 }
 
-// evalArgs formats the list of arguments into a string. It is therefore equivalent to
+// evalArgs 将参数列表格式化为字符串。因此它等价于
 //
 //	fmt.Sprint(args...)
 //
-// except that each argument is indirected (if a pointer), as required,
-// using the same rules as the default string evaluation during template
-// execution.
+// 除了每个参数都被间接（如果是指针），按需要，
+// 使用与模板执行期间默认字符串求值相同的规则。
 func evalArgs(args []any) string {
 	ok := false
 	var s string
-	// Fast path for simple common case.
+	// 简单常见情况的快速路径。
 	if len(args) == 1 {
 		s, ok = args[0].(string)
 	}
@@ -766,7 +754,7 @@ func evalArgs(args []any) string {
 			a, ok := printableValue(reflect.ValueOf(arg))
 			if ok {
 				args[i] = a
-			} // else let fmt do its thing
+			} // 否则让 fmt 做它的事
 		}
 		s = fmt.Sprint(args...)
 	}

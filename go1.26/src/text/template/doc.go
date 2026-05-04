@@ -3,31 +3,26 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package template implements data-driven templates for generating textual output.
+Package template 实现了用于生成文本输出的数据驱动模板。
 
-To generate HTML output, see [html/template], which has the same interface
-as this package but automatically secures HTML output against certain attacks.
+要生成 HTML 输出，请参阅 [html/template]，它具有与此包相同的接口，
+但会自动保护 HTML 输出免受某些攻击。
 
-Templates are executed by applying them to a data structure. Annotations in the
-template refer to elements of the data structure (typically a field of a struct
-or a key in a map) to control execution and derive values to be displayed.
-Execution of the template walks the structure and sets the cursor, represented
-by a period '.' and called "dot", to the value at the current location in the
-structure as execution proceeds.
+模板通过将其应用于数据结构来执行。模板中的注解引用数据结构的元素
+（通常是结构体的字段或 map 的键）来控制执行并导出要显示的值。
+模板的执行遍历结构体并设置游标，用句点 '.' 表示，称为"点"(dot)，
+随着执行进行，将其设置为结构体中当前位置的值。
 
-The security model used by this package assumes that template authors are
-trusted. The package does not auto-escape output, so injecting code into
-a template can lead to arbitrary code execution if the template is executed
-by an untrusted source.
+此包使用的安全模型假定模板作者是可信的。该包不会自动转义输出，
+因此如果将代码注入模板并由不受信任的源执行，可能导致任意代码执行。
 
-The input text for a template is UTF-8-encoded text in any format.
-"Actions"--data evaluations or control structures--are delimited by
-"{{" and "}}"; all text outside actions is copied to the output unchanged.
+模板的输入文本是任意格式的 UTF-8 编码文本。"动作"--数据求值或控制结构--
+由 "{{" 和 "}}" 定界；动作外的所有文本原样复制到输出。
 
-Once parsed, a template may be executed safely in parallel, although if parallel
-executions share a Writer the output may be interleaved.
+解析后，模板可以安全地并行执行，尽管如果并行执行共享一个 Writer，
+输出可能会交错。
 
-Here is a trivial example that prints "17 items are made of wool".
+下面是一个打印 "17 items are made of wool" 的简单示例。
 
 	type Inventory struct {
 		Material string
@@ -39,459 +34,382 @@ Here is a trivial example that prints "17 items are made of wool".
 	err = tmpl.Execute(os.Stdout, sweaters)
 	if err != nil { panic(err) }
 
-More intricate examples appear below.
+更多复杂的示例如下。
 
-Text and spaces
+文本和空格
 
-By default, all text between actions is copied verbatim when the template is
-executed. For example, the string " items are made of " in the example above
-appears on standard output when the program is run.
+默认情况下，执行模板时，动作之间的所有文本都会被原样复制。
+例如，上面示例中的字符串 " items are made of " 在程序运行时出现在标准输出中。
 
-However, to aid in formatting template source code, if an action's left
-delimiter (by default "{{") is followed immediately by a minus sign and white
-space, all trailing white space is trimmed from the immediately preceding text.
-Similarly, if the right delimiter ("}}") is preceded by white space and a minus
-sign, all leading white space is trimmed from the immediately following text.
-In these trim markers, the white space must be present:
-"{{- 3}}" is like "{{3}}" but trims the immediately preceding text, while
-"{{-3}}" parses as an action containing the number -3.
+但是，为了帮助格式化模板源代码，如果动作的左分隔符（默认 "{{"）
+后紧跟减号和空白，则会从紧邻的前一个文本中修剪所有尾随空白。
+类似地，如果右分隔符（"}}"）前有空白和减号，则会从紧接的后续文本中
+修剪所有前导空白。在这些修剪标记中，空白必须存在：
+"{{- 3}}" 类似于 "{{3}}"，但会修剪紧邻的前一个文本，而
+"{{-3}}" 解析为包含数字 -3 的动作。
 
-For instance, when executing the template whose source is
+例如，执行源为
 
 	"{{23 -}} < {{- 45}}"
 
-the generated output would be
+的模板时，生成的输出为
 
 	"23<45"
 
-For this trimming, the definition of white space characters is the same as in Go:
-space, horizontal tab, carriage return, and newline.
+对于此修剪，空白字符的定义与 Go 中相同：空格、水平制表符、回车符和换行符。
 
-Actions
+动作
 
-Here is the list of actions. "Arguments" and "pipelines" are evaluations of
-data, defined in detail in the corresponding sections that follow.
+以下是动作列表。"参数"和"管道"是对数据的求值，详情见相应章节。
 
 */
 //	{{/* a comment */}}
 //	{{- /* a comment with white space trimmed from preceding and following text */ -}}
-//		A comment; discarded. May contain newlines.
-//		Comments do not nest and must start and end at the
-//		delimiters, as shown here.
+//		注释；被丢弃。可能包含换行符。
+//		注释不嵌套，必须像这里所示的那样在分隔符处开始和结束。
 /*
 
 	{{pipeline}}
-		The default textual representation (the same as would be
-		printed by fmt.Print) of the value of the pipeline is copied
-		to the output.
+		管道值的默认文本表示（与 fmt.Print 打印的相同）被复制到输出。
 
 	{{if pipeline}} T1 {{end}}
-		If the value of the pipeline is empty, no output is generated;
-		otherwise, T1 is executed. The empty values are false, 0, any
-		nil pointer or interface value, and any array, slice, map, or
-		string of length zero.
-		Dot is unaffected.
+		如果管道的值为空，则不生成输出；否则执行 T1。
+		空值包括 false、0、任何 nil 指针或接口值，以及任何长度为零的数组、切片、映射或字符串。
+		点不受影响。
 
 	{{if pipeline}} T1 {{else}} T0 {{end}}
-		If the value of the pipeline is empty, T0 is executed;
-		otherwise, T1 is executed. Dot is unaffected.
+		如果管道的值为空，则执行 T0；否则执行 T1。点不受影响。
 
 	{{if pipeline}} T1 {{else if pipeline}} T0 {{end}}
-		To simplify the appearance of if-else chains, the else action
-		of an if may include another if directly; the effect is exactly
-		the same as writing
+		为了简化 if-else 链的外观，if 的 else 动作可以直接包含另一个 if；
+		效果与编写
 			{{if pipeline}} T1 {{else}}{{if pipeline}} T0 {{end}}{{end}}
+		完全相同。
 
 	{{range pipeline}} T1 {{end}}
-		The value of the pipeline must be an array, slice, map, iter.Seq,
-		iter.Seq2, integer or channel.
-		If the value of the pipeline has length zero, nothing is output;
-		otherwise, dot is set to the successive elements of the array,
-		slice, or map and T1 is executed. If the value is a map and the
-		keys are of basic type with a defined order, the elements will be
-		visited in sorted key order.
+		管道的值必须是数组、切片、映射、iter.Seq、iter.Seq2、整数或通道。
+		如果管道的值为零长度，则不产生输出；否则，点被设置为数组、切片或映射的连续元素，
+		并执行 T1。如果值是映射且键是具有定义顺序的基本类型，则元素将按排序的键顺序遍历。
 
 	{{range pipeline}} T1 {{else}} T0 {{end}}
-		The value of the pipeline must be an array, slice, map, iter.Seq,
-		iter.Seq2, integer or channel.
-		If the value of the pipeline has length zero, dot is unaffected and
-		T0 is executed; otherwise, dot is set to the successive elements
-		of the array, slice, or map and T1 is executed.
+		管道的值必须是数组、切片、映射、iter.Seq、iter.Seq2、整数或通道。
+		如果管道的值为零长度，则点不受影响并执行 T0；
+		否则，点被设置为数组、切片或映射的连续元素并执行 T1。
 
 	{{break}}
-		The innermost {{range pipeline}} loop is ended early, stopping the
-		current iteration and bypassing all remaining iterations.
+		提前结束最内层的 {{range pipeline}} 循环，停止当前迭代并绕过所有剩余迭代。
 
 	{{continue}}
-		The current iteration of the innermost {{range pipeline}} loop is
-		stopped, and the loop starts the next iteration.
+		停止最内层 {{range pipeline}} 循环的当前迭代，并开始下一次迭代。
 
 	{{template "name"}}
-		The template with the specified name is executed with nil data.
+		执行具有指定名称的模板，数据为 nil。
 
 	{{template "name" pipeline}}
-		The template with the specified name is executed with dot set
-		to the value of the pipeline.
+		执行具有指定名称的模板，点设置为管道的值。
 
 	{{block "name" pipeline}} T1 {{end}}
-		A block is shorthand for defining a template
+		block 是定义模板的简写
 			{{define "name"}} T1 {{end}}
-		and then executing it in place
+		然后在原地执行它
 			{{template "name" pipeline}}
-		The typical use is to define a set of root templates that are
-		then customized by redefining the block templates within.
+		典型用途是定义一组根模板，然后通过在内部重新定义 block 模板来自定义。
 
 	{{with pipeline}} T1 {{end}}
-		If the value of the pipeline is empty, no output is generated;
-		otherwise, dot is set to the value of the pipeline and T1 is
-		executed.
+		如果管道的值为空，则不生成输出；否则将点设置为管道的值并执行 T1。
 
 	{{with pipeline}} T1 {{else}} T0 {{end}}
-		If the value of the pipeline is empty, dot is unaffected and T0
-		is executed; otherwise, dot is set to the value of the pipeline
-		and T1 is executed.
+		如果管道的值为空，则点不受影响并执行 T0；
+		否则将点设置为管道的值并执行 T1。
 
 	{{with pipeline}} T1 {{else with pipeline}} T0 {{end}}
-		To simplify the appearance of with-else chains, the else action
-		of a with may include another with directly; the effect is exactly
-		the same as writing
+		为了简化 with-else 链的外观，with 的 else 动作可以直接包含另一个 with；
+		效果与编写
 			{{with pipeline}} T1 {{else}}{{with pipeline}} T0 {{end}}{{end}}
+		完全相同。
 
 
-Arguments
+参数
 
-An argument is a simple value, denoted by one of the following.
+参数是一个简单值，由以下之一表示。
 
-	- A boolean, string, character, integer, floating-point, imaginary
-	  or complex constant in Go syntax. These behave like Go's untyped
-	  constants. Note that, as in Go, whether a large integer constant
-	  overflows when assigned or passed to a function can depend on whether
-	  the host machine's ints are 32 or 64 bits.
-	- The keyword nil, representing an untyped Go nil.
-	- The character '.' (period):
+	- Go 语法中的布尔值、字符串、字符、整数、浮点数、虚数或复数常量。
+	  这些行为类似于 Go 的无类型常量。注意，与 Go 中一样，
+	  大整数常量在赋值或传递给函数时是否溢出取决于宿主机的 ints 是 32 位还是 64 位。
+	- 关键字 nil，表示无类型的 Go nil。
+	- 字符 '.'（句点）：
 
 		.
 
-	  The result is the value of dot.
-	- A variable name, which is a (possibly empty) alphanumeric string
-	  preceded by a dollar sign, such as
+	  结果是点的值。
+	- 变量名，即前面带美元符号的（可能为空的）字母数字字符串，例如
 
 		$piOver2
 
-	  or
+	  或
 
 		$
 
-	  The result is the value of the variable.
-	  Variables are described below.
-	- The name of a field of the data, which must be a struct, preceded
-	  by a period, such as
+	  结果是变量的值。变量在下面描述。
+	- 数据字段的名称，必须是结构体，前面带句点，例如
 
 		.Field
 
-	  The result is the value of the field. Field invocations may be
-	  chained:
+	  结果是字段的值。字段调用可以链式调用：
 
 	    .Field1.Field2
 
-	  Fields can also be evaluated on variables, including chaining:
+	  字段也可以在变量上求值，包括链式调用：
 
 	    $x.Field1.Field2
-	- The name of a key of the data, which must be a map, preceded
-	  by a period, such as
+	- 数据的键的名称，必须是映射，前面带句点，例如
 
 		.Key
 
-	  The result is the map element value indexed by the key.
-	  Key invocations may be chained and combined with fields to any
-	  depth:
+	  结果是按键索引的映射元素值。
+	  键调用可以链式调用并与字段组合到任意深度：
 
 	    .Field1.Key1.Field2.Key2
 
-	  Although the key must be an alphanumeric identifier, unlike with
-	  field names they do not need to start with an upper case letter.
-	  Keys can also be evaluated on variables, including chaining:
+	  虽然键必须是字母数字标识符，但与字段名不同，它们不需要以大写字母开头。
+	  键也可以在变量上求值，包括链式调用：
 
 	    $x.key1.key2
-	- The name of a niladic method of the data, preceded by a period,
-	  such as
+	- 数据的无参数方法的名称，前面带句点，例如
 
 		.Method
 
-	  The result is the value of invoking the method with dot as the
-	  receiver, dot.Method(). Such a method must have one return value (of
-	  any type) or two return values, the second of which is an error.
-	  If it has two and the returned error is non-nil, execution terminates
-	  and an error is returned to the caller as the value of Execute.
-	  Method invocations may be chained and combined with fields and keys
-	  to any depth:
+	  结果是使用点作为接收器调用方法的结果，dot.Method()。
+	  这样的方法必须有一个返回值（任何类型）或两个返回值，
+	  第二个返回值是错误。如果有两个返回值且返回的错误非空，
+	  执行终止并将错误作为 Execute 的返回值返回。
+	  方法调用可以链式调用并与字段和键组合到任意深度：
 
 	    .Field1.Key1.Method1.Field2.Key2.Method2
 
-	  Methods can also be evaluated on variables, including chaining:
+	  方法也可以在变量上求值，包括链式调用：
 
 	    $x.Method1.Field
-	- The name of a niladic function, such as
+	- 无参数函数的名称，例如
 
 		fun
 
-	  The result is the value of invoking the function, fun(). The return
-	  types and values behave as in methods. Functions and function
-	  names are described below.
-	- A parenthesized instance of one the above, for grouping. The result
-	  may be accessed by a field or map key invocation.
+	  结果是调用函数 fun() 的值。返回类型和值与方法中相同。
+	  函数和函数名在下面描述。
+	- 上述之一的带括号实例，用于分组。结果可以通过字段或映射键调用访问。
 
 		print (.F1 arg1) (.F2 arg2)
 		(.StructValuedMethod "arg").Field
 
-Arguments may evaluate to any type; if they are pointers the implementation
-automatically indirects to the base type when required.
-If an evaluation yields a function value, such as a function-valued
-field of a struct, the function is not invoked automatically, but it
-can be used as a truth value for an if action and the like. To invoke
-it, use the call function, defined below.
+参数可以求值为任何类型；如果它们是指针，实现会在需要时自动间接到基类型。
+如果求值产生函数值，例如结构体的函数值字段，该函数不会自动调用，
+但可以用作 if 动作等的真值。要调用它，请使用下面定义的 call 函数。
 
-Pipelines
+管道
 
-A pipeline is a possibly chained sequence of "commands". A command is a simple
-value (argument) or a function or method call, possibly with multiple arguments:
+管道是一个可能链接的"命令"序列。命令是一个简单值（参数）或函数或方法调用，
+可能有多个参数：
 
 	Argument
-		The result is the value of evaluating the argument.
+		结果是求值参数的值。
 	.Method [Argument...]
-		The method can be alone or the last element of a chain but,
-		unlike methods in the middle of a chain, it can take arguments.
-		The result is the value of calling the method with the
-		arguments:
+		该方法可以单独使用或作为链的最后一个元素，
+		但与链中间的方法不同，它可以接受参数。
+		结果是用参数调用方法的值：
 			dot.Method(Argument1, etc.)
 	functionName [Argument...]
-		The result is the value of calling the function associated
-		with the name:
+		结果是使用名称调用关联函数的值：
 			function(Argument1, etc.)
-		Functions and function names are described below.
+		函数和函数名在下面描述。
 
-A pipeline may be "chained" by separating a sequence of commands with pipeline
-characters '|'. In a chained pipeline, the result of each command is
-passed as the last argument of the following command. The output of the final
-command in the pipeline is the value of the pipeline.
+管道可以通过管道字符 '|' 分隔一系列命令来"链接"。
+在链接管道中，每个命令的结果作为最后一个参数传递给下一个命令。
+管道中最后一个命令的输出是管道的值。
 
-The output of a command will be either one value or two values, the second of
-which has type error. If that second value is present and evaluates to
-non-nil, execution terminates and the error is returned to the caller of
-Execute.
+命令的输出可以是一个值或两个值，第二个值的类型为 error。
+如果第二个值存在且求值非空，执行终止并将错误返回给 Execute 的调用者。
 
-Variables
+变量
 
-A pipeline inside an action may initialize a variable to capture the result.
-The initialization has syntax
+动作中的管道可以初始化一个变量来捕获结果。
+初始化语法为
 
 	$variable := pipeline
 
-where $variable is the name of the variable. An action that declares a
-variable produces no output.
+其中 $variable 是变量名。声明变量的动作不产生输出。
 
-Variables previously declared can also be assigned, using the syntax
+先前声明的变量也可以使用语法赋值
 
 	$variable = pipeline
 
-If a "range" action initializes a variable, the variable is set to the
-successive elements of the iteration. Also, a "range" may declare two
-variables, separated by a comma:
+如果"range"动作初始化了一个变量，该变量被设置为迭代的连续元素。
+此外，"range"可以声明两个变量，用逗号分隔：
 
 	range $index, $element := pipeline
 
-in which case $index and $element are set to the successive values of the
-array/slice index or map key and element, respectively. Note that if there is
-only one variable, it is assigned the element; this is opposite to the
-convention in Go range clauses.
+在这种情况下，$index 和 $element 分别被设置为数组/切片索引或映射键和元素的连续值。
+注意，如果只有一个变量，它被分配元素；这与 Go range 子句中的约定相反。
 
-A variable's scope extends to the "end" action of the control structure ("if",
-"with", or "range") in which it is declared, or to the end of the template if
-there is no such control structure. A template invocation does not inherit
-variables from the point of its invocation.
+变量的作用域扩展到控制结构（"if"、"with"或"range"）的"end"动作，
+或者如果没有这样的控制结构，则扩展到模板的末尾。
+模板调用不会从其调用点继承变量。
 
-When execution begins, $ is set to the data argument passed to Execute, that is,
-to the starting value of dot.
+当执行开始时，$ 被设置为传递给 Execute 的数据参数，即点的起始值。
 
-Examples
+示例
 
-Here are some example one-line templates demonstrating pipelines and variables.
-All produce the quoted word "output":
+这里有一些演示管道和变量的单行模板示例。
+所有都产生引用的单词 "output"：
 
 	{{"\"output\""}}
-		A string constant.
+		字符串常量。
 	{{`"output"`}}
-		A raw string constant.
+		原始字符串常量。
 	{{printf "%q" "output"}}
-		A function call.
+		函数调用。
 	{{"output" | printf "%q"}}
-		A function call whose final argument comes from the previous
-		command.
+		函数调用，其最终参数来自上一个命令。
 	{{printf "%q" (print "out" "put")}}
-		A parenthesized argument.
+		带括号的参数。
 	{{"put" | printf "%s%s" "out" | printf "%q"}}
-		A more elaborate call.
+		更复杂的调用。
 	{{"output" | printf "%s" | printf "%q"}}
-		A longer chain.
+		更长的链。
 	{{with "output"}}{{printf "%q" .}}{{end}}
-		A with action using dot.
+		使用点的 with 动作。
 	{{with $x := "output" | printf "%q"}}{{$x}}{{end}}
-		A with action that creates and uses a variable.
+		创建和使用变量的 with 动作。
 	{{with $x := "output"}}{{printf "%q" $x}}{{end}}
-		A with action that uses the variable in another action.
+		在另一个动作中使用变量的 with 动作。
 	{{with $x := "output"}}{{$x | printf "%q"}}{{end}}
-		The same, but pipelined.
+		相同的，但使用管道。
 
-Functions
+函数
 
-During execution functions are found in two function maps: first in the
-template, then in the global function map. By default, no functions are defined
-in the template but the Funcs method can be used to add them.
+在执行期间，函数在两个函数映射中找到：首先在模板中，然后在全局函数映射中。
+默认情况下，模板中没有定义函数，但可以使用 Funcs 方法添加它们。
 
-Predefined global functions are named as follows.
+预定义的全局函数如下命名。
 
 	and
-		Returns the boolean AND of its arguments by returning the
-		first empty argument or the last argument. That is,
-		"and x y" behaves as "if x then y else x."
-		Evaluation proceeds through the arguments left to right
-		and returns when the result is determined.
+		通过返回第一个空参数或最后一个参数来返回其参数的布尔 AND。
+		也就是说，"and x y" 的行为类似于 "if x then y else x"。
+		求值从左到右进行，并在确定结果时返回。
 	call
-		Returns the result of calling the first argument, which
-		must be a function, with the remaining arguments as parameters.
-		Thus "call .X.Y 1 2" is, in Go notation, dot.X.Y(1, 2) where
-		Y is a func-valued field, map entry, or the like.
-		The first argument must be the result of an evaluation
-		that yields a value of function type (as distinct from
-		a predefined function such as print). The function must
-		return either one or two result values, the second of which
-		is of type error. If the arguments don't match the function
-		or the returned error value is non-nil, execution stops.
+		返回调用第一个参数（必须是函数）的结果，其余参数作为参数。
+		因此 "call .X.Y 1 2" 在 Go 表示法中是 dot.X.Y(1, 2)，
+		其中 Y 是函数值字段、映射条目或类似的东西。
+		第一个参数必须是求值产生函数类型值的结果（与 print 之类的预定义函数不同）。
+		函数必须返回一个或两个结果值，第二个结果的类型为 error。
+		如果参数不匹配或返回的错误值非空，执行停止。
 	html
-		Returns the escaped HTML equivalent of the textual
-		representation of its arguments. This function is unavailable
-		in html/template, with a few exceptions.
+		返回其参数文本表示的转义 HTML 等效值。
+		此函数在 html/template 中不可用，有几个例外。
 	index
-		Returns the result of indexing its first argument by the
-		following arguments. Thus "index x 1 2 3" is, in Go syntax,
-		x[1][2][3]. Each indexed item must be a map, slice, or array.
+		返回通过以下参数索引其第一个参数的结果。
+		因此 "index x 1 2 3" 在 Go 语法中是 x[1][2][3]。
+		每个索引项必须是映射、切片或数组。
 	slice
-		slice returns the result of slicing its first argument by the
-		remaining arguments. Thus "slice x 1 2" is, in Go syntax, x[1:2],
-		while "slice x" is x[:], "slice x 1" is x[1:], and "slice x 1 2 3"
-		is x[1:2:3]. The first argument must be a string, slice, or array.
+		slice 返回用其余参数切片其第一个参数的结果。
+		因此 "slice x 1 2" 在 Go 语法中是 x[1:2]，
+		而 "slice x" 是 x[:]，"slice x 1" 是 x[1:]，
+		"slice x 1 2 3" 是 x[1:2:3]。第一个参数必须是字符串、切片或数组。
 	js
-		Returns the escaped JavaScript equivalent of the textual
-		representation of its arguments.
+		返回其参数文本表示的转义 JavaScript 等效值。
 	len
-		Returns the integer length of its argument.
+		返回其参数的整数长度。
 	not
-		Returns the boolean negation of its single argument.
+		返回其单个参数的布尔否定。
 	or
-		Returns the boolean OR of its arguments by returning the
-		first non-empty argument or the last argument, that is,
-		"or x y" behaves as "if x then x else y".
-		Evaluation proceeds through the arguments left to right
-		and returns when the result is determined.
+		通过返回第一个非空参数或最后一个参数来返回其参数的布尔 OR，
+		也就是说，"or x y" 的行为类似于 "if x then x else y"。
+		求值从左到右进行，并在确定结果时返回。
 	print
-		An alias for fmt.Sprint
+		fmt.Sprint 的别名。
 	printf
-		An alias for fmt.Sprintf
+		fmt.Sprintf 的别名。
 	println
-		An alias for fmt.Sprintln
+		fmt.Sprintln 的别名。
 	urlquery
-		Returns the escaped value of the textual representation of
-		its arguments in a form suitable for embedding in a URL query.
-		This function is unavailable in html/template, with a few
-		exceptions.
+		返回其参数文本表示的转义值，适用于嵌入 URL 查询。
+		此函数在 html/template 中不可用，有几个例外。
 
-The boolean functions take any zero value to be false and a non-zero
-value to be true.
+布尔函数将任何零值视为 false，非零值视为 true。
 
-There is also a set of binary comparison operators defined as
-functions:
+还有一组定义为函数的二元比较运算符：
 
 	eq
-		Returns the boolean truth of arg1 == arg2
+		返回 arg1 == arg2 的布尔真值。
 	ne
-		Returns the boolean truth of arg1 != arg2
+		返回 arg1 != arg2 的布尔真值。
 	lt
-		Returns the boolean truth of arg1 < arg2
+		返回 arg1 < arg2 的布尔真值。
 	le
-		Returns the boolean truth of arg1 <= arg2
+		返回 arg1 <= arg2 的布尔真值。
 	gt
-		Returns the boolean truth of arg1 > arg2
+		返回 arg1 > arg2 的布尔真值。
 	ge
-		Returns the boolean truth of arg1 >= arg2
+		返回 arg1 >= arg2 的布尔真值。
 
-For simpler multi-way equality tests, eq (only) accepts two or more
-arguments and compares the second and subsequent to the first,
-returning in effect
+为了更简单的多路相等测试，eq（仅）接受两个或更多参数，
+并将后续参数与第一个参数比较，实际上返回
 
 	arg1==arg2 || arg1==arg3 || arg1==arg4 ...
 
-(Unlike with || in Go, however, eq is a function call and all the
-arguments will be evaluated.)
+（然而，与 Go 中的 || 不同，eq 是函数调用，所有参数都将被求值。）
 
-The comparison functions work on any values whose type Go defines as
-comparable. For basic types such as integers, the rules are relaxed:
-size and exact type are ignored, so any integer value, signed or unsigned,
-may be compared with any other integer value. (The arithmetic value is compared,
-not the bit pattern, so all negative integers are less than all unsigned integers.)
-However, as usual, one may not compare an int with a float32 and so on.
+比较函数适用于 Go 定义为可比较的任何值。
+对于基本类型（如整数），规则放宽：忽略大小和确切类型，
+因此任何整数值（有符号或无符号）都可以与任何其他整数值进行比较。
+（比较的是算术值，而不是位模式，因此所有负整数都小于所有无符号整数。）
+但是，与往常一样，不能将 int 与 float32 等进行比较。
 
-Associated templates
+关联模板
 
-Each template is named by a string specified when it is created. Also, each
-template is associated with zero or more other templates that it may invoke by
-name; such associations are transitive and form a name space of templates.
+每个模板都有一个创建时指定的字符串名称。此外，每个模板都与零个或多个其他模板关联，
+它可以通过名称调用这些模板；这种关联是传递的，形成模板的名称空间。
 
-A template may use a template invocation to instantiate another associated
-template; see the explanation of the "template" action above. The name must be
-that of a template associated with the template that contains the invocation.
+模板可以使用模板调用来实例化另一个关联模板；请参阅上面"template"动作的说明。
+名称必须是包含调用的模板关联的模板之一。
 
-Nested template definitions
+嵌套模板定义
 
-When parsing a template, another template may be defined and associated with the
-template being parsed. Template definitions must appear at the top level of the
-template, much like global variables in a Go program.
+解析模板时，可以定义并关联正在解析的模板。
+模板定义必须出现在模板的顶层，类似于 Go 程序中的全局变量。
 
-The syntax of such definitions is to surround each template declaration with a
-"define" and "end" action.
+此类定义的语法是用"define"和"end"动作包围每个模板声明。
 
-The define action names the template being created by providing a string
-constant. Here is a simple example:
+define 动作通过提供字符串常量来命名正在创建的模板。
+这是一个简单的例子：
 
 	{{define "T1"}}ONE{{end}}
 	{{define "T2"}}TWO{{end}}
 	{{define "T3"}}{{template "T1"}} {{template "T2"}}{{end}}
 	{{template "T3"}}
 
-This defines two templates, T1 and T2, and a third T3 that invokes the other two
-when it is executed. Finally it invokes T3. If executed this template will
-produce the text
+这定义了两个模板 T1 和 T2，以及一个在执行时调用其他两个的 T3。
+最后它调用 T3。如果执行此模板将产生文本
 
 	ONE TWO
 
-By construction, a template may reside in only one association. If it's
-necessary to have a template addressable from multiple associations, the
-template definition must be parsed multiple times to create distinct *Template
-values, or must be copied with [Template.Clone] or [Template.AddParseTree].
+根据构造，模板只能存在于一个关联中。如果需要让模板可从多个关联寻址，
+则必须多次解析模板定义以创建不同的 *Template 值，
+或者必须使用 [Template.Clone] 或 [Template.AddParseTree] 复制。
 
-Parse may be called multiple times to assemble the various associated templates;
-see [ParseFiles], [ParseGlob], [Template.ParseFiles] and [Template.ParseGlob]
-for simple ways to parse related templates stored in files.
+可以多次调用 Parse 来组装各种关联模板；
+请参阅 [ParseFiles]、[ParseGlob]、[Template.ParseFiles] 和 [Template.ParseGlob]
+获取解析存储在文件中的相关模板的简单方法。
 
-A template may be executed directly or through [Template.ExecuteTemplate], which executes
-an associated template identified by name. To invoke our example above, we
-might write,
+模板可以直接执行，也可以通过 [Template.ExecuteTemplate] 执行，
+后者执行按名称识别的关联模板。
+要调用上面的示例，我们可以写
 
 	err := tmpl.Execute(os.Stdout, "no data needed")
 	if err != nil {
 		log.Fatalf("execution failed: %s", err)
 	}
 
-or to invoke a particular template explicitly by name,
+或者通过名称显式调用特定模板
 
 	err := tmpl.ExecuteTemplate(os.Stdout, "T2", "no data needed")
 	if err != nil {
