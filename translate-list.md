@@ -23,9 +23,9 @@
 
 ## 第3部分 数据结构与算法
 
-- [ ] container/heap：为实现heap.Interface的类型提供堆操作
-- [ ] container/list：实现双向链表
-- [ ] container/ring：实现循环链表操作
+- [X] container/heap：为实现heap.Interface的类型提供堆操作
+- [X] container/list：实现双向链表
+- [X] container/ring：实现循环链表操作
 - [ ] sort：提供切片和自定义集合的排序基础功能
 - [ ] slices：定义适用于任意类型切片的通用函数
 - [ ] maps：定义适用于任意类型map的通用函数
