@@ -8,7 +8,7 @@ package slices
 
 import "cmp"
 
-// insertionSortOrdered sorts data[a:b] using insertion sort.
+// insertionSortOrdered 使用插入排序对 data[a:b] 进行排序。
 func insertionSortOrdered[E cmp.Ordered](data []E, a, b int) {
 	for i := a + 1; i < b; i++ {
 		for j := i; j > a && cmp.Less(data[j], data[j-1]); j-- {
@@ -17,8 +17,8 @@ func insertionSortOrdered[E cmp.Ordered](data []E, a, b int) {
 	}
 }
 
-// siftDownOrdered implements the heap property on data[lo:hi].
-// first is an offset into the array where the root of the heap lies.
+// siftDownOrdered 在 data[lo:hi] 上实现堆属性。
+// first 是堆根在数组中的偏移量。
 func siftDownOrdered[E cmp.Ordered](data []E, lo, hi, first int) {
 	root := lo
 	for {
@@ -42,30 +42,30 @@ func heapSortOrdered[E cmp.Ordered](data []E, a, b int) {
 	lo := 0
 	hi := b - a
 
-	// Build heap with greatest element at top.
+	// 构建堆，最大元素在顶部。
 	for i := (hi - 1) / 2; i >= 0; i-- {
 		siftDownOrdered(data, i, hi, first)
 	}
 
-	// Pop elements, largest first, into end of data.
+	// 弹出元素，最大元素优先，到 data 的末尾。
 	for i := hi - 1; i >= 0; i-- {
 		data[first], data[first+i] = data[first+i], data[first]
 		siftDownOrdered(data, lo, i, first)
 	}
 }
 
-// pdqsortOrdered sorts data[a:b].
-// The algorithm based on pattern-defeating quicksort(pdqsort), but without the optimizations from BlockQuicksort.
-// pdqsort paper: https://arxiv.org/pdf/2106.05123.pdf
-// C++ implementation: https://github.com/orlp/pdqsort
-// Rust implementation: https://docs.rs/pdqsort/latest/pdqsort/
-// limit is the number of allowed bad (very unbalanced) pivots before falling back to heapsort.
+// pdqsortOrdered 对 data[a:b] 进行排序。
+// 该算法基于 pattern-defeating quicksort (pdqsort)，但没有 BlockQuicksort 的优化。
+// pdqsort 论文：https://arxiv.org/pdf/2106.05123.pdf
+// C++ 实现：https://github.com/orlp/pdqsort
+// Rust 实现：https://docs.rs/pdqsort/latest/pdqsort/
+// limit 是在回退到堆排序之前允许的坏（非常不平衡）枢轴的数量。
 func pdqsortOrdered[E cmp.Ordered](data []E, a, b, limit int) {
 	const maxInsertion = 12
 
 	var (
-		wasBalanced    = true // whether the last partitioning was reasonably balanced
-		wasPartitioned = true // whether the slice was already partitioned
+		wasBalanced    = true // 上一次分区是否相当平衡
+		wasPartitioned = true // 切片是否已经分区
 	)
 
 	for {
@@ -76,13 +76,13 @@ func pdqsortOrdered[E cmp.Ordered](data []E, a, b, limit int) {
 			return
 		}
 
-		// Fall back to heapsort if too many bad choices were made.
+		// 如果做了太多坏的选择，回退到堆排序。
 		if limit == 0 {
 			heapSortOrdered(data, a, b)
 			return
 		}
 
-		// If the last partitioning was imbalanced, we need to breaking patterns.
+		// 如果上一次分区不平衡，我们需要打破模式。
 		if !wasBalanced {
 			breakPatternsOrdered(data, a, b)
 			limit--
@@ -91,22 +91,21 @@ func pdqsortOrdered[E cmp.Ordered](data []E, a, b, limit int) {
 		pivot, hint := choosePivotOrdered(data, a, b)
 		if hint == decreasingHint {
 			reverseRangeOrdered(data, a, b)
-			// The chosen pivot was pivot-a elements after the start of the array.
-			// After reversing it is pivot-a elements before the end of the array.
-			// The idea came from Rust's implementation.
+			// 所选枢轴是数组开头后 pivot-a 个元素。
+			// 反转后，它是数组末尾前 pivot-a 个元素。
+			// 这个想法来自 Rust 的实现。
 			pivot = (b - 1) - (pivot - a)
 			hint = increasingHint
 		}
 
-		// The slice is likely already sorted.
+		// 切片可能已经排序。
 		if wasBalanced && wasPartitioned && hint == increasingHint {
 			if partialInsertionSortOrdered(data, a, b) {
 				return
 			}
 		}
 
-		// Probably the slice contains many duplicate elements, partition the slice into
-		// elements equal to and elements greater than the pivot.
+		// 切片可能包含许多重复元素，将切片分区为等于枢轴的元素和大于枢轴的元素。
 		if a > 0 && !cmp.Less(data[a-1], data[pivot]) {
 			mid := partitionEqualOrdered(data, a, b, pivot)
 			a = mid
@@ -130,13 +129,13 @@ func pdqsortOrdered[E cmp.Ordered](data []E, a, b, limit int) {
 	}
 }
 
-// partitionOrdered does one quicksort partition.
-// Let p = data[pivot]
-// Moves elements in data[a:b] around, so that data[i]<p and data[j]>=p for i<newpivot and j>newpivot.
-// On return, data[newpivot] = p
+// partitionOrdered 执行一次快速排序分区。
+// 设 p = data[pivot]
+// 移动 data[a:b] 中的元素，使得对于 i<newpivot 有 data[i]<p，对于 j>newpivot 有 data[j]>=p。
+// 返回时，data[newpivot] = p
 func partitionOrdered[E cmp.Ordered](data []E, a, b, pivot int) (newpivot int, alreadyPartitioned bool) {
 	data[a], data[pivot] = data[pivot], data[a]
-	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
+	i, j := a+1, b-1 // i 和 j 包括待分区的元素
 
 	for i <= j && cmp.Less(data[i], data[a]) {
 		i++
@@ -170,11 +169,11 @@ func partitionOrdered[E cmp.Ordered](data []E, a, b, pivot int) (newpivot int, a
 	return j, false
 }
 
-// partitionEqualOrdered partitions data[a:b] into elements equal to data[pivot] followed by elements greater than data[pivot].
-// It assumed that data[a:b] does not contain elements smaller than the data[pivot].
+// partitionEqualOrdered 将 data[a:b] 分区为等于 data[pivot] 的元素，后跟大于 data[pivot] 的元素。
+// 它假设 data[a:b] 不包含小于 data[pivot] 的元素。
 func partitionEqualOrdered[E cmp.Ordered](data []E, a, b, pivot int) (newpivot int) {
 	data[a], data[pivot] = data[pivot], data[a]
-	i, j := a+1, b-1 // i and j are inclusive of the elements remaining to be partitioned
+	i, j := a+1, b-1 // i 和 j 包括待分区的元素
 
 	for {
 		for i <= j && !cmp.Less(data[a], data[i]) {
@@ -193,11 +192,11 @@ func partitionEqualOrdered[E cmp.Ordered](data []E, a, b, pivot int) (newpivot i
 	return i
 }
 
-// partialInsertionSortOrdered partially sorts a slice, returns true if the slice is sorted at the end.
+// partialInsertionSortOrdered 对切片进行部分排序，如果在结束时切片已排序则返回 true。
 func partialInsertionSortOrdered[E cmp.Ordered](data []E, a, b int) bool {
 	const (
-		maxSteps         = 5  // maximum number of adjacent out-of-order pairs that will get shifted
-		shortestShifting = 50 // don't shift any elements on short arrays
+		maxSteps         = 5  // 将被移动的相邻乱序对的最大数量
+		shortestShifting = 50 // 短数组不移动任何元素
 	)
 	i := a + 1
 	for j := 0; j < maxSteps; j++ {
@@ -215,7 +214,7 @@ func partialInsertionSortOrdered[E cmp.Ordered](data []E, a, b int) bool {
 
 		data[i], data[i-1] = data[i-1], data[i]
 
-		// Shift the smaller one to the left.
+		// 将较小的移到左边。
 		if i-a >= 2 {
 			for j := i - 1; j >= 1; j-- {
 				if !cmp.Less(data[j], data[j-1]) {
@@ -224,7 +223,7 @@ func partialInsertionSortOrdered[E cmp.Ordered](data []E, a, b int) bool {
 				data[j], data[j-1] = data[j-1], data[j]
 			}
 		}
-		// Shift the greater one to the right.
+		// 将较大的移到右边。
 		if b-i >= 2 {
 			for j := i + 1; j < b; j++ {
 				if !cmp.Less(data[j], data[j-1]) {
@@ -237,8 +236,7 @@ func partialInsertionSortOrdered[E cmp.Ordered](data []E, a, b int) bool {
 	return false
 }
 
-// breakPatternsOrdered scatters some elements around in an attempt to break some patterns
-// that might cause imbalanced partitions in quicksort.
+// breakPatternsOrdered 分散一些元素，试图打破可能导致快速排序分区不平衡的某些模式。
 func breakPatternsOrdered[E cmp.Ordered](data []E, a, b int) {
 	length := b - a
 	if length >= 8 {
@@ -255,11 +253,11 @@ func breakPatternsOrdered[E cmp.Ordered](data []E, a, b int) {
 	}
 }
 
-// choosePivotOrdered chooses a pivot in data[a:b].
+// choosePivotOrdered 在 data[a:b] 中选择枢轴。
 //
-// [0,8): chooses a static pivot.
-// [8,shortestNinther): uses the simple median-of-three method.
-// [shortestNinther,∞): uses the Tukey ninther method.
+// [0,8)：选择静态枢轴。
+// [8,shortestNinther)：使用简单三数取中法。
+// [shortestNinther,∞)：使用 Tukey ninther 方法。
 func choosePivotOrdered[E cmp.Ordered](data []E, a, b int) (pivot int, hint sortedHint) {
 	const (
 		shortestNinther = 50
@@ -277,12 +275,12 @@ func choosePivotOrdered[E cmp.Ordered](data []E, a, b int) (pivot int, hint sort
 
 	if l >= 8 {
 		if l >= shortestNinther {
-			// Tukey ninther method, the idea came from Rust's implementation.
+			// Tukey ninther 方法，这个想法来自 Rust 的实现。
 			i = medianAdjacentOrdered(data, i, &swaps)
 			j = medianAdjacentOrdered(data, j, &swaps)
 			k = medianAdjacentOrdered(data, k, &swaps)
 		}
-		// Find the median among i, j, k and stores it into j.
+		// 找到 i, j, k 中的中位数并存储到 j。
 		j = medianOrdered(data, i, j, k, &swaps)
 	}
 
@@ -296,7 +294,7 @@ func choosePivotOrdered[E cmp.Ordered](data []E, a, b int) (pivot int, hint sort
 	}
 }
 
-// order2Ordered returns x,y where data[x] <= data[y], where x,y=a,b or x,y=b,a.
+// order2Ordered 返回 x,y，其中 data[x] <= data[y]，x,y = a,b 或 x,y = b,a。
 func order2Ordered[E cmp.Ordered](data []E, a, b int, swaps *int) (int, int) {
 	if cmp.Less(data[b], data[a]) {
 		*swaps++
@@ -305,7 +303,7 @@ func order2Ordered[E cmp.Ordered](data []E, a, b int, swaps *int) (int, int) {
 	return a, b
 }
 
-// medianOrdered returns x where data[x] is the median of data[a],data[b],data[c], where x is a, b, or c.
+// medianOrdered 返回 x，其中 data[x] 是 data[a],data[b],data[c] 的中位数，x 为 a、b 或 c 之一。
 func medianOrdered[E cmp.Ordered](data []E, a, b, c int, swaps *int) int {
 	a, b = order2Ordered(data, a, b, swaps)
 	b, c = order2Ordered(data, b, c, swaps)
@@ -313,7 +311,7 @@ func medianOrdered[E cmp.Ordered](data []E, a, b, c int, swaps *int) int {
 	return b
 }
 
-// medianAdjacentOrdered finds the median of data[a - 1], data[a], data[a + 1] and stores the index into a.
+// medianAdjacentOrdered 找到 data[a - 1], data[a], data[a + 1] 的中位数并将索引存储到 a。
 func medianAdjacentOrdered[E cmp.Ordered](data []E, a int, swaps *int) int {
 	return medianOrdered(data, a-1, a, a+1, swaps)
 }
@@ -335,7 +333,7 @@ func swapRangeOrdered[E cmp.Ordered](data []E, a, b, n int) {
 }
 
 func stableOrdered[E cmp.Ordered](data []E, n int) {
-	blockSize := 20 // must be > 0
+	blockSize := 20 // 必须 > 0
 	a, b := 0, blockSize
 	for b <= n {
 		insertionSortOrdered(data, a, b)
@@ -358,33 +356,28 @@ func stableOrdered[E cmp.Ordered](data []E, n int) {
 	}
 }
 
-// symMergeOrdered merges the two sorted subsequences data[a:m] and data[m:b] using
-// the SymMerge algorithm from Pok-Son Kim and Arne Kutzner, "Stable Minimum
-// Storage Merging by Symmetric Comparisons", in Susanne Albers and Tomasz
-// Radzik, editors, Algorithms - ESA 2004, volume 3221 of Lecture Notes in
-// Computer Science, pages 714-723. Springer, 2004.
+// symMergeOrdered 使用 Pok-Son Kim 和 Arne Kutzner 的 SymMerge 算法合并两个已排序的子序列 data[a:m] 和 data[m:b]，
+// 论文 "Stable Minimum Storage Merging by Symmetric Comparisons"，
+// Susanne Albers 和 Tomasz Radzik 编，Algorithms - ESA 2004，
+// Lecture Notes in Computer Science 第 3221 卷，714-723 页。Springer，2004。
 //
-// Let M = m-a and N = b-n. Wolog M < N.
-// The recursion depth is bound by ceil(log(N+M)).
-// The algorithm needs O(M*log(N/M + 1)) calls to data.Less.
-// The algorithm needs O((M+N)*log(M)) calls to data.Swap.
+// 设 M = m-a，N = b-n。不失一般性 M < N。
+// 递归深度以 ceil(log(N+M)) 为界。
+// 该算法需要 O(M*log(N/M + 1)) 次 data.Less 调用。
+// 该算法需要 O((M+N)*log(M)) 次 data.Swap 调用。
 //
-// The paper gives O((M+N)*log(M)) as the number of assignments assuming a
-// rotation algorithm which uses O(M+N+gcd(M+N)) assignments. The argumentation
-// in the paper carries through for Swap operations, especially as the block
-// swapping rotate uses only O(M+N) Swaps.
+// 论文给出 O((M+N)*log(M)) 作为赋值次数，假设使用 O(M+N+gcd(M+N)) 次赋值的旋转算法。
+// 论文中的论证同样适用于 Swap 操作，特别是块交换旋转仅使用 O(M+N) 次 Swaps。
 //
-// symMerge assumes non-degenerate arguments: a < m && m < b.
-// Having the caller check this condition eliminates many leaf recursion calls,
-// which improves performance.
+// symMerge 假设参数非退化：a < m && m < b。
+// 让调用者检查此条件可以消除许多叶递归调用，这提高了性能。
 func symMergeOrdered[E cmp.Ordered](data []E, a, m, b int) {
-	// Avoid unnecessary recursions of symMerge
-	// by direct insertion of data[a] into data[m:b]
-	// if data[a:m] only contains one element.
+	// 如果 data[a:m] 只包含一个元素，通过直接将 data[a] 插入 data[m:b]
+	// 来避免 symMerge 的不必要的递归。
 	if m-a == 1 {
-		// Use binary search to find the lowest index i
-		// such that data[i] >= data[a] for m <= i < b.
-		// Exit the search loop with i == b in case no such index exists.
+		// 使用二分搜索找到最小的索引 i，
+		// 使得对于 m <= i < b 有 data[i] >= data[a]。
+		// 如果不存在这样的索引，以 i == b 退出搜索循环。
 		i := m
 		j := b
 		for i < j {
@@ -395,20 +388,19 @@ func symMergeOrdered[E cmp.Ordered](data []E, a, m, b int) {
 				j = h
 			}
 		}
-		// Swap values until data[a] reaches the position before i.
+		// 交换值直到 data[a] 到达 i 之前的位置。
 		for k := a; k < i-1; k++ {
 			data[k], data[k+1] = data[k+1], data[k]
 		}
 		return
 	}
 
-	// Avoid unnecessary recursions of symMerge
-	// by direct insertion of data[m] into data[a:m]
-	// if data[m:b] only contains one element.
+	// 如果 data[m:b] 只包含一个元素，通过直接将 data[m] 插入 data[a:m]
+	// 来避免 symMerge 的不必要的递归。
 	if b-m == 1 {
-		// Use binary search to find the lowest index i
-		// such that data[i] > data[m] for a <= i < m.
-		// Exit the search loop with i == m in case no such index exists.
+		// 使用二分搜索找到最小的索引 i，
+		// 使得对于 a <= i < m 有 data[i] > data[m]。
+		// 如果不存在这样的索引，以 i == m 退出搜索循环。
 		i := a
 		j := m
 		for i < j {
@@ -419,7 +411,7 @@ func symMergeOrdered[E cmp.Ordered](data []E, a, m, b int) {
 				j = h
 			}
 		}
-		// Swap values until data[m] reaches the position i.
+		// 交换值直到 data[m] 到达位置 i。
 		for k := m; k > i; k-- {
 			data[k], data[k-1] = data[k-1], data[k]
 		}
@@ -459,10 +451,10 @@ func symMergeOrdered[E cmp.Ordered](data []E, a, m, b int) {
 	}
 }
 
-// rotateOrdered rotates two consecutive blocks u = data[a:m] and v = data[m:b] in data:
-// Data of the form 'x u v y' is changed to 'x v u y'.
-// rotate performs at most b-a many calls to data.Swap,
-// and it assumes non-degenerate arguments: a < m && m < b.
+// rotateOrdered 旋转 data 中两个连续的块 u = data[a:m] 和 v = data[m:b]：
+// 形式为 'x u v y' 的数据被更改为 'x v u y'。
+// rotate 执行最多 b-a 次 data.Swap 调用，
+// 它假设参数非退化：a < m && m < b。
 func rotateOrdered[E cmp.Ordered](data []E, a, m, b int) {
 	i := m - a
 	j := b - m

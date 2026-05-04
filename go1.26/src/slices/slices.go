@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package slices defines various functions useful with slices of any type.
+// Package slices 定义了对任何类型的切片都有用的各种函数。
 package slices
 
 import (
@@ -11,12 +11,11 @@ import (
 	"unsafe"
 )
 
-// Equal reports whether two slices are equal: the same length and all
-// elements equal. If the lengths are different, Equal returns false.
-// Otherwise, the elements are compared in increasing index order, and the
-// comparison stops at the first unequal pair.
-// Empty and nil slices are considered equal.
-// Floating point NaNs are not considered equal.
+// Equal 报告两个切片是否相等：相同的长度且所有元素都相等。
+// 如果长度不同，Equal 返回 false。
+// 否则，按递增索引顺序比较元素，并在第一对不相等的元素处停止比较。
+// 空切片和 nil 切片被认为是相等的。
+// 浮点数 NaN 不被认为是相等的。
 func Equal[S ~[]E, E comparable](s1, s2 S) bool {
 	if len(s1) != len(s2) {
 		return false
@@ -29,11 +28,9 @@ func Equal[S ~[]E, E comparable](s1, s2 S) bool {
 	return true
 }
 
-// EqualFunc reports whether two slices are equal using an equality
-// function on each pair of elements. If the lengths are different,
-// EqualFunc returns false. Otherwise, the elements are compared in
-// increasing index order, and the comparison stops at the first index
-// for which eq returns false.
+// EqualFunc 使用等值函数对每对元素进行比较，报告两个切片是否相等。
+// 如果长度不同，EqualFunc 返回 false。
+// 否则，按递增索引顺序比较元素，并在第一个使 eq 返回 false 的索引处停止比较。
 func EqualFunc[S1 ~[]E1, S2 ~[]E2, E1, E2 any](s1 S1, s2 S2, eq func(E1, E2) bool) bool {
 	if len(s1) != len(s2) {
 		return false
@@ -47,13 +44,11 @@ func EqualFunc[S1 ~[]E1, S2 ~[]E2, E1, E2 any](s1 S1, s2 S2, eq func(E1, E2) boo
 	return true
 }
 
-// Compare compares the elements of s1 and s2, using [cmp.Compare] on each pair
-// of elements. The elements are compared sequentially, starting at index 0,
-// until one element is not equal to the other.
-// The result of comparing the first non-matching elements is returned.
-// If both slices are equal until one of them ends, the shorter slice is
-// considered less than the longer one.
-// The result is 0 if s1 == s2, -1 if s1 < s2, and +1 if s1 > s2.
+// Compare 使用 [cmp.Compare] 对每对元素进行比较。
+// 元素按顺序比较，从索引 0 开始，直到有一个元素与另一个不相等。
+// 返回第一个不匹配元素的比较结果。
+// 如果两个切片在其中一个结束时之前都相等，则认为较短的切片比较长的切片小。
+// 结果为 0 表示 s1 == s2，-1 表示 s1 < s2，+1 表示 s1 > s2。
 func Compare[S ~[]E, E cmp.Ordered](s1, s2 S) int {
 	for i, v1 := range s1 {
 		if i >= len(s2) {
@@ -70,11 +65,10 @@ func Compare[S ~[]E, E cmp.Ordered](s1, s2 S) int {
 	return 0
 }
 
-// CompareFunc is like [Compare] but uses a custom comparison function on each
-// pair of elements.
-// The result is the first non-zero result of cmp; if cmp always
-// returns 0 the result is 0 if len(s1) == len(s2), -1 if len(s1) < len(s2),
-// and +1 if len(s1) > len(s2).
+// CompareFunc 类似于 [Compare]，但对每对元素使用自定义比较函数。
+// 结果是 cmp 的第一个非零结果；如果 cmp 始终返回 0，
+// 则结果为 0（如果 len(s1) == len(s2)），-1（如果 len(s1) < len(s2)），
+// +1（如果 len(s1) > len(s2)）。
 func CompareFunc[S1 ~[]E1, S2 ~[]E2, E1, E2 any](s1 S1, s2 S2, cmp func(E1, E2) int) int {
 	for i, v1 := range s1 {
 		if i >= len(s2) {
@@ -91,8 +85,8 @@ func CompareFunc[S1 ~[]E1, S2 ~[]E2, E1, E2 any](s1 S1, s2 S2, cmp func(E1, E2) 
 	return 0
 }
 
-// Index returns the index of the first occurrence of v in s,
-// or -1 if not present.
+// Index 返回 v 在 s 中第一次出现的索引，
+// 如果不存在则返回 -1。
 func Index[S ~[]E, E comparable](s S, v E) int {
 	for i := range s {
 		if v == s[i] {
@@ -102,8 +96,8 @@ func Index[S ~[]E, E comparable](s S, v E) int {
 	return -1
 }
 
-// IndexFunc returns the first index i satisfying f(s[i]),
-// or -1 if none do.
+// IndexFunc 返回满足 f(s[i]) 的第一个索引 i，
+// 如果没有满足条件的则返回 -1。
 func IndexFunc[S ~[]E, E any](s S, f func(E) bool) int {
 	for i := range s {
 		if f(s[i]) {
@@ -113,25 +107,24 @@ func IndexFunc[S ~[]E, E any](s S, f func(E) bool) int {
 	return -1
 }
 
-// Contains reports whether v is present in s.
+// Contains 报告 v 是否存在于 s 中。
 func Contains[S ~[]E, E comparable](s S, v E) bool {
 	return Index(s, v) >= 0
 }
 
-// ContainsFunc reports whether at least one
-// element e of s satisfies f(e).
+// ContainsFunc 报告是否存在至少一个 s 中的元素 e 满足 f(e)。
 func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
 	return IndexFunc(s, f) >= 0
 }
 
-// Insert inserts the values v... into s at index i,
-// returning the modified slice.
-// The elements at s[i:] are shifted up to make room.
-// In the returned slice r, r[i] == v[0],
-// and, if i < len(s), r[i+len(v)] == value originally at s[i].
-// Insert panics if i > len(s).
-// This function is O(len(s) + len(v)).
-// If the result is empty, it has the same nilness as s.
+// Insert 将值 v... 插入到 s 的索引 i 处，
+// 返回修改后的切片。
+// s[i:] 中的元素向上移动以腾出空间。
+// 在返回的切片 r 中，r[i] == v[0]，
+// 并且如果 i < len(s)，则 r[i+len(v)] == 原本在 s[i] 处的值。
+// 如果 i > len(s)，Insert 会 panic。
+// 此函数的时间复杂度为 O(len(s) + len(v))。
+// 如果结果为空，它与 s 具有相同的 nil 性质。
 func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 	_ = s[i:] // bounds check
 
@@ -213,14 +206,14 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
 	return s
 }
 
-// Delete removes the elements s[i:j] from s, returning the modified slice.
-// Delete panics if j > len(s) or s[i:j] is not a valid slice of s.
-// Delete is O(len(s)-i), so if many items must be deleted, it is better to
-// make a single call deleting them all together than to delete one at a time.
-// Delete zeroes the elements s[len(s)-(j-i):len(s)].
-// If the result is empty, it has the same nilness as s.
+// Delete 从 s 中移除元素 s[i:j]，返回修改后的切片。
+// 如果 j > len(s) 或 s[i:j] 不是 s 的有效切片，Delete 会 panic。
+// Delete 的时间复杂度为 O(len(s)-i)，因此如果需要删除多个元素，
+// 最好一次性调用删除所有元素，而不是一次删除一个。
+// Delete 会将元素 s[len(s)-(j-i):len(s)] 置零。
+// 如果结果为空，它与 s 具有相同的 nil 性质。
 func Delete[S ~[]E, E any](s S, i, j int) S {
-	_ = s[i:j:len(s)] // bounds check
+	_ = s[i:j:len(s)] // 边界检查
 
 	if i == j {
 		return s
@@ -228,35 +221,33 @@ func Delete[S ~[]E, E any](s S, i, j int) S {
 
 	oldlen := len(s)
 	s = append(s[:i], s[j:]...)
-	clear(s[len(s):oldlen]) // zero/nil out the obsolete elements, for GC
+	clear(s[len(s):oldlen]) // 将废弃元素置零/nil，以供 GC
 	return s
 }
 
-// DeleteFunc removes any elements from s for which del returns true,
-// returning the modified slice.
-// DeleteFunc zeroes the elements between the new length and the original length.
-// If the result is empty, it has the same nilness as s.
+// DeleteFunc 从 s 中移除任何使 del 返回 true 的元素，返回修改后的切片。
+// DeleteFunc 会将新长度与原始长度之间的元素置零。
+// 如果结果为空，它与 s 具有相同的 nil 性质。
 func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
 	i := IndexFunc(s, del)
 	if i == -1 {
 		return s
 	}
-	// Don't start copying elements until we find one to delete.
+	// 在找到要删除的元素之前不开始复制元素。
 	for j := i + 1; j < len(s); j++ {
 		if v := s[j]; !del(v) {
 			s[i] = v
 			i++
 		}
 	}
-	clear(s[i:]) // zero/nil out the obsolete elements, for GC
+	clear(s[i:]) // 将废弃元素置零/nil，以供 GC
 	return s[:i]
 }
 
-// Replace replaces the elements s[i:j] by the given v, and returns the
-// modified slice.
-// Replace panics if j > len(s) or s[i:j] is not a valid slice of s.
-// When len(v) < (j-i), Replace zeroes the elements between the new length and the original length.
-// If the result is empty, it has the same nilness as s.
+// Replace 用给定的 v 替换元素 s[i:j]，并返回修改后的切片。
+// 如果 j > len(s) 或 s[i:j] 不是 s 的有效切片，Replace 会 panic。
+// 当 len(v) < (j-i) 时，Replace 会将新长度与原始长度之间的元素置零。
+// 如果结果为空，它与 s 具有相同的 nil 性质。
 func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 	_ = s[i:j] // bounds check
 
@@ -346,26 +337,26 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
 	return r
 }
 
-// Clone returns a copy of the slice.
-// The elements are copied using assignment, so this is a shallow clone.
-// The result may have additional unused capacity.
-// The result preserves the nilness of s.
+// Clone 返回切片的副本。
+// 元素通过赋值复制，因此这是浅拷贝。
+// 结果可能有额外的未使用容量。
+// 结果保留 s 的 nil 性质。
 func Clone[S ~[]E, E any](s S) S {
-	// Preserve nilness in case it matters.
+	// 保留 nil 性质以防重要。
 	if s == nil {
 		return nil
 	}
-	// Avoid s[:0:0] as it leads to unwanted liveness when cloning a
-	// zero-length slice of a large array; see https://go.dev/issue/68488.
+	// 避免 s[:0:0]，因为在克隆大型数组的零长度切片时会导致不必要的存活；
+	// 参见 https://go.dev/issue/68488。
 	return append(S{}, s...)
 }
 
-// Compact replaces consecutive runs of equal elements with a single copy.
-// This is like the uniq command found on Unix.
-// Compact modifies the contents of the slice s and returns the modified slice,
-// which may have a smaller length.
-// Compact zeroes the elements between the new length and the original length.
-// The result preserves the nilness of s.
+// Compact 用单个副本替换连续相等的元素运行。
+// 这类似于 Unix 上的 uniq 命令。
+// Compact 修改切片 s 的内容并返回修改后的切片，
+// 其长度可能较小。
+// Compact 将新长度与原始长度之间的元素置零。
+// 结果保留 s 的 nil 性质。
 func Compact[S ~[]E, E comparable](s S) S {
 	if len(s) < 2 {
 		return s
@@ -380,17 +371,17 @@ func Compact[S ~[]E, E comparable](s S) S {
 				}
 			}
 
-			clear(s[k:]) // zero/nil out the obsolete elements, for GC
+			clear(s[k:]) // 将废弃元素置零/nil，以供 GC
 			return s[:k]
 		}
 	}
 	return s
 }
 
-// CompactFunc is like [Compact] but uses an equality function to compare elements.
-// For runs of elements that compare equal, CompactFunc keeps the first one.
-// CompactFunc zeroes the elements between the new length and the original length.
-// The result preserves the nilness of s.
+// CompactFunc 类似于 [Compact]，但使用等值函数比较元素。
+// 对于比较相等的元素运行，CompactFunc 保留第一个。
+// CompactFunc 将新长度与原始长度之间的元素置零。
+// 结果保留 s 的 nil 性质。
 func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 	if len(s) < 2 {
 		return s
@@ -405,41 +396,40 @@ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 				}
 			}
 
-			clear(s[k:]) // zero/nil out the obsolete elements, for GC
+			clear(s[k:]) // 将废弃元素置零/nil，以供 GC
 			return s[:k]
 		}
 	}
 	return s
 }
 
-// Grow increases the slice's capacity, if necessary, to guarantee space for
-// another n elements. After Grow(n), at least n elements can be appended
-// to the slice without another allocation. If n is negative or too large to
-// allocate the memory, Grow panics.
-// The result preserves the nilness of s.
+// Grow 在必要时增加切片的容量，以保证另外 n 个元素的空间。
+// 在 Grow(n) 之后，至少可以追加 n 个元素到切片而无需再次分配。
+// 如果 n 为负数或太大无法分配内存，Grow 会 panic。
+// 结果保留 s 的 nil 性质。
 func Grow[S ~[]E, E any](s S, n int) S {
 	if n < 0 {
 		panic("cannot be negative")
 	}
 	if n -= cap(s) - len(s); n > 0 {
-		// This expression allocates only once (see test).
+		// 此表达式仅分配一次（参见测试）。
 		s = append(s[:cap(s)], make([]E, n)...)[:len(s)]
 	}
 	return s
 }
 
-// Clip removes unused capacity from the slice, returning s[:len(s):len(s)].
-// The result preserves the nilness of s.
+// Clip 从切片中移除未使用的容量，返回 s[:len(s):len(s)]。
+// 结果保留 s 的 nil 性质。
 func Clip[S ~[]E, E any](s S) S {
 	return s[:len(s):len(s)]
 }
 
-// TODO: There are other rotate algorithms.
-// This algorithm has the desirable property that it moves each element at most twice.
-// The follow-cycles algorithm can be 1-write but it is not very cache friendly.
+// TODO：还有其他旋转算法。
+// 此算法具有理想的特性，即每个元素最多移动两次。
+// follow-cycles 算法可以是 1 次写入，但它不太适合缓存。
 
-// rotateLeft rotates s left by r spaces.
-// s_final[i] = s_orig[i+r], wrapping around.
+// rotateLeft 将 s 左旋 r 个位置。
+// s_final[i] = s_orig[i+r]，环绕。
 func rotateLeft[E any](s []E, r int) {
 	Reverse(s[:r])
 	Reverse(s[r:])
@@ -449,7 +439,7 @@ func rotateRight[E any](s []E, r int) {
 	rotateLeft(s, len(s)-r)
 }
 
-// overlaps reports whether the memory ranges a[:len(a)] and b[:len(b)] overlap.
+// overlaps 报告内存范围 a[:len(a)] 和 b[:len(b)] 是否重叠。
 func overlaps[E any](a, b []E) bool {
 	if len(a) == 0 || len(b) == 0 {
 		return false
@@ -458,14 +448,14 @@ func overlaps[E any](a, b []E) bool {
 	if elemSize == 0 {
 		return false
 	}
-	// TODO: use a runtime/unsafe facility once one becomes available. See issue 12445.
-	// Also see crypto/internal/fips140/alias/alias.go:AnyOverlap
+	// TODO：一旦有 runtime/unsafe 工具可用就使用它。参见 issue 12445。
+	// 另请参见 crypto/internal/fips140/alias/alias.go:AnyOverlap
 	return uintptr(unsafe.Pointer(&a[0])) <= uintptr(unsafe.Pointer(&b[len(b)-1]))+(elemSize-1) &&
 		uintptr(unsafe.Pointer(&b[0])) <= uintptr(unsafe.Pointer(&a[len(a)-1]))+(elemSize-1)
 }
 
-// startIdx returns the index in haystack where the needle starts.
-// prerequisite: the needle must be aliased entirely inside the haystack.
+// startIdx 返回 needle 在 haystack 中开始的索引。
+// 前置条件：needle 必须完全嵌套在 haystack 中。
 func startIdx[E any](haystack, needle []E) int {
 	p := &needle[0]
 	for i := range haystack {
@@ -473,19 +463,19 @@ func startIdx[E any](haystack, needle []E) int {
 			return i
 		}
 	}
-	// TODO: what if the overlap is by a non-integral number of Es?
+	// TODO：如果重叠的 Es 数量不是整数怎么办？
 	panic("needle not found")
 }
 
-// Reverse reverses the elements of the slice in place.
+// Reverse 就地反转切片的元素。
 func Reverse[S ~[]E, E any](s S) {
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
 }
 
-// Concat returns a new slice concatenating the passed in slices.
-// If the concatenation is empty, the result is nil.
+// Concat 返回一个新切片，连接传入的切片。
+// 如果连接为空，结果为 nil。
 func Concat[S ~[]E, E any](slices ...S) S {
 	size := 0
 	for _, s := range slices {
@@ -494,9 +484,8 @@ func Concat[S ~[]E, E any](slices ...S) S {
 			panic("len out of range")
 		}
 	}
-	// Use Grow, not make, to round up to the size class:
-	// the extra space is otherwise unused and helps
-	// callers that append a few elements to the result.
+	// 使用 Grow 而不是 make，以四舍五入到大小类：
+	// 否则多余的空间未使用，且有助于调用者向结果追加一些元素。
 	newslice := Grow[S](nil, size)
 	for _, s := range slices {
 		newslice = append(newslice, s...)
@@ -504,11 +493,10 @@ func Concat[S ~[]E, E any](slices ...S) S {
 	return newslice
 }
 
-// Repeat returns a new slice that repeats the provided slice the given number of times.
-// The result has length and capacity (len(x) * count).
-// The result is never nil.
-// Repeat panics if count is negative or if the result of (len(x) * count)
-// overflows.
+// Repeat 返回一个新切片，将提供的切片重复指定次数。
+// 结果的长度和容量为 (len(x) * count)。
+// 结果永远不为 nil。
+// 如果 count 为负数，或 (len(x) * count) 的结果溢出，Repeat 会 panic。
 func Repeat[S ~[]E, E any](x S, count int) S {
 	if count < 0 {
 		panic("cannot be negative")

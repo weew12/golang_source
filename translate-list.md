@@ -27,7 +27,7 @@
 - [X] container/list：实现双向链表
 - [X] container/ring：实现循环链表操作
 - [X] sort：提供切片和自定义集合的排序基础功能
-- [ ] slices：定义适用于任意类型切片的通用函数
+- [X] slices：定义适用于任意类型切片的通用函数
 - [ ] maps：定义适用于任意类型map的通用函数
 - [ ] index/suffixarray：基于内存后缀数组实现对数时间子串搜索
 - [ ] cmp：提供有序值比较相关的类型和函数

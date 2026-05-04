@@ -11,34 +11,33 @@ import (
 	"math/bits"
 )
 
-// Sort sorts a slice of any ordered type in ascending order.
-// When sorting floating-point numbers, NaNs are ordered before other values.
+// Sort 按升序对任何可排序类型的切片进行排序。
+// 在对浮点数进行排序时，NaN 排在其他值之前。
 func Sort[S ~[]E, E cmp.Ordered](x S) {
 	n := len(x)
 	pdqsortOrdered(x, 0, n, bits.Len(uint(n)))
 }
 
-// SortFunc sorts the slice x in ascending order as determined by the cmp
-// function. This sort is not guaranteed to be stable.
-// cmp(a, b) should return a negative number when a < b, a positive number when
-// a > b and zero when a == b or a and b are incomparable in the sense of
-// a strict weak ordering.
+// SortFunc 根据 cmp 函数确定的方式对切片 x 按升序排序。
+// 此排序不保证是稳定的。
+// cmp(a, b) 应该在 a < b 时返回负数，在 a > b 时返回正数，
+// 在 a == b 或 a 和 b 以严格弱序而言不可比较时返回零。
 //
-// SortFunc requires that cmp is a strict weak ordering.
-// See https://en.wikipedia.org/wiki/Weak_ordering#Strict_weak_orderings.
-// The function should return 0 for incomparable items.
+// SortFunc 要求 cmp 是严格弱序。
+// 参见 https://en.wikipedia.org/wiki/Weak_ordering#Strict_weak_orderings。
+// 对于不可比较的项，函数应返回 0。
 func SortFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
 	n := len(x)
 	pdqsortCmpFunc(x, 0, n, bits.Len(uint(n)), cmp)
 }
 
-// SortStableFunc sorts the slice x while keeping the original order of equal
-// elements, using cmp to compare elements in the same way as [SortFunc].
+// SortStableFunc 对切片 x 进行排序，同时保持相等元素的原始顺序，
+// 使用 cmp 以与 [SortFunc] 相同的方式比较元素。
 func SortStableFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
 	stableCmpFunc(x, len(x), cmp)
 }
 
-// IsSorted reports whether x is sorted in ascending order.
+// IsSorted 报告 x 是否按升序排序。
 func IsSorted[S ~[]E, E cmp.Ordered](x S) bool {
 	for i := len(x) - 1; i > 0; i-- {
 		if cmp.Less(x[i], x[i-1]) {
@@ -48,8 +47,7 @@ func IsSorted[S ~[]E, E cmp.Ordered](x S) bool {
 	return true
 }
 
-// IsSortedFunc reports whether x is sorted in ascending order, with cmp as the
-// comparison function as defined by [SortFunc].
+// IsSortedFunc 报告 x 是否按升序排序，cmp 作为 [SortFunc] 所定义的比较函数。
 func IsSortedFunc[S ~[]E, E any](x S, cmp func(a, b E) int) bool {
 	for i := len(x) - 1; i > 0; i-- {
 		if cmp(x[i], x[i-1]) < 0 {
@@ -59,9 +57,8 @@ func IsSortedFunc[S ~[]E, E any](x S, cmp func(a, b E) int) bool {
 	return true
 }
 
-// Min returns the minimal value in x. It panics if x is empty.
-// For floating-point numbers, Min propagates NaNs (any NaN value in x
-// forces the output to be NaN).
+// Min 返回 x 中的最小值。如果 x 为空，它会 panic。
+// 对于浮点数，Min 传播 NaN（x 中的任何 NaN 值都会使输出为 NaN）。
 func Min[S ~[]E, E cmp.Ordered](x S) E {
 	if len(x) < 1 {
 		panic("slices.Min: empty list")
@@ -73,9 +70,9 @@ func Min[S ~[]E, E cmp.Ordered](x S) E {
 	return m
 }
 
-// MinFunc returns the minimal value in x, using cmp to compare elements.
-// It panics if x is empty. If there is more than one minimal element
-// according to the cmp function, MinFunc returns the first one.
+// MinFunc 返回 x 中的最小值，使用 cmp 比较元素。
+// 如果 x 为空，它会 panic。如果根据 cmp 函数有多个最小元素，
+// MinFunc 返回第一个。
 func MinFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
 	if len(x) < 1 {
 		panic("slices.MinFunc: empty list")
@@ -89,9 +86,8 @@ func MinFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
 	return m
 }
 
-// Max returns the maximal value in x. It panics if x is empty.
-// For floating-point E, Max propagates NaNs (any NaN value in x
-// forces the output to be NaN).
+// Max 返回 x 中的最大值。如果 x 为空，它会 panic。
+// 对于浮点数 E，Max 传播 NaN（x 中的任何 NaN 值都会使输出为 NaN）。
 func Max[S ~[]E, E cmp.Ordered](x S) E {
 	if len(x) < 1 {
 		panic("slices.Max: empty list")
@@ -103,9 +99,9 @@ func Max[S ~[]E, E cmp.Ordered](x S) E {
 	return m
 }
 
-// MaxFunc returns the maximal value in x, using cmp to compare elements.
-// It panics if x is empty. If there is more than one maximal element
-// according to the cmp function, MaxFunc returns the first one.
+// MaxFunc 返回 x 中的最大值，使用 cmp 比较元素。
+// 如果 x 为空，它会 panic。如果根据 cmp 函数有多个最大元素，
+// MaxFunc 返回第一个。
 func MaxFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
 	if len(x) < 1 {
 		panic("slices.MaxFunc: empty list")
@@ -119,51 +115,50 @@ func MaxFunc[S ~[]E, E any](x S, cmp func(a, b E) int) E {
 	return m
 }
 
-// BinarySearch searches for target in a sorted slice and returns the earliest
-// position where target is found, or the position where target would appear
-// in the sort order; it also returns a bool saying whether the target is
-// really found in the slice. The slice must be sorted in increasing order.
+// BinarySearch 在已排序的切片中搜索 target，并返回找到 target 的最早位置，
+// 或者 target 在排序顺序中应该出现的位置；它还返回一个布尔值，
+// 说明 target 是否真的在切片中找到。切片必须按升序排序。
 func BinarySearch[S ~[]E, E cmp.Ordered](x S, target E) (int, bool) {
-	// Inlining is faster than calling BinarySearchFunc with a lambda.
+	// 内联比用 lambda 调用 BinarySearchFunc 更快。
 	n := len(x)
-	// Define x[-1] < target and x[n] >= target.
-	// Invariant: x[i-1] < target, x[j] >= target.
+	// 定义 x[-1] < target 且 x[n] >= target。
+	// 不变量：x[i-1] < target, x[j] >= target。
 	i, j := 0, n
 	for i < j {
-		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		h := int(uint(i+j) >> 1) // 计算 h 时避免溢出
 		// i ≤ h < j
 		if cmp.Less(x[h], target) {
-			i = h + 1 // preserves x[i-1] < target
+			i = h + 1 // 保持 x[i-1] < target
 		} else {
-			j = h // preserves x[j] >= target
+			j = h // 保持 x[j] >= target
 		}
 	}
-	// i == j, x[i-1] < target, and x[j] (= x[i]) >= target  =>  answer is i.
+	// i == j, x[i-1] < target, and x[j] (= x[i]) >= target  => 答案为 i。
 	return i, i < n && (x[i] == target || (isNaN(x[i]) && isNaN(target)))
 }
 
-// BinarySearchFunc works like [BinarySearch], but uses a custom comparison
-// function. The slice must be sorted in increasing order, where "increasing"
-// is defined by cmp. cmp should return 0 if the slice element matches
-// the target, a negative number if the slice element precedes the target,
-// or a positive number if the slice element follows the target.
-// cmp must implement the same ordering as the slice, such that if
-// cmp(a, t) < 0 and cmp(b, t) >= 0, then a must precede b in the slice.
+// BinarySearchFunc 的工作方式与 [BinarySearch] 类似，但使用自定义比较函数。
+// 切片必须按升序排序，其中"升序"由 cmp 定义。
+// cmp 应该在切片元素与 target 匹配时返回 0，
+// 如果切片元素在 target 之前则返回负数，
+// 如果切片元素在 target 之后则返回正数。
+// cmp 必须实现与切片相同的排序，使得如果 cmp(a, t) < 0 且 cmp(b, t) >= 0，
+// 则 a 必须在切片中排在 b 之前。
 func BinarySearchFunc[S ~[]E, E, T any](x S, target T, cmp func(E, T) int) (int, bool) {
 	n := len(x)
-	// Define cmp(x[-1], target) < 0 and cmp(x[n], target) >= 0 .
-	// Invariant: cmp(x[i - 1], target) < 0, cmp(x[j], target) >= 0.
+	// 定义 cmp(x[-1], target) < 0 且 cmp(x[n], target) >= 0 。
+	// 不变量：cmp(x[i - 1], target) < 0, cmp(x[j], target) >= 0。
 	i, j := 0, n
 	for i < j {
-		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		h := int(uint(i+j) >> 1) // 计算 h 时避免溢出
 		// i ≤ h < j
 		if cmp(x[h], target) < 0 {
-			i = h + 1 // preserves cmp(x[i - 1], target) < 0
+			i = h + 1 // 保持 cmp(x[i - 1], target) < 0
 		} else {
-			j = h // preserves cmp(x[j], target) >= 0
+			j = h // 保持 cmp(x[j], target) >= 0
 		}
 	}
-	// i == j, cmp(x[i-1], target) < 0, and cmp(x[j], target) (= cmp(x[i], target)) >= 0  =>  answer is i.
+	// i == j, cmp(x[i-1], target) < 0, and cmp(x[j], target) (= cmp(x[i], target)) >= 0  => 答案为 i。
 	return i, i < n && cmp(x[i], target) == 0
 }
 
@@ -189,8 +184,8 @@ func nextPowerOfTwo(length int) uint {
 	return 1 << bits.Len(uint(length))
 }
 
-// isNaN reports whether x is a NaN without requiring the math package.
-// This will always return false if T is not floating-point.
+// isNaN 报告 x 是否为 NaN，无需引入 math 包。
+// 如果 T 不是浮点类型，这将始终返回 false。
 func isNaN[T cmp.Ordered](x T) bool {
 	return x != x
 }
