@@ -6,44 +6,38 @@
 
 package sort
 
-// Search uses binary search to find and return the smallest index i
-// in [0, n) at which f(i) is true, assuming that on the range [0, n),
-// f(i) == true implies f(i+1) == true. That is, Search requires that
-// f is false for some (possibly empty) prefix of the input range [0, n)
-// and then true for the (possibly empty) remainder; Search returns
-// the first true index. If there is no such index, Search returns n.
-// (Note that the "not found" return value is not -1 as in, for instance,
-// strings.Index.)
-// Search calls f(i) only for i in the range [0, n).
+// Search 使用二分搜索查找并返回最小的索引 i，
+// 位于 [0, n) 中且满足 f(i) 为 true，假设在范围 [0, n) 上，
+// f(i) == true 意味着 f(i+1) == true。也就是说，Search 要求
+// f 对于输入范围 [0, n) 的某个（可能为空的）前缀为 false，
+// 然后对（可能为空的）剩余部分为 true；Search 返回第一个 true 索引。
+// 如果没有这样的索引，Search 返回 n。
+//（请注意，"未找到"的返回值不是 -1，例如 strings.Index 的情况。）
+// Search 仅对 [0, n) 范围内的 i 调用 f(i)。
 //
-// A common use of Search is to find the index i for a value x in
-// a sorted, indexable data structure such as an array or slice.
-// In this case, the argument f, typically a closure, captures the value
-// to be searched for, and how the data structure is indexed and
-// ordered.
+// Search 的一个常见用途是在已排序的、可索引的数据结构（如数组或切片）中
+// 查找值 x 的索引 i。在这种情况下，参数 f（通常是闭包）捕获要查找的值，
+// 以及数据结构的索引和排序方式。
 //
-// For instance, given a slice data sorted in ascending order,
-// the call Search(len(data), func(i int) bool { return data[i] >= 23 })
-// returns the smallest index i such that data[i] >= 23. If the caller
-// wants to find whether 23 is in the slice, it must test data[i] == 23
-// separately.
+// 例如，给定一个按升序排序的切片 data，
+// 调用 Search(len(data), func(i int) bool { return data[i] >= 23 })
+// 返回满足 data[i] >= 23 的最小索引 i。如果调用者想查找 23 是否在切片中，
+// 必须单独测试 data[i] == 23。
 //
-// Searching data sorted in descending order would use the <=
-// operator instead of the >= operator.
+// 搜索按降序排序的数据将使用 <= 运算符而不是 >= 运算符。
 //
-// To complete the example above, the following code tries to find the value
-// x in an integer slice data sorted in ascending order:
+// 完整的示例中，以下代码尝试在按升序排序的整数切片 data 中查找值 x：
 //
 //	x := 23
 //	i := sort.Search(len(data), func(i int) bool { return data[i] >= x })
 //	if i < len(data) && data[i] == x {
-//		// x is present at data[i]
+//		// x 存在于 data[i] 处
 //	} else {
-//		// x is not present in data,
-//		// but i is the index where it would be inserted.
+//		// x 不存在于 data 中，
+//		// 但 i 是它将被插入的索引。
 //	}
 //
-// As a more whimsical example, this program guesses your number:
+// 作为一个更幽默的例子，这个程序猜你的数字：
 //
 //	func GuessingGame() {
 //		var s string
@@ -56,37 +50,34 @@ package sort
 //		fmt.Printf("Your number is %d.\n", answer)
 //	}
 func Search(n int, f func(int) bool) int {
-	// Define f(-1) == false and f(n) == true.
-	// Invariant: f(i-1) == false, f(j) == true.
+	// 定义 f(-1) == false 和 f(n) == true。
+	// 不变量：f(i-1) == false, f(j) == true。
 	i, j := 0, n
 	for i < j {
-		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		h := int(uint(i+j) >> 1) // 计算 h 时避免溢出
 		// i ≤ h < j
 		if !f(h) {
-			i = h + 1 // preserves f(i-1) == false
+			i = h + 1 // 保持 f(i-1) == false
 		} else {
-			j = h // preserves f(j) == true
+			j = h // 保持 f(j) == true
 		}
 	}
-	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  => 答案为 i。
 	return i
 }
 
-// Find uses binary search to find and return the smallest index i in [0, n)
-// at which cmp(i) <= 0. If there is no such index i, Find returns i = n.
-// The found result is true if i < n and cmp(i) == 0.
-// Find calls cmp(i) only for i in the range [0, n).
+// Find 使用二分搜索查找并返回 [0, n) 中满足 cmp(i) <= 0 的最小索引 i。
+// 如果没有这样的索引 i，Find 返回 i = n。
+// 如果 i < n 且 cmp(i) == 0，则 found 结果为 true。
+// Find 仅对 [0, n) 范围内的 i 调用 cmp(i)。
 //
-// To permit binary search, Find requires that cmp(i) > 0 for a leading
-// prefix of the range, cmp(i) == 0 in the middle, and cmp(i) < 0 for
-// the final suffix of the range. (Each subrange could be empty.)
-// The usual way to establish this condition is to interpret cmp(i)
-// as a comparison of a desired target value t against entry i in an
-// underlying indexed data structure x, returning <0, 0, and >0
-// when t < x[i], t == x[i], and t > x[i], respectively.
+// 为了允许二分搜索，Find 要求在范围的前导前缀中 cmp(i) > 0，
+// 在中间 cmp(i) == 0，在最终后缀中 cmp(i) < 0。（每个子范围可以为空。）
+// 建立此条件的常用方法是将 cmp(i) 解释为将所需目标值 t 与
+// 底层索引数据结构 x 中的条目 i 进行比较，
+// 当 t < x[i]、t == x[i] 和 t > x[i] 时分别返回 <0、0 和 >0。
 //
-// For example, to look for a particular string in a sorted, random-access
-// list of strings:
+// 例如，在已排序的随机访问字符串列表中查找特定字符串：
 //
 //	i, found := sort.Find(x.Len(), func(i int) int {
 //	    return strings.Compare(target, x.At(i))
@@ -97,54 +88,51 @@ func Search(n int, f func(int) bool) int {
 //	    fmt.Printf("%s not found, would insert at %d", target, i)
 //	}
 func Find(n int, cmp func(int) int) (i int, found bool) {
-	// The invariants here are similar to the ones in Search.
-	// Define cmp(-1) > 0 and cmp(n) <= 0
-	// Invariant: cmp(i-1) > 0, cmp(j) <= 0
+	// 这里的不变量与 Search 中的类似。
+	// 定义 cmp(-1) > 0 和 cmp(n) <= 0
+	// 不变量：cmp(i-1) > 0, cmp(j) <= 0
 	i, j := 0, n
 	for i < j {
-		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		h := int(uint(i+j) >> 1) // 计算 h 时避免溢出
 		// i ≤ h < j
 		if cmp(h) > 0 {
-			i = h + 1 // preserves cmp(i-1) > 0
+			i = h + 1 // 保持 cmp(i-1) > 0
 		} else {
-			j = h // preserves cmp(j) <= 0
+			j = h // 保持 cmp(j) <= 0
 		}
 	}
 	// i == j, cmp(i-1) > 0 and cmp(j) <= 0
 	return i, i < n && cmp(i) == 0
 }
 
-// Convenience wrappers for common cases.
+// 常见用例的便捷封装函数。
 
-// SearchInts searches for x in a sorted slice of ints and returns the index
-// as specified by [Search]. The return value is the index to insert x if x is
-// not present (it could be len(a)).
-// The slice must be sorted in ascending order.
+// SearchInts 在已排序的 int 切片中搜索 x，并返回如 [Search] 所指定的索引。
+// 如果 x 不存在，返回值是插入 x 的索引（可以是 len(a)）。
+// 切片必须按升序排序。
 func SearchInts(a []int, x int) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
-// SearchFloat64s searches for x in a sorted slice of float64s and returns the index
-// as specified by [Search]. The return value is the index to insert x if x is not
-// present (it could be len(a)).
-// The slice must be sorted in ascending order.
+// SearchFloat64s 在已排序的 float64 切片中搜索 x，并返回如 [Search] 所指定的索引。
+// 如果 x 不存在，返回值是插入 x 的索引（可以是 len(a)）。
+// 切片必须按升序排序。
 func SearchFloat64s(a []float64, x float64) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
-// SearchStrings searches for x in a sorted slice of strings and returns the index
-// as specified by Search. The return value is the index to insert x if x is not
-// present (it could be len(a)).
-// The slice must be sorted in ascending order.
+// SearchStrings 在已排序的 string 切片中搜索 x，并返回如 Search 所指定的索引。
+// 如果 x 不存在，返回值是插入 x 的索引（可以是 len(a)）。
+// 切片必须按升序排序。
 func SearchStrings(a []string, x string) int {
 	return Search(len(a), func(i int) bool { return a[i] >= x })
 }
 
-// Search returns the result of applying [SearchInts] to the receiver and x.
+// Search 返回将 [SearchInts] 应用于接收者和 x 的结果。
 func (p IntSlice) Search(x int) int { return SearchInts(p, x) }
 
-// Search returns the result of applying [SearchFloat64s] to the receiver and x.
+// Search 返回将 [SearchFloat64s] 应用于接收者和 x 的结果。
 func (p Float64Slice) Search(x float64) int { return SearchFloat64s(p, x) }
 
-// Search returns the result of applying [SearchStrings] to the receiver and x.
+// Search 返回将 [SearchStrings] 应用于接收者和 x 的结果。
 func (p StringSlice) Search(x string) int { return SearchStrings(p, x) }

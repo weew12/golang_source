@@ -9,18 +9,15 @@ import (
 	"math/bits"
 )
 
-// Slice sorts the slice x given the provided less function.
-// It panics if x is not a slice.
+// Slice 使用提供的 less 函数对切片 x 进行排序。
+// 如果 x 不是切片，它会 panic。
 //
-// The sort is not guaranteed to be stable: equal elements
-// may be reversed from their original order.
-// For a stable sort, use [SliceStable].
+// 不保证排序是稳定的：相等的元素可能与其原始顺序相反。
+// 要进行稳定排序，请使用 [SliceStable]。
 //
-// The less function must satisfy the same requirements as
-// the Interface type's Less method.
+// less 函数必须满足与 Interface 类型的 Less 方法相同的要求。
 //
-// Note: in many situations, the newer [slices.SortFunc] function is more
-// ergonomic and runs faster.
+// 注意：在许多情况下，更新的 [slices.SortFunc] 函数更加人性化且运行更快。
 func Slice(x any, less func(i, j int) bool) {
 	rv := reflectlite.ValueOf(x)
 	swap := reflectlite.Swapper(x)
@@ -29,26 +26,23 @@ func Slice(x any, less func(i, j int) bool) {
 	pdqsort_func(lessSwap{less, swap}, 0, length, limit)
 }
 
-// SliceStable sorts the slice x using the provided less
-// function, keeping equal elements in their original order.
-// It panics if x is not a slice.
+// SliceStable 使用提供的 less 函数对切片 x 进行排序，
+// 保持相等元素在其原始顺序中。
+// 如果 x 不是切片，它会 panic。
 //
-// The less function must satisfy the same requirements as
-// the Interface type's Less method.
+// less 函数必须满足与 Interface 类型的 Less 方法相同的要求。
 //
-// Note: in many situations, the newer [slices.SortStableFunc] function is more
-// ergonomic and runs faster.
+// 注意：在许多情况下，更新的 [slices.SortStableFunc] 函数更加人性化且运行更快。
 func SliceStable(x any, less func(i, j int) bool) {
 	rv := reflectlite.ValueOf(x)
 	swap := reflectlite.Swapper(x)
 	stable_func(lessSwap{less, swap}, rv.Len())
 }
 
-// SliceIsSorted reports whether the slice x is sorted according to the provided less function.
-// It panics if x is not a slice.
+// SliceIsSorted 报告切片 x 是否根据提供的 less 函数排序。
+// 如果 x 不是切片，它会 panic。
 //
-// Note: in many situations, the newer [slices.IsSortedFunc] function is more
-// ergonomic and runs faster.
+// 注意：在许多情况下，更新的 [slices.IsSortedFunc] 函数更加人性化且运行更快。
 func SliceIsSorted(x any, less func(i, j int) bool) bool {
 	rv := reflectlite.ValueOf(x)
 	n := rv.Len()

@@ -4,7 +4,7 @@
 
 //go:generate go run gen_sort_variants.go
 
-// Package sort provides primitives for sorting slices and user-defined collections.
+// Package sort 为切片和用户自定义集合提供排序原语。
 package sort
 
 import (
@@ -12,41 +12,39 @@ import (
 	"slices"
 )
 
-// An implementation of Interface can be sorted by the routines in this package.
-// The methods refer to elements of the underlying collection by integer index.
+// Interface 的实现可以被本包中的例程排序。
+// 这些方法通过整数索引引用底层集合中的元素。
 type Interface interface {
-	// Len is the number of elements in the collection.
+	// Len 是集合中元素的数量。
 	Len() int
 
-	// Less reports whether the element with index i
-	// must sort before the element with index j.
+	// Less 报告索引为 i 的元素是否必须排在索引为 j 的元素之前。
 	//
-	// If both Less(i, j) and Less(j, i) are false,
-	// then the elements at index i and j are considered equal.
-	// Sort may place equal elements in any order in the final result,
-	// while Stable preserves the original input order of equal elements.
+	// 如果 Less(i, j) 和 Less(j, i) 都为 false，
+	// 则认为索引 i 和 j 处的元素相等。
+	// Sort 可以在最终结果中以任意顺序放置相等的元素，
+	// 而 Stable 会保留相等元素的原始输入顺序。
 	//
-	// Less must describe a [Strict Weak Ordering]. For example:
-	//  - if both Less(i, j) and Less(j, k) are true, then Less(i, k) must be true as well.
-	//  - if both Less(i, j) and Less(j, k) are false, then Less(i, k) must be false as well.
+	// Less 必须描述一个 [严格弱序]。例如：
+	//  - 如果 Less(i, j) 和 Less(j, k) 都为 true，则 Less(i, k) 也必须为 true。
+	//  - 如果 Less(i, j) 和 Less(j, k) 都为 false，则 Less(i, k) 也必须为 false。
 	//
-	// Note that floating-point comparison (the < operator on float32 or float64 values)
-	// is not a strict weak ordering when not-a-number (NaN) values are involved.
-	// See Float64Slice.Less for a correct implementation for floating-point values.
+	// 注意，当涉及非数字（NaN）值时，浮点数的比较（float32 或 float64 值上的 < 运算符）
+	// 不是严格弱序。
+	// 有关浮点值的正确实现，请参见 Float64Slice.Less。
 	//
 	// [Strict Weak Ordering]: https://en.wikipedia.org/wiki/Weak_ordering#Strict_weak_orderings
 	Less(i, j int) bool
 
-	// Swap swaps the elements with indexes i and j.
+	// Swap 交换索引为 i 和 j 的元素。
 	Swap(i, j int)
 }
 
-// Sort sorts data in ascending order as determined by the Less method.
-// It makes one call to data.Len to determine n and O(n*log(n)) calls to
-// data.Less and data.Swap. The sort is not guaranteed to be stable.
+// Sort 根据 Less 方法确定的方式以升序排序数据。
+// 它调用一次 data.Len 以确定 n，调用 O(n*log(n)) 次
+// data.Less 和 data.Swap。不保证排序是稳定的。
 //
-// Note: in many situations, the newer [slices.SortFunc] function is more
-// ergonomic and runs faster.
+// 注意：在许多情况下，更新的 [slices.SortFunc] 函数更加人性化且运行更快。
 func Sort(data Interface) {
 	n := data.Len()
 	if n <= 1 {
@@ -88,25 +86,24 @@ type lessSwap struct {
 }
 
 type reverse struct {
-	// This embedded Interface permits Reverse to use the methods of
-	// another Interface implementation.
+	// 这个嵌入的 Interface 允许 Reverse 使用
+	// 另一个 Interface 实现的方法。
 	Interface
 }
 
-// Less returns the opposite of the embedded implementation's Less method.
+// Less 返回嵌入实现的 Less 方法的反向结果。
 func (r reverse) Less(i, j int) bool {
 	return r.Interface.Less(j, i)
 }
 
-// Reverse returns the reverse order for data.
+// Reverse 返回数据反序后的顺序。
 func Reverse(data Interface) Interface {
 	return &reverse{data}
 }
 
-// IsSorted reports whether data is sorted.
+// IsSorted 报告数据是否已排序。
 //
-// Note: in many situations, the newer [slices.IsSortedFunc] function is more
-// ergonomic and runs faster.
+// 注意：在许多情况下，更新的 [slices.IsSortedFunc] 函数更加人性化且运行更快。
 func IsSorted(data Interface) bool {
 	n := data.Len()
 	for i := n - 1; i > 0; i-- {
@@ -117,119 +114,114 @@ func IsSorted(data Interface) bool {
 	return true
 }
 
-// Convenience types for common cases
+// 常见用例的便捷类型
 
-// IntSlice attaches the methods of Interface to []int, sorting in increasing order.
+// IntSlice 将 Interface 的方法附加到 []int，按递增顺序排序。
 type IntSlice []int
 
 func (x IntSlice) Len() int           { return len(x) }
 func (x IntSlice) Less(i, j int) bool { return x[i] < x[j] }
 func (x IntSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-// Sort is a convenience method: x.Sort() calls Sort(x).
+// Sort 是一个便捷方法：x.Sort() 调用 Sort(x)。
 func (x IntSlice) Sort() { Sort(x) }
 
-// Float64Slice implements Interface for a []float64, sorting in increasing order,
-// with not-a-number (NaN) values ordered before other values.
+// Float64Slice 实现 []float64 的 Interface，按递增顺序排序，
+// 非数字（NaN）值排在其他值之前。
 type Float64Slice []float64
 
 func (x Float64Slice) Len() int { return len(x) }
 
-// Less reports whether x[i] should be ordered before x[j], as required by the sort Interface.
-// Note that floating-point comparison by itself is not a transitive relation: it does not
-// report a consistent ordering for not-a-number (NaN) values.
-// This implementation of Less places NaN values before any others, by using:
+// Less 报告 x[i] 是否应排在 x[j] 之前，这是 sort Interface 所要求的。
+// 注意，浮点数比较本身不是传递关系：它不能为非数字（NaN）值报告一致的排序。
+// 这个 Less 的实现通过以下方式将 NaN 值放在其他值之前：
 //
 //	x[i] < x[j] || (math.IsNaN(x[i]) && !math.IsNaN(x[j]))
 func (x Float64Slice) Less(i, j int) bool { return x[i] < x[j] || (isNaN(x[i]) && !isNaN(x[j])) }
 func (x Float64Slice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-// isNaN is a copy of math.IsNaN to avoid a dependency on the math package.
+// isNaN 是 math.IsNaN 的副本，以避免对 math 包的依赖。
 func isNaN(f float64) bool {
 	return f != f
 }
 
-// Sort is a convenience method: x.Sort() calls Sort(x).
+// Sort 是一个便捷方法：x.Sort() 调用 Sort(x)。
 func (x Float64Slice) Sort() { Sort(x) }
 
-// StringSlice attaches the methods of Interface to []string, sorting in increasing order.
+// StringSlice 将 Interface 的方法附加到 []string，按递增顺序排序。
 type StringSlice []string
 
 func (x StringSlice) Len() int           { return len(x) }
 func (x StringSlice) Less(i, j int) bool { return x[i] < x[j] }
 func (x StringSlice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-// Sort is a convenience method: x.Sort() calls Sort(x).
+// Sort 是一个便捷方法：x.Sort() 调用 Sort(x)。
 func (x StringSlice) Sort() { Sort(x) }
 
-// Convenience wrappers for common cases
+// 常见用例的便捷封装函数
 
-// Ints sorts a slice of ints in increasing order.
+// Ints 按递增顺序对 int 切片进行排序。
 //
-// Note: as of Go 1.22, this function simply calls [slices.Sort].
+// 注意：从 Go 1.22 开始，此函数直接调用 [slices.Sort]。
 func Ints(x []int) { slices.Sort(x) }
 
-// Float64s sorts a slice of float64s in increasing order.
-// Not-a-number (NaN) values are ordered before other values.
+// Float64s 按递增顺序对 float64 切片进行排序。
+// 非数字（NaN）值排在其他值之前。
 //
-// Note: as of Go 1.22, this function simply calls [slices.Sort].
+// 注意：从 Go 1.22 开始，此函数直接调用 [slices.Sort]。
 func Float64s(x []float64) { slices.Sort(x) }
 
-// Strings sorts a slice of strings in increasing order.
+// Strings 按递增顺序对 string 切片进行排序。
 //
-// Note: as of Go 1.22, this function simply calls [slices.Sort].
+// 注意：从 Go 1.22 开始，此函数直接调用 [slices.Sort]。
 func Strings(x []string) { slices.Sort(x) }
 
-// IntsAreSorted reports whether the slice x is sorted in increasing order.
+// IntsAreSorted 报告 int 切片 x 是否按递增顺序排序。
 //
-// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+// 注意：从 Go 1.22 开始，此函数直接调用 [slices.IsSorted]。
 func IntsAreSorted(x []int) bool { return slices.IsSorted(x) }
 
-// Float64sAreSorted reports whether the slice x is sorted in increasing order,
-// with not-a-number (NaN) values before any other values.
+// Float64sAreSorted 报告 float64 切片 x 是否按递增顺序排序，
+// 非数字（NaN）值排在其他值之前。
 //
-// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+// 注意：从 Go 1.22 开始，此函数直接调用 [slices.IsSorted]。
 func Float64sAreSorted(x []float64) bool { return slices.IsSorted(x) }
 
-// StringsAreSorted reports whether the slice x is sorted in increasing order.
+// StringsAreSorted 报告 string 切片 x 是否按递增顺序排序。
 //
-// Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+// 注意：从 Go 1.22 开始，此函数直接调用 [slices.IsSorted]。
 func StringsAreSorted(x []string) bool { return slices.IsSorted(x) }
 
-// Notes on stable sorting:
-// The used algorithms are simple and provably correct on all input and use
-// only logarithmic additional stack space. They perform well if compared
-// experimentally to other stable in-place sorting algorithms.
+// 稳定排序注意事项：
+// 所使用的算法简单且可在所有输入上证明正确，并且仅使用对数额外栈空间。
+// 与其他稳定原地排序算法相比，它们的性能表现良好。
 //
-// Remarks on other algorithms evaluated:
-//  - GCC's 4.6.3 stable_sort with merge_without_buffer from libstdc++:
-//    Not faster.
-//  - GCC's __rotate for block rotations: Not faster.
-//  - "Practical in-place mergesort" from  Jyrki Katajainen, Tomi A. Pasanen
-//    and Jukka Teuhola; Nordic Journal of Computing 3,1 (1996), 27-40:
-//    The given algorithms are in-place, number of Swap and Assignments
-//    grow as n log n but the algorithm is not stable.
-//  - "Fast Stable In-Place Sorting with O(n) Data Moves" J.I. Munro and
-//    V. Raman in Algorithmica (1996) 16, 115-160:
-//    This algorithm either needs additional 2n bits or works only if there
-//    are enough different elements available to encode some permutations
-//    which have to be undone later (so not stable on any input).
-//  - All the optimal in-place sorting/merging algorithms I found are either
-//    unstable or rely on enough different elements in each step to encode the
-//    performed block rearrangements. See also "In-Place Merging Algorithms",
+// 对其他已评估算法的评价：
+//  - GCC 4.6.3 的 stable_sort（来自 libstdc++ 的 merge_without_buffer）：
+//    不更快。
+//  - GCC 的 __rotate 用于块旋转：不更快。
+//  - Jyrki Katajainen、Tomí A. Pasanen 和 Jukka Teuhola 的"实用原地归并排序"；
+//    Nordic Journal of Computing 3,1 (1996)，27-40：
+//    给出的算法是原地的，Swap 和赋值次数增长为 n log n，但该算法不稳定。
+//  - J.I. Munro 和 V. Raman 的"具有 O(n) 数据移动的快速稳定原地排序"，
+//    发表于 Algorithmica (1996) 16, 115-160：
+//    该算法要么需要额外的 2n 位，要么仅在有足够不同元素可用于编码某些排列时才能工作，
+//    这些排列稍后必须撤消（因此在任何输入上都不稳定）。
+//  - 我发现的所有最佳原地排序/归并算法要么不稳定，
+//    要么在每一步都依赖足够不同的元素来编码所执行的块重排。
+//    另请参见"In-Place Merging Algorithms"，
 //    Denham Coates-Evely, Department of Computer Science, Kings College,
-//    January 2004 and the references in there.
-//  - Often "optimal" algorithms are optimal in the number of assignments
-//    but Interface has only Swap as operation.
+//    2004 年 1 月及其中的参考文献。
+//  - 通常"最佳"算法在赋值次数方面是最优的，
+//    但 Interface 只有 Swap 作为操作。
 
-// Stable sorts data in ascending order as determined by the Less method,
-// while keeping the original order of equal elements.
+// Stable 根据 Less 方法以升序排序数据，
+// 同时保持相等元素的原始顺序。
 //
-// It makes one call to data.Len to determine n, O(n*log(n)) calls to
-// data.Less and O(n*log(n)*log(n)) calls to data.Swap.
+// 它调用一次 data.Len 以确定 n，调用 O(n*log(n)) 次 data.Less
+// 和 O(n*log(n)*log(n)) 次 data.Swap。
 //
-// Note: in many situations, the newer slices.SortStableFunc function is more
-// ergonomic and runs faster.
+// 注意：在许多情况下，更新的 slices.SortStableFunc 函数更加人性化且运行更快。
 func Stable(data Interface) {
 	stable(data, data.Len())
 }
