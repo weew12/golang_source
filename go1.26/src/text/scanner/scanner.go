@@ -623,35 +623,36 @@ func (s *Scanner) scanComment(ch rune) rune {
 func (s *Scanner) Scan() rune {
 	ch := s.Peek()
 
-	// 重置词法记号文本位置
+	// reset token text position
 	s.tokPos = -1
 	s.Line = 0
 
 redo:
-	// 跳过空白字符
+	// skip white space
 	for s.Whitespace&(1<<uint(ch)) != 0 {
 		ch = s.next()
 	}
 
-	// 开始收集词法记号文本
+	// start collecting token text
 	s.tokBuf.Reset()
 	s.tokPos = s.srcPos - s.lastCharLen
 
-	// 设置词法记号位置
-	//（这是 Pos() 中代码的稍微优化版本）
+	// set token position
+	// (this is a slightly optimized version of the code in Pos())
 	s.Offset = s.srcBufOffset + s.tokPos
 	if s.column > 0 {
-		// 常见情况：最后一个字符不是 '\n'
+		// common case: last character was not a '\n'
 		s.Line = s.line
 		s.Column = s.column
 	} else {
-		// 最后一个字符是 '\n'
-		//（由于我们至少调用过一次 next()，我们不可能在源的开头）
+		// last character was a '\n'
+		// (we cannot be at the beginning of the source
+		// since we have called next() at least once)
 		s.Line = s.line - 1
 		s.Column = s.lastLineLen
 	}
 
-	// 确定词法记号值
+	// determine token value
 	tok := ch
 	switch {
 	case s.isIdentRune(ch, 0):
@@ -688,22 +689,30 @@ redo:
 			if isDecimal(ch) && s.Mode&ScanFloats != 0 {
 				tok, ch = s.scanNumber(ch, true)
 			}
-	case '/':
-		ch = s.next()
-		if (ch == '/' || ch == '*') && s.Mode&ScanComments != 0 {
-			if s.Mode&SkipComments != 0 {
-				s.tokPos = -1 // 不收集词法记号文本
+		case '/':
+			ch = s.next()
+			if (ch == '/' || ch == '*') && s.Mode&ScanComments != 0 {
+				if s.Mode&SkipComments != 0 {
+					s.tokPos = -1 // don't collect token text
+					ch = s.scanComment(ch)
+					goto redo
+				}
 				ch = s.scanComment(ch)
-				goto redo
+				tok = Comment
 			}
-			ch = s.scanComment(ch)
-			tok = Comment
+		case '`':
+			if s.Mode&ScanRawStrings != 0 {
+				s.scanRawString()
+				tok = RawString
+			}
+			ch = s.next()
+		default:
+			ch = s.next()
 		}
-		ch = s.next()
-		_ = tok
+
 	}
 
-	// 词法记号文本结束
+	// end of token text
 	s.tokEnd = s.srcPos - s.lastCharLen
 
 	s.ch = ch
