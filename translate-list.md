@@ -19,7 +19,7 @@
 - [X] text/scanner：UTF-8文本的扫描器与分词器
 - [X] text/tabwriter：将制表符列转换为对齐文本的写入过滤器
 - [X] text/template：实现数据驱动的文本生成模板
-- [ ] mime：实现MIME规范部分功能
+- [X] mime：实现MIME规范部分功能
 
 ## 第3部分 数据结构与算法
 
