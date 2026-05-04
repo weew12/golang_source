@@ -13,14 +13,14 @@ import (
 	"io"
 )
 
-// Reader is a quoted-printable decoder.
+// Reader 是 quoted-printable 解码器。
 type Reader struct {
 	br   *bufio.Reader
 	rerr error  // last read error
 	line []byte // to be consumed before more of br
 }
 
-// NewReader returns a quoted-printable reader, decoding from r.
+// NewReader 返回一个 quoted-printable 读取器，从 r 解码。
 func NewReader(r io.Reader) *Reader {
 	return &Reader{
 		br: bufio.NewReader(r),
@@ -33,7 +33,6 @@ func fromHex(b byte) (byte, error) {
 		return b - '0', nil
 	case b >= 'A' && b <= 'F':
 		return b - 'A' + 10, nil
-	// Accept badly encoded bytes.
 	case b >= 'a' && b <= 'f':
 		return b - 'a' + 10, nil
 	}
@@ -69,17 +68,14 @@ var (
 	lwspChar   = " \t"
 )
 
-// Read reads and decodes quoted-printable data from the underlying reader.
+// Read 从底层读取器读取并解码 quoted-printable 数据。
 func (r *Reader) Read(p []byte) (n int, err error) {
-	// Deviations from RFC 2045:
-	// 1. in addition to "=\r\n", "=\n" is also treated as soft line break.
-	// 2. it will pass through a '\r' or '\n' not preceded by '=', consistent
-	//    with other broken QP encoders & decoders.
-	// 3. it accepts soft line-break (=) at end of message (issue 15486); i.e.
-	//    the final byte read from the underlying reader is allowed to be '=',
-	//    and it will be silently ignored.
-	// 4. it takes = as literal = if not followed by two hex digits
-	//    but not at end of line (issue 13219).
+	// 与 RFC 2045 的偏差：
+	// 1. 除 "=\r\n" 外，"=\n" 也被视为软换行。
+	// 2. 它会透传未以 '=' 为前导的 '\r' 或 '\n'，与其它有问题的 QP 编码器/解码器保持一致。
+	// 3. 它接受消息末尾的软换行 (=)（issue 15486）；
+	//    即允许从底层读取器读取的最后一个字节为 '='，它将被静默忽略。
+	// 4. 若 '=' 后未跟两个十六进制数字（但不在行尾），则将其作为字面 '='（issue 13219）。
 	for len(p) > 0 {
 		if len(r.line) == 0 {
 			if r.rerr != nil {
@@ -87,7 +83,7 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 			}
 			r.line, r.rerr = r.br.ReadSlice('\n')
 
-			// Does the line end in CRLF instead of just LF?
+			// 行是以 CRLF 结尾还是仅以 LF 结尾？
 			hasLF := bytes.HasSuffix(r.line, lf)
 			hasCR := bytes.HasSuffix(r.line, crlf)
 			wholeLine := r.line
@@ -115,7 +111,7 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 			b, err = readHexByte(r.line[1:])
 			if err != nil {
 				if len(r.line) >= 2 && r.line[1] != '\r' && r.line[1] != '\n' {
-					// Take the = as a literal =.
+					// 将 '=' 作为字面 '='。
 					b = '='
 					break
 				}

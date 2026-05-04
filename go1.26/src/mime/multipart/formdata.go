@@ -15,20 +15,16 @@ import (
 	"strconv"
 )
 
-// ErrMessageTooLarge is returned by ReadForm if the message form
-// data is too large to be processed.
+// ErrMessageTooLarge 在消息表单数据太大而无法处理时由 ReadForm 返回。
 var ErrMessageTooLarge = errors.New("multipart: message too large")
 
 // TODO(adg,bradfitz): find a way to unify the DoS-prevention strategy here
 // with that of the http package's ParseForm.
 
-// ReadForm parses an entire multipart message whose parts have
-// a Content-Disposition of "form-data".
-// It stores up to maxMemory bytes + 10MB (reserved for non-file parts)
-// in memory. File parts which can't be stored in memory will be stored on
-// disk in temporary files.
-// It returns [ErrMessageTooLarge] if all non-file parts can't be stored in
-// memory.
+// ReadForm 解析整个多部分消息，其部分具有 "form-data" 的 Content-Disposition。
+// 它将最多 maxMemory 字节 + 10MB（为非文件部分保留）存储在内存中。
+// 无法存储在内存中的文件部分将存储在磁盘上的临时文件中。
+// 若所有非文件部分都无法存储在内存中，则返回 [ErrMessageTooLarge]。
 func (r *Reader) ReadForm(maxMemory int64) (*Form, error) {
 	return r.readForm(maxMemory)
 }
@@ -80,19 +76,18 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 		}
 	}()
 
-	// maxFileMemoryBytes is the maximum bytes of file data we will store in memory.
-	// Data past this limit is written to disk.
-	// This limit strictly applies to content, not metadata (filenames, MIME headers, etc.),
-	// since metadata is always stored in memory, not disk.
+	// maxFileMemoryBytes 是我们将存储在内存中的文件数据的最大字节数。
+	// 超过此限制的数据将写入磁盘。
+	// 此限制严格适用于内容，而非元数据（文件名、MIME 头部等），
+	// 因为元数据始终存储在内存中，而非磁盘上。
 	//
-	// maxMemoryBytes is the maximum bytes we will store in memory, including file content,
-	// non-file part values, metadata, and map entry overhead.
+	// maxMemoryBytes 是我们将存储在内存中的最大字节数，包括文件内容、
+	// 非文件部分值、元数据和映射条目开销。
 	//
-	// We reserve an additional 10 MB in maxMemoryBytes for non-file data.
+	// 我们在 maxMemoryBytes 中额外保留 10 MB 用于非文件数据。
 	//
-	// The relationship between these parameters, as well as the overly-large and
-	// unconfigurable 10 MB added on to maxMemory, is unfortunate but difficult to change
-	// within the constraints of the API as documented.
+	// 这些参数之间的关系，以及添加到 maxMemory 上的过大且不可配置的 10 MB，
+	// 是令人遗憾的，但在文档化的 API 约束下很难改变。
 	maxFileMemoryBytes := maxMemory
 	if maxFileMemoryBytes == math.MaxInt64 {
 		maxFileMemoryBytes--
@@ -125,22 +120,20 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 		}
 		filename := p.FileName()
 
-		// Multiple values for the same key (one map entry, longer slice) are cheaper
-		// than the same number of values for different keys (many map entries), but
-		// using a consistent per-value cost for overhead is simpler.
+		// 多个相同键的值（一个 map 条目、较长的切片）比不同键的相同数量的值（许多 map 条目）更便宜，
+		// 但使用一致的每值开销成本更简单。
 		const mapEntryOverhead = 200
 		maxMemoryBytes -= int64(len(name))
 		maxMemoryBytes -= mapEntryOverhead
 		if maxMemoryBytes < 0 {
-			// We can't actually take this path, since nextPart would already have
-			// rejected the MIME headers for being too large. Check anyway.
+			// 我们实际上无法走这条路径，因为 nextPart 已经因为太大而拒绝了 MIME 头部。还是要检查一下。
 			return nil, ErrMessageTooLarge
 		}
 
 		var b bytes.Buffer
 
 		if filename == "" {
-			// value, store as string in memory
+			// 值，存储为内存中的字符串
 			n, err := io.CopyN(&b, p, maxMemoryBytes+1)
 			if err != nil && err != io.EOF {
 				return nil, err
@@ -153,7 +146,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 			continue
 		}
 
-		// file, store in memory or on disk
+		// 文件，存储在内存或磁盘上
 		const fileHeaderSize = 100
 		maxMemoryBytes -= mimeHeaderSize(p.Header)
 		maxMemoryBytes -= mapEntryOverhead
@@ -186,7 +179,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 			if copyBuf == nil {
 				copyBuf = make([]byte, 32*1024) // same buffer size as io.Copy uses
 			}
-			// os.File.ReadFrom will allocate its own copy buffer if we let io.Copy use it.
+			// os.File.ReadFrom 如果我们让 io.Copy 使用它，它会分配自己的复制缓冲区。
 			type writerOnly struct{ io.Writer }
 			remainingSize, err := io.CopyBuffer(writerOnly{file}, p, copyBuf)
 			if err != nil {
@@ -226,17 +219,16 @@ func mimeHeaderSize(h textproto.MIMEHeader) (size int64) {
 	return size
 }
 
-// Form is a parsed multipart form.
-// Its File parts are stored either in memory or on disk,
-// and are accessible via the [*FileHeader]'s Open method.
-// Its Value parts are stored as strings.
-// Both are keyed by field name.
+// Form 是已解析的多部分表单。
+// 其文件部分存储在内存或磁盘上，可通过 [*FileHeader] 的 Open 方法访问。
+// 其值部分存储为字符串。
+// 两者均以字段名作为键。
 type Form struct {
 	Value map[string][]string
 	File  map[string][]*FileHeader
 }
 
-// RemoveAll removes any temporary files associated with a [Form].
+// RemoveAll 删除与 [Form] 关联的所有临时文件。
 func (f *Form) RemoveAll() error {
 	var err error
 	for _, fhs := range f.File {
@@ -252,7 +244,7 @@ func (f *Form) RemoveAll() error {
 	return err
 }
 
-// A FileHeader describes a file part of a multipart request.
+// FileHeader 描述多部分请求的文件部分。
 type FileHeader struct {
 	Filename string
 	Header   textproto.MIMEHeader
@@ -264,7 +256,7 @@ type FileHeader struct {
 	tmpshared bool
 }
 
-// Open opens and returns the [FileHeader]'s associated File.
+// Open 打开并返回与 [FileHeader] 关联的文件。
 func (fh *FileHeader) Open() (File, error) {
 	if b := fh.content; b != nil {
 		r := io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b)))
@@ -281,9 +273,9 @@ func (fh *FileHeader) Open() (File, error) {
 	return os.Open(fh.tmpfile)
 }
 
-// File is an interface to access the file part of a multipart message.
-// Its contents may be either stored in memory or on disk.
-// If stored on disk, the File's underlying concrete type will be an *os.File.
+// File 是访问多部分消息文件部分的接口。
+// 其内容可能存储在内存或磁盘上。
+// 若存储在磁盘上，File 的底层具体类型将为 *os.File。
 type File interface {
 	io.Reader
 	io.ReaderAt

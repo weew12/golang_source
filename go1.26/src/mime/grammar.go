@@ -4,17 +4,16 @@
 
 package mime
 
-// isTSpecial reports whether c is in 'tspecials' as defined by RFC
-// 1521 and RFC 2045.
+// isTSpecial 报告字节 c 是否在 RFC 1521 和 RFC 2045 中定义的 'tspecials' 集合中。
 func isTSpecial(c byte) bool {
 	// tspecials :=  "(" / ")" / "<" / ">" / "@" /
 	//               "," / ";" / ":" / "\" / <">
 	//               "/" / "[" / "]" / "?" / "="
 	//
-	// mask is a 128-bit bitmap with 1s for allowed bytes,
-	// so that the byte c can be tested with a shift and an and.
-	// If c >= 128, then 1<<c and 1<<(c-64) will both be zero,
-	// and this function will return false.
+	// mask 是一个 128 位位图，1 表示允许的字节，
+	// 这样可以通过一次移位和一次与运算来测试字节 c。
+	// 若 c >= 128，则 1<<c 和 1<<(c-64) 都为零，
+	// 该函数将返回 false。
 	const mask = 0 |
 		1<<'(' |
 		1<<')' |
@@ -35,16 +34,15 @@ func isTSpecial(c byte) bool {
 		(uint64(1)<<(c-64))&(mask>>64)) != 0
 }
 
-// isTokenChar reports whether c is in 'token' as defined by RFC
-// 1521 and RFC 2045.
+// isTokenChar 报告字节 c 是否在 RFC 1521 和 RFC 2045 中定义的 'token' 集合中。
 func isTokenChar(c byte) bool {
 	// token := 1*<any (US-ASCII) CHAR except SPACE, CTLs,
 	//             or tspecials>
 	//
-	// mask is a 128-bit bitmap with 1s for allowed bytes,
-	// so that the byte c can be tested with a shift and an and.
-	// If c >= 128, then 1<<c and 1<<(c-64) will both be zero,
-	// and this function will return false.
+	// mask 是一个 128 位位图，1 表示允许的字节，
+	// 这样可以通过一次移位和一次与运算来测试字节 c。
+	// 若 c >= 128，则 1<<c 和 1<<(c-64) 都为零，
+	// 该函数将返回 false。
 	const mask = 0 |
 		(1<<(10)-1)<<'0' |
 		(1<<(26)-1)<<'a' |
@@ -70,8 +68,7 @@ func isTokenChar(c byte) bool {
 		(uint64(1)<<(c-64))&(mask>>64)) != 0
 }
 
-// isToken reports whether s is a 'token' as defined by RFC 1521
-// and RFC 2045.
+// isToken 报告字符串 s 是否为 RFC 1521 和 RFC 2045 中定义的 'token'。
 func isToken(s string) bool {
 	if s == "" {
 		return false

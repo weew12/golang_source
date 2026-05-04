@@ -13,11 +13,9 @@ import (
 	"unicode"
 )
 
-// FormatMediaType serializes mediatype t and the parameters
-// param as a media type conforming to RFC 2045 and RFC 2616.
-// The type and parameter names are written in lower-case.
-// When any of the arguments result in a standard violation then
-// FormatMediaType returns the empty string.
+// FormatMediaType 将媒体类型 t 及参数 param 序列化为符合 RFC 2045 和 RFC 2616 的媒体类型字符串。
+// 类型和参数名以小写形式写出。
+// 当任一参数导致违反标准时，FormatMediaType 返回空字符串。
 func FormatMediaType(t string, param map[string]string) string {
 	var b strings.Builder
 	if major, sub, ok := strings.Cut(t, "/"); !ok {
@@ -124,21 +122,14 @@ var (
 	errUnexpectedContentAfterMediaSubtype = errors.New("mime: unexpected content after media subtype")
 )
 
-// ErrInvalidMediaParameter is returned by [ParseMediaType] if
-// the media type value was found but there was an error parsing
-// the optional parameters
+// ErrInvalidMediaParameter 在找到媒体类型值但解析可选参数出错时由 [ParseMediaType] 返回。
 var ErrInvalidMediaParameter = errors.New("mime: invalid media parameter")
 
-// ParseMediaType parses a media type value and any optional
-// parameters, per RFC 1521.  Media types are the values in
-// Content-Type and Content-Disposition headers (RFC 2183).
-// On success, ParseMediaType returns the media type converted
-// to lowercase and trimmed of white space and a non-nil map.
-// If there is an error parsing the optional parameter,
-// the media type will be returned along with the error
-// [ErrInvalidMediaParameter].
-// The returned map, params, maps from the lowercase
-// attribute to the attribute value with its case preserved.
+// ParseMediaType 解析媒体类型值及其可选参数，依据 RFC 1521。
+// 媒体类型为 Content-Type 和 Content-Disposition 头部中的值（RFC 2183）。
+// 成功时，ParseMediaType 返回转换为小写且去除空白后的媒体类型，以及非空的 params 映射。
+// 解析可选参数出错时，将返回媒体类型及错误 [ErrInvalidMediaParameter]。
+// 返回的映射 params 将小写属性名映射到属性值，属性值的大小写保持不变。
 func ParseMediaType(v string) (mediatype string, params map[string]string, err error) {
 	base, _, _ := strings.Cut(v, ";")
 	mediatype = strings.TrimSpace(strings.ToLower(base))
@@ -150,9 +141,9 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 
 	params = make(map[string]string)
 
-	// Map of base parameter name -> parameter name -> value
-	// for parameters containing a '*' character.
-	// Lazily initialized.
+	// 参数名到参数值映射的基础参数名 -> 参数名 -> 值。
+	// 用于包含 '*' 字符的参数。
+	// 延迟初始化。
 	var continuation map[string]map[string]string
 
 	v = v[len(base):]
@@ -164,11 +155,11 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 		key, value, rest := consumeMediaParam(v)
 		if key == "" {
 			if strings.TrimSpace(rest) == ";" {
-				// Ignore trailing semicolons.
-				// Not an error.
+				// 忽略尾部冒号。
+				// 不是错误。
 				break
 			}
-			// Parse error.
+			// 解析错误。
 			return mediatype, nil, ErrInvalidMediaParameter
 		}
 
@@ -183,15 +174,15 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 			}
 		}
 		if v, exists := pmap[key]; exists && v != value {
-			// Duplicate parameter names are incorrect, but we allow them if they are equal.
+			// 参数名重复是错误的，但若值相同则允许。
 			return "", nil, errDuplicateParamName
 		}
 		pmap[key] = value
 		v = rest
 	}
 
-	// Stitch together any continuations or things with stars
-	// (i.e. RFC 2231 things with stars: "foo*0" or "foo*")
+	// 将任何延续或带星号的部分拼接在一起
+	//（即 RFC 2231 中带星号的 "foo*0" 或 "foo*"）。
 	var buf strings.Builder
 	for key, pieceMap := range continuation {
 		singlePartKey := key + "*"
@@ -241,9 +232,9 @@ func decode2231Enc(v string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	// TODO: ignoring the language part for now. If anybody needs it, we'll
-	// need to decide how to expose it in the API. But I'm not sure
-	// anybody uses it in practice.
+	// TODO: 目前忽略语言部分。如果有人需要，我们会
+	// 决定如何在 API 中暴露它。但我不确定
+	// 实际上有人在使用它。
 	_, extOtherVals, ok := strings.Cut(v, "'")
 	if !ok {
 		return "", false
@@ -252,16 +243,15 @@ func decode2231Enc(v string) (string, bool) {
 	switch charset {
 	case "us-ascii", "utf-8":
 	default:
-		// Empty or unsupported encoding.
+		// 空或不支持的编码。
 		return "", false
 	}
 	return percentHexUnescape(extOtherVals)
 }
 
-// consumeToken consumes a token from the beginning of provided
-// string, per RFC 2045 section 5.1 (referenced from 2183), and return
-// the token consumed and the rest of the string. Returns ("", v) on
-// failure to consume at least one character.
+// consumeToken 从给定字符串开头消耗一个 token，依据 RFC 2045 第 5.1 节（RFC 2183 引用），
+// 并返回消耗的 token 及字符串剩余部分。
+// 若至少未消耗一个字符，则返回 ("", v)。
 func consumeToken(v string) (token, rest string) {
 	for i := range len(v) {
 		if !isTokenChar(v[i]) {
@@ -271,11 +261,9 @@ func consumeToken(v string) (token, rest string) {
 	return v, ""
 }
 
-// consumeValue consumes a "value" per RFC 2045, where a value is
-// either a 'token' or a 'quoted-string'.  On success, consumeValue
-// returns the value consumed (and de-quoted/escaped, if a
-// quoted-string) and the rest of the string. On failure, returns
-// ("", v).
+// consumeValue 依据 RFC 2045 消耗一个"值"，其中值可以是 'token' 或 'quoted-string'。
+// 成功时，consumeValue 返回消耗的值（若是 quoted-string 则进行去引号/转义处理）
+// 及字符串剩余部分。失败时返回 ("", v)。
 func consumeValue(v string) (value, rest string) {
 	if v == "" {
 		return
@@ -291,16 +279,13 @@ func consumeValue(v string) (value, rest string) {
 		if r == '"' {
 			return buffer.String(), v[i+1:]
 		}
-		// When MSIE sends a full file path (in "intranet mode"), it does not
-		// escape backslashes: "C:\dev\go\foo.txt", not "C:\\dev\\go\\foo.txt".
+		// 当 MSIE 以"内网模式"发送完整文件路径时，不会对反斜杠进行转义：
+		// "C:\dev\go\foo.txt"，而非 "C:\\dev\\go\\foo.txt"。
 		//
-		// No known MIME generators emit unnecessary backslash escapes
-		// for simple token characters like numbers and letters.
+		// 据我们所知，没有已知的 MIME 生成器会为简单 token 字符（如数字和字母）发出不必要的反斜杠转义。
 		//
-		// If we see an unnecessary backslash escape, assume it is from MSIE
-		// and intended as a literal backslash. This makes Go servers deal better
-		// with MSIE without affecting the way they handle conforming MIME
-		// generators.
+		// 若我们看到不必要的反斜杠转义，假定它来自 MSIE，意图作为字面反斜杠。
+		// 这使得 Go 服务器能更好地处理 MSIE，同时不影响其处理符合规范的 MIME 生成器的方式。
 		if r == '\\' && i+1 < len(v) && isTSpecial(v[i+1]) {
 			buffer.WriteByte(v[i+1])
 			i++
@@ -311,7 +296,7 @@ func consumeValue(v string) (value, rest string) {
 		}
 		buffer.WriteByte(v[i])
 	}
-	// Did not find end quote.
+	// 未找到结束引号。
 	return "", v
 }
 
@@ -343,7 +328,7 @@ func consumeMediaParam(v string) (param, value, rest string) {
 }
 
 func percentHexUnescape(s string) (string, bool) {
-	// Count %, check that they're well-formed.
+	// 统计 %，并检查其格式是否正确。
 	percents := 0
 	for i := 0; i < len(s); {
 		if s[i] != '%' {

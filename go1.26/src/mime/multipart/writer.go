@@ -16,15 +16,14 @@ import (
 	"strings"
 )
 
-// A Writer generates multipart messages.
+// Writer 生成多部分消息。
 type Writer struct {
 	w        io.Writer
 	boundary string
 	lastpart *part
 }
 
-// NewWriter returns a new multipart [Writer] with a random boundary,
-// writing to w.
+// NewWriter 返回一个新的 multipart [Writer]，带有随机边界，写入到 w。
 func NewWriter(w io.Writer) *Writer {
 	return &Writer{
 		w:        w,
@@ -32,17 +31,15 @@ func NewWriter(w io.Writer) *Writer {
 	}
 }
 
-// Boundary returns the [Writer]'s boundary.
+// Boundary 返回 [Writer] 的边界。
 func (w *Writer) Boundary() string {
 	return w.boundary
 }
 
-// SetBoundary overrides the [Writer]'s default randomly-generated
-// boundary separator with an explicit value.
+// SetBoundary 用显式值覆盖 [Writer] 默认随机生成的边界分隔符。
 //
-// SetBoundary must be called before any parts are created, may only
-// contain certain ASCII characters, and must be non-empty and
-// at most 70 bytes long.
+// SetBoundary 必须在创建任何部分之前调用，只能包含某些 ASCII 字符，
+// 且必须非空且最多 70 字节长。
 func (w *Writer) SetBoundary(boundary string) error {
 	if w.lastpart != nil {
 		return errors.New("mime: SetBoundary called after write")
@@ -70,12 +67,10 @@ func (w *Writer) SetBoundary(boundary string) error {
 	return nil
 }
 
-// FormDataContentType returns the Content-Type for an HTTP
-// multipart/form-data with this [Writer]'s Boundary.
+// FormDataContentType 返回带有此 [Writer] 边界的 HTTP multipart/form-data 的 Content-Type。
 func (w *Writer) FormDataContentType() string {
 	b := w.boundary
-	// We must quote the boundary if it contains any of the
-	// tspecials characters defined by RFC 2045, or space.
+	// 若边界包含任何 RFC 2045 定义的 tspecials 字符或空格，我们必须为其加引号。
 	if strings.ContainsAny(b, `()<>@,;:\"/[]?= `) {
 		b = `"` + b + `"`
 	}
@@ -91,10 +86,8 @@ func randomBoundary() string {
 	return fmt.Sprintf("%x", buf[:])
 }
 
-// CreatePart creates a new multipart section with the provided
-// header. The body of the part should be written to the returned
-// [Writer]. After calling CreatePart, any previous part may no longer
-// be written to.
+// CreatePart 使用提供的标题创建一个新的多部分节。
+// 部分的正文应写入返回的 [Writer]。调用 CreatePart 后，任何先前的部分可能无法再写入。
 func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 	if w.lastpart != nil {
 		if err := w.lastpart.close(); err != nil {
@@ -127,24 +120,20 @@ func (w *Writer) CreatePart(header textproto.MIMEHeader) (io.Writer, error) {
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"", "\r", "%0D", "\n", "%0A")
 
-// escapeQuotes escapes special characters in field parameter values.
+// escapeQuotes 转义字段参数值中的特殊字符。
 //
-// For historical reasons, this uses \ escaping for " and \ characters,
-// and percent encoding for CR and LF.
+// 由于历史原因，这对 " 和 \ 字符使用 \ 转义，对 CR 和 LF 使用百分号编码。
 //
-// The WhatWG specification for form data encoding suggests that we should
-// use percent encoding for " (%22), and should not escape \.
+// WhatWG 表单数据编码规范建议我们使用百分号编码 " (%22)，不应转义 \。
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#multipart/form-data-encoding-algorithm
 //
-// Empirically, as of the time this comment was written, it is necessary
-// to escape \ characters or else Chrome (and possibly other browsers) will
-// interpet the unescaped \ as an escape.
+// 经验性地，在此注释撰写时，有必要转义 \ 字符，
+// 否则 Chrome（可能还有其他浏览器）会将未转义的 \ 解释为转义。
 func escapeQuotes(s string) string {
 	return quoteEscaper.Replace(s)
 }
 
-// CreateFormFile is a convenience wrapper around [Writer.CreatePart]. It creates
-// a new form-data header with the provided field name and file name.
+// CreateFormFile 是 [Writer.CreatePart] 的便捷包装。它使用提供的字段名和文件名创建一个新的 form-data 标题。
 func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition", FileContentDisposition(fieldname, filename))
@@ -152,8 +141,7 @@ func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, error) {
 	return w.CreatePart(h)
 }
 
-// CreateFormField calls [Writer.CreatePart] with a header using the
-// given field name.
+// CreateFormField 使用给定字段名调用 [Writer.CreatePart] 创建标题。
 func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
 	h := make(textproto.MIMEHeader)
 	h.Set("Content-Disposition",
@@ -161,14 +149,13 @@ func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
 	return w.CreatePart(h)
 }
 
-// FileContentDisposition returns the value of a Content-Disposition header
-// with the provided field name and file name.
+// FileContentDisposition 返回具有给定字段名和文件名的 Content-Disposition 头部的值。
 func FileContentDisposition(fieldname, filename string) string {
 	return fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
 		escapeQuotes(fieldname), escapeQuotes(filename))
 }
 
-// WriteField calls [Writer.CreateFormField] and then writes the given value.
+// WriteField 调用 [Writer.CreateFormField] 然后写入给定的值。
 func (w *Writer) WriteField(fieldname, value string) error {
 	p, err := w.CreateFormField(fieldname)
 	if err != nil {
@@ -178,8 +165,7 @@ func (w *Writer) WriteField(fieldname, value string) error {
 	return err
 }
 
-// Close finishes the multipart message and writes the trailing
-// boundary end line to the output.
+// Close 完成多部分消息并将尾部边界结束行写入输出。
 func (w *Writer) Close() error {
 	if w.lastpart != nil {
 		if err := w.lastpart.close(); err != nil {
