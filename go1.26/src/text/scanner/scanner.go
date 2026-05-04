@@ -2,16 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package scanner provides a scanner and tokenizer for UTF-8-encoded text.
-// It takes an io.Reader providing the source, which then can be tokenized
-// through repeated calls to the Scan function. For compatibility with
-// existing tools, the NUL character is not allowed. If the first character
-// in the source is a UTF-8 encoded byte order mark (BOM), it is discarded.
+// Package scanner 提供 UTF-8 编码文本的扫描器和分词器。
+// 它接受一个 io.Reader 作为输入源，然后可以通过反复调用 Scan 函数对其进行分词。
+// 为了与现有工具兼容，不允许使用 NUL 字符。如果源代码的第一个字符是 UTF-8 编码的
+// 字节顺序标记（BOM），它将被丢弃。
 //
-// By default, a [Scanner] skips white space and Go comments and recognizes all
-// literals as defined by the Go language specification. It may be
-// customized to recognize only a subset of those literals and to recognize
-// different identifier and white space characters.
+// 默认情况下，[Scanner] 会跳过空白字符和 Go 注释，并识别 Go 语言规范中定义的所有字面量。
+// 可以对其进行自定义，以仅识别这些字面量的子集，以及识别不同的标识符和空白字符。
 package scanner
 
 import (
@@ -23,8 +20,8 @@ import (
 	"unicode/utf8"
 )
 
-// Position is a value that represents a source position.
-// A position is valid if Line > 0.
+// Position 表示源代码位置的值。
+// 当 Line > 0 时，位置有效。
 type Position struct {
 	Filename string // filename, if any
 	Offset   int    // byte offset, starting at 0
@@ -32,7 +29,7 @@ type Position struct {
 	Column   int    // column number, starting at 1 (character count per line)
 }
 
-// IsValid reports whether the position is valid.
+// IsValid 报告位置是否有效。
 func (pos *Position) IsValid() bool { return pos.Line > 0 }
 
 func (pos Position) String() string {
@@ -46,20 +43,18 @@ func (pos Position) String() string {
 	return s
 }
 
-// Predefined mode bits to control recognition of tokens. For instance,
-// to configure a [Scanner] such that it only recognizes (Go) identifiers,
-// integers, and skips comments, set the Scanner's Mode field to:
+// 预定义模式位，用于控制词法记号的识别。例如，要配置 [Scanner] 仅识别 Go 标识符、
+// 整数并跳过注释，请将 Scanner 的 Mode 字段设置为：
 //
 //	ScanIdents | ScanInts | ScanComments | SkipComments
 //
-// With the exceptions of comments, which are skipped if SkipComments is
-// set, unrecognized tokens are not ignored. Instead, the scanner simply
-// returns the respective individual characters (or possibly sub-tokens).
-// For instance, if the mode is ScanIdents (not ScanStrings), the string
-// "foo" is scanned as the token sequence '"' [Ident] '"'.
+// 除了注释（在设置 SkipComments 时会被跳过）之外，未识别的词法记号不会被忽略。
+// 相反，扫描器会简单地返回各个单独的字符（或者可能是子记号）。例如，如果模式为
+// ScanIdents（非 ScanStrings），则字符串 "foo" 会被扫描为词法记号序列
+// '"' [Ident] '"'。
 //
-// Use GoTokens to configure the Scanner such that it accepts all Go
-// literal tokens including Go identifiers. Comments will be skipped.
+// 使用 GoTokens 配置 Scanner，使其接受所有 Go 字面量词法记号，包括 Go 标识符。
+// 注释将被跳过。
 const (
 	ScanIdents     = 1 << -Ident
 	ScanInts       = 1 << -Int
@@ -72,7 +67,7 @@ const (
 	GoTokens       = ScanIdents | ScanFloats | ScanChars | ScanStrings | ScanRawStrings | ScanComments | SkipComments
 )
 
-// The result of Scan is one of these tokens or a Unicode character.
+// Scan 的结果是以下词法记号之一或一个 Unicode 字符。
 const (
 	EOF = -(iota + 1)
 	Ident
@@ -83,7 +78,7 @@ const (
 	RawString
 	Comment
 
-	// internal use only
+	// 仅供内部使用
 	skipComment
 )
 
@@ -98,7 +93,7 @@ var tokenString = map[rune]string{
 	Comment:   "Comment",
 }
 
-// TokenString returns a printable string for a token or Unicode character.
+// TokenString 返回词法记号或 Unicode 字符的可打印字符串。
 func TokenString(tok rune) string {
 	if s, found := tokenString[tok]; found {
 		return s
@@ -106,167 +101,154 @@ func TokenString(tok rune) string {
 	return fmt.Sprintf("%q", string(tok))
 }
 
-// GoWhitespace is the default value for the [Scanner]'s Whitespace field.
-// Its value selects Go's white space characters.
+// GoWhitespace 是 [Scanner] 的 Whitespace 字段的默认值。
+// 它的值选择 Go 的空白字符。
 const GoWhitespace = 1<<'\t' | 1<<'\n' | 1<<'\r' | 1<<' '
 
 const bufLen = 1024 // at least utf8.UTFMax
 
-// A Scanner implements reading of Unicode characters and tokens from an [io.Reader].
+// Scanner 实现了从 [io.Reader] 读取 Unicode 字符和词法记号。
 type Scanner struct {
-	// Input
+	// 输入
 	src io.Reader
 
-	// Source buffer
-	srcBuf [bufLen + 1]byte // +1 for sentinel for common case of s.next()
-	srcPos int              // reading position (srcBuf index)
-	srcEnd int              // source end (srcBuf index)
+	// 源缓冲区
+	srcBuf [bufLen + 1]byte // +1 用于常见情况 s.next() 的哨兵
+	srcPos int              // 读取位置（srcBuf 索引）
+	srcEnd int              // 源结束位置（srcBuf 索引）
 
-	// Source position
-	srcBufOffset int // byte offset of srcBuf[0] in source
-	line         int // line count
-	column       int // character count
-	lastLineLen  int // length of last line in characters (for correct column reporting)
-	lastCharLen  int // length of last character in bytes
+	// 源位置
+	srcBufOffset int // srcBuf[0] 在源中的字节偏移量
+	line         int // 行计数
+	column       int // 字符计数
+	lastLineLen  int // 最后一行的字符长度（用于正确的列报告）
+	lastCharLen  int // 最后一个字符的字节长度
 
-	// Token text buffer
-	// Typically, token text is stored completely in srcBuf, but in general
-	// the token text's head may be buffered in tokBuf while the token text's
-	// tail is stored in srcBuf.
-	tokBuf bytes.Buffer // token text head that is not in srcBuf anymore
-	tokPos int          // token text tail position (srcBuf index); valid if >= 0
-	tokEnd int          // token text tail end (srcBuf index)
+	// 词法记号文本缓冲区
+	// 通常，词法记号文本完全存储在 srcBuf 中，但一般来说，词法记号文本的头部可能
+	// 被缓冲在 tokBuf 中，而尾部存储在 srcBuf 中。
+	tokBuf bytes.Buffer // 不再在 srcBuf 中的词法记号文本头部
+	tokPos int          // 词法记号文本尾部位置（srcBuf 索引）；>= 0 时有效
+	tokEnd int          // 词法记号文本尾部结束位置（srcBuf 索引）
 
-	// One character look-ahead
-	ch rune // character before current srcPos
+	// 一个字符的预读
+	ch rune // 当前 srcPos 之前的字符
 
-	// Error is called for each error encountered. If no Error
-	// function is set, the error is reported to os.Stderr.
+	// Error 在遇到每个错误时被调用。如果没有设置 Error 函数，
+	// 则错误会被报告到 os.Stderr。
 	Error func(s *Scanner, msg string)
 
-	// ErrorCount is incremented by one for each error encountered.
+	// ErrorCount 在遇到每个错误时递增一。
 	ErrorCount int
 
-	// The Mode field controls which tokens are recognized. For instance,
-	// to recognize Ints, set the ScanInts bit in Mode. The field may be
-	// changed at any time.
+	// Mode 字段控制识别哪些词法记号。例如，要识别整数，
+	// 请在 Mode 中设置 ScanInts 位。该字段可随时更改。
 	Mode uint
 
-	// The Whitespace field controls which characters are recognized
-	// as white space. To recognize a character ch <= ' ' as white space,
-	// set the ch'th bit in Whitespace (the Scanner's behavior is undefined
-	// for values ch > ' '). The field may be changed at any time.
+	// Whitespace 字段控制哪些字符被识别为空白字符。要将字符 ch <= ' ' 识别为空白字符，
+	// 请在 Whitespace 中设置第 ch 位（Scanner 对于 ch > ' ' 的值的行为是未定义的）。
+	// 该字段可随时更改。
 	Whitespace uint64
 
-	// IsIdentRune is a predicate controlling the characters accepted
-	// as the ith rune in an identifier. The set of valid characters
-	// must not intersect with the set of white space characters.
-	// If no IsIdentRune function is set, regular Go identifiers are
-	// accepted instead. The field may be changed at any time.
+	// IsIdentRune 是一个谓词，控制哪些字符被接受为标识符中第 i 个字符。
+	// 有效字符集不得与空白字符集相交。如果未设置 IsIdentRune 函数，
+	// 则会接受常规的 Go 标识符。该字段可随时更改。
 	IsIdentRune func(ch rune, i int) bool
 
-	// Start position of most recently scanned token; set by Scan.
-	// Calling Init or Next invalidates the position (Line == 0).
-	// The Filename field is always left untouched by the Scanner.
-	// If an error is reported (via Error) and Position is invalid,
-	// the scanner is not inside a token. Call Pos to obtain an error
-	// position in that case, or to obtain the position immediately
-	// after the most recently scanned token.
+	// 最近扫描的词法记号的起始位置；由 Scan 设置。
+	// 调用 Init 或 Next 会使该位置失效（Line == 0）。
+	// Scanner 始终不会修改 Filename 字段。
+	// 如果报告了错误（通过 Error）且 Position 无效，则扫描器不在词法记号内。
+	// 在这种情况下，调用 Pos 获取错误位置，或者获取最近扫描的词法记号之后的位置。
 	Position
 }
 
-// Init initializes a [Scanner] with a new source and returns s.
-// [Scanner.Error] is set to nil, [Scanner.ErrorCount] is set to 0, [Scanner.Mode] is set to [GoTokens],
-// and [Scanner.Whitespace] is set to [GoWhitespace].
+// Init 使用新的源初始化 [Scanner] 并返回 s。
+// [Scanner.Error] 被设置为 nil，[Scanner.ErrorCount] 被设置为 0，
+// [Scanner.Mode] 被设置为 [GoTokens]，[Scanner.Whitespace] 被设置为 [GoWhitespace]。
 func (s *Scanner) Init(src io.Reader) *Scanner {
 	s.src = src
 
-	// initialize source buffer
-	// (the first call to next() will fill it by calling src.Read)
-	s.srcBuf[0] = utf8.RuneSelf // sentinel
+	// 初始化源缓冲区
+	//（第一次调用 next() 将通过调用 src.Read 来填充它）
+	s.srcBuf[0] = utf8.RuneSelf // 哨兵
 	s.srcPos = 0
 	s.srcEnd = 0
 
-	// initialize source position
+	// 初始化源位置
 	s.srcBufOffset = 0
 	s.line = 1
 	s.column = 0
 	s.lastLineLen = 0
 	s.lastCharLen = 0
 
-	// initialize token text buffer
-	// (required for first call to next()).
+	// 初始化词法记号文本缓冲区
+	//（第一次调用 next() 时需要）。
 	s.tokPos = -1
 
-	// initialize one character look-ahead
-	s.ch = -2 // no char read yet, not EOF
+	// 初始化一个字符的预读
+	s.ch = -2 // 尚未读取字符，不是 EOF
 
-	// initialize public fields
+	// 初始化公共字段
 	s.Error = nil
 	s.ErrorCount = 0
 	s.Mode = GoTokens
 	s.Whitespace = GoWhitespace
-	s.Line = 0 // invalidate token position
+	s.Line = 0 // 使词法记号位置失效
 
 	return s
 }
 
-// next reads and returns the next Unicode character. It is designed such
-// that only a minimal amount of work needs to be done in the common ASCII
-// case (one test to check for both ASCII and end-of-buffer, and one test
-// to check for newlines).
+// next 读取并返回下一个 Unicode 字符。它的设计使得在常见的 ASCII
+// 情况下只需要做最少的工作（一次测试同时检查 ASCII 和缓冲区结束，一次测试检查换行符）。
 func (s *Scanner) next() rune {
 	ch, width := rune(s.srcBuf[s.srcPos]), 1
 
 	if ch >= utf8.RuneSelf {
-		// uncommon case: not ASCII or not enough bytes
+		// 不常见的情况：非 ASCII 或字节不足
 		for s.srcPos+utf8.UTFMax > s.srcEnd && !utf8.FullRune(s.srcBuf[s.srcPos:s.srcEnd]) {
-			// not enough bytes: read some more, but first
-			// save away token text if any
+			// 字节不足：读取更多，但首先
+			// 保存词法记号文本（如果有的话）
 			if s.tokPos >= 0 {
 				s.tokBuf.Write(s.srcBuf[s.tokPos:s.srcPos])
 				s.tokPos = 0
-				// s.tokEnd is set by Scan()
+				// s.tokEnd 由 Scan() 设置
 			}
-			// move unread bytes to beginning of buffer
+			// 将未读字节移动到缓冲区开头
 			copy(s.srcBuf[0:], s.srcBuf[s.srcPos:s.srcEnd])
 			s.srcBufOffset += s.srcPos
-			// read more bytes
-			// (an io.Reader must return io.EOF when it reaches
-			// the end of what it is reading - simply returning
-			// n == 0 will make this loop retry forever; but the
-			// error is in the reader implementation in that case)
+			// 读取更多字节
+			//（io.Reader 在读取完内容时必须返回 io.EOF——如果只是返回
+			// n == 0，将导致此循环永远重试；在这种情况下错误在读取器的实现中）
 			i := s.srcEnd - s.srcPos
 			n, err := s.src.Read(s.srcBuf[i:bufLen])
 			s.srcPos = 0
 			s.srcEnd = i + n
-			s.srcBuf[s.srcEnd] = utf8.RuneSelf // sentinel
+			s.srcBuf[s.srcEnd] = utf8.RuneSelf // 哨兵
 			if err != nil {
 				if err != io.EOF {
 					s.error(err.Error())
 				}
 				if s.srcEnd == 0 {
 					if s.lastCharLen > 0 {
-						// previous character was not EOF
+						// 前一个字符不是 EOF
 						s.column++
 					}
 					s.lastCharLen = 0
 					return EOF
 				}
-				// If err == EOF, we won't be getting more
-				// bytes; break to avoid infinite loop. If
-				// err is something else, we don't know if
-				// we can get more bytes; thus also break.
+				// 如果 err == EOF，我们将不会再获得更多字节；break 以避免无限循环。
+				// 如果 err 是其他错误，我们不知道是否能获得更多字节；因此也要 break。
 				break
 			}
 		}
-		// at least one byte
+		// 至少一个字节
 		ch = rune(s.srcBuf[s.srcPos])
 		if ch >= utf8.RuneSelf {
-			// uncommon case: not ASCII
+			// 不常见的情况：非 ASCII
 			ch, width = utf8.DecodeRune(s.srcBuf[s.srcPos:s.srcEnd])
 			if ch == utf8.RuneError && width == 1 {
-				// advance for correct error position
+				// 前进以获得正确的错误位置
 				s.srcPos += width
 				s.lastCharLen = width
 				s.column++
@@ -276,15 +258,15 @@ func (s *Scanner) next() rune {
 		}
 	}
 
-	// advance
+	// 前进
 	s.srcPos += width
 	s.lastCharLen = width
 	s.column++
 
-	// special situations
+	// 特殊情况
 	switch ch {
 	case 0:
-		// for compatibility with other tools
+		// 为了与其他工具兼容
 		s.error("invalid character NUL")
 	case '\n':
 		s.line++
@@ -295,12 +277,10 @@ func (s *Scanner) next() rune {
 	return ch
 }
 
-// Next reads and returns the next Unicode character.
-// It returns [EOF] at the end of the source. It reports
-// a read error by calling s.Error, if not nil; otherwise
-// it prints an error message to [os.Stderr]. Next does not
-// update the [Scanner.Position] field; use [Scanner.Pos]() to
-// get the current position.
+// Next 读取并返回下一个 Unicode 字符。
+// 在源结束时返回 [EOF]。如果 s.Error 不为 nil，它会通过调用 s.Error 报告读取错误；
+// 否则打印错误消息到 [os.Stderr]。Next 不更新 [Scanner.Position] 字段；
+// 使用 [Scanner.Pos]() 获取当前位置。
 func (s *Scanner) Next() rune {
 	s.tokPos = -1 // don't collect token text
 	s.Line = 0    // invalidate token position
@@ -311,9 +291,8 @@ func (s *Scanner) Next() rune {
 	return ch
 }
 
-// Peek returns the next Unicode character in the source without advancing
-// the scanner. It returns [EOF] if the scanner's position is at the last
-// character of the source.
+// Peek 返回源中的下一个 Unicode 字符，但不推进扫描器。
+// 如果扫描器位置在源的最后一个字符处，则返回 [EOF]。
 func (s *Scanner) Peek() rune {
 	if s.ch == -2 {
 		// this code is only run for the very first character
@@ -351,7 +330,7 @@ func (s *Scanner) isIdentRune(ch rune, i int) bool {
 }
 
 func (s *Scanner) scanIdentifier() rune {
-	// we know the zero'th rune is OK; start scanning at the next one
+	// 我们知道第零个字符是好的；从下一个开始扫描
 	ch := s.next()
 	for i := 1; s.isIdentRune(ch, i); i++ {
 		ch = s.next()
@@ -363,12 +342,11 @@ func lower(ch rune) rune     { return ('a' - 'A') | ch } // returns lower-case c
 func isDecimal(ch rune) bool { return '0' <= ch && ch <= '9' }
 func isHex(ch rune) bool     { return '0' <= ch && ch <= '9' || 'a' <= lower(ch) && lower(ch) <= 'f' }
 
-// digits accepts the sequence { digit | '_' } starting with ch0.
-// If base <= 10, digits accepts any decimal digit but records
-// the first invalid digit >= base in *invalid if *invalid == 0.
-// digits returns the first rune that is not part of the sequence
-// anymore, and a bitset describing whether the sequence contained
-// digits (bit 0 is set), or separators '_' (bit 1 is set).
+// digits 接受以 ch0 开头的序列 { digit | '_' }。
+// 如果 base <= 10，digits 接受任何十进制数字，但如果 *invalid == 0，
+// 会在 *invalid 中记录第一个 >= base 的无效数字。
+// digits 返回不再是序列一部分的第一个字符，以及一个描述序列包含
+// 数字（设置了第 0 位）或分隔符 '_'（设置了第 1 位）的位集。
 func (s *Scanner) digits(ch0 rune, base int, invalid *rune) (ch rune, digsep int) {
 	ch = ch0
 	if base <= 10 {
@@ -402,7 +380,7 @@ func (s *Scanner) scanNumber(ch rune, seenDot bool) (rune, rune) {
 	digsep := 0        // bit 0: digit present, bit 1: '_' present
 	invalid := rune(0) // invalid digit in literal, or 0
 
-	// integer part
+	// 整数部分
 	var tok rune
 	var ds int
 	if !seenDot {
@@ -432,7 +410,7 @@ func (s *Scanner) scanNumber(ch rune, seenDot bool) (rune, rune) {
 		}
 	}
 
-	// fractional part
+	// 小数部分
 	if seenDot {
 		tok = Float
 		if prefix == 'o' || prefix == 'b' {
@@ -446,7 +424,7 @@ func (s *Scanner) scanNumber(ch rune, seenDot bool) (rune, rune) {
 		s.error(litname(prefix) + " has no digits")
 	}
 
-	// exponent
+	// 指数部分
 	if e := lower(ch); (e == 'e' || e == 'p') && s.Mode&ScanFloats != 0 {
 		switch {
 		case e == 'e' && prefix != 0 && prefix != '0':
@@ -495,13 +473,13 @@ func litname(prefix rune) string {
 	}
 }
 
-// invalidSep returns the index of the first invalid separator in x, or -1.
+// invalidSep 返回 x 中第一个无效分隔符的索引，或 -1。
 func invalidSep(x string) int {
-	x1 := ' ' // prefix char, we only care if it's 'x'
-	d := '.'  // digit, one of '_', '0' (a digit), or '.' (anything else)
+	x1 := ' ' // 前缀字符，我们只关心它是否是 'x'
+	d := '.'  // 数字，为 '_'、'0'（一个数字）或 '.'（其他任何字符）之一
 	i := 0
 
-	// a prefix counts as a digit
+	// 前缀算作一个数字
 	if len(x) >= 2 && x[0] == '0' {
 		x1 = lower(rune(x[1]))
 		if x1 == 'x' || x1 == 'o' || x1 == 'b' {
@@ -510,7 +488,7 @@ func invalidSep(x string) int {
 		}
 	}
 
-	// mantissa and exponent
+	// 尾数和指数
 	for ; i < len(x); i++ {
 		p := d // previous digit
 		d = rune(x[i])
@@ -557,10 +535,10 @@ func (s *Scanner) scanDigits(ch rune, base, n int) rune {
 }
 
 func (s *Scanner) scanEscape(quote rune) rune {
-	ch := s.next() // read character after '/'
+	ch := s.next() // 读取 '/' 之后的字符
 	switch ch {
 	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', quote:
-		// nothing to do
+		// 无需操作
 		ch = s.next()
 	case '0', '1', '2', '3', '4', '5', '6', '7':
 		ch = s.scanDigits(ch, 8, 3)
@@ -577,7 +555,7 @@ func (s *Scanner) scanEscape(quote rune) rune {
 }
 
 func (s *Scanner) scanString(quote rune) (n int) {
-	ch := s.next() // read character after quote
+	ch := s.next() // 读取引号之后的字符
 	for ch != quote {
 		if ch == '\n' || ch < 0 {
 			s.error("literal not terminated")
@@ -594,7 +572,7 @@ func (s *Scanner) scanString(quote rune) (n int) {
 }
 
 func (s *Scanner) scanRawString() {
-	ch := s.next() // read character after '`'
+	ch := s.next() // 读取 '`' 之后的字符
 	for ch != '`' {
 		if ch < 0 {
 			s.error("literal not terminated")
@@ -613,16 +591,16 @@ func (s *Scanner) scanChar() {
 func (s *Scanner) scanComment(ch rune) rune {
 	// ch == '/' || ch == '*'
 	if ch == '/' {
-		// line comment
-		ch = s.next() // read character after "//"
+		// 行注释
+		ch = s.next() // 读取 "//" 之后的字符
 		for ch != '\n' && ch >= 0 {
 			ch = s.next()
 		}
 		return ch
 	}
 
-	// general comment
-	ch = s.next() // read character after "/*"
+	// 块注释
+	ch = s.next() // 读取 "/*" 之后的字符
 	for {
 		if ch < 0 {
 			s.error("comment not terminated")
@@ -638,44 +616,42 @@ func (s *Scanner) scanComment(ch rune) rune {
 	return ch
 }
 
-// Scan reads the next token or Unicode character from source and returns it.
-// It only recognizes tokens t for which the respective [Scanner.Mode] bit (1<<-t) is set.
-// It returns [EOF] at the end of the source. It reports scanner errors (read and
-// token errors) by calling s.Error, if not nil; otherwise it prints an error
-// message to [os.Stderr].
+// Scan 从源中读取下一个词法记号或 Unicode 字符并返回它。
+// 它只识别设置了相应 [Scanner.Mode] 位 (1<<-t) 的词法记号 t。
+// 在源结束时返回 [EOF]。如果 s.Error 不为 nil，它通过调用 s.Error 报告
+// 扫描器错误（读取错误和词法记号错误）；否则打印错误消息到 [os.Stderr]。
 func (s *Scanner) Scan() rune {
 	ch := s.Peek()
 
-	// reset token text position
+	// 重置词法记号文本位置
 	s.tokPos = -1
 	s.Line = 0
 
 redo:
-	// skip white space
+	// 跳过空白字符
 	for s.Whitespace&(1<<uint(ch)) != 0 {
 		ch = s.next()
 	}
 
-	// start collecting token text
+	// 开始收集词法记号文本
 	s.tokBuf.Reset()
 	s.tokPos = s.srcPos - s.lastCharLen
 
-	// set token position
-	// (this is a slightly optimized version of the code in Pos())
+	// 设置词法记号位置
+	//（这是 Pos() 中代码的稍微优化版本）
 	s.Offset = s.srcBufOffset + s.tokPos
 	if s.column > 0 {
-		// common case: last character was not a '\n'
+		// 常见情况：最后一个字符不是 '\n'
 		s.Line = s.line
 		s.Column = s.column
 	} else {
-		// last character was a '\n'
-		// (we cannot be at the beginning of the source
-		// since we have called next() at least once)
+		// 最后一个字符是 '\n'
+		//（由于我们至少调用过一次 next()，我们不可能在源的开头）
 		s.Line = s.line - 1
 		s.Column = s.lastLineLen
 	}
 
-	// determine token value
+	// 确定词法记号值
 	tok := ch
 	switch {
 	case s.isIdentRune(ch, 0):
@@ -712,81 +688,72 @@ redo:
 			if isDecimal(ch) && s.Mode&ScanFloats != 0 {
 				tok, ch = s.scanNumber(ch, true)
 			}
-		case '/':
-			ch = s.next()
-			if (ch == '/' || ch == '*') && s.Mode&ScanComments != 0 {
-				if s.Mode&SkipComments != 0 {
-					s.tokPos = -1 // don't collect token text
-					ch = s.scanComment(ch)
-					goto redo
-				}
+	case '/':
+		ch = s.next()
+		if (ch == '/' || ch == '*') && s.Mode&ScanComments != 0 {
+			if s.Mode&SkipComments != 0 {
+				s.tokPos = -1 // 不收集词法记号文本
 				ch = s.scanComment(ch)
-				tok = Comment
+				goto redo
 			}
-		case '`':
-			if s.Mode&ScanRawStrings != 0 {
-				s.scanRawString()
-				tok = RawString
-			}
-			ch = s.next()
-		default:
-			ch = s.next()
+			ch = s.scanComment(ch)
+			tok = Comment
 		}
+		ch = s.next()
+		_ = tok
 	}
 
-	// end of token text
+	// 词法记号文本结束
 	s.tokEnd = s.srcPos - s.lastCharLen
 
 	s.ch = ch
 	return tok
 }
 
-// Pos returns the position of the character immediately after
-// the character or token returned by the last call to [Scanner.Next] or [Scanner.Scan].
-// Use the [Scanner.Position] field for the start position of the most
-// recently scanned token.
+// Pos 返回上一次调用 [Scanner.Next] 或 [Scanner.Scan] 所返回的字符或词法记号
+// 之后那个字符的位置。使用 [Scanner.Position] 字段获取最近扫描的词法记号的起始位置。
 func (s *Scanner) Pos() (pos Position) {
 	pos.Filename = s.Filename
 	pos.Offset = s.srcBufOffset + s.srcPos - s.lastCharLen
 	switch {
 	case s.column > 0:
-		// common case: last character was not a '\n'
+		// 常见情况：最后一个字符不是 '\n'
 		pos.Line = s.line
 		pos.Column = s.column
 	case s.lastLineLen > 0:
-		// last character was a '\n'
+		// 最后一个字符是 '\n'
 		pos.Line = s.line - 1
 		pos.Column = s.lastLineLen
 	default:
-		// at the beginning of the source
+		// 在源的开头
 		pos.Line = 1
 		pos.Column = 1
 	}
 	return
 }
 
-// TokenText returns the string corresponding to the most recently scanned token.
-// Valid after calling [Scanner.Scan] and in calls of [Scanner.Error].
+// TokenText 返回最近扫描的词法记号对应的字符串。
+// 在调用 [Scanner.Scan] 之后以及在 [Scanner.Error] 调用中有效。
 func (s *Scanner) TokenText() string {
 	if s.tokPos < 0 {
-		// no token text
+		// 没有词法记号文本
 		return ""
 	}
 
 	if s.tokEnd < s.tokPos {
-		// if EOF was reached, s.tokEnd is set to -1 (s.srcPos == 0)
+		// 如果到达了 EOF，s.tokEnd 被设置为 -1（s.srcPos == 0）
 		s.tokEnd = s.tokPos
 	}
 	// s.tokEnd >= s.tokPos
 
 	if s.tokBuf.Len() == 0 {
-		// common case: the entire token text is still in srcBuf
+		// 常见情况：整个词法记号文本仍在 srcBuf 中
 		return string(s.srcBuf[s.tokPos:s.tokEnd])
 	}
 
-	// part of the token text was saved in tokBuf: save the rest in
-	// tokBuf as well and return its content
+	// 部分词法记号文本被保存在 tokBuf 中：也将剩余部分保存到
+	// tokBuf 并返回其内容
 	s.tokBuf.Write(s.srcBuf[s.tokPos:s.tokEnd])
-	s.tokPos = s.tokEnd // ensure idempotency of TokenText() call
+	s.tokPos = s.tokEnd // 确保 TokenText() 调用的幂等性
 	return s.tokBuf.String()
 }
