@@ -18,7 +18,7 @@ func sais_8_64(text []byte, textMax int, sa, tmp []int64) {
 		panic("suffixarray: misuse of sais_8_64")
 	}
 
-	// Trivial base cases. Sorting 0 or 1 things is easy.
+	// 简单的基本情况。排序 0 或 1 个元素很容易。
 	if len(text) == 0 {
 		return
 	}
@@ -27,26 +27,24 @@ func sais_8_64(text []byte, textMax int, sa, tmp []int64) {
 		return
 	}
 
-	// Establish slices indexed by text character
-	// holding character frequency and bucket-sort offsets.
-	// If there's only enough tmp for one slice,
-	// we make it the bucket offsets and recompute
-	// the character frequency each time we need it.
+	// 建立由文本字符索引的切片，
+	// 持有字符频率和桶排序偏移量。
+	// 如果 tmp 只够一个切片使用，
+	// 我们将它作为桶偏移量，并在每次需要时重新计算字符频率。
 	var freq, bucket []int64
 	if len(tmp) >= 2*textMax {
 		freq, bucket = tmp[:textMax], tmp[textMax:2*textMax]
-		freq[0] = -1 // mark as uninitialized
+		freq[0] = -1 // 标记为未初始化
 	} else {
 		freq, bucket = nil, tmp[:textMax]
 	}
 
-	// The SAIS algorithm.
-	// Each of these calls makes one scan through sa.
-	// See the individual functions for documentation
-	// about each's role in the algorithm.
+	// SAIS 算法。
+	// 每个调用都通过对 sa 的一次扫描实现。
+	// 有关每个函数在算法中的作用，请参见各个函数的文档。
 	numLMS := placeLMS_8_64(text, sa, freq, bucket)
 	if numLMS <= 1 {
-		// 0 or 1 items are already sorted. Do nothing.
+		// 0 或 1 个元素已排序。什么都不做。
 	} else {
 		induceSubL_8_64(text, sa, freq, bucket)
 		induceSubS_8_64(text, sa, freq, bucket)
@@ -57,13 +55,10 @@ func sais_8_64(text []byte, textMax int, sa, tmp []int64) {
 			recurse_64(sa, tmp, numLMS, maxID)
 			unmap_8_64(text, sa, numLMS)
 		} else {
-			// If maxID == numLMS, then each LMS-substring
-			// is unique, so the relative ordering of two LMS-suffixes
-			// is determined by just the leading LMS-substring.
-			// That is, the LMS-suffix sort order matches the
-			// (simpler) LMS-substring sort order.
-			// Copy the original LMS-substring order into the
-			// suffix array destination.
+			// 如果 maxID == numLMS，则每个 LMS 子串都是唯一的，
+			// 所以两个 LMS 后缀的相对顺序由前导 LMS 子串决定。
+			// 也就是说，LMS 后缀排序顺序与（更简单的）LMS 子串排序顺序匹配。
+			// 将原始 LMS 子串顺序复制到后缀数组目标位置。
 			copy(sa, sa[len(sa)-numLMS:])
 		}
 		expand_8_64(text, freq, bucket, sa, numLMS)
@@ -71,7 +66,7 @@ func sais_8_64(text []byte, textMax int, sa, tmp []int64) {
 	induceL_8_64(text, sa, freq, bucket)
 	induceS_8_64(text, sa, freq, bucket)
 
-	// Mark for caller that we overwrote tmp.
+	// 标记给调用者我们覆盖了 tmp。
 	tmp[0] = -1
 }
 
@@ -80,7 +75,7 @@ func sais_32(text []int32, textMax int, sa, tmp []int32) {
 		panic("suffixarray: misuse of sais_32")
 	}
 
-	// Trivial base cases. Sorting 0 or 1 things is easy.
+	// 简单的基本情况。排序 0 或 1 个元素很容易。
 	if len(text) == 0 {
 		return
 	}
@@ -89,26 +84,24 @@ func sais_32(text []int32, textMax int, sa, tmp []int32) {
 		return
 	}
 
-	// Establish slices indexed by text character
-	// holding character frequency and bucket-sort offsets.
-	// If there's only enough tmp for one slice,
-	// we make it the bucket offsets and recompute
-	// the character frequency each time we need it.
+	// 建立由文本字符索引的切片，
+	// 持有字符频率和桶排序偏移量。
+	// 如果 tmp 只够一个切片使用，
+	// 我们将它作为桶偏移量，并在每次需要时重新计算字符频率。
 	var freq, bucket []int32
 	if len(tmp) >= 2*textMax {
 		freq, bucket = tmp[:textMax], tmp[textMax:2*textMax]
-		freq[0] = -1 // mark as uninitialized
+		freq[0] = -1 // 标记为未初始化
 	} else {
 		freq, bucket = nil, tmp[:textMax]
 	}
 
-	// The SAIS algorithm.
-	// Each of these calls makes one scan through sa.
-	// See the individual functions for documentation
-	// about each's role in the algorithm.
+	// SAIS 算法。
+	// 每个调用都通过对 sa 的一次扫描实现。
+	// 有关每个函数在算法中的作用，请参见各个函数的文档。
 	numLMS := placeLMS_32(text, sa, freq, bucket)
 	if numLMS <= 1 {
-		// 0 or 1 items are already sorted. Do nothing.
+		// 0 或 1 个元素已排序。什么都不做。
 	} else {
 		induceSubL_32(text, sa, freq, bucket)
 		induceSubS_32(text, sa, freq, bucket)
@@ -119,13 +112,10 @@ func sais_32(text []int32, textMax int, sa, tmp []int32) {
 			recurse_32(sa, tmp, numLMS, maxID)
 			unmap_32(text, sa, numLMS)
 		} else {
-			// If maxID == numLMS, then each LMS-substring
-			// is unique, so the relative ordering of two LMS-suffixes
-			// is determined by just the leading LMS-substring.
-			// That is, the LMS-suffix sort order matches the
-			// (simpler) LMS-substring sort order.
-			// Copy the original LMS-substring order into the
-			// suffix array destination.
+			// 如果 maxID == numLMS，则每个 LMS 子串都是唯一的，
+			// 所以两个 LMS 后缀的相对顺序由前导 LMS 子串决定。
+			// 也就是说，LMS 后缀排序顺序与（更简单的）LMS 子串排序顺序匹配。
+			// 将原始 LMS 子串顺序复制到后缀数组目标位置。
 			copy(sa, sa[len(sa)-numLMS:])
 		}
 		expand_32(text, freq, bucket, sa, numLMS)
@@ -133,7 +123,7 @@ func sais_32(text []int32, textMax int, sa, tmp []int32) {
 	induceL_32(text, sa, freq, bucket)
 	induceS_32(text, sa, freq, bucket)
 
-	// Mark for caller that we overwrote tmp.
+	// 标记给调用者我们覆盖了 tmp。
 	tmp[0] = -1
 }
 
@@ -142,7 +132,7 @@ func sais_64(text []int64, textMax int, sa, tmp []int64) {
 		panic("suffixarray: misuse of sais_64")
 	}
 
-	// Trivial base cases. Sorting 0 or 1 things is easy.
+	// 简单的基本情况。排序 0 或 1 个元素很容易。
 	if len(text) == 0 {
 		return
 	}
@@ -151,26 +141,24 @@ func sais_64(text []int64, textMax int, sa, tmp []int64) {
 		return
 	}
 
-	// Establish slices indexed by text character
-	// holding character frequency and bucket-sort offsets.
-	// If there's only enough tmp for one slice,
-	// we make it the bucket offsets and recompute
-	// the character frequency each time we need it.
+	// 建立由文本字符索引的切片，
+	// 持有字符频率和桶排序偏移量。
+	// 如果 tmp 只够一个切片使用，
+	// 我们将它作为桶偏移量，并在每次需要时重新计算字符频率。
 	var freq, bucket []int64
 	if len(tmp) >= 2*textMax {
 		freq, bucket = tmp[:textMax], tmp[textMax:2*textMax]
-		freq[0] = -1 // mark as uninitialized
+		freq[0] = -1 // 标记为未初始化
 	} else {
 		freq, bucket = nil, tmp[:textMax]
 	}
 
-	// The SAIS algorithm.
-	// Each of these calls makes one scan through sa.
-	// See the individual functions for documentation
-	// about each's role in the algorithm.
+	// SAIS 算法。
+	// 每个调用都通过对 sa 的一次扫描实现。
+	// 有关每个函数在算法中的作用，请参见各个函数的文档。
 	numLMS := placeLMS_64(text, sa, freq, bucket)
 	if numLMS <= 1 {
-		// 0 or 1 items are already sorted. Do nothing.
+		// 0 或 1 个元素已排序。什么都不做。
 	} else {
 		induceSubL_64(text, sa, freq, bucket)
 		induceSubS_64(text, sa, freq, bucket)
@@ -181,13 +169,10 @@ func sais_64(text []int64, textMax int, sa, tmp []int64) {
 			recurse_64(sa, tmp, numLMS, maxID)
 			unmap_64(text, sa, numLMS)
 		} else {
-			// If maxID == numLMS, then each LMS-substring
-			// is unique, so the relative ordering of two LMS-suffixes
-			// is determined by just the leading LMS-substring.
-			// That is, the LMS-suffix sort order matches the
-			// (simpler) LMS-substring sort order.
-			// Copy the original LMS-substring order into the
-			// suffix array destination.
+			// 如果 maxID == numLMS，则每个 LMS 子串都是唯一的，
+			// 所以两个 LMS 后缀的相对顺序由前导 LMS 子串决定。
+			// 也就是说，LMS 后缀排序顺序与（更简单的）LMS 子串排序顺序匹配。
+			// 将原始 LMS 子串顺序复制到后缀数组目标位置。
 			copy(sa, sa[len(sa)-numLMS:])
 		}
 		expand_64(text, freq, bucket, sa, numLMS)
@@ -195,19 +180,19 @@ func sais_64(text []int64, textMax int, sa, tmp []int64) {
 	induceL_64(text, sa, freq, bucket)
 	induceS_64(text, sa, freq, bucket)
 
-	// Mark for caller that we overwrote tmp.
+	// 标记给调用者我们覆盖了 tmp。
 	tmp[0] = -1
 }
 
 func freq_8_64(text []byte, freq, bucket []int64) []int64 {
 	if freq != nil && freq[0] >= 0 {
-		return freq // already computed
+		return freq // 已计算
 	}
 	if freq == nil {
 		freq = bucket
 	}
 
-	freq = freq[:256] // eliminate bounds check for freq[c] below
+	freq = freq[:256] // 消除下面 freq[c] 的边界检查
 	clear(freq)
 	for _, c := range text {
 		freq[c]++
@@ -217,7 +202,7 @@ func freq_8_64(text []byte, freq, bucket []int64) []int64 {
 
 func freq_32(text []int32, freq, bucket []int32) []int32 {
 	if freq != nil && freq[0] >= 0 {
-		return freq // already computed
+		return freq // 已计算
 	}
 	if freq == nil {
 		freq = bucket
@@ -232,7 +217,7 @@ func freq_32(text []int32, freq, bucket []int32) []int32 {
 
 func freq_64(text []int64, freq, bucket []int64) []int64 {
 	if freq != nil && freq[0] >= 0 {
-		return freq // already computed
+		return freq // 已计算
 	}
 	if freq == nil {
 		freq = bucket
@@ -247,8 +232,8 @@ func freq_64(text []int64, freq, bucket []int64) []int64 {
 
 func bucketMin_8_64(text []byte, freq, bucket []int64) {
 	freq = freq_8_64(text, freq, bucket)
-	freq = freq[:256]     // establish len(freq) = 256, so 0 ≤ i < 256 below
-	bucket = bucket[:256] // eliminate bounds check for bucket[i] below
+	freq = freq[:256]     // 确定 len(freq) = 256，所以下面 0 ≤ i < 256
+	bucket = bucket[:256] // 消除下面 bucket[i] 的边界检查
 	total := int64(0)
 	for i, n := range freq {
 		bucket[i] = total
@@ -276,8 +261,8 @@ func bucketMin_64(text []int64, freq, bucket []int64) {
 
 func bucketMax_8_64(text []byte, freq, bucket []int64) {
 	freq = freq_8_64(text, freq, bucket)
-	freq = freq[:256]     // establish len(freq) = 256, so 0 ≤ i < 256 below
-	bucket = bucket[:256] // eliminate bounds check for bucket[i] below
+	freq = freq[:256]     // 确定 len(freq) = 256，所以下面 0 ≤ i < 256
+	bucket = bucket[:256] // 消除下面 bucket[i] 的边界检查
 	total := int64(0)
 	for i, n := range freq {
 		total += n
@@ -308,33 +293,32 @@ func placeLMS_8_64(text []byte, sa, freq, bucket []int64) int {
 
 	numLMS := 0
 	lastB := int64(-1)
-	bucket = bucket[:256] // eliminate bounds check for bucket[c1] below
+	bucket = bucket[:256] // 消除下面 bucket[c1] 的边界检查
 
-	// The next stanza of code (until the blank line) loop backward
-	// over text, stopping to execute a code body at each position i
-	// such that text[i] is an L-character and text[i+1] is an S-character.
-	// That is, i+1 is the position of the start of an LMS-substring.
-	// These could be hoisted out into a function with a callback,
-	// but at a significant speed cost. Instead, we just write these
-	// seven lines a few times in this source file. The copies below
-	// refer back to the pattern established by this original as the
-	// "LMS-substring iterator".
+	// 接下来的这段代码（直到空行）向后遍历 text，
+	// 在每个满足 text[i] 是 L 型字符而 text[i+1] 是 S 型字符的位置 i 处
+	// 执行代码体。
+	// 也就是说，i+1 是 LMS 子串的起始位置。
+	// 这些代码可以提取到一个带有回调函数的函数中，
+	// 但会以显著的速度为代价。相反，我们只是在这个源文件中
+	// 多次编写这七行代码。下面的副本参考了
+	// 这个原始模式，称之为"LMS 子串迭代器"。
 	//
-	// In every scan through the text, c0, c1 are successive characters of text.
-	// In this backward scan, c0 == text[i] and c1 == text[i+1].
-	// By scanning backward, we can keep track of whether the current
-	// position is type-S or type-L according to the usual definition:
+	// 在每次遍历 text 的扫描中，c0、c1 是 text 中连续的字符。
+	// 在这个后向扫描中，c0 == text[i] 而 c1 == text[i+1]。
+	// 通过后向扫描，我们可以根据以下通常的定义
+	// 跟踪当前位置是 S 型还是 L 型：
 	//
-	//	- position len(text) is type S with text[len(text)] == -1 (the sentinel)
-	//	- position i is type S if text[i] < text[i+1], or if text[i] == text[i+1] && i+1 is type S.
-	//	- position i is type L if text[i] > text[i+1], or if text[i] == text[i+1] && i+1 is type L.
+	//	- 位置 len(text) 是 S 型，text[len(text)] == -1（哨兵）
+	//	- 如果 text[i] < text[i+1]，或者 text[i] == text[i+1] 且 i+1 是 S 型，则位置 i 是 S 型。
+	//	- 如果 text[i] > text[i+1]，或者 text[i] == text[i+1] 且 i+1 是 L 型，则位置 i 是 L 型。
 	//
-	// The backward scan lets us maintain the current type,
-	// update it when we see c0 != c1, and otherwise leave it alone.
-	// We want to identify all S positions with a preceding L.
-	// Position len(text) is one such position by definition, but we have
-	// nowhere to write it down, so we eliminate it by untruthfully
-	// setting isTypeS = false at the start of the loop.
+	// 后向扫描让我们能够保持当前的类型，
+	// 当看到 c0 != c1 时更新它，否则保持不变。
+	// 我们想要识别所有前面有 L 的 S 位置。
+	// 根据定义，位置 len(text) 就是这样的位置，但是我们
+	// 没有地方来记录它，所以通过在循环开始时不真实地
+	// 设置 isTypeS = false 来消除它。
 	c0, c1, isTypeS := byte(0), byte(0), false
 	for i := len(text) - 1; i >= 0; i-- {
 		c0, c1 = text[i], c0
@@ -343,7 +327,7 @@ func placeLMS_8_64(text []byte, sa, freq, bucket []int64) int {
 		} else if c0 > c1 && isTypeS {
 			isTypeS = false
 
-			// Bucket the index i+1 for the start of an LMS-substring.
+			// 将索引 i+1 桶排序为 LMS 子串的起始。
 			b := bucket[c1] - 1
 			bucket[c1] = b
 			sa[b] = int64(i + 1)
@@ -352,17 +336,17 @@ func placeLMS_8_64(text []byte, sa, freq, bucket []int64) int {
 		}
 	}
 
-	// We recorded the LMS-substring starts but really want the ends.
-	// Luckily, with two differences, the start indexes and the end indexes are the same.
-	// The first difference is that the rightmost LMS-substring's end index is len(text),
-	// so the caller must pretend that sa[-1] == len(text), as noted above.
-	// The second difference is that the first leftmost LMS-substring start index
-	// does not end an earlier LMS-substring, so as an optimization we can omit
-	// that leftmost LMS-substring start index (the last one we wrote).
+	// 我们记录了 LMS 子串的起始索引，但实际上想要的是结束索引。
+	// 幸运的是，有两个区别，起始索引和结束索引是相同的。
+	// 第一个区别是最右边 LMS 子串的结束索引是 len(text)，
+	// 所以调用者必须假设 sa[-1] == len(text)，如上所述。
+	// 第二个区别是最左边 LMS 子串的起始索引
+	// 不是前一个 LMS 子串的结束索引，
+	// 所以作为优化，我们可以省略最左边的 LMS 子串起始索引（我们写入的最后一个）。
 	//
-	// Exception: if numLMS <= 1, the caller is not going to bother with
-	// the recursion at all and will treat the result as containing LMS-substring starts.
-	// In that case, we don't remove the final entry.
+	// 例外：如果 numLMS <= 1，调用者根本不会进行递归，
+	// 会将结果视为包含 LMS 子串的起始索引。
+	// 在这种情况下，我们不会删除最后一个条目。
 	if numLMS > 1 {
 		sa[lastB] = 0
 	}
@@ -375,31 +359,30 @@ func placeLMS_32(text []int32, sa, freq, bucket []int32) int {
 	numLMS := 0
 	lastB := int32(-1)
 
-	// The next stanza of code (until the blank line) loop backward
-	// over text, stopping to execute a code body at each position i
-	// such that text[i] is an L-character and text[i+1] is an S-character.
-	// That is, i+1 is the position of the start of an LMS-substring.
-	// These could be hoisted out into a function with a callback,
-	// but at a significant speed cost. Instead, we just write these
-	// seven lines a few times in this source file. The copies below
-	// refer back to the pattern established by this original as the
-	// "LMS-substring iterator".
+	// 接下来的这段代码（直到空行）向后遍历 text，
+	// 在每个满足 text[i] 是 L 型字符而 text[i+1] 是 S 型字符的位置 i 处
+	// 执行代码体。
+	// 也就是说，i+1 是 LMS 子串的起始位置。
+	// 这些代码可以提取到一个带有回调函数的函数中，
+	// 但会以显著的速度为代价。相反，我们只是在这个源文件中
+	// 多次编写这七行代码。下面的副本参考了
+	// 这个原始模式，称之为"LMS 子串迭代器"。
 	//
-	// In every scan through the text, c0, c1 are successive characters of text.
-	// In this backward scan, c0 == text[i] and c1 == text[i+1].
-	// By scanning backward, we can keep track of whether the current
-	// position is type-S or type-L according to the usual definition:
+	// 在每次遍历 text 的扫描中，c0、c1 是 text 中连续的字符。
+	// 在这个后向扫描中，c0 == text[i] 而 c1 == text[i+1]。
+	// 通过后向扫描，我们可以根据以下通常的定义
+	// 跟踪当前位置是 S 型还是 L 型：
 	//
-	//	- position len(text) is type S with text[len(text)] == -1 (the sentinel)
-	//	- position i is type S if text[i] < text[i+1], or if text[i] == text[i+1] && i+1 is type S.
-	//	- position i is type L if text[i] > text[i+1], or if text[i] == text[i+1] && i+1 is type L.
+	//	- 位置 len(text) 是 S 型，text[len(text)] == -1（哨兵）
+	//	- 如果 text[i] < text[i+1]，或者 text[i] == text[i+1] 且 i+1 是 S 型，则位置 i 是 S 型。
+	//	- 如果 text[i] > text[i+1]，或者 text[i] == text[i+1] 且 i+1 是 L 型，则位置 i 是 L 型。
 	//
-	// The backward scan lets us maintain the current type,
-	// update it when we see c0 != c1, and otherwise leave it alone.
-	// We want to identify all S positions with a preceding L.
-	// Position len(text) is one such position by definition, but we have
-	// nowhere to write it down, so we eliminate it by untruthfully
-	// setting isTypeS = false at the start of the loop.
+	// 后向扫描让我们能够保持当前的类型，
+	// 当看到 c0 != c1 时更新它，否则保持不变。
+	// 我们想要识别所有前面有 L 的 S 位置。
+	// 根据定义，位置 len(text) 就是这样的位置，但是我们
+	// 没有地方来记录它，所以通过在循环开始时不真实地
+	// 设置 isTypeS = false 来消除它。
 	c0, c1, isTypeS := int32(0), int32(0), false
 	for i := len(text) - 1; i >= 0; i-- {
 		c0, c1 = text[i], c0
@@ -408,7 +391,7 @@ func placeLMS_32(text []int32, sa, freq, bucket []int32) int {
 		} else if c0 > c1 && isTypeS {
 			isTypeS = false
 
-			// Bucket the index i+1 for the start of an LMS-substring.
+			// 将索引 i+1 桶排序为 LMS 子串的起始。
 			b := bucket[c1] - 1
 			bucket[c1] = b
 			sa[b] = int32(i + 1)
@@ -417,17 +400,17 @@ func placeLMS_32(text []int32, sa, freq, bucket []int32) int {
 		}
 	}
 
-	// We recorded the LMS-substring starts but really want the ends.
-	// Luckily, with two differences, the start indexes and the end indexes are the same.
-	// The first difference is that the rightmost LMS-substring's end index is len(text),
-	// so the caller must pretend that sa[-1] == len(text), as noted above.
-	// The second difference is that the first leftmost LMS-substring start index
-	// does not end an earlier LMS-substring, so as an optimization we can omit
-	// that leftmost LMS-substring start index (the last one we wrote).
+	// 我们记录了 LMS 子串的起始索引，但实际上想要的是结束索引。
+	// 幸运的是，有两个区别，起始索引和结束索引是相同的。
+	// 第一个区别是最右边 LMS 子串的结束索引是 len(text)，
+	// 所以调用者必须假设 sa[-1] == len(text)，如上所述。
+	// 第二个区别是最左边 LMS 子串的起始索引
+	// 不是前一个 LMS 子串的结束索引，
+	// 所以作为优化，我们可以省略最左边的 LMS 子串起始索引（我们写入的最后一个）。
 	//
-	// Exception: if numLMS <= 1, the caller is not going to bother with
-	// the recursion at all and will treat the result as containing LMS-substring starts.
-	// In that case, we don't remove the final entry.
+	// 例外：如果 numLMS <= 1，调用者根本不会进行递归，
+	// 会将结果视为包含 LMS 子串的起始索引。
+	// 在这种情况下，我们不会删除最后一个条目。
 	if numLMS > 1 {
 		sa[lastB] = 0
 	}
@@ -440,31 +423,30 @@ func placeLMS_64(text []int64, sa, freq, bucket []int64) int {
 	numLMS := 0
 	lastB := int64(-1)
 
-	// The next stanza of code (until the blank line) loop backward
-	// over text, stopping to execute a code body at each position i
-	// such that text[i] is an L-character and text[i+1] is an S-character.
-	// That is, i+1 is the position of the start of an LMS-substring.
-	// These could be hoisted out into a function with a callback,
-	// but at a significant speed cost. Instead, we just write these
-	// seven lines a few times in this source file. The copies below
-	// refer back to the pattern established by this original as the
-	// "LMS-substring iterator".
+	// 接下来的这段代码（直到空行）向后遍历 text，
+	// 在每个满足 text[i] 是 L 型字符而 text[i+1] 是 S 型字符的位置 i 处
+	// 执行代码体。
+	// 也就是说，i+1 是 LMS 子串的起始位置。
+	// 这些代码可以提取到一个带有回调函数的函数中，
+	// 但会以显著的速度为代价。相反，我们只是在这个源文件中
+	// 多次编写这七行代码。下面的副本参考了
+	// 这个原始模式，称之为"LMS 子串迭代器"。
 	//
-	// In every scan through the text, c0, c1 are successive characters of text.
-	// In this backward scan, c0 == text[i] and c1 == text[i+1].
-	// By scanning backward, we can keep track of whether the current
-	// position is type-S or type-L according to the usual definition:
+	// 在每次遍历 text 的扫描中，c0、c1 是 text 中连续的字符。
+	// 在这个后向扫描中，c0 == text[i] 而 c1 == text[i+1]。
+	// 通过后向扫描，我们可以根据以下通常的定义
+	// 跟踪当前位置是 S 型还是 L 型：
 	//
-	//	- position len(text) is type S with text[len(text)] == -1 (the sentinel)
-	//	- position i is type S if text[i] < text[i+1], or if text[i] == text[i+1] && i+1 is type S.
-	//	- position i is type L if text[i] > text[i+1], or if text[i] == text[i+1] && i+1 is type L.
+	//	- 位置 len(text) 是 S 型，text[len(text)] == -1（哨兵）
+	//	- 如果 text[i] < text[i+1]，或者 text[i] == text[i+1] 且 i+1 是 S 型，则位置 i 是 S 型。
+	//	- 如果 text[i] > text[i+1]，或者 text[i] == text[i+1] 且 i+1 是 L 型，则位置 i 是 L 型。
 	//
-	// The backward scan lets us maintain the current type,
-	// update it when we see c0 != c1, and otherwise leave it alone.
-	// We want to identify all S positions with a preceding L.
-	// Position len(text) is one such position by definition, but we have
-	// nowhere to write it down, so we eliminate it by untruthfully
-	// setting isTypeS = false at the start of the loop.
+	// 后向扫描让我们能够保持当前的类型，
+	// 当看到 c0 != c1 时更新它，否则保持不变。
+	// 我们想要识别所有前面有 L 的 S 位置。
+	// 根据定义，位置 len(text) 就是这样的位置，但是我们
+	// 没有地方来记录它，所以通过在循环开始时不真实地
+	// 设置 isTypeS = false 来消除它。
 	c0, c1, isTypeS := int64(0), int64(0), false
 	for i := len(text) - 1; i >= 0; i-- {
 		c0, c1 = text[i], c0
@@ -473,7 +455,7 @@ func placeLMS_64(text []int64, sa, freq, bucket []int64) int {
 		} else if c0 > c1 && isTypeS {
 			isTypeS = false
 
-			// Bucket the index i+1 for the start of an LMS-substring.
+			// 将索引 i+1 桶排序为 LMS 子串的起始。
 			b := bucket[c1] - 1
 			bucket[c1] = b
 			sa[b] = int64(i + 1)
@@ -482,17 +464,17 @@ func placeLMS_64(text []int64, sa, freq, bucket []int64) int {
 		}
 	}
 
-	// We recorded the LMS-substring starts but really want the ends.
-	// Luckily, with two differences, the start indexes and the end indexes are the same.
-	// The first difference is that the rightmost LMS-substring's end index is len(text),
-	// so the caller must pretend that sa[-1] == len(text), as noted above.
-	// The second difference is that the first leftmost LMS-substring start index
-	// does not end an earlier LMS-substring, so as an optimization we can omit
-	// that leftmost LMS-substring start index (the last one we wrote).
+	// 我们记录了 LMS 子串的起始索引，但实际上想要的是结束索引。
+	// 幸运的是，有两个区别，起始索引和结束索引是相同的。
+	// 第一个区别是最右边 LMS 子串的结束索引是 len(text)，
+	// 所以调用者必须假设 sa[-1] == len(text)，如上所述。
+	// 第二个区别是最左边 LMS 子串的起始索引
+	// 不是前一个 LMS 子串的结束索引，
+	// 所以作为优化，我们可以省略最左边的 LMS 子串起始索引（我们写入的最后一个）。
 	//
-	// Exception: if numLMS <= 1, the caller is not going to bother with
-	// the recursion at all and will treat the result as containing LMS-substring starts.
-	// In that case, we don't remove the final entry.
+	// 例外：如果 numLMS <= 1，调用者根本不会进行递归，
+	// 会将结果视为包含 LMS 子串的起始索引。
+	// 在这种情况下，我们不会删除最后一个条目。
 	if numLMS > 1 {
 		sa[lastB] = 0
 	}
@@ -500,45 +482,43 @@ func placeLMS_64(text []int64, sa, freq, bucket []int64) int {
 }
 
 func induceSubL_8_64(text []byte, sa, freq, bucket []int64) {
-	// Initialize positions for left side of character buckets.
+	// 初始化字符桶左侧的位置。
 	bucketMin_8_64(text, freq, bucket)
-	bucket = bucket[:256] // eliminate bounds check for bucket[cB] below
+	bucket = bucket[:256] // 消除下面 bucket[cB] 的边界检查
 
-	// As we scan the array left-to-right, each sa[i] = j > 0 is a correctly
-	// sorted suffix array entry (for text[j:]) for which we know that j-1 is type L.
-	// Because j-1 is type L, inserting it into sa now will sort it correctly.
-	// But we want to distinguish a j-1 with j-2 of type L from type S.
-	// We can process the former but want to leave the latter for the caller.
-	// We record the difference by negating j-1 if it is preceded by type S.
-	// Either way, the insertion (into the text[j-1] bucket) is guaranteed to
-	// happen at sa[i´] for some i´ > i, that is, in the portion of sa we have
-	// yet to scan. A single pass therefore sees indexes j, j-1, j-2, j-3,
-	// and so on, in sorted but not necessarily adjacent order, until it finds
-	// one preceded by an index of type S, at which point it must stop.
+	// 当我们从左到右扫描数组时，每个 sa[i] = j > 0 是一个正确的
+	// 排序后缀数组条目（对于 text[j:]），我们知道 j-1 是 L 型。
+	// 因为 j-1 是 L 型，现在将它插入 sa 会正确排序。
+	// 但我们想要区分 j-1 前面是 L 型还是 S 型的情况。
+	// 如果 j-1 前面是 S 型，我们可以通过取反 j-1 来记录区别，
+	// 这样调用者就能跳过它。
+	// 无论哪种情况，插入（到 text[j-1] 桶中）保证会
+	// 发生在 sa[i´] 处，其中 i´ > i，也就是说，在尚未扫描的 sa 部分中。
+	// 因此单次扫描会按排序但不一定相邻的顺序看到索引 j、j-1、j-2、j-3，
+	// 等等，直到找到一个前面是 S 型索引的索引，此时它必须停止。
 	//
-	// As we scan through the array, we clear the worked entries (sa[i] > 0) to zero,
-	// and we flip sa[i] < 0 to -sa[i], so that the loop finishes with sa containing
-	// only the indexes of the leftmost L-type indexes for each LMS-substring.
+	// 当我们遍历数组时，我们清除已处理的条目（sa[i] > 0）为零，
+	// 并将 sa[i] < 0 翻转为 -sa[i]，
+	// 以便循环结束时 sa 只包含每个 LMS 子串最左边的 L 型索引。
 	//
-	// The suffix array sa therefore serves simultaneously as input, output,
-	// and a miraculously well-tailored work queue.
+	// 因此，后缀数组 sa 同时充当输入、输出
+	// 以及一个精心设计的工作队列。
 
-	// placeLMS_8_64 left out the implicit entry sa[-1] == len(text),
-	// corresponding to the identified type-L index len(text)-1.
-	// Process it before the left-to-right scan of sa proper.
-	// See body in loop for commentary.
+	// placeLMS_8_64 遗漏了隐含的条目 sa[-1] == len(text)，
+	// 对应于识别的 L 型索引 len(text)-1。
+	// 在从左到右正式扫描 sa 之前处理它。
+	// 参见循环中的正文注释。
 	k := len(text) - 1
 	c0, c1 := text[k-1], text[k]
 	if c0 < c1 {
 		k = -k
 	}
 
-	// Cache recently used bucket index:
-	// we're processing suffixes in sorted order
-	// and accessing buckets indexed by the
-	// byte before the sorted order, which still
-	// has very good locality.
-	// Invariant: b is cached, possibly dirty copy of bucket[cB].
+	// 缓存最近使用的桶索引：
+	// 我们按排序顺序处理后缀，
+	// 访问由排序顺序前的字节索引的桶，
+	// 这仍然具有非常好的局部性。
+	// 不变式：b 是 bucket[cB] 的缓存，可能是脏拷贝。
 	cB := c1
 	b := bucket[cB]
 	sa[b] = int64(k)
@@ -547,20 +527,20 @@ func induceSubL_8_64(text []byte, sa, freq, bucket []int64) {
 	for i := 0; i < len(sa); i++ {
 		j := int(sa[i])
 		if j == 0 {
-			// Skip empty entry.
+			// 跳过空条目。
 			continue
 		}
 		if j < 0 {
-			// Leave discovered type-S index for caller.
+			// 保留发现 S 型索引给调用者。
 			sa[i] = int64(-j)
 			continue
 		}
 		sa[i] = 0
 
-		// Index j was on work queue, meaning k := j-1 is L-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is L-type, queue k for processing later in this loop.
-		// If k-1 is S-type (text[k-1] < text[k]), queue -k to save for the caller.
+		// 索引 j 在工作队列中，意味着 k := j-1 是 L 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 L 型，将 k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 S 型（text[k-1] < text[k]），将 -k 排队保留给调用者。
 		k := j - 1
 		c0, c1 := text[k-1], text[k]
 		if c0 < c1 {
@@ -578,44 +558,42 @@ func induceSubL_8_64(text []byte, sa, freq, bucket []int64) {
 }
 
 func induceSubL_32(text []int32, sa, freq, bucket []int32) {
-	// Initialize positions for left side of character buckets.
+	// 初始化字符桶左侧的位置。
 	bucketMin_32(text, freq, bucket)
 
-	// As we scan the array left-to-right, each sa[i] = j > 0 is a correctly
-	// sorted suffix array entry (for text[j:]) for which we know that j-1 is type L.
-	// Because j-1 is type L, inserting it into sa now will sort it correctly.
-	// But we want to distinguish a j-1 with j-2 of type L from type S.
-	// We can process the former but want to leave the latter for the caller.
-	// We record the difference by negating j-1 if it is preceded by type S.
-	// Either way, the insertion (into the text[j-1] bucket) is guaranteed to
-	// happen at sa[i´] for some i´ > i, that is, in the portion of sa we have
-	// yet to scan. A single pass therefore sees indexes j, j-1, j-2, j-3,
-	// and so on, in sorted but not necessarily adjacent order, until it finds
-	// one preceded by an index of type S, at which point it must stop.
+	// 当我们从左到右扫描数组时，每个 sa[i] = j > 0 是一个正确的
+	// 排序后缀数组条目（对于 text[j:]），我们知道 j-1 是 L 型。
+	// 因为 j-1 是 L 型，现在将它插入 sa 会正确排序。
+	// 但我们想要区分 j-1 前面是 L 型还是 S 型的情况。
+	// 如果 j-1 前面是 S 型，我们可以通过取反 j-1 来记录区别，
+	// 这样调用者就能跳过它。
+	// 无论哪种情况，插入（到 text[j-1] 桶中）保证会
+	// 发生在 sa[i´] 处，其中 i´ > i，也就是说，在尚未扫描的 sa 部分中。
+	// 因此单次扫描会按排序但不一定相邻的顺序看到索引 j、j-1、j-2、j-3，
+	// 等等，直到找到一个前面是 S 型索引的索引，此时它必须停止。
 	//
-	// As we scan through the array, we clear the worked entries (sa[i] > 0) to zero,
-	// and we flip sa[i] < 0 to -sa[i], so that the loop finishes with sa containing
-	// only the indexes of the leftmost L-type indexes for each LMS-substring.
+	// 当我们遍历数组时，我们清除已处理的条目（sa[i] > 0）为零，
+	// 并将 sa[i] < 0 翻转为 -sa[i]，
+	// 以便循环结束时 sa 只包含每个 LMS 子串最左边的 L 型索引。
 	//
-	// The suffix array sa therefore serves simultaneously as input, output,
-	// and a miraculously well-tailored work queue.
+	// 因此，后缀数组 sa 同时充当输入、输出
+	// 以及一个精心设计的工作队列。
 
-	// placeLMS_32 left out the implicit entry sa[-1] == len(text),
-	// corresponding to the identified type-L index len(text)-1.
-	// Process it before the left-to-right scan of sa proper.
-	// See body in loop for commentary.
+	// placeLMS_32 遗漏了隐含的条目 sa[-1] == len(text)，
+	// 对应于识别的 L 型索引 len(text)-1。
+	// 在从左到右正式扫描 sa 之前处理它。
+	// 参见循环中的正文注释。
 	k := len(text) - 1
 	c0, c1 := text[k-1], text[k]
 	if c0 < c1 {
 		k = -k
 	}
 
-	// Cache recently used bucket index:
-	// we're processing suffixes in sorted order
-	// and accessing buckets indexed by the
-	// int32 before the sorted order, which still
-	// has very good locality.
-	// Invariant: b is cached, possibly dirty copy of bucket[cB].
+	// 缓存最近使用的桶索引：
+	// 我们按排序顺序处理后缀，
+	// 访问由排序顺序前的 int32 索引的桶，
+	// 这仍然具有非常好的局部性。
+	// 不变式：b 是 bucket[cB] 的缓存，可能是脏拷贝。
 	cB := c1
 	b := bucket[cB]
 	sa[b] = int32(k)
@@ -624,20 +602,20 @@ func induceSubL_32(text []int32, sa, freq, bucket []int32) {
 	for i := 0; i < len(sa); i++ {
 		j := int(sa[i])
 		if j == 0 {
-			// Skip empty entry.
+			// 跳过空条目。
 			continue
 		}
 		if j < 0 {
-			// Leave discovered type-S index for caller.
+			// 保留发现 S 型索引给调用者。
 			sa[i] = int32(-j)
 			continue
 		}
 		sa[i] = 0
 
-		// Index j was on work queue, meaning k := j-1 is L-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is L-type, queue k for processing later in this loop.
-		// If k-1 is S-type (text[k-1] < text[k]), queue -k to save for the caller.
+		// 索引 j 在工作队列中，意味着 k := j-1 是 L 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 L 型，将 k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 S 型（text[k-1] < text[k]），将 -k 排队保留给调用者。
 		k := j - 1
 		c0, c1 := text[k-1], text[k]
 		if c0 < c1 {
@@ -655,44 +633,42 @@ func induceSubL_32(text []int32, sa, freq, bucket []int32) {
 }
 
 func induceSubL_64(text []int64, sa, freq, bucket []int64) {
-	// Initialize positions for left side of character buckets.
+	// 初始化字符桶左侧的位置。
 	bucketMin_64(text, freq, bucket)
 
-	// As we scan the array left-to-right, each sa[i] = j > 0 is a correctly
-	// sorted suffix array entry (for text[j:]) for which we know that j-1 is type L.
-	// Because j-1 is type L, inserting it into sa now will sort it correctly.
-	// But we want to distinguish a j-1 with j-2 of type L from type S.
-	// We can process the former but want to leave the latter for the caller.
-	// We record the difference by negating j-1 if it is preceded by type S.
-	// Either way, the insertion (into the text[j-1] bucket) is guaranteed to
-	// happen at sa[i´] for some i´ > i, that is, in the portion of sa we have
-	// yet to scan. A single pass therefore sees indexes j, j-1, j-2, j-3,
-	// and so on, in sorted but not necessarily adjacent order, until it finds
-	// one preceded by an index of type S, at which point it must stop.
+	// 当我们从左到右扫描数组时，每个 sa[i] = j > 0 是一个正确的
+	// 排序后缀数组条目（对于 text[j:]），我们知道 j-1 是 L 型。
+	// 因为 j-1 是 L 型，现在将它插入 sa 会正确排序。
+	// 但我们想要区分 j-1 前面是 L 型还是 S 型的情况。
+	// 如果 j-1 前面是 S 型，我们可以通过取反 j-1 来记录区别，
+	// 这样调用者就能跳过它。
+	// 无论哪种情况，插入（到 text[j-1] 桶中）保证会
+	// 发生在 sa[i´] 处，其中 i´ > i，也就是说，在尚未扫描的 sa 部分中。
+	// 因此单次扫描会按排序但不一定相邻的顺序看到索引 j、j-1、j-2、j-3，
+	// 等等，直到找到一个前面是 S 型索引的索引，此时它必须停止。
 	//
-	// As we scan through the array, we clear the worked entries (sa[i] > 0) to zero,
-	// and we flip sa[i] < 0 to -sa[i], so that the loop finishes with sa containing
-	// only the indexes of the leftmost L-type indexes for each LMS-substring.
+	// 当我们遍历数组时，我们清除已处理的条目（sa[i] > 0）为零，
+	// 并将 sa[i] < 0 翻转为 -sa[i]，
+	// 以便循环结束时 sa 只包含每个 LMS 子串最左边的 L 型索引。
 	//
-	// The suffix array sa therefore serves simultaneously as input, output,
-	// and a miraculously well-tailored work queue.
+	// 因此，后缀数组 sa 同时充当输入、输出
+	// 以及一个精心设计的工作队列。
 
-	// placeLMS_64 left out the implicit entry sa[-1] == len(text),
-	// corresponding to the identified type-L index len(text)-1.
-	// Process it before the left-to-right scan of sa proper.
-	// See body in loop for commentary.
+	// placeLMS_64 遗漏了隐含的条目 sa[-1] == len(text)，
+	// 对应于识别的 L 型索引 len(text)-1。
+	// 在从左到右正式扫描 sa 之前处理它。
+	// 参见循环中的正文注释。
 	k := len(text) - 1
 	c0, c1 := text[k-1], text[k]
 	if c0 < c1 {
 		k = -k
 	}
 
-	// Cache recently used bucket index:
-	// we're processing suffixes in sorted order
-	// and accessing buckets indexed by the
-	// int64 before the sorted order, which still
-	// has very good locality.
-	// Invariant: b is cached, possibly dirty copy of bucket[cB].
+	// 缓存最近使用的桶索引：
+	// 我们按排序顺序处理后缀，
+	// 访问由排序顺序前的 int64 索引的桶，
+	// 这仍然具有非常好的局部性。
+	// 不变式：b 是 bucket[cB] 的缓存，可能是脏拷贝。
 	cB := c1
 	b := bucket[cB]
 	sa[b] = int64(k)
@@ -701,20 +677,20 @@ func induceSubL_64(text []int64, sa, freq, bucket []int64) {
 	for i := 0; i < len(sa); i++ {
 		j := int(sa[i])
 		if j == 0 {
-			// Skip empty entry.
+			// 跳过空条目。
 			continue
 		}
 		if j < 0 {
-			// Leave discovered type-S index for caller.
+			// 保留发现 S 型索引给调用者。
 			sa[i] = int64(-j)
 			continue
 		}
 		sa[i] = 0
 
-		// Index j was on work queue, meaning k := j-1 is L-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is L-type, queue k for processing later in this loop.
-		// If k-1 is S-type (text[k-1] < text[k]), queue -k to save for the caller.
+		// 索引 j 在工作队列中，意味着 k := j-1 是 L 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 L 型，将 k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 S 型（text[k-1] < text[k]），将 -k 排队保留给调用者。
 		k := j - 1
 		c0, c1 := text[k-1], text[k]
 		if c0 < c1 {
@@ -732,30 +708,29 @@ func induceSubL_64(text []int64, sa, freq, bucket []int64) {
 }
 
 func induceSubS_8_64(text []byte, sa, freq, bucket []int64) {
-	// Initialize positions for right side of character buckets.
+	// 初始化字符桶右侧的位置。
 	bucketMax_8_64(text, freq, bucket)
-	bucket = bucket[:256] // eliminate bounds check for bucket[cB] below
+	bucket = bucket[:256] // 消除下面 bucket[cB] 的边界检查
 
-	// Analogous to induceSubL_8_64 above,
-	// as we scan the array right-to-left, each sa[i] = j > 0 is a correctly
-	// sorted suffix array entry (for text[j:]) for which we know that j-1 is type S.
-	// Because j-1 is type S, inserting it into sa now will sort it correctly.
-	// But we want to distinguish a j-1 with j-2 of type S from type L.
-	// We can process the former but want to leave the latter for the caller.
-	// We record the difference by negating j-1 if it is preceded by type L.
-	// Either way, the insertion (into the text[j-1] bucket) is guaranteed to
-	// happen at sa[i´] for some i´ < i, that is, in the portion of sa we have
-	// yet to scan. A single pass therefore sees indexes j, j-1, j-2, j-3,
-	// and so on, in sorted but not necessarily adjacent order, until it finds
-	// one preceded by an index of type L, at which point it must stop.
-	// That index (preceded by one of type L) is an LMS-substring start.
+	// 类似于上面的 induceSubL_8_64，
+	// 当我们从右到左扫描数组时，每个 sa[i] = j > 0 是一个正确的
+	// 排序后缀数组条目（对于 text[j:]），我们知道 j-1 是 S 型。
+	// 因为 j-1 是 S 型，现在将它插入 sa 会正确排序。
+	// 但我们想要区分 j-1 前面是 S 型还是 L 型的情况。
+	// 如果 j-1 前面是 L 型，我们可以通过取反 j-1 来记录区别，
+	// 这样调用者就能跳过它。
+	// 无论哪种情况，插入（到 text[j-1] 桶中）保证会
+	// 发生在 sa[i´] 处，其中 i´ < i，也就是说，在尚未扫描的 sa 部分中。
+	// 因此单次扫描会按排序但不一定相邻的顺序看到索引 j、j-1、j-2、j-3，
+	// 等等，直到找到一个前面是 L 型索引的索引，此时它必须停止。
+	// 那个索引（前面是 L 型）是一个 LMS 子串的起始。
 	//
-	// As we scan through the array, we clear the worked entries (sa[i] > 0) to zero,
-	// and we flip sa[i] < 0 to -sa[i] and compact into the top of sa,
-	// so that the loop finishes with the top of sa containing exactly
-	// the LMS-substring start indexes, sorted by LMS-substring.
+	// 当我们遍历数组时，我们清除已处理的条目（sa[i] > 0）为零，
+	// 并将 sa[i] < 0 翻转为 -sa[i] 并压缩到 sa 的顶部，
+	// 以便循环结束时 sa 的顶部正好包含
+	// LMS 子串起始索引，按 LMS 子串排序。
 
-	// Cache recently used bucket index:
+	// 缓存最近使用的桶索引。
 	cB := byte(0)
 	b := bucket[cB]
 
@@ -763,21 +738,21 @@ func induceSubS_8_64(text []byte, sa, freq, bucket []int64) {
 	for i := len(sa) - 1; i >= 0; i-- {
 		j := int(sa[i])
 		if j == 0 {
-			// Skip empty entry.
+			// 跳过空条目。
 			continue
 		}
 		sa[i] = 0
 		if j < 0 {
-			// Leave discovered LMS-substring start index for caller.
+			// 保留发现的 LMS 子串起始索引给调用者。
 			top--
 			sa[top] = int64(-j)
 			continue
 		}
 
-		// Index j was on work queue, meaning k := j-1 is S-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is S-type, queue k for processing later in this loop.
-		// If k-1 is L-type (text[k-1] > text[k]), queue -k to save for the caller.
+		// 索引 j 在工作队列中，意味着 k := j-1 是 S 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 S 型，将 k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 L 型（text[k-1] > text[k]），将 -k 排队保留给调用者。
 		k := j - 1
 		c1 := text[k]
 		c0 := text[k-1]
@@ -796,29 +771,28 @@ func induceSubS_8_64(text []byte, sa, freq, bucket []int64) {
 }
 
 func induceSubS_32(text []int32, sa, freq, bucket []int32) {
-	// Initialize positions for right side of character buckets.
+	// 初始化字符桶右侧的位置。
 	bucketMax_32(text, freq, bucket)
 
-	// Analogous to induceSubL_32 above,
-	// as we scan the array right-to-left, each sa[i] = j > 0 is a correctly
-	// sorted suffix array entry (for text[j:]) for which we know that j-1 is type S.
-	// Because j-1 is type S, inserting it into sa now will sort it correctly.
-	// But we want to distinguish a j-1 with j-2 of type S from type L.
-	// We can process the former but want to leave the latter for the caller.
-	// We record the difference by negating j-1 if it is preceded by type L.
-	// Either way, the insertion (into the text[j-1] bucket) is guaranteed to
-	// happen at sa[i´] for some i´ < i, that is, in the portion of sa we have
-	// yet to scan. A single pass therefore sees indexes j, j-1, j-2, j-3,
-	// and so on, in sorted but not necessarily adjacent order, until it finds
-	// one preceded by an index of type L, at which point it must stop.
-	// That index (preceded by one of type L) is an LMS-substring start.
+	// 类似于上面的 induceSubL_32，
+	// 当我们从右到左扫描数组时，每个 sa[i] = j > 0 是一个正确的
+	// 排序后缀数组条目（对于 text[j:]），我们知道 j-1 是 S 型。
+	// 因为 j-1 是 S 型，现在将它插入 sa 会正确排序。
+	// 但我们想要区分 j-1 前面是 S 型还是 L 型的情况。
+	// 如果 j-1 前面是 L 型，我们可以通过取反 j-1 来记录区别，
+	// 这样调用者就能跳过它。
+	// 无论哪种情况，插入（到 text[j-1] 桶中）保证会
+	// 发生在 sa[i´] 处，其中 i´ < i，也就是说，在尚未扫描的 sa 部分中。
+	// 因此单次扫描会按排序但不一定相邻的顺序看到索引 j、j-1、j-2、j-3，
+	// 等等，直到找到一个前面是 L 型索引的索引，此时它必须停止。
+	// 那个索引（前面是 L 型）是一个 LMS 子串的起始。
 	//
-	// As we scan through the array, we clear the worked entries (sa[i] > 0) to zero,
-	// and we flip sa[i] < 0 to -sa[i] and compact into the top of sa,
-	// so that the loop finishes with the top of sa containing exactly
-	// the LMS-substring start indexes, sorted by LMS-substring.
+	// 当我们遍历数组时，我们清除已处理的条目（sa[i] > 0）为零，
+	// 并将 sa[i] < 0 翻转为 -sa[i] 并压缩到 sa 的顶部，
+	// 以便循环结束时 sa 的顶部正好包含
+	// LMS 子串起始索引，按 LMS 子串排序。
 
-	// Cache recently used bucket index:
+	// 缓存最近使用的桶索引。
 	cB := int32(0)
 	b := bucket[cB]
 
@@ -826,21 +800,21 @@ func induceSubS_32(text []int32, sa, freq, bucket []int32) {
 	for i := len(sa) - 1; i >= 0; i-- {
 		j := int(sa[i])
 		if j == 0 {
-			// Skip empty entry.
+			// 跳过空条目。
 			continue
 		}
 		sa[i] = 0
 		if j < 0 {
-			// Leave discovered LMS-substring start index for caller.
+			// 保留发现的 LMS 子串起始索引给调用者。
 			top--
 			sa[top] = int32(-j)
 			continue
 		}
 
-		// Index j was on work queue, meaning k := j-1 is S-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is S-type, queue k for processing later in this loop.
-		// If k-1 is L-type (text[k-1] > text[k]), queue -k to save for the caller.
+		// 索引 j 在工作队列中，意味着 k := j-1 是 S 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 S 型，将 k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 L 型（text[k-1] > text[k]），将 -k 排队保留给调用者。
 		k := j - 1
 		c1 := text[k]
 		c0 := text[k-1]
@@ -859,29 +833,28 @@ func induceSubS_32(text []int32, sa, freq, bucket []int32) {
 }
 
 func induceSubS_64(text []int64, sa, freq, bucket []int64) {
-	// Initialize positions for right side of character buckets.
+	// 初始化字符桶右侧的位置。
 	bucketMax_64(text, freq, bucket)
 
-	// Analogous to induceSubL_64 above,
-	// as we scan the array right-to-left, each sa[i] = j > 0 is a correctly
-	// sorted suffix array entry (for text[j:]) for which we know that j-1 is type S.
-	// Because j-1 is type S, inserting it into sa now will sort it correctly.
-	// But we want to distinguish a j-1 with j-2 of type S from type L.
-	// We can process the former but want to leave the latter for the caller.
-	// We record the difference by negating j-1 if it is preceded by type L.
-	// Either way, the insertion (into the text[j-1] bucket) is guaranteed to
-	// happen at sa[i´] for some i´ < i, that is, in the portion of sa we have
-	// yet to scan. A single pass therefore sees indexes j, j-1, j-2, j-3,
-	// and so on, in sorted but not necessarily adjacent order, until it finds
-	// one preceded by an index of type L, at which point it must stop.
-	// That index (preceded by one of type L) is an LMS-substring start.
+	// 类似于上面的 induceSubL_64，
+	// 当我们从右到左扫描数组时，每个 sa[i] = j > 0 是一个正确的
+	// 排序后缀数组条目（对于 text[j:]），我们知道 j-1 是 S 型。
+	// 因为 j-1 是 S 型，现在将它插入 sa 会正确排序。
+	// 但我们想要区分 j-1 前面是 S 型还是 L 型的情况。
+	// 如果 j-1 前面是 L 型，我们可以通过取反 j-1 来记录区别，
+	// 这样调用者就能跳过它。
+	// 无论哪种情况，插入（到 text[j-1] 桶中）保证会
+	// 发生在 sa[i´] 处，其中 i´ < i，也就是说，在尚未扫描的 sa 部分中。
+	// 因此单次扫描会按排序但不一定相邻的顺序看到索引 j、j-1、j-2、j-3，
+	// 等等，直到找到一个前面是 L 型索引的索引，此时它必须停止。
+	// 那个索引（前面是 L 型）是一个 LMS 子串的起始。
 	//
-	// As we scan through the array, we clear the worked entries (sa[i] > 0) to zero,
-	// and we flip sa[i] < 0 to -sa[i] and compact into the top of sa,
-	// so that the loop finishes with the top of sa containing exactly
-	// the LMS-substring start indexes, sorted by LMS-substring.
+	// 当我们遍历数组时，我们清除已处理的条目（sa[i] > 0）为零，
+	// 并将 sa[i] < 0 翻转为 -sa[i] 并压缩到 sa 的顶部，
+	// 以便循环结束时 sa 的顶部正好包含
+	// LMS 子串起始索引，按 LMS 子串排序。
 
-	// Cache recently used bucket index:
+	// 缓存最近使用的桶索引。
 	cB := int64(0)
 	b := bucket[cB]
 
@@ -889,21 +862,21 @@ func induceSubS_64(text []int64, sa, freq, bucket []int64) {
 	for i := len(sa) - 1; i >= 0; i-- {
 		j := int(sa[i])
 		if j == 0 {
-			// Skip empty entry.
+			// 跳过空条目。
 			continue
 		}
 		sa[i] = 0
 		if j < 0 {
-			// Leave discovered LMS-substring start index for caller.
+			// 保留发现的 LMS 子串起始索引给调用者。
 			top--
 			sa[top] = int64(-j)
 			continue
 		}
 
-		// Index j was on work queue, meaning k := j-1 is S-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is S-type, queue k for processing later in this loop.
-		// If k-1 is L-type (text[k-1] > text[k]), queue -k to save for the caller.
+		// 索引 j 在工作队列中，意味着 k := j-1 是 S 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 S 型，将 k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 L 型（text[k-1] > text[k]），将 -k 排队保留给调用者。
 		k := j - 1
 		c1 := text[k]
 		c0 := text[k-1]
@@ -922,29 +895,28 @@ func induceSubS_64(text []int64, sa, freq, bucket []int64) {
 }
 
 func length_8_64(text []byte, sa []int64, numLMS int) {
-	end := 0 // index of current LMS-substring end (0 indicates final LMS-substring)
+	end := 0 // 当前 LMS 子串结尾的索引（0 表示最后一个 LMS 子串）
 
-	// The encoding of N text bytes into a “length” word
-	// adds 1 to each byte, packs them into the bottom
-	// N*8 bits of a word, and then bitwise inverts the result.
-	// That is, the text sequence A B C (hex 41 42 43)
-	// encodes as ^uint64(0x42_43_44).
-	// LMS-substrings can never start or end with 0xFF.
-	// Adding 1 ensures the encoded byte sequence never
-	// starts or ends with 0x00, so that present bytes can be
-	// distinguished from zero-padding in the top bits,
-	// so the length need not be separately encoded.
-	// Inverting the bytes increases the chance that a
-	// 4-byte encoding will still be ≥ len(text).
-	// In particular, if the first byte is ASCII (<= 0x7E, so +1 <= 0x7F)
-	// then the high bit of the inversion will be set,
-	// making it clearly not a valid length (it would be a negative one).
+	// 将 N 个文本字节编码为一个"长度"字，
+	// 对每个字节加 1，将它们打包到字的底部
+	// N*8 位中，然后按位取反结果。
+	// 也就是说，文本序列 A B C（十六进制 41 42 43）
+	// 编码为 ^uint64(0x42_43_44)。
+	// LMS 子串永远不能以 0xFF 开头或结尾。
+	// 加 1 确保编码后的字节序列永远不以 0x00 开头或结尾，
+	// 这样存在的字节就可以与高位的零填充区分开来，
+	// 因此长度不需要单独编码。
+	// 取反字节增加了 4 字节编码仍然 ≥ len(text) 的机会。
+	// 特别是，如果第一个字节是 ASCII（<= 0x7E，所以 +1 <= 0x7F），
+	// 那么取反的高位将被设置，
+	// 使其明显不是有效的长度（它将是负数）。
 	//
-	// cx holds the pre-inverted encoding (the packed incremented bytes).
+	// cx 持有取反前的编码（打包的递增字节）。
 	cx := uint64(0) // byte-only
 
-	// This stanza (until the blank line) is the "LMS-substring iterator",
-	// described in placeLMS_8_64 above, with one line added to maintain cx.
+	// 这一节（直到空行）是"LMS 子串迭代器"，
+	// 在上面 placeLMS_8_64 中描述的，
+	// 添加了一行来维护 cx。
 	c0, c1, isTypeS := byte(0), byte(0), false
 	for i := len(text) - 1; i >= 0; i-- {
 		c0, c1 = text[i], c0
@@ -954,8 +926,8 @@ func length_8_64(text []byte, sa []int64, numLMS int) {
 		} else if c0 > c1 && isTypeS {
 			isTypeS = false
 
-			// Index j = i+1 is the start of an LMS-substring.
-			// Compute length or encoded text to store in sa[j/2].
+			// 索引 j = i+1 是 LMS 子串的开始。
+			// 计算长度或编码文本存储到 sa[j/2] 中。
 			j := i + 1
 			var code int64
 			if end == 0 {
@@ -965,7 +937,7 @@ func length_8_64(text []byte, sa []int64, numLMS int) {
 				if code <= 64/8 && ^cx >= uint64(len(text)) { // byte-only
 					code = int64(^cx) // byte-only
 				} // byte-only
-			}
+}
 			sa[j>>1] = code
 			end = j + 1
 			cx = uint64(c1 + 1) // byte-only
@@ -974,28 +946,27 @@ func length_8_64(text []byte, sa []int64, numLMS int) {
 }
 
 func length_32(text []int32, sa []int32, numLMS int) {
-	end := 0 // index of current LMS-substring end (0 indicates final LMS-substring)
+	end := 0 // 当前 LMS 子串结尾的索引（0 表示最后一个 LMS 子串）
 
-	// The encoding of N text int32s into a “length” word
-	// adds 1 to each int32, packs them into the bottom
-	// N*8 bits of a word, and then bitwise inverts the result.
-	// That is, the text sequence A B C (hex 41 42 43)
-	// encodes as ^uint32(0x42_43_44).
-	// LMS-substrings can never start or end with 0xFF.
-	// Adding 1 ensures the encoded int32 sequence never
-	// starts or ends with 0x00, so that present int32s can be
-	// distinguished from zero-padding in the top bits,
-	// so the length need not be separately encoded.
-	// Inverting the int32s increases the chance that a
-	// 4-int32 encoding will still be ≥ len(text).
-	// In particular, if the first int32 is ASCII (<= 0x7E, so +1 <= 0x7F)
-	// then the high bit of the inversion will be set,
-	// making it clearly not a valid length (it would be a negative one).
+	// 将 N 个文本 int32 编码为一个"长度"字，
+	// 对每个 int32 加 1，将它们打包到字的底部
+	// N*8 位中，然后按位取反结果。
+	// 也就是说，文本序列 A B C（十六进制 41 42 43）
+	// 编码为 ^uint32(0x42_43_44)。
+	// LMS 子串永远不能以 0xFF 开头或结尾。
+	// 加 1 确保编码后的 int32 序列永远不以 0x00 开头或结尾，
+	// 这样存在的 int32 就可以与高位的零填充区分开来，
+	// 因此长度不需要单独编码。
+	// 取反 int32 增加了 4-int32 编码仍然 ≥ len(text) 的机会。
+	// 特别是，如果第一个 int32 是 ASCII（<= 0x7E，所以 +1 <= 0x7F），
+	// 那么取反的高位将被设置，
+	// 使其明显不是有效的长度（它将是负数）。
 	//
-	// cx holds the pre-inverted encoding (the packed incremented int32s).
+	// cx 持有取反前的编码（打包的递增 int32）。
 
-	// This stanza (until the blank line) is the "LMS-substring iterator",
-	// described in placeLMS_32 above, with one line added to maintain cx.
+	// 这一节（直到空行）是"LMS 子串迭代器"，
+	// 在上面 placeLMS_32 中描述的，
+	// 添加了一行来维护 cx。
 	c0, c1, isTypeS := int32(0), int32(0), false
 	for i := len(text) - 1; i >= 0; i-- {
 		c0, c1 = text[i], c0
@@ -1004,15 +975,15 @@ func length_32(text []int32, sa []int32, numLMS int) {
 		} else if c0 > c1 && isTypeS {
 			isTypeS = false
 
-			// Index j = i+1 is the start of an LMS-substring.
-			// Compute length or encoded text to store in sa[j/2].
+			// 索引 j = i+1 是 LMS 子串的开始。
+			// 计算长度或编码文本存储到 sa[j/2] 中。
 			j := i + 1
 			var code int32
 			if end == 0 {
 				code = 0
 			} else {
 				code = int32(end - j)
-			}
+}
 			sa[j>>1] = code
 			end = j + 1
 		}
@@ -1020,28 +991,27 @@ func length_32(text []int32, sa []int32, numLMS int) {
 }
 
 func length_64(text []int64, sa []int64, numLMS int) {
-	end := 0 // index of current LMS-substring end (0 indicates final LMS-substring)
+	end := 0 // 当前 LMS 子串结尾的索引（0 表示最后一个 LMS 子串）
 
-	// The encoding of N text int64s into a “length” word
-	// adds 1 to each int64, packs them into the bottom
-	// N*8 bits of a word, and then bitwise inverts the result.
-	// That is, the text sequence A B C (hex 41 42 43)
-	// encodes as ^uint64(0x42_43_44).
-	// LMS-substrings can never start or end with 0xFF.
-	// Adding 1 ensures the encoded int64 sequence never
-	// starts or ends with 0x00, so that present int64s can be
-	// distinguished from zero-padding in the top bits,
-	// so the length need not be separately encoded.
-	// Inverting the int64s increases the chance that a
-	// 4-int64 encoding will still be ≥ len(text).
-	// In particular, if the first int64 is ASCII (<= 0x7E, so +1 <= 0x7F)
-	// then the high bit of the inversion will be set,
-	// making it clearly not a valid length (it would be a negative one).
+	// 将 N 个文本 int64 编码为一个"长度"字，
+	// 对每个 int64 加 1，将它们打包到字的底部
+	// N*8 位中，然后按位取反结果。
+	// 也就是说，文本序列 A B C（十六进制 41 42 43）
+	// 编码为 ^uint64(0x42_43_44)。
+	// LMS 子串永远不能以 0xFF 开头或结尾。
+	// 加 1 确保编码后的 int64 序列永远不以 0x00 开头或结尾，
+	// 这样存在的 int64 就可以与高位的零填充区分开来，
+	// 因此长度不需要单独编码。
+	// 取反 int64 增加了 4-int64 编码仍然 ≥ len(text) 的机会。
+	// 特别是，如果第一个 int64 是 ASCII（<= 0x7E，所以 +1 <= 0x7F），
+	// 那么取反的高位将被设置，
+	// 使其明显不是有效的长度（它将是负数）。
 	//
-	// cx holds the pre-inverted encoding (the packed incremented int64s).
+	// cx 持有取反前的编码（打包的递增 int64）。
 
-	// This stanza (until the blank line) is the "LMS-substring iterator",
-	// described in placeLMS_64 above, with one line added to maintain cx.
+	// 这一节（直到空行）是"LMS 子串迭代器"，
+	// 在上面 placeLMS_64 中描述的，
+	// 添加了一行来维护 cx。
 	c0, c1, isTypeS := int64(0), int64(0), false
 	for i := len(text) - 1; i >= 0; i-- {
 		c0, c1 = text[i], c0
@@ -1050,15 +1020,15 @@ func length_64(text []int64, sa []int64, numLMS int) {
 		} else if c0 > c1 && isTypeS {
 			isTypeS = false
 
-			// Index j = i+1 is the start of an LMS-substring.
-			// Compute length or encoded text to store in sa[j/2].
+			// 索引 j = i+1 是 LMS 子串的开始。
+			// 计算长度或编码文本存储到 sa[j/2] 中。
 			j := i + 1
 			var code int64
 			if end == 0 {
 				code = 0
 			} else {
 				code = int64(end - j)
-			}
+}
 			sa[j>>1] = code
 			end = j + 1
 		}
@@ -1067,10 +1037,10 @@ func length_64(text []int64, sa []int64, numLMS int) {
 
 func assignID_8_64(text []byte, sa []int64, numLMS int) int {
 	id := 0
-	lastLen := int64(-1) // impossible
+	lastLen := int64(-1) // 不可能值
 	lastPos := int64(0)
 	for _, j := range sa[len(sa)-numLMS:] {
-		// Is the LMS-substring at index j new, or is it the same as the last one we saw?
+		// 索引 j 处的 LMS 子串是新的，还是与我们看到的最后一个相同？
 		n := sa[j/2]
 		if n != lastLen {
 			goto New
@@ -1187,51 +1157,49 @@ func map_64(sa []int64, numLMS int) {
 func recurse_64(sa, oldTmp []int64, numLMS, maxID int) {
 	dst, saTmp, text := sa[:numLMS], sa[numLMS:len(sa)-numLMS], sa[len(sa)-numLMS:]
 
-	// Set up temporary space for recursive call.
-	// We must pass sais_64 a tmp buffer with at least maxID entries.
+	// 为递归调用设置临时空间。
+	// 我们必须传递给 sais_64 一个至少具有 maxID 条目的 tmp 缓冲区。
 	//
-	// The subproblem is guaranteed to have length at most len(sa)/2,
-	// so that sa can hold both the subproblem and its suffix array.
-	// Nearly all the time, however, the subproblem has length < len(sa)/3,
-	// in which case there is a subproblem-sized middle of sa that
-	// we can reuse for temporary space (saTmp).
-	// When recurse_64 is called from sais_8_64, oldTmp is length 512
-	// (from text_64), and saTmp will typically be much larger, so we'll use saTmp.
-	// When deeper recursions come back to recurse_64, now oldTmp is
-	// the saTmp from the top-most recursion, it is typically larger than
-	// the current saTmp (because the current sa gets smaller and smaller
-	// as the recursion gets deeper), and we keep reusing that top-most
-	// large saTmp instead of the offered smaller ones.
+	// 子问题保证长度最多为 len(sa)/2，
+	// 这样 sa 可以同时保存子问题和它的后缀数组。
+	// 然而，几乎所有时候，子问题长度 < len(sa)/3，
+	// 在这种情况下，sa 有一个子问题大小的中间部分
+	// 我们可以重用为临时空间（saTmp）。
+	// 当 recurse_64 从 sais_8_64 调用时，oldTmp 长度为 512
+	//（来自 text_64），saTmp 通常会大得多，所以我们会使用 saTmp。
+	// 当更深的递归回到 recurse_64 时，现在 oldTmp 是
+	// 最顶层递归的 saTmp，它通常比当前的 saTmp 大
+	//（因为随着递归加深，当前 sa 越来越小），
+	// 我们继续重用那个最大的 saTmp，而不是提供的较小的。
 	//
-	// Why is the subproblem length so often just under len(sa)/3?
-	// See Nong, Zhang, and Chen, section 3.6 for a plausible explanation.
-	// In brief, the len(sa)/2 case would correspond to an SLSLSLSLSLSL pattern
-	// in the input, perfect alternation of larger and smaller input bytes.
-	// Real text doesn't do that. If each L-type index is randomly followed
-	// by either an L-type or S-type index, then half the substrings will
-	// be of the form SLS, but the other half will be longer. Of that half,
-	// half (a quarter overall) will be SLLS; an eighth will be SLLLS, and so on.
-	// Not counting the final S in each (which overlaps the first S in the next),
-	// This works out to an average length 2×½ + 3×¼ + 4×⅛ + ... = 3.
-	// The space we need is further reduced by the fact that many of the
-	// short patterns like SLS will often be the same character sequences
-	// repeated throughout the text, reducing maxID relative to numLMS.
+	// 为什么子问题长度经常刚好在 len(sa)/3 以下？
+	// 参见 Nong、Zhang 和 Chen，第 3.6 节的一个合理的解释。
+	// 简言之，len(sa)/2 的情况对应于输入中的 SLSLSLSLSLSL 模式，
+	// 即输入字节的完美交替。
+	// 真实的文本不会这样。如果每个 L 型索引随机跟随
+	// 一个 L 型或 S 型索引，那么一半的子串将是 SLS 形式，
+	// 但另一半会更长。在那一半中，
+	// 一半（四分之一总体）将是 SLLS；八分之一将是 SLLLS，以此类推。
+	// 不计算每个中的最后一个 S（与下一个中的第一个 S 重叠），
+	// 这相当于平均长度 2×½ + 3×¼ + 4×⅛ + ... = 3。
+	// 所需的空间进一步减少，因为许多
+	// 像 SLS 这样的短模式通常是整个文本中重复出现的相同字符序列，
+	// 相对于 numLMS 减少了 maxID。
 	//
-	// For short inputs, the averages may not run in our favor, but then we
-	// can often fall back to using the length-512 tmp available in the
-	// top-most call. (Also a short allocation would not be a big deal.)
+	// 对于短输入，平均值可能对我们不利，但那时我们可以
+	// 回退到使用顶层调用中可用的长度-512 tmp。
+	// （同样，短的分配也不是什么大问题。）
 	//
-	// For pathological inputs, we fall back to allocating a new tmp of length
-	// max(maxID, numLMS/2). This level of the recursion needs maxID,
-	// and all deeper levels of the recursion will need no more than numLMS/2,
-	// so this one allocation is guaranteed to suffice for the entire stack
-	// of recursive calls.
+	// 对于病态输入，我们回退到分配一个新的 tmp，长度为
+	// max(maxID, numLMS/2)。这一层递归需要 maxID，
+	// 所有更深的递归层将需要不超过 numLMS/2，
+	// 因此这 one 次分配保证足以满足整个递归调用栈。
 	tmp := oldTmp
 	if len(tmp) < len(saTmp) {
 		tmp = saTmp
 	}
 	if len(tmp) < numLMS {
-		// TestSAIS/forcealloc reaches this code.
+		// TestSAIS/forcealloc 到达此代码。
 		n := maxID
 		if n < numLMS/2 {
 			n = numLMS / 2
@@ -1239,9 +1207,9 @@ func recurse_64(sa, oldTmp []int64, numLMS, maxID int) {
 		tmp = make([]int64, n)
 	}
 
-	// sais_64 requires that the caller arrange to clear dst,
-	// because in general the caller may know dst is
-	// freshly-allocated and already cleared. But this one is not.
+	// sais_64 要求调用者安排清除 dst，
+	// 因为通常调用者可能知道 dst 是
+	// 新分配的且已经清除。但这一个不是。
 	clear(dst)
 	sais_64(text, maxID, dst, tmp)
 }
@@ -1250,7 +1218,7 @@ func unmap_8_64(text []byte, sa []int64, numLMS int) {
 	unmap := sa[len(sa)-numLMS:]
 	j := len(unmap)
 
-	// "LMS-substring iterator" (see placeLMS_8_64 above).
+	// "LMS 子串迭代器"（参见上面的 placeLMS_8_64）。
 	c0, c1, isTypeS := byte(0), byte(0), false
 	for i := len(text) - 1; i >= 0; i-- {
 		c0, c1 = text[i], c0
@@ -1259,13 +1227,13 @@ func unmap_8_64(text []byte, sa []int64, numLMS int) {
 		} else if c0 > c1 && isTypeS {
 			isTypeS = false
 
-			// Populate inverse map.
+			// 填充逆映射。
 			j--
 			unmap[j] = int64(i + 1)
 		}
 	}
 
-	// Apply inverse map to subproblem suffix array.
+	// 将逆映射应用到子问题后缀数组。
 	sa = sa[:numLMS]
 	for i := 0; i < len(sa); i++ {
 		sa[i] = unmap[sa[i]]
@@ -1276,7 +1244,7 @@ func unmap_32(text []int32, sa []int32, numLMS int) {
 	unmap := sa[len(sa)-numLMS:]
 	j := len(unmap)
 
-	// "LMS-substring iterator" (see placeLMS_32 above).
+	// "LMS 子串迭代器"（参见上面的 placeLMS_32）。
 	c0, c1, isTypeS := int32(0), int32(0), false
 	for i := len(text) - 1; i >= 0; i-- {
 		c0, c1 = text[i], c0
@@ -1285,13 +1253,13 @@ func unmap_32(text []int32, sa []int32, numLMS int) {
 		} else if c0 > c1 && isTypeS {
 			isTypeS = false
 
-			// Populate inverse map.
+			// 填充逆映射。
 			j--
 			unmap[j] = int32(i + 1)
 		}
 	}
 
-	// Apply inverse map to subproblem suffix array.
+	// 将逆映射应用到子问题后缀数组。
 	sa = sa[:numLMS]
 	for i := 0; i < len(sa); i++ {
 		sa[i] = unmap[sa[i]]
@@ -1302,7 +1270,7 @@ func unmap_64(text []int64, sa []int64, numLMS int) {
 	unmap := sa[len(sa)-numLMS:]
 	j := len(unmap)
 
-	// "LMS-substring iterator" (see placeLMS_64 above).
+	// "LMS 子串迭代器"（参见上面的 placeLMS_64）。
 	c0, c1, isTypeS := int64(0), int64(0), false
 	for i := len(text) - 1; i >= 0; i-- {
 		c0, c1 = text[i], c0
@@ -1311,13 +1279,13 @@ func unmap_64(text []int64, sa []int64, numLMS int) {
 		} else if c0 > c1 && isTypeS {
 			isTypeS = false
 
-			// Populate inverse map.
+			// 填充逆映射。
 			j--
 			unmap[j] = int64(i + 1)
 		}
 	}
 
-	// Apply inverse map to subproblem suffix array.
+	// 将逆映射应用到子问题后缀数组。
 	sa = sa[:numLMS]
 	for i := 0; i < len(sa); i++ {
 		sa[i] = unmap[sa[i]]
@@ -1326,12 +1294,12 @@ func unmap_64(text []int64, sa []int64, numLMS int) {
 
 func expand_8_64(text []byte, freq, bucket, sa []int64, numLMS int) {
 	bucketMax_8_64(text, freq, bucket)
-	bucket = bucket[:256] // eliminate bound check for bucket[c] below
+	bucket = bucket[:256] // 消除下面 bucket[c] 的边界检查
 
-	// Loop backward through sa, always tracking
-	// the next index to populate from sa[:numLMS].
-	// When we get to one, populate it.
-	// Zero the rest of the slots; they have dead values in them.
+	// 向后循环遍历 sa，始终跟踪
+	// 接下来要从 sa[:numLMS] 填充的索引。
+	// 当我们到达一个时，填充它。
+	// 其余槽位置清零；它们里面有死值。
 	x := numLMS - 1
 	saX := sa[x]
 	c := text[saX]
@@ -1345,10 +1313,10 @@ func expand_8_64(text []byte, freq, bucket, sa []int64, numLMS int) {
 		}
 		sa[i] = saX
 
-		// Load next entry to put down (if any).
+		// 加载下一个要放置的条目（如果有）。
 		if x > 0 {
 			x--
-			saX = sa[x] // TODO bounds check
+			saX = sa[x] // TODO 边界检查
 			c = text[saX]
 			b = bucket[c] - 1
 			bucket[c] = b
@@ -1359,10 +1327,10 @@ func expand_8_64(text []byte, freq, bucket, sa []int64, numLMS int) {
 func expand_32(text []int32, freq, bucket, sa []int32, numLMS int) {
 	bucketMax_32(text, freq, bucket)
 
-	// Loop backward through sa, always tracking
-	// the next index to populate from sa[:numLMS].
-	// When we get to one, populate it.
-	// Zero the rest of the slots; they have dead values in them.
+	// 向后循环遍历 sa，始终跟踪
+	// 接下来要从 sa[:numLMS] 填充的索引。
+	// 当我们到达一个时，填充它。
+	// 其余槽位置清零；它们里面有死值。
 	x := numLMS - 1
 	saX := sa[x]
 	c := text[saX]
@@ -1376,10 +1344,10 @@ func expand_32(text []int32, freq, bucket, sa []int32, numLMS int) {
 		}
 		sa[i] = saX
 
-		// Load next entry to put down (if any).
+		// 加载下一个要放置的条目（如果有）。
 		if x > 0 {
 			x--
-			saX = sa[x] // TODO bounds check
+			saX = sa[x] // TODO 边界检查
 			c = text[saX]
 			b = bucket[c] - 1
 			bucket[c] = b
@@ -1390,10 +1358,10 @@ func expand_32(text []int32, freq, bucket, sa []int32, numLMS int) {
 func expand_64(text []int64, freq, bucket, sa []int64, numLMS int) {
 	bucketMax_64(text, freq, bucket)
 
-	// Loop backward through sa, always tracking
-	// the next index to populate from sa[:numLMS].
-	// When we get to one, populate it.
-	// Zero the rest of the slots; they have dead values in them.
+	// 向后循环遍历 sa，始终跟踪
+	// 接下来要从 sa[:numLMS] 填充的索引。
+	// 当我们到达一个时，填充它。
+	// 其余槽位置清零；它们里面有死值。
 	x := numLMS - 1
 	saX := sa[x]
 	c := text[saX]
@@ -1407,10 +1375,10 @@ func expand_64(text []int64, freq, bucket, sa []int64, numLMS int) {
 		}
 		sa[i] = saX
 
-		// Load next entry to put down (if any).
+		// 加载下一个要放置的条目（如果有）。
 		if x > 0 {
 			x--
-			saX = sa[x] // TODO bounds check
+			saX = sa[x] // TODO 边界检查
 			c = text[saX]
 			b = bucket[c] - 1
 			bucket[c] = b
@@ -1419,27 +1387,27 @@ func expand_64(text []int64, freq, bucket, sa []int64, numLMS int) {
 }
 
 func induceL_8_64(text []byte, sa, freq, bucket []int64) {
-	// Initialize positions for left side of character buckets.
+	// 初始化字符桶左侧的位置。
 	bucketMin_8_64(text, freq, bucket)
-	bucket = bucket[:256] // eliminate bounds check for bucket[cB] below
+	bucket = bucket[:256] // 消除下面 bucket[cB] 的边界检查
 
-	// This scan is similar to the one in induceSubL_8_64 above.
-	// That one arranges to clear all but the leftmost L-type indexes.
-	// This scan leaves all the L-type indexes and the original S-type
-	// indexes, but it negates the positive leftmost L-type indexes
-	// (the ones that induceS_8_64 needs to process).
+	// 此扫描类似于上面的 induceSubL_8_64。
+	// 那个扫描安排清除除最左边 L 型索引外的所有索引。
+	// 此扫描保留所有 L 型索引和原始 S 型索引，
+	// 但它对正的最左边 L 型索引取反
+	//（那些 induceS_8_64 需要处理的）。
 
-	// expand_8_64 left out the implicit entry sa[-1] == len(text),
-	// corresponding to the identified type-L index len(text)-1.
-	// Process it before the left-to-right scan of sa proper.
-	// See body in loop for commentary.
+	// expand_8_64 遗漏了隐含的条目 sa[-1] == len(text)，
+	// 对应于识别的 L 型索引 len(text)-1。
+	// 在正式从左到右扫描 sa 之前处理它。
+	// 参见循环中的正文注释。
 	k := len(text) - 1
 	c0, c1 := text[k-1], text[k]
 	if c0 < c1 {
 		k = -k
 	}
 
-	// Cache recently used bucket index.
+	// 缓存最近使用的桶索引。
 	cB := c1
 	b := bucket[cB]
 	sa[b] = int64(k)
@@ -1448,19 +1416,18 @@ func induceL_8_64(text []byte, sa, freq, bucket []int64) {
 	for i := 0; i < len(sa); i++ {
 		j := int(sa[i])
 		if j <= 0 {
-			// Skip empty or negated entry (including negated zero).
+			// 跳过空或取反的条目（包括取反的零）。
 			continue
 		}
 
-		// Index j was on work queue, meaning k := j-1 is L-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is L-type, queue k for processing later in this loop.
-		// If k-1 is S-type (text[k-1] < text[k]), queue -k to save for the caller.
-		// If k is zero, k-1 doesn't exist, so we only need to leave it
-		// for the caller. The caller can't tell the difference between
-		// an empty slot and a non-empty zero, but there's no need
-		// to distinguish them anyway: the final suffix array will end up
-		// with one zero somewhere, and that will be a real zero.
+		// 索引 j 在工作队列中，意味着 k := j-1 是 L 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 L 型，将 k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 S 型（text[k-1] < text[k]），将 -k 排队保留给调用者。
+		// 如果 k 为零，k-1 不存在，所以我们只需要将它留给调用者。
+		// 调用者无法区分空槽和非空零，但没有必要区分它们：
+		// 最终的后缀数组最终会在某处有一个真正的零，
+		// 那将是一个真实的零。
 		k := j - 1
 		c1 := text[k]
 		if k > 0 {
@@ -1480,26 +1447,26 @@ func induceL_8_64(text []byte, sa, freq, bucket []int64) {
 }
 
 func induceL_32(text []int32, sa, freq, bucket []int32) {
-	// Initialize positions for left side of character buckets.
+	// 初始化字符桶左侧的位置。
 	bucketMin_32(text, freq, bucket)
 
-	// This scan is similar to the one in induceSubL_32 above.
-	// That one arranges to clear all but the leftmost L-type indexes.
-	// This scan leaves all the L-type indexes and the original S-type
-	// indexes, but it negates the positive leftmost L-type indexes
-	// (the ones that induceS_32 needs to process).
+	// 此扫描类似于上面的 induceSubL_32。
+	// 那个扫描安排清除除最左边 L 型索引外的所有索引。
+	// 此扫描保留所有 L 型索引和原始 S 型索引，
+	// 但它对正的最左边 L 型索引取反
+	//（那些 induceS_32 需要处理的）。
 
-	// expand_32 left out the implicit entry sa[-1] == len(text),
-	// corresponding to the identified type-L index len(text)-1.
-	// Process it before the left-to-right scan of sa proper.
-	// See body in loop for commentary.
+	// expand_32 遗漏了隐含的条目 sa[-1] == len(text)，
+	// 对应于识别的 L 型索引 len(text)-1。
+	// 在正式从左到右扫描 sa 之前处理它。
+	// 参见循环中的正文注释。
 	k := len(text) - 1
 	c0, c1 := text[k-1], text[k]
 	if c0 < c1 {
 		k = -k
 	}
 
-	// Cache recently used bucket index.
+	// 缓存最近使用的桶索引。
 	cB := c1
 	b := bucket[cB]
 	sa[b] = int32(k)
@@ -1508,19 +1475,18 @@ func induceL_32(text []int32, sa, freq, bucket []int32) {
 	for i := 0; i < len(sa); i++ {
 		j := int(sa[i])
 		if j <= 0 {
-			// Skip empty or negated entry (including negated zero).
+			// 跳过空或取反的条目（包括取反的零）。
 			continue
 		}
 
-		// Index j was on work queue, meaning k := j-1 is L-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is L-type, queue k for processing later in this loop.
-		// If k-1 is S-type (text[k-1] < text[k]), queue -k to save for the caller.
-		// If k is zero, k-1 doesn't exist, so we only need to leave it
-		// for the caller. The caller can't tell the difference between
-		// an empty slot and a non-empty zero, but there's no need
-		// to distinguish them anyway: the final suffix array will end up
-		// with one zero somewhere, and that will be a real zero.
+		// 索引 j 在工作队列中，意味着 k := j-1 是 L 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 L 型，将 k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 S 型（text[k-1] < text[k]），将 -k 排队保留给调用者。
+		// 如果 k 为零，k-1 不存在，所以我们只需要将它留给调用者。
+		// 调用者无法区分空槽和非空零，但没有必要区分它们：
+		// 最终的后缀数组最终会在某处有一个真正的零，
+		// 那将是一个真实的零。
 		k := j - 1
 		c1 := text[k]
 		if k > 0 {
@@ -1540,26 +1506,26 @@ func induceL_32(text []int32, sa, freq, bucket []int32) {
 }
 
 func induceL_64(text []int64, sa, freq, bucket []int64) {
-	// Initialize positions for left side of character buckets.
+	// 初始化字符桶左侧的位置。
 	bucketMin_64(text, freq, bucket)
 
-	// This scan is similar to the one in induceSubL_64 above.
-	// That one arranges to clear all but the leftmost L-type indexes.
-	// This scan leaves all the L-type indexes and the original S-type
-	// indexes, but it negates the positive leftmost L-type indexes
-	// (the ones that induceS_64 needs to process).
+	// 此扫描类似于上面的 induceSubL_64。
+	// 那个扫描安排清除除最左边 L 型索引外的所有索引。
+	// 此扫描保留所有 L 型索引和原始 S 型索引，
+	// 但它对正的最左边 L 型索引取反
+	//（那些 induceS_64 需要处理的）。
 
-	// expand_64 left out the implicit entry sa[-1] == len(text),
-	// corresponding to the identified type-L index len(text)-1.
-	// Process it before the left-to-right scan of sa proper.
-	// See body in loop for commentary.
+	// expand_64 遗漏了隐含的条目 sa[-1] == len(text)，
+	// 对应于识别的 L 型索引 len(text)-1。
+	// 在正式从左到右扫描 sa 之前处理它。
+	// 参见循环中的正文注释。
 	k := len(text) - 1
 	c0, c1 := text[k-1], text[k]
 	if c0 < c1 {
 		k = -k
 	}
 
-	// Cache recently used bucket index.
+	// 缓存最近使用的桶索引。
 	cB := c1
 	b := bucket[cB]
 	sa[b] = int64(k)
@@ -1568,19 +1534,18 @@ func induceL_64(text []int64, sa, freq, bucket []int64) {
 	for i := 0; i < len(sa); i++ {
 		j := int(sa[i])
 		if j <= 0 {
-			// Skip empty or negated entry (including negated zero).
+			// 跳过空或取反的条目（包括取反的零）。
 			continue
 		}
 
-		// Index j was on work queue, meaning k := j-1 is L-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is L-type, queue k for processing later in this loop.
-		// If k-1 is S-type (text[k-1] < text[k]), queue -k to save for the caller.
-		// If k is zero, k-1 doesn't exist, so we only need to leave it
-		// for the caller. The caller can't tell the difference between
-		// an empty slot and a non-empty zero, but there's no need
-		// to distinguish them anyway: the final suffix array will end up
-		// with one zero somewhere, and that will be a real zero.
+		// 索引 j 在工作队列中，意味着 k := j-1 是 L 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 L 型，将 k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 S 型（text[k-1] < text[k]），将 -k 排队保留给调用者。
+		// 如果 k 为零，k-1 不存在，所以我们只需要将它留给调用者。
+		// 调用者无法区分空槽和非空零，但没有必要区分它们：
+		// 最终的后缀数组最终会在某处有一个真正的零，
+		// 那将是一个真实的零。
 		k := j - 1
 		c1 := text[k]
 		if k > 0 {
@@ -1600,9 +1565,9 @@ func induceL_64(text []int64, sa, freq, bucket []int64) {
 }
 
 func induceS_8_64(text []byte, sa, freq, bucket []int64) {
-	// Initialize positions for right side of character buckets.
+	// 初始化字符桶右侧的位置。
 	bucketMax_8_64(text, freq, bucket)
-	bucket = bucket[:256] // eliminate bounds check for bucket[cB] below
+	bucket = bucket[:256] // 消除下面 bucket[cB] 的边界检查
 
 	cB := byte(0)
 	b := bucket[cB]
@@ -1610,22 +1575,21 @@ func induceS_8_64(text []byte, sa, freq, bucket []int64) {
 	for i := len(sa) - 1; i >= 0; i-- {
 		j := int(sa[i])
 		if j >= 0 {
-			// Skip non-flagged entry.
-			// (This loop can't see an empty entry; 0 means the real zero index.)
+			// 跳过未标记的条目。
+			//（此循环看不到空条目；0 表示真实的零索引。）
 			continue
 		}
 
-		// Negative j is a work queue entry; rewrite to positive j for final suffix array.
+		// 负 j 是工作队列条目；重写为正 j 用于最终后缀数组。
 		j = -j
 		sa[i] = int64(j)
 
-		// Index j was on work queue (encoded as -j but now decoded),
-		// meaning k := j-1 is L-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is S-type, queue -k for processing later in this loop.
-		// If k-1 is L-type (text[k-1] > text[k]), queue k to save for the caller.
-		// If k is zero, k-1 doesn't exist, so we only need to leave it
-		// for the caller.
+		// 索引 j 在工作队列中（编码为 -j，但现在已解码），
+		// 意味着 k := j-1 是 L 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 S 型，将 -k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 L 型（text[k-1] > text[k]），将 k 排队保留给调用者。
+		// 如果 k 为零，k-1 不存在，所以我们只需要将它留给调用者。
 		k := j - 1
 		c1 := text[k]
 		if k > 0 {
@@ -1645,7 +1609,7 @@ func induceS_8_64(text []byte, sa, freq, bucket []int64) {
 }
 
 func induceS_32(text []int32, sa, freq, bucket []int32) {
-	// Initialize positions for right side of character buckets.
+	// 初始化字符桶右侧的位置。
 	bucketMax_32(text, freq, bucket)
 
 	cB := int32(0)
@@ -1654,22 +1618,21 @@ func induceS_32(text []int32, sa, freq, bucket []int32) {
 	for i := len(sa) - 1; i >= 0; i-- {
 		j := int(sa[i])
 		if j >= 0 {
-			// Skip non-flagged entry.
-			// (This loop can't see an empty entry; 0 means the real zero index.)
+			// 跳过未标记的条目。
+			//（此循环看不到空条目；0 表示真实的零索引。）
 			continue
 		}
 
-		// Negative j is a work queue entry; rewrite to positive j for final suffix array.
+		// 负 j 是工作队列条目；重写为正 j 用于最终后缀数组。
 		j = -j
 		sa[i] = int32(j)
 
-		// Index j was on work queue (encoded as -j but now decoded),
-		// meaning k := j-1 is L-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is S-type, queue -k for processing later in this loop.
-		// If k-1 is L-type (text[k-1] > text[k]), queue k to save for the caller.
-		// If k is zero, k-1 doesn't exist, so we only need to leave it
-		// for the caller.
+		// 索引 j 在工作队列中（编码为 -j，但现在已解码），
+		// 意味着 k := j-1 是 L 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 S 型，将 -k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 L 型（text[k-1] > text[k]），将 k 排队保留给调用者。
+		// 如果 k 为零，k-1 不存在，所以我们只需要将它留给调用者。
 		k := j - 1
 		c1 := text[k]
 		if k > 0 {
@@ -1689,7 +1652,7 @@ func induceS_32(text []int32, sa, freq, bucket []int32) {
 }
 
 func induceS_64(text []int64, sa, freq, bucket []int64) {
-	// Initialize positions for right side of character buckets.
+	// 初始化字符桶右侧的位置。
 	bucketMax_64(text, freq, bucket)
 
 	cB := int64(0)
@@ -1698,22 +1661,21 @@ func induceS_64(text []int64, sa, freq, bucket []int64) {
 	for i := len(sa) - 1; i >= 0; i-- {
 		j := int(sa[i])
 		if j >= 0 {
-			// Skip non-flagged entry.
-			// (This loop can't see an empty entry; 0 means the real zero index.)
+			// 跳过未标记的条目。
+			//（此循环看不到空条目；0 表示真实的零索引。）
 			continue
 		}
 
-		// Negative j is a work queue entry; rewrite to positive j for final suffix array.
+		// 负 j 是工作队列条目；重写为正 j 用于最终后缀数组。
 		j = -j
 		sa[i] = int64(j)
 
-		// Index j was on work queue (encoded as -j but now decoded),
-		// meaning k := j-1 is L-type,
-		// so we can now place k correctly into sa.
-		// If k-1 is S-type, queue -k for processing later in this loop.
-		// If k-1 is L-type (text[k-1] > text[k]), queue k to save for the caller.
-		// If k is zero, k-1 doesn't exist, so we only need to leave it
-		// for the caller.
+		// 索引 j 在工作队列中（编码为 -j，但现在已解码），
+		// 意味着 k := j-1 是 L 型，
+		// 所以我们现在可以将 k 正确地放入 sa。
+		// 如果 k-1 是 S 型，将 -k 排队以便稍后在此循环中处理。
+		// 如果 k-1 是 L 型（text[k-1] > text[k]），将 k 排队保留给调用者。
+		// 如果 k 为零，k-1 不存在，所以我们只需要将它留给调用者。
 		k := j - 1
 		c1 := text[k]
 		if k > 0 {

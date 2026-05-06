@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package suffixarray implements substring search in logarithmic time using
-// an in-memory suffix array.
+// Package suffixarray 使用内存中的后缀数组实现对数时间复杂度的子字符串搜索。
 //
-// Example use:
+// 示例用法：
 //
-//	// create index for some data
+//	// 为一些数据创建索引
 //	index := suffixarray.New(data)
 //
-//	// lookup byte slice s
-//	offsets1 := index.Lookup(s, -1) // the list of all indices where s occurs in data
-//	offsets2 := index.Lookup(s, 3)  // the list of at most 3 indices where s occurs in data
+//	// 查找字节切片 s
+//	offsets1 := index.Lookup(s, -1) // s 在 data 中出现的所有索引列表
+//	offsets2 := index.Lookup(s, 3)  // s 在 data 中最多出现的 3 个索引列表
 package suffixarray
 
 import (
@@ -31,15 +30,15 @@ var maxData32 int = realMaxData32
 
 const realMaxData32 = math.MaxInt32
 
-// Index implements a suffix array for fast substring search.
+// Index 实现了一个用于快速子字符串搜索的后缀数组。
 type Index struct {
 	data []byte
-	sa   ints // suffix array for data; sa.len() == len(data)
+	sa   ints // data 的后缀数组；sa.len() == len(data)
 }
 
-// An ints is either an []int32 or an []int64.
-// That is, one of them is empty, and one is the real data.
-// The int64 form is used when len(data) > maxData32
+// ints 是 []int32 或 []int64 之一。
+// 也就是说，其中一个为空，另一个是真实数据。
+// 当 len(data) > maxData32 时使用 int64 形式。
 type ints struct {
 	int32 []int32
 	int64 []int64
@@ -71,8 +70,8 @@ func (a *ints) slice(i, j int) ints {
 	return ints{nil, a.int64[i:j]}
 }
 
-// New creates a new [Index] for data.
-// [Index] creation time is O(N) for N = len(data).
+// New 为 data 创建一个新的 [Index]。
+// [Index] 的创建时间为 O(N)，其中 N = len(data)。
 func New(data []byte) *Index {
 	ix := &Index{data: data}
 	if len(data) <= maxData32 {
@@ -85,61 +84,61 @@ func New(data []byte) *Index {
 	return ix
 }
 
-// writeInt writes an int x to w using buf to buffer the write.
+// writeInt 使用 buf 缓冲写入，将 int x 写入 w。
 func writeInt(w io.Writer, buf []byte, x int) error {
 	binary.PutVarint(buf, int64(x))
 	_, err := w.Write(buf[0:binary.MaxVarintLen64])
 	return err
 }
 
-// readInt reads an int x from r using buf to buffer the read and returns x.
+// readInt 使用 buf 缓冲读取，从 r 读取 int x 并返回 x。
 func readInt(r io.Reader, buf []byte) (int64, error) {
-	_, err := io.ReadFull(r, buf[0:binary.MaxVarintLen64]) // ok to continue with error
+	_, err := io.ReadFull(r, buf[0:binary.MaxVarintLen64]) // 出错时继续是可以的
 	x, _ := binary.Varint(buf)
 	return x, err
 }
 
-// writeSlice writes data[:n] to w and returns n.
-// It uses buf to buffer the write.
+// writeSlice 将 data[:n] 写入 w 并返回 n。
+// 它使用 buf 来缓冲写入。
 func writeSlice(w io.Writer, buf []byte, data ints) (n int, err error) {
-	// encode as many elements as fit into buf
+	// 将尽可能多的元素编码到 buf 中
 	p := binary.MaxVarintLen64
 	m := data.len()
 	for ; n < m && p+binary.MaxVarintLen64 <= len(buf); n++ {
 		p += binary.PutUvarint(buf[p:], uint64(data.get(n)))
 	}
 
-	// update buffer size
+	// 更新缓冲区大小
 	binary.PutVarint(buf, int64(p))
 
-	// write buffer
+	// 写入缓冲区
 	_, err = w.Write(buf[0:p])
 	return
 }
 
 var errTooBig = errors.New("suffixarray: data too large")
 
-// readSlice reads data[:n] from r and returns n.
-// It uses buf to buffer the read.
+// readSlice 从 r 读取 data[:n] 并返回 n。
+// 它使用 buf 来缓冲读取。
 func readSlice(r io.Reader, buf []byte, data ints) (n int, err error) {
-	// read buffer size
+	// 读取缓冲区大小
 	var size64 int64
 	size64, err = readInt(r, buf)
 	if err != nil {
 		return
 	}
 	if int64(int(size64)) != size64 || int(size64) < 0 {
-		// We never write chunks this big anyway.
+		// 我们从来不写这么大的块。
 		return 0, errTooBig
 	}
 	size := int(size64)
 
-	// read buffer w/o the size
+	// 读取不带大小的缓冲区
 	if _, err = io.ReadFull(r, buf[binary.MaxVarintLen64:size]); err != nil {
 		return
 	}
 
-	// decode as many elements as present in buf
+	// 解码 buf 中存在的尽可能多的元素
 	for p := binary.MaxVarintLen64; p < size; n++ {
 		x, w := binary.Uvarint(buf[p:])
 		data.set(n, int64(x))
@@ -149,14 +148,14 @@ func readSlice(r io.Reader, buf []byte, data ints) (n int, err error) {
 	return
 }
 
-const bufSize = 16 << 10 // reasonable for BenchmarkSaveRestore
+const bufSize = 16 << 10 // 对 BenchmarkSaveRestore 来说是合理的
 
-// Read reads the index from r into x; x must not be nil.
+// Read 将索引从 r 读入 x；x 不能为 nil。
 func (x *Index) Read(r io.Reader) error {
-	// buffer for all reads
+	// 所有读取的缓冲区
 	buf := make([]byte, bufSize)
 
-	// read length
+	// 读取长度
 	n64, err := readInt(r, buf)
 	if err != nil {
 		return err
@@ -166,10 +165,9 @@ func (x *Index) Read(r io.Reader) error {
 	}
 	n := int(n64)
 
-	// allocate space
+	// 分配空间
 	if 2*n < cap(x.data) || cap(x.data) < n || x.sa.int32 != nil && n > maxData32 || x.sa.int64 != nil && n <= maxData32 {
-		// new data is significantly smaller or larger than
-		// existing buffers - allocate new ones
+		// 新数据明显小于或大于现有缓冲区——分配新的
 		x.data = make([]byte, n)
 		x.sa.int32 = nil
 		x.sa.int64 = nil
@@ -179,17 +177,17 @@ func (x *Index) Read(r io.Reader) error {
 			x.sa.int64 = make([]int64, n)
 		}
 	} else {
-		// re-use existing buffers
+		// 重用现有缓冲区
 		x.data = x.data[0:n]
 		x.sa = x.sa.slice(0, n)
 	}
 
-	// read data
+	// 读取数据
 	if _, err := io.ReadFull(r, x.data); err != nil {
 		return err
 	}
 
-	// read index
+	// 读取索引
 	sa := x.sa
 	for sa.len() > 0 {
 		n, err := readSlice(r, buf, sa)
@@ -201,22 +199,22 @@ func (x *Index) Read(r io.Reader) error {
 	return nil
 }
 
-// Write writes the index x to w.
+// Write 将索引 x 写入 w。
 func (x *Index) Write(w io.Writer) error {
-	// buffer for all writes
+	// 所有写入的缓冲区
 	buf := make([]byte, bufSize)
 
-	// write length
+	// 写入长度
 	if err := writeInt(w, buf, len(x.data)); err != nil {
 		return err
 	}
 
-	// write data
+	// 写入数据
 	if _, err := w.Write(x.data); err != nil {
 		return err
 	}
 
-	// write index
+	// 写入索引
 	sa := x.sa
 	for sa.len() > 0 {
 		n, err := writeSlice(w, buf, sa)
@@ -228,8 +226,8 @@ func (x *Index) Write(w io.Writer) error {
 	return nil
 }
 
-// Bytes returns the data over which the index was created.
-// It must not be modified.
+// Bytes 返回创建索引所基于的数据。
+// 它不能被修改。
 func (x *Index) Bytes() []byte {
 	return x.data
 }
@@ -238,22 +236,21 @@ func (x *Index) at(i int) []byte {
 	return x.data[x.sa.get(i):]
 }
 
-// lookupAll returns a slice into the matching region of the index.
-// The runtime is O(log(N)*len(s)).
+// lookupAll 返回索引中匹配区域的切片。
+// 运行时间为 O(log(N)*len(s))。
 func (x *Index) lookupAll(s []byte) ints {
-	// find matching suffix index range [i:j]
-	// find the first index where s would be the prefix
+	// 找到匹配的后缀索引范围 [i:j]
+	// 找到 s 将作为前缀的第一个索引
 	i := sort.Search(x.sa.len(), func(i int) bool { return bytes.Compare(x.at(i), s) >= 0 })
-	// starting at i, find the first index at which s is not a prefix
+	// 从 i 开始，找到 s 不是前缀的第一个索引
 	j := i + sort.Search(x.sa.len()-i, func(j int) bool { return !bytes.HasPrefix(x.at(j+i), s) })
 	return x.sa.slice(i, j)
 }
 
-// Lookup returns an unsorted list of at most n indices where the byte string s
-// occurs in the indexed data. If n < 0, all occurrences are returned.
-// The result is nil if s is empty, s is not found, or n == 0.
-// Lookup time is O(log(N)*len(s) + len(result)) where N is the
-// size of the indexed data.
+// Lookup 返回字节字符串 s 在索引数据中出现最多 n 个索引的无序列表。
+// 如果 n < 0，返回所有出现的位置。
+// 如果 s 为空、未找到或 n == 0，结果为 nil。
+// 查找时间为 O(log(N)*len(s) + len(result))，其中 N 是索引数据的大小。
 func (x *Index) Lookup(s []byte, n int) (result []int) {
 	if len(s) > 0 && n != 0 {
 		matches := x.lookupAll(s)
@@ -278,33 +275,29 @@ func (x *Index) Lookup(s []byte, n int) (result []int) {
 	return
 }
 
-// FindAllIndex returns a sorted list of non-overlapping matches of the
-// regular expression r, where a match is a pair of indices specifying
-// the matched slice of x.Bytes(). If n < 0, all matches are returned
-// in successive order. Otherwise, at most n matches are returned and
-// they may not be successive. The result is nil if there are no matches,
-// or if n == 0.
+// FindAllIndex 返回正则表达式 r 的非重叠匹配的有序列表，
+// 其中匹配是一对索引，指定匹配到的 x.Bytes() 的切片。
+// 如果 n < 0，则按顺序返回所有匹配。
+// 否则，最多返回 n 个匹配，它们可能不是连续的。
+// 如果没有匹配或 n == 0，结果为 nil。
 func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
-	// a non-empty literal prefix is used to determine possible
-	// match start indices with Lookup
+	// 非空字面量前缀用于通过 Lookup 确定可能的匹配起始索引
 	prefix, complete := r.LiteralPrefix()
 	lit := []byte(prefix)
 
-	// worst-case scenario: no literal prefix
+	// 最坏情况：没有字面量前缀
 	if prefix == "" {
 		return r.FindAllIndex(x.data, n)
 	}
 
-	// if regexp is a literal just use Lookup and convert its
-	// result into match pairs
+	// 如果正则表达式是字面量，只使用 Lookup 并将其结果转换为匹配对
 	if complete {
-		// Lookup returns indices that may belong to overlapping matches.
-		// After eliminating them, we may end up with fewer than n matches.
-		// If we don't have enough at the end, redo the search with an
-		// increased value n1, but only if Lookup returned all the requested
-		// indices in the first place (if it returned fewer than that then
-		// there cannot be more).
-		for n1 := n; ; n1 += 2 * (n - len(result)) /* overflow ok */ {
+		// Lookup 返回的索引可能属于重叠匹配。
+		// 在消除它们之后，我们可能最终得到少于 n 个匹配。
+		// 如果最后没有足够的匹配，使用增加的值 n1 重新搜索，
+		// 但仅当 Lookup 首先返回了所有请求的索引时
+		//（如果它返回的少于该值，则不可能有更多）。
+		for n1 := n; ; n1 += 2 * (n - len(result)) /* 溢出没关系 */ {
 			indices := x.Lookup(lit, n1)
 			if len(indices) == 0 {
 				return
@@ -318,7 +311,7 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 				if count == n {
 					break
 				}
-				// ignore indices leading to overlapping matches
+				// 忽略导致重叠匹配的索引
 				if prev <= i {
 					j := 2 * count
 					pairs[j+0] = i
@@ -330,8 +323,8 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 			}
 			result = result[0:count]
 			if len(result) >= n || len(indices) != n1 {
-				// found all matches or there's no chance to find more
-				// (n and n1 can be negative)
+				// 找到了所有匹配或没有机会找到更多
+				// (n 和 n1 可以为负)
 				break
 			}
 		}
@@ -341,14 +334,13 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 		return
 	}
 
-	// regexp has a non-empty literal prefix; Lookup(lit) computes
-	// the indices of possible complete matches; use these as starting
-	// points for anchored searches
-	// (regexp "^" matches beginning of input, not beginning of line)
-	r = regexp.MustCompile("^" + r.String()) // compiles because r compiled
+	// 正则表达式有一个非空字面量前缀；Lookup(lit) 计算
+	// 可能完整匹配的索引；使用这些作为锚定搜索的起点
+	//（正则表达式 "^" 匹配输入的开头，而不是行的开头）
+	r = regexp.MustCompile("^" + r.String()) // 可以编译，因为 r 已编译
 
-	// same comment about Lookup applies here as in the loop above
-	for n1 := n; ; n1 += 2 * (n - len(result)) /* overflow ok */ {
+	// 与上面循环中相同的关于 Lookup 的评论也适用于此
+	for n1 := n; ; n1 += 2 * (n - len(result)) /* 溢出没关系 */ {
 		indices := x.Lookup(lit, n1)
 		if len(indices) == 0 {
 			return
@@ -360,18 +352,18 @@ func (x *Index) FindAllIndex(r *regexp.Regexp, n int) (result [][]int) {
 			if len(result) == n {
 				break
 			}
-			m := r.FindIndex(x.data[i:]) // anchored search - will not run off
-			// ignore indices leading to overlapping matches
+			m := r.FindIndex(x.data[i:]) // 锚定搜索——不会跑出去
+			// 忽略导致重叠匹配的索引
 			if m != nil && prev <= i {
-				m[0] = i // correct m
+				m[0] = i // 修正 m
 				m[1] += i
 				result = append(result, m)
 				prev = m[1]
 			}
 		}
 		if len(result) >= n || len(indices) != n1 {
-			// found all matches or there's no chance to find more
-			// (n and n1 can be negative)
+			// 找到了所有匹配或没有机会找到更多
+			// (n 和 n1 可以为负)
 			break
 		}
 	}

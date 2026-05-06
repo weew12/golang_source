@@ -19,9 +19,9 @@ import (
 )
 
 type testCase struct {
-	name     string   // name of test case
-	source   string   // source to index
-	patterns []string // patterns to lookup
+	name     string   // 测试用例名称
+	source   string   // 要索引的源数据
+	patterns []string // 要查找的模式
 }
 
 var testCases = []testCase{
@@ -39,7 +39,7 @@ var testCases = []testCase{
 
 	{
 		"all a's",
-		"aaaaaaaaaa", // 10 a's
+		"aaaaaaaaaa", // 10 个 a
 		[]string{
 			"",
 			"a",
@@ -52,7 +52,7 @@ var testCases = []testCase{
 			"aaaaaaaa",
 			"aaaaaaaaa",
 			"aaaaaaaaaa",
-			"aaaaaaaaaaa", // 11 a's
+			"aaaaaaaaaaa", // 11 个 a
 			".",
 			".*",
 			"a+",
@@ -110,11 +110,11 @@ var testCases = []testCase{
 	},
 }
 
-// find all occurrences of s in source; report at most n occurrences
+// find 查找 source 中 s 的所有出现位置；最多报告 n 个出现位置
 func find(src, s string, n int) []int {
 	var res []int
 	if s != "" && n != 0 {
-		// find at most n occurrences of s in src
+		// 最多查找 src 中 s 的 n 个出现位置
 		for i := -1; n < 0 || len(res) < n; {
 			j := strings.Index(src[i+1:], s)
 			if j < 0 {
@@ -131,17 +131,17 @@ func testLookup(t *testing.T, tc *testCase, x *Index, s string, n int) {
 	res := x.Lookup([]byte(s), n)
 	exp := find(tc.source, s, n)
 
-	// check that the lengths match
+	// 检查长度是否匹配
 	if len(res) != len(exp) {
 		t.Errorf("test %q, lookup %q (n = %d): expected %d results; got %d", tc.name, s, n, len(exp), len(res))
 	}
 
-	// if n >= 0 the number of results is limited --- unless n >= all results,
-	// we may obtain different positions from the Index and from find (because
-	// Index may not find the results in the same order as find) => in general
-	// we cannot simply check that the res and exp lists are equal
+	// 如果 n >= 0，结果数量是受限的——除非 n >= 所有结果，
+	// 我们可能从 Index 和 find 获得不同的位置（因为
+	// Index 可能不会以与 find 相同的顺序找到结果）=> 一般来说
+	// 我们不能简单地检查 res 和 exp 列表是否相等
 
-	// check that each result is in fact a correct match and there are no duplicates
+	// 检查每个结果是否确实是正确的匹配，并且没有重复
 	slices.Sort(res)
 	for i, r := range res {
 		if r < 0 || len(tc.source) <= r {
@@ -169,17 +169,17 @@ func testFindAllIndex(t *testing.T, tc *testCase, x *Index, rx *regexp.Regexp, n
 	res := x.FindAllIndex(rx, n)
 	exp := rx.FindAllStringIndex(tc.source, n)
 
-	// check that the lengths match
+	// 检查长度是否匹配
 	if len(res) != len(exp) {
 		t.Errorf("test %q, FindAllIndex %q (n = %d): expected %d results; got %d", tc.name, rx, n, len(exp), len(res))
 	}
 
-	// if n >= 0 the number of results is limited --- unless n >= all results,
-	// we may obtain different positions from the Index and from regexp (because
-	// Index may not find the results in the same order as regexp) => in general
-	// we cannot simply check that the res and exp lists are equal
+	// 如果 n >= 0，结果数量是受限的——除非 n >= 所有结果，
+	// 我们可能从 Index 和 regexp 获得不同的位置（因为
+	// Index 可能不会以与 regexp 相同的顺序找到结果）=> 一般来说
+	// 我们不能简单地检查 res 和 exp 列表是否相等
 
-	// check that each result is in fact a correct match and the result is sorted
+	// 检查每个结果是否确实是正确的匹配，并且结果是有序的
 	for i, r := range res {
 		if r[0] < 0 || r[0] > r[1] || len(tc.source) < r[1] {
 			t.Errorf("test %q, FindAllIndex %q, result %d (n == %d): illegal match [%d, %d]", tc.name, rx, i, n, r[0], r[1])
@@ -189,7 +189,7 @@ func testFindAllIndex(t *testing.T, tc *testCase, x *Index, rx *regexp.Regexp, n
 	}
 
 	if n < 0 {
-		// all results computed - sorted res and exp must be equal
+		// 所有结果已计算——排序后的 res 和 exp 必须相等
 		for i, r := range res {
 			e := exp[i]
 			if r[0] != e[0] || r[1] != e[1] {
@@ -209,7 +209,7 @@ func testLookups(t *testing.T, tc *testCase, x *Index, n int) {
 	}
 }
 
-// index is used to hide the sort.Interface
+// index 用于隐藏 sort.Interface
 type index Index
 
 func (x *index) Len() int           { return x.sa.len() }
@@ -248,7 +248,7 @@ func equal(x, y *Index) bool {
 	return true
 }
 
-// returns the serialized index size
+// 返回序列化后的索引大小
 func testSaveRestore(t *testing.T, tc *testCase, x *Index) int {
 	var buf bytes.Buffer
 	if err := x.Write(&buf); err != nil {
@@ -267,7 +267,7 @@ func testSaveRestore(t *testing.T, tc *testCase, x *Index) int {
 	defer func() {
 		maxData32 = old
 	}()
-	// Reread as forced 32.
+	// 以强制 32 位模式重新读取。
 	y = Index{}
 	maxData32 = realMaxData32
 	if err := y.Read(bytes.NewReader(buf.Bytes())); err != nil {
@@ -277,7 +277,7 @@ func testSaveRestore(t *testing.T, tc *testCase, x *Index) int {
 		t.Errorf("restored index doesn't match saved index %s", tc.name)
 	}
 
-	// Reread as forced 64.
+	// 以强制 64 位模式重新读取。
 	y = Index{}
 	maxData32 = -1
 	if err := y.Read(bytes.NewReader(buf.Bytes())); err != nil {
@@ -339,13 +339,13 @@ func TestNew64(t *testing.T) {
 	})
 }
 
-// test tests an arbitrary suffix array construction function.
-// Generates many inputs, builds and checks suffix arrays.
+// test 测试任意后缀数组构建函数。
+// 生成许多输入，构建并检查后缀数组。
 func test(t *testing.T, build func([]byte) []int) {
 	t.Run("ababab...", func(t *testing.T) {
-		// Very repetitive input has numLMS = len(x)/2-1
-		// at top level, the largest it can be.
-		// But maxID is only two (aba and ab$).
+		// 非常重复的输入在顶层有 numLMS = len(x)/2-1，
+		// 这是它能达到的最大值。
+		// 但 maxID 只有两个（aba 和 ab$）。
 		size := 100000
 		if testing.Short() {
 			size = 10000
@@ -358,17 +358,17 @@ func test(t *testing.T, build func([]byte) []int) {
 	})
 
 	t.Run("forcealloc", func(t *testing.T) {
-		// Construct a pathological input that forces
-		// recurse_32 to allocate a new temporary buffer.
-		// The input must have more than N/3 LMS-substrings,
-		// which we arrange by repeating an SLSLSLSLSLSL pattern
-		// like ababab... above, but then we must also arrange
-		// for a large number of distinct LMS-substrings.
-		// We use this pattern:
+		// 构造一个病态输入，强制
+		// recurse_32 分配新的临时缓冲区。
+		// 输入必须有超过 N/3 个 LMS 子串，
+		// 我们通过重复 SLSLSLSLSLSL 模式来安排
+		// 像上面的 ababab...，但我们还必须安排
+		// 大量不同的 LMS 子串。
+		// 我们使用这个模式：
 		// 1 255 1 254 1 253 1 ... 1 2 1 255 2 254 2 253 2 252 2 ...
-		// This gives approximately 2¹⁵ distinct LMS-substrings.
-		// We need to repeat at least one substring, though,
-		// or else the recursion can be bypassed entirely.
+		// 这给出大约 2¹⁵ 个不同的 LMS 子串。
+		// 我们需要至少重复一个子串，
+		// 否则递归可以被完全绕过。
 		x := make([]byte, 100000, 100001)
 		lo := byte(1)
 		hi := byte(255)
@@ -392,8 +392,8 @@ func test(t *testing.T, build func([]byte) []int) {
 	})
 
 	t.Run("exhaustive2", func(t *testing.T) {
-		// All inputs over {0,1} up to length 21.
-		// Runs in about 10 seconds on my laptop.
+		// {0,1} 上所有长度最多 21 的输入。
+		// 在我的笔记本上运行大约 10 秒。
 		x := make([]byte, 30)
 		numFail := 0
 		for n := 0; n <= 21; n++ {
@@ -406,8 +406,8 @@ func test(t *testing.T, build func([]byte) []int) {
 	})
 
 	t.Run("exhaustive3", func(t *testing.T) {
-		// All inputs over {0,1,2} up to length 14.
-		// Runs in about 10 seconds on my laptop.
+		// {0,1,2} 上所有长度最多 14 的输入。
+		// 在我的笔记本上运行大约 10 秒。
 		x := make([]byte, 30)
 		numFail := 0
 		for n := 0; n <= 14; n++ {
@@ -420,8 +420,8 @@ func test(t *testing.T, build func([]byte) []int) {
 	})
 }
 
-// testRec fills x[i:] with all possible combinations of values in [1,max]
-// and then calls testSA(t, x, build) for each one.
+// testRec 用 [1,max] 中值的所有可能组合填充 x[i:]，
+// 然后对每个组合调用 testSA(t, x, build)。
 func testRec(t *testing.T, x []byte, i, max int, numFail *int, build func([]byte) []int) {
 	if i < len(x) {
 		for x[i] = 1; x[i] <= byte(max); x[i]++ {
@@ -439,8 +439,8 @@ func testRec(t *testing.T, x []byte, i, max int, numFail *int, build func([]byte
 	}
 }
 
-// testSA tests the suffix array build function on the input x.
-// It constructs the suffix array and then checks that it is correct.
+// testSA 在输入 x 上测试后缀数组构建函数。
+// 它构建后缀数组，然后检查它是否正确。
 func testSA(t *testing.T, x []byte, build func([]byte) []int) bool {
 	defer func() {
 		if e := recover(); e != nil {
@@ -472,9 +472,9 @@ var (
 	benchrand = make([]byte, 1e6)
 )
 
-// Of all possible inputs, the random bytes have the least amount of substring
-// repetition, and the repeated bytes have the most. For most algorithms,
-// the running time of every input will be between these two.
+// 在所有可能的输入中，随机字节的子字符串重复最少，
+// 重复字节的最多。对于大多数算法，
+// 每个输入的运行时间将介于这两者之间。
 func benchmarkNew(b *testing.B, random bool) {
 	b.ReportAllocs()
 	b.StopTimer()
@@ -532,7 +532,7 @@ func setBits(bits int) (cleanup func()) {
 	if bits == 32 {
 		maxData32 = realMaxData32
 	} else {
-		maxData32 = -1 // force use of 64-bit code
+		maxData32 = -1 // 强制使用 64 位代码
 	}
 	return func() {
 		maxData32 = realMaxData32
@@ -581,8 +581,8 @@ func BenchmarkNew(b *testing.B) {
 }
 
 func BenchmarkSaveRestore(b *testing.B) {
-	r := rand.New(rand.NewSource(0x5a77a1)) // guarantee always same sequence
-	data := make([]byte, 1<<20)             // 1MB of data to index
+	r := rand.New(rand.NewSource(0x5a77a1)) // 保证始终相同的序列
+	data := make([]byte, 1<<20)             // 1MB 要索引的数据
 	for i := range data {
 		data[i] = byte(r.Intn(256))
 	}
@@ -596,8 +596,8 @@ func BenchmarkSaveRestore(b *testing.B) {
 
 			b.StopTimer()
 			x := New(data)
-			size := testSaveRestore(nil, nil, x)       // verify correctness
-			buf := bytes.NewBuffer(make([]byte, size)) // avoid growing
+		size := testSaveRestore(nil, nil, x)       // 验证正确性
+		buf := bytes.NewBuffer(make([]byte, size)) // 避免增长
 			b.SetBytes(int64(size))
 			b.StartTimer()
 			b.ReportAllocs()

@@ -4,9 +4,8 @@
 
 //go:build ignore
 
-// Gen generates sais2.go by duplicating functions in sais.go
-// using different input types.
-// See the comment at the top of sais.go for details.
+// Gen 通过使用不同的输入类型复制 sais.go 中的函数来生成 sais2.go。
+// 详情请参见 sais.go 开头的注释。
 package main
 
 import (
