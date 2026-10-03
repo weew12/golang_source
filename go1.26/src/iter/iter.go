@@ -3,35 +3,32 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package iter provides basic definitions and operations related to
-iterators over sequences.
+Package iter 提供与序列迭代器相关的基础定义和操作。
 
-# Iterators
+# 迭代器
 
-An iterator is a function that passes successive elements of a
-sequence to a callback function, conventionally named yield.
-The function stops either when the sequence is finished or
-when yield returns false, indicating to stop the iteration early.
-This package defines [Seq] and [Seq2]
-(pronounced like seek—the first syllable of sequence)
-as shorthands for iterators that pass 1 or 2 values per sequence element
-to yield:
+迭代器是一个函数，它将序列的连续元素传递给回调函数，
+该回调函数按惯例命名为 yield。
+当序列结束，或 yield 返回 false（表示提前停止迭代）时，
+该函数停止。
+本包定义了 [Seq] 和 [Seq2]
+（读音类似 seek——sequence 的第一个音节）
+作为迭代器的简写，它们每个序列元素向 yield 传递 1 个或 2 个值：
 
 	type (
 		Seq[V any]     func(yield func(V) bool)
 		Seq2[K, V any] func(yield func(K, V) bool)
 	)
 
-Seq2 represents a sequence of paired values, conventionally key-value
-or index-value pairs.
+Seq2 表示成对值的序列，通常为键值对或索引值对。
 
-Yield returns true if the iterator should continue with the next
-element in the sequence, false if it should stop.
+如果迭代器应继续处理序列中的下一个元素，yield 返回 true；
+如果应停止，则返回 false。
 
-Yield panics if called after it returns false.
+如果在 yield 返回 false 之后调用它，yield 会 panic。
 
-For instance, [maps.Keys] returns an iterator that produces the sequence
-of keys of the map m, implemented as follows:
+例如，[maps.Keys] 返回一个产生映射 m 的键序列的迭代器，
+其实现如下：
 
 	func Keys[Map ~map[K]V, K comparable, V any](m Map) iter.Seq[K] {
 		return func(yield func(K) bool) {
@@ -43,9 +40,9 @@ of keys of the map m, implemented as follows:
 		}
 	}
 
-Further examples can be found in [The Go Blog: Range Over Function Types].
+更多示例可在 [The Go Blog: Range Over Function Types] 中找到。
 
-Iterator functions are most often called by a [range loop], as in:
+迭代器函数最常通过 [range loop] 调用，例如：
 
 	func PrintAll[V any](seq iter.Seq[V]) {
 		for v := range seq {
@@ -53,87 +50,82 @@ Iterator functions are most often called by a [range loop], as in:
 		}
 	}
 
-# Naming Conventions
+# 命名约定
 
-Iterator functions and methods are named for the sequence being walked:
+迭代器函数和方法以其所遍历的序列命名：
 
-	// All returns an iterator over all elements in s.
+	// All 返回一个遍历 s 中所有元素的迭代器。
 	func (s *Set[V]) All() iter.Seq[V]
 
-The iterator method on a collection type is conventionally named All,
-because it iterates a sequence of all the values in the collection.
+集合类型上的迭代器方法按惯例命名为 All，
+因为它遍历集合中所有值的序列。
 
-For a type containing multiple possible sequences, the iterator's name
-can indicate which sequence is being provided:
+对于包含多个可能序列的类型，迭代器的名称
+可以指示所提供的是哪个序列：
 
-	// Cities returns an iterator over the major cities in the country.
+	// Cities 返回一个遍历该国主要城市的迭代器。
 	func (c *Country) Cities() iter.Seq[*City]
 
-	// Languages returns an iterator over the official spoken languages of the country.
+	// Languages 返回一个遍历该国官方口语的迭代器。
 	func (c *Country) Languages() iter.Seq[string]
 
-If an iterator requires additional configuration, the constructor function
-can take additional configuration arguments:
+如果迭代器需要额外配置，构造函数
+可以接受额外的配置参数：
 
-	// Scan returns an iterator over key-value pairs with min ≤ key ≤ max.
+	// Scan 返回一个遍历键值对的迭代器，其中 min ≤ key ≤ max。
 	func (m *Map[K, V]) Scan(min, max K) iter.Seq2[K, V]
 
-	// Split returns an iterator over the (possibly-empty) substrings of s
-	// separated by sep.
+	// Split 返回一个遍历 s 中（可能为空的）子串的迭代器，
+	// 这些子串由 sep 分隔。
 	func Split(s, sep string) iter.Seq[string]
 
-When there are multiple possible iteration orders, the method name may
-indicate that order:
+当存在多种可能的迭代顺序时，方法名可以
+指示该顺序：
 
-	// All returns an iterator over the list from head to tail.
+	// All 返回一个从头到尾遍历列表的迭代器。
 	func (l *List[V]) All() iter.Seq[V]
 
-	// Backward returns an iterator over the list from tail to head.
+	// Backward 返回一个从尾到头遍历列表的迭代器。
 	func (l *List[V]) Backward() iter.Seq[V]
 
-	// Preorder returns an iterator over all nodes of the syntax tree
-	// beneath (and including) the specified root, in depth-first preorder,
-	// visiting a parent node before its children.
+	// Preorder 返回一个遍历语法树中指定根节点之下
+	// （并包括该根节点）所有节点的迭代器，采用深度优先前序，
+	// 在访问子节点之前先访问父节点。
 	func Preorder(root Node) iter.Seq[Node]
 
-# Single-Use Iterators
+# 一次性迭代器
 
-Most iterators provide the ability to walk an entire sequence:
-when called, the iterator does any setup necessary to start the
-sequence, then calls yield on successive elements of the sequence,
-and then cleans up before returning. Calling the iterator again
-walks the sequence again.
+大多数迭代器提供遍历整个序列的能力：
+调用时，迭代器执行开始序列所需的任何准备工作，然后对序列的连续元素调用 yield，
+最后在返回之前进行清理。再次调用该迭代器会再次遍历该序列。
 
-Some iterators break that convention, providing the ability to walk a
-sequence only once. These “single-use iterators” typically report values
-from a data stream that cannot be rewound to start over.
-Calling the iterator again after stopping early may continue the
-stream, but calling it again after the sequence is finished will yield
-no values at all. Doc comments for functions or methods that return
-single-use iterators should document this fact:
+有些迭代器打破了这一惯例，只提供遍历序列一次的能力。
+这些“一次性迭代器”通常报告来自无法倒回重来的数据流的值。
+在提前停止后再次调用该迭代器可能会继续该数据流，
+但在序列结束后再次调用它将完全不产生任何值。
+返回一次性迭代器的函数或方法的文档注释应说明这一点：
 
-	// Lines returns an iterator over lines read from r.
-	// It returns a single-use iterator.
+	// Lines 返回一个遍历从 r 读取的行的迭代器。
+	// 它返回一个一次性迭代器。
 	func (r *Reader) Lines() iter.Seq[string]
 
-# Pulling Values
+# 拉取值
 
-Functions and methods that accept or return iterators
-should use the standard [Seq] or [Seq2] types, to ensure
-compatibility with range loops and other iterator adapters.
-The standard iterators can be thought of as “push iterators”, which
-push values to the yield function.
+接受或返回迭代器的函数和方法
+应使用标准的 [Seq] 或 [Seq2] 类型，以确保
+与 range 循环及其他迭代器适配器兼容。
+标准迭代器可以看作是“推式迭代器”，
+它们将值推送给 yield 函数。
 
-Sometimes a range loop is not the most natural way to consume values
-of the sequence. In this case, [Pull] converts a standard push iterator
-to a “pull iterator”, which can be called to pull one value at a time
-from the sequence. [Pull] starts an iterator and returns a pair
-of functions—next and stop—which return the next value from the iterator
-and stop it, respectively.
+有时 range 循环并不是消费序列值最自然的方式。
+在这种情况下，[Pull] 将标准的推式迭代器
+转换为“拉式迭代器”，可以调用它一次从序列中拉取一个值。
+[Pull] 启动一个迭代器并返回一对函数——next 和 stop——
+它们分别从迭代器返回下一个值以及停止它。
 
-For example:
+例如：
 
-	// Pairs returns an iterator over successive pairs of values from seq.
+	// Pairs 返回一个遍历 seq 中连续值对的迭代器。
 	func Pairs[V any](seq iter.Seq[V]) iter.Seq2[V, V] {
 		return func(yield func(V, V) bool) {
 			next, stop := iter.Pull(seq)
@@ -144,8 +136,8 @@ For example:
 					return
 				}
 				v2, ok2 := next()
-				// If ok2 is false, v2 should be the
-				// zero value; yield one last pair.
+				// 如果 ok2 为 false，v2 应为
+				// 零值；yield 最后一对。
 				if !yield(v1, v2) {
 					return
 				}
@@ -156,48 +148,48 @@ For example:
 		}
 	}
 
-If clients do not consume the sequence to completion, they must call stop,
-which allows the iterator function to finish and return. As shown in
-the example, the conventional way to ensure this is to use defer.
+如果客户端没有将序列消费完，它们必须调用 stop，
+这使迭代器函数得以完成并返回。如示例所示，
+确保这一点的惯用方式是使用 defer。
 
-# Standard Library Usage
+# 标准库用法
 
-A few packages in the standard library provide iterator-based APIs,
-most notably the [maps] and [slices] packages.
-For example, [maps.Keys] returns an iterator over the keys of a map,
-while [slices.Sorted] collects the values of an iterator into a slice,
-sorts them, and returns the slice, so to iterate over the sorted keys of a map:
+标准库中有少数包提供基于迭代器的 API，
+其中最著名的是 [maps] 和 [slices] 包。
+例如，[maps.Keys] 返回一个遍历映射键的迭代器，
+而 [slices.Sorted] 将迭代器的值收集到切片中，
+对它们排序并返回该切片，因此要遍历映射的已排序键：
 
 	for _, key := range slices.Sorted(maps.Keys(m)) {
 		...
 	}
 
-# Mutation
+# 修改
 
-Iterators provide only the values of the sequence, not any direct way
-to modify it. If an iterator wishes to provide a mechanism for modifying
-a sequence during iteration, the usual approach is to define a position type
-with the extra operations and then provide an iterator over positions.
+迭代器只提供序列的值，不提供任何直接修改
+它的方式。如果迭代器希望提供一种在迭代期间
+修改序列的机制，通常的做法是定义一种带有额外操作的位置类型，
+然后提供遍历位置的迭代器。
 
-For example, a tree implementation might provide:
+例如，一个树实现可能提供：
 
-	// Positions returns an iterator over positions in the sequence.
+	// Positions 返回一个遍历序列中位置的迭代器。
 	func (t *Tree[V]) Positions() iter.Seq[*Pos[V]]
 
-	// A Pos represents a position in the sequence.
-	// It is only valid during the yield call it is passed to.
+	// Pos 表示序列中的一个位置。
+	// 它仅在其被传入的 yield 调用期间有效。
 	type Pos[V any] struct { ... }
 
-	// Value returns the value at the cursor.
+	// Value 返回游标处的值。
 	func (p *Pos[V]) Value() V
 
-	// Delete deletes the value at this point in the iteration.
+	// Delete 删除迭代中此处的值。
 	func (p *Pos[V]) Delete()
 
-	// Set changes the value v at the cursor.
+	// Set 更改游标处的值 v。
 	func (p *Pos[V]) Set(v V)
 
-And then a client could delete boring values from the tree using:
+然后客户端可以使用以下方式从树中删除无聊的值：
 
 	for p := range t.Positions() {
 		if boring(p.Value()) {
@@ -216,16 +208,16 @@ import (
 	"unsafe"
 )
 
-// Seq is an iterator over sequences of individual values.
-// When called as seq(yield), seq calls yield(v) for each value v in the sequence,
-// stopping early if yield returns false.
-// See the [iter] package documentation for more details.
+// Seq 是遍历单个值序列的迭代器。
+// 当以 seq(yield) 调用时，seq 对序列中的每个值 v 调用 yield(v)，
+// 如果 yield 返回 false 则提前停止。
+// 更多细节请参见 [iter] 包文档。
 type Seq[V any] func(yield func(V) bool)
 
-// Seq2 is an iterator over sequences of pairs of values, most commonly key-value pairs.
-// When called as seq(yield), seq calls yield(k, v) for each pair (k, v) in the sequence,
-// stopping early if yield returns false.
-// See the [iter] package documentation for more details.
+// Seq2 是遍历值对序列的迭代器，最常见的是键值对。
+// 当以 seq(yield) 调用时，seq 对序列中的每个对 (k, v) 调用 yield(k, v)，
+// 如果 yield 返回 false 则提前停止。
+// 更多细节请参见 [iter] 包文档。
 type Seq2[K, V any] func(yield func(K, V) bool)
 
 type coro struct{}
@@ -236,35 +228,32 @@ func newcoro(func(*coro)) *coro
 //go:linkname coroswitch runtime.coroswitch
 func coroswitch(*coro)
 
-// Pull converts the “push-style” iterator sequence seq
-// into a “pull-style” iterator accessed by the two functions
-// next and stop.
+// Pull 将“推式”迭代器序列 seq 转换为
+// 由 next 和 stop 两个函数访问的“拉式”迭代器。
 //
-// Next returns the next value in the sequence
-// and a boolean indicating whether the value is valid.
-// When the sequence is over, next returns the zero V and false.
-// It is valid to call next after reaching the end of the sequence
-// or after calling stop. These calls will continue
-// to return the zero V and false.
+// Next 返回序列中的下一个值
+// 以及一个表示该值是否有效的布尔值。
+// 当序列结束时，next 返回 V 的零值和 false。
+// 在到达序列末尾之后或调用 stop 之后，
+// 调用 next 都是有效的。这些调用将继续
+// 返回 V 的零值和 false。
 //
-// Stop ends the iteration. It must be called when the caller is
-// no longer interested in next values and next has not yet
-// signaled that the sequence is over (with a false boolean return).
-// It is valid to call stop multiple times and when next has
-// already returned false. Typically, callers should “defer stop()”.
+// Stop 结束迭代。当调用者不再关心后续值，
+// 且 next 尚未（通过返回 false 布尔值）表示序列已结束时，
+// 必须调用它。多次调用 stop 以及在 next
+// 已返回 false 后调用都是有效的。通常，调用者应“defer stop()”。
 //
-// It is an error to call next or stop from multiple goroutines
-// simultaneously.
+// 同时从多个 goroutine 调用 next 或 stop 是错误的。
 //
-// If the iterator panics during a call to next (or stop),
-// then next (or stop) itself panics with the same value.
+// 如果迭代器在调用 next（或 stop）期间发生 panic，
+// 那么 next（或 stop）本身会以相同的值发生 panic。
 func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 	var pull struct {
 		v          V
 		ok         bool
 		done       bool
 		yieldNext  bool
-		seqDone    bool // to detect Goexit
+		seqDone    bool // 用于检测 Goexit
 		racer      int
 		panicValue any
 	}
@@ -288,14 +277,14 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 			race.Acquire(unsafe.Pointer(&pull.racer))
 			return !pull.done
 		}
-		// Recover and propagate panics from seq.
+		// 恢复并传播来自 seq 的 panic。
 		defer func() {
 			if p := recover(); p != nil {
 				pull.panicValue = p
 			} else if !pull.seqDone {
 				pull.panicValue = goexitPanicValue
 			}
-			pull.done = true // Invalidate iterator
+			pull.done = true // 使迭代器失效
 			race.Release(unsafe.Pointer(&pull.racer))
 		}()
 		seq(yield)
@@ -304,7 +293,7 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 		pull.seqDone = true
 	})
 	next = func() (v1 V, ok1 bool) {
-		race.Write(unsafe.Pointer(&pull.racer)) // detect races
+		race.Write(unsafe.Pointer(&pull.racer)) // 检测竞态
 
 		if pull.done {
 			return
@@ -317,10 +306,10 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 		coroswitch(c)
 		race.Acquire(unsafe.Pointer(&pull.racer))
 
-		// Propagate panics and goexits from seq.
+		// 传播来自 seq 的 panic 和 goexit。
 		if pull.panicValue != nil {
 			if pull.panicValue == goexitPanicValue {
-				// Propagate runtime.Goexit from seq.
+				// 传播来自 seq 的 runtime.Goexit。
 				runtime.Goexit()
 			} else {
 				panic(pull.panicValue)
@@ -329,7 +318,7 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 		return pull.v, pull.ok
 	}
 	stop = func() {
-		race.Write(unsafe.Pointer(&pull.racer)) // detect races
+		race.Write(unsafe.Pointer(&pull.racer)) // 检测竞态
 
 		if !pull.done {
 			pull.done = true
@@ -337,10 +326,10 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 			coroswitch(c)
 			race.Acquire(unsafe.Pointer(&pull.racer))
 
-			// Propagate panics and goexits from seq.
+			// 传播来自 seq 的 panic 和 goexit。
 			if pull.panicValue != nil {
 				if pull.panicValue == goexitPanicValue {
-					// Propagate runtime.Goexit from seq.
+					// 传播来自 seq 的 runtime.Goexit。
 					runtime.Goexit()
 				} else {
 					panic(pull.panicValue)
@@ -351,28 +340,25 @@ func Pull[V any](seq Seq[V]) (next func() (V, bool), stop func()) {
 	return next, stop
 }
 
-// Pull2 converts the “push-style” iterator sequence seq
-// into a “pull-style” iterator accessed by the two functions
-// next and stop.
+// Pull2 将“推式”迭代器序列 seq 转换为
+// 由 next 和 stop 两个函数访问的“拉式”迭代器。
 //
-// Next returns the next pair in the sequence
-// and a boolean indicating whether the pair is valid.
-// When the sequence is over, next returns a pair of zero values and false.
-// It is valid to call next after reaching the end of the sequence
-// or after calling stop. These calls will continue
-// to return a pair of zero values and false.
+// Next 返回序列中的下一个对
+// 以及一个表示该对是否有效的布尔值。
+// 当序列结束时，next 返回一对零值和 false。
+// 在到达序列末尾之后或调用 stop 之后，
+// 调用 next 都是有效的。这些调用将继续
+// 返回一对零值和 false。
 //
-// Stop ends the iteration. It must be called when the caller is
-// no longer interested in next values and next has not yet
-// signaled that the sequence is over (with a false boolean return).
-// It is valid to call stop multiple times and when next has
-// already returned false. Typically, callers should “defer stop()”.
+// Stop 结束迭代。当调用者不再关心后续值，
+// 且 next 尚未（通过返回 false 布尔值）表示序列已结束时，
+// 必须调用它。多次调用 stop 以及在 next
+// 已返回 false 后调用都是有效的。通常，调用者应“defer stop()”。
 //
-// It is an error to call next or stop from multiple goroutines
-// simultaneously.
+// 同时从多个 goroutine 调用 next 或 stop 是错误的。
 //
-// If the iterator panics during a call to next (or stop),
-// then next (or stop) itself panics with the same value.
+// 如果迭代器在调用 next（或 stop）期间发生 panic，
+// 那么 next（或 stop）本身会以相同的值发生 panic。
 func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 	var pull struct {
 		k          K
@@ -404,14 +390,14 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 			race.Acquire(unsafe.Pointer(&pull.racer))
 			return !pull.done
 		}
-		// Recover and propagate panics from seq.
+		// 恢复并传播来自 seq 的 panic。
 		defer func() {
 			if p := recover(); p != nil {
 				pull.panicValue = p
 			} else if !pull.seqDone {
 				pull.panicValue = goexitPanicValue
 			}
-			pull.done = true // Invalidate iterator.
+			pull.done = true // 使迭代器失效。
 			race.Release(unsafe.Pointer(&pull.racer))
 		}()
 		seq(yield)
@@ -421,7 +407,7 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 		pull.seqDone = true
 	})
 	next = func() (k1 K, v1 V, ok1 bool) {
-		race.Write(unsafe.Pointer(&pull.racer)) // detect races
+		race.Write(unsafe.Pointer(&pull.racer)) // 检测竞态
 
 		if pull.done {
 			return
@@ -434,10 +420,10 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 		coroswitch(c)
 		race.Acquire(unsafe.Pointer(&pull.racer))
 
-		// Propagate panics and goexits from seq.
+		// 传播来自 seq 的 panic 和 goexit。
 		if pull.panicValue != nil {
 			if pull.panicValue == goexitPanicValue {
-				// Propagate runtime.Goexit from seq.
+				// 传播来自 seq 的 runtime.Goexit。
 				runtime.Goexit()
 			} else {
 				panic(pull.panicValue)
@@ -446,7 +432,7 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 		return pull.k, pull.v, pull.ok
 	}
 	stop = func() {
-		race.Write(unsafe.Pointer(&pull.racer)) // detect races
+		race.Write(unsafe.Pointer(&pull.racer)) // 检测竞态
 
 		if !pull.done {
 			pull.done = true
@@ -454,10 +440,10 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 			coroswitch(c)
 			race.Acquire(unsafe.Pointer(&pull.racer))
 
-			// Propagate panics and goexits from seq.
+			// 传播来自 seq 的 panic 和 goexit。
 			if pull.panicValue != nil {
 				if pull.panicValue == goexitPanicValue {
-					// Propagate runtime.Goexit from seq.
+					// 传播来自 seq 的 runtime.Goexit。
 					runtime.Goexit()
 				} else {
 					panic(pull.panicValue)
@@ -468,6 +454,6 @@ func Pull2[K, V any](seq Seq2[K, V]) (next func() (K, V, bool), stop func()) {
 	return next, stop
 }
 
-// goexitPanicValue is a sentinel value indicating that an iterator
-// exited via runtime.Goexit.
+// goexitPanicValue 是一个哨兵值，表示迭代器
+// 通过 runtime.Goexit 退出。
 var goexitPanicValue any = new(int)
