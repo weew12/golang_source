@@ -5,15 +5,14 @@
 package math
 
 /*
-	Inverse of the floating-point error function.
+	浮点误差函数的反函数。
 */
 
-// This implementation is based on the rational approximation
-// of percentage points of normal distribution available from
-// https://www.jstor.org/stable/2347330.
+// 此实现基于正态分布百分点的有理逼近，
+// 该逼近可从 https://www.jstor.org/stable/2347330 获取。
 
 const (
-	// Coefficients for approximation to erf in |x| <= 0.85
+	// 在 |x| <= 0.85 内逼近 erf 的系数
 	a0 = 1.1975323115670912564578e0
 	a1 = 4.7072688112383978012285e1
 	a2 = 6.9706266534389598238465e2
@@ -30,7 +29,7 @@ const (
 	b5 = 3.9307895800092710610e4
 	b6 = 2.8729085735721942674e4
 	b7 = 5.2264952788528545610e3
-	// Coefficients for approximation to erf in 0.85 < |x| <= 1-2*exp(-25)
+	// 在 0.85 < |x| <= 1-2*exp(-25) 内逼近 erf 的系数
 	c0 = 1.42343711074968357734e0
 	c1 = 4.63033784615654529590e0
 	c2 = 5.76949722146069140550e0
@@ -47,7 +46,7 @@ const (
 	d5 = 2.1494160384252876777097297e-2
 	d6 = 7.7441459065157709165577218e-4
 	d7 = 1.4859850019840355905497876e-9
-	// Coefficients for approximation to erf in 1-2*exp(-25) < |x| < 1
+	// 在 1-2*exp(-25) < |x| < 1 内逼近 erf 的系数
 	e0 = 6.65790464350110377720e0
 	e1 = 5.46378491116411436990e0
 	e2 = 1.78482653991729133580e0
@@ -66,16 +65,16 @@ const (
 	f7 = 2.891024605872965461538222e-15
 )
 
-// Erfinv returns the inverse error function of x.
+// Erfinv 返回 x 的反误差函数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Erfinv(1) = +Inf
 //	Erfinv(-1) = -Inf
-//	Erfinv(x) = NaN if x < -1 or x > 1
+//	Erfinv(x) = NaN 若 x < -1 或 x > 1
 //	Erfinv(NaN) = NaN
 func Erfinv(x float64) float64 {
-	// special cases
+	// 特殊情况
 	if IsNaN(x) || x <= -1 || x >= 1 {
 		if x == -1 || x == 1 {
 			return Inf(int(x))
@@ -116,13 +115,13 @@ func Erfinv(x float64) float64 {
 	return ans
 }
 
-// Erfcinv returns the inverse of [Erfc](x).
+// Erfcinv 返回 [Erfc](x) 的反函数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Erfcinv(0) = +Inf
 //	Erfcinv(2) = -Inf
-//	Erfcinv(x) = NaN if x < 0 or x > 2
+//	Erfcinv(x) = NaN 若 x < 0 或 x > 2
 //	Erfcinv(NaN) = NaN
 func Erfcinv(x float64) float64 {
 	return Erfinv(1 - x)

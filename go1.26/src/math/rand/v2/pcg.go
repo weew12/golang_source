@@ -13,25 +13,25 @@ import (
 // https://numpy.org/devdocs/reference/random/upgrading-pcg64.html
 // https://github.com/imneme/pcg-cpp/commit/871d0494ee9c9a7b7c43f753e3d8ca47c26f8005
 
-// A PCG is a PCG generator with 128 bits of internal state.
-// A zero PCG is equivalent to NewPCG(0, 0).
+// PCG 是一个具有 128 位内部状态的 PCG 生成器。
+// 零值 PCG 等价于 NewPCG(0, 0)。
 type PCG struct {
 	hi uint64
 	lo uint64
 }
 
-// NewPCG returns a new PCG seeded with the given values.
+// NewPCG 返回一个用给定值播种的新 PCG。
 func NewPCG(seed1, seed2 uint64) *PCG {
 	return &PCG{seed1, seed2}
 }
 
-// Seed resets the PCG to behave the same way as NewPCG(seed1, seed2).
+// Seed 重置 PCG，使其行为与 NewPCG(seed1, seed2) 相同。
 func (p *PCG) Seed(seed1, seed2 uint64) {
 	p.hi = seed1
 	p.lo = seed2
 }
 
-// AppendBinary implements the [encoding.BinaryAppender] interface.
+// AppendBinary 实现了 [encoding.BinaryAppender] 接口。
 func (p *PCG) AppendBinary(b []byte) ([]byte, error) {
 	b = append(b, "pcg:"...)
 	b = byteorder.BEAppendUint64(b, p.hi)
@@ -39,14 +39,14 @@ func (p *PCG) AppendBinary(b []byte) ([]byte, error) {
 	return b, nil
 }
 
-// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+// MarshalBinary 实现了 [encoding.BinaryMarshaler] 接口。
 func (p *PCG) MarshalBinary() ([]byte, error) {
 	return p.AppendBinary(make([]byte, 0, 20))
 }
 
 var errUnmarshalPCG = errors.New("invalid PCG encoding")
 
-// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+// UnmarshalBinary 实现了 [encoding.BinaryUnmarshaler] 接口。
 func (p *PCG) UnmarshalBinary(data []byte) error {
 	if len(data) != 20 || string(data[:4]) != "pcg:" {
 		return errUnmarshalPCG
@@ -59,12 +59,12 @@ func (p *PCG) UnmarshalBinary(data []byte) error {
 func (p *PCG) next() (hi, lo uint64) {
 	// https://github.com/imneme/pcg-cpp/blob/428802d1a5/include/pcg_random.hpp#L161
 	//
-	// Numpy's PCG multiplies by the 64-bit value cheapMul
-	// instead of the 128-bit value used here and in the official PCG code.
-	// This does not seem worthwhile, at least for Go: not having any high
-	// bits in the multiplier reduces the effect of low bits on the highest bits,
-	// and it only saves 1 multiply out of 3.
-	// (On 32-bit systems, it saves 1 out of 6, since Mul64 is doing 4.)
+	// Numpy 的 PCG 乘以 64 位值 cheapMul，
+	// 而不是这里和官方 PCG 代码中使用的 128 位值。
+	// 这似乎不值得，至少对 Go 而言是这样：乘数中没有任何高位
+	// 会削弱低位对最高位的影响，
+	// 而且它只节省了 3 次乘法中的 1 次。
+	// （在 32 位系统上，它节省了 6 次中的 1 次，因为 Mul64 要做 4 次。）
 	const (
 		mulHi = 2549297995355413924
 		mulLo = 4865540595714422341
@@ -82,18 +82,18 @@ func (p *PCG) next() (hi, lo uint64) {
 	return hi, lo
 }
 
-// Uint64 return a uniformly-distributed random uint64 value.
+// Uint64 返回一个均匀分布的随机 uint64 值。
 func (p *PCG) Uint64() uint64 {
 	hi, lo := p.next()
 
-	// XSL-RR would be
+	// XSL-RR 会是
 	//	hi, lo := p.next()
 	//	return bits.RotateLeft64(lo^hi, -int(hi>>58))
-	// but Numpy uses DXSM and O'Neill suggests doing the same.
-	// See https://github.com/golang/go/issues/21835#issuecomment-739065688
-	// and following comments.
+	// 但 Numpy 使用 DXSM，且 O'Neill 建议也这样做。
+	// 参见 https://github.com/golang/go/issues/21835#issuecomment-739065688
+	// 及其后续评论。
 
-	// DXSM "double xorshift multiply"
+	// DXSM "double xorshift multiply"（双重异或移位乘法）
 	// https://github.com/imneme/pcg-cpp/blob/428802d1a5/include/pcg_random.hpp#L1015
 
 	// https://github.com/imneme/pcg-cpp/blob/428802d1a5/include/pcg_random.hpp#L176

@@ -5,13 +5,12 @@
 package math
 
 /*
-	Floating-point logarithm.
+	浮点对数。
 */
 
-// The original C code, the long comment, and the constants
-// below are from FreeBSD's /usr/src/lib/msun/src/e_log.c
-// and came with this notice. The go code is a simpler
-// version of the original C.
+// 原始 C 代码、长注释及下面的常量
+// 来自 FreeBSD 的 /usr/src/lib/msun/src/e_log.c，
+// 并随附此声明。Go 代码是原始 C 的更简单版本。
 //
 // ====================================================
 // Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -23,56 +22,56 @@ package math
 // ====================================================
 //
 // __ieee754_log(x)
-// Return the logarithm of x
+// 返回 x 的对数
 //
-// Method :
-//   1. Argument Reduction: find k and f such that
+// 方法：
+//   1. 参数归约：找到 k 和 f 使得
 //			x = 2**k * (1+f),
-//	   where  sqrt(2)/2 < 1+f < sqrt(2) .
+//	   其中  sqrt(2)/2 < 1+f < sqrt(2) 。
 //
-//   2. Approximation of log(1+f).
-//	Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
+//   2. log(1+f) 的逼近。
+//	令 s = f/(2+f) ; 基于 log(1+f) = log(1+s) - log(1-s)
 //		 = 2s + 2/3 s**3 + 2/5 s**5 + .....,
 //	     	 = 2s + s*R
-//      We use a special Reme algorithm on [0,0.1716] to generate
-//	a polynomial of degree 14 to approximate R.  The maximum error
-//	of this polynomial approximation is bounded by 2**-58.45. In
-//	other words,
+//      我们使用一种特殊的 Reme 算法在 [0,0.1716] 上生成
+//	一个 14 次多项式来逼近 R。该多项式逼近的最大误差
+//	以 2**-58.45 为界。换
+//	句话说，
 //		        2      4      6      8      10      12      14
 //	    R(z) ~ L1*s +L2*s +L3*s +L4*s +L5*s  +L6*s  +L7*s
-//	(the values of L1 to L7 are listed in the program) and
+//	（L1 到 L7 的值列在程序中）且
 //	    |      2          14          |     -58.45
 //	    | L1*s +...+L7*s    -  R(z) | <= 2
 //	    |                             |
-//	Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
-//	In order to guarantee error in log below 1ulp, we compute log by
+//	注意 2s = f - s*f = f - hfsq + s*hfsq，其中 hfsq = f*f/2。
+//	为了保证 log 的误差低于 1ulp，我们按如下方式计算 log
 //		log(1+f) = f - s*(f - R)		(if f is not too large)
 //		log(1+f) = f - (hfsq - s*(hfsq+R)).	(better accuracy)
 //
-//	3. Finally,  log(x) = k*Ln2 + log(1+f).
+//	3. 最后，  log(x) = k*Ln2 + log(1+f).
 //			    = k*Ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*Ln2_lo)))
-//	   Here Ln2 is split into two floating point number:
+//	   这里 Ln2 被拆分为两个浮点数：
 //			Ln2_hi + Ln2_lo,
-//	   where n*Ln2_hi is always exact for |n| < 2000.
+//	   其中当 |n| < 2000 时 n*Ln2_hi 总是精确的。
 //
-// Special cases:
-//	log(x) is NaN with signal if x < 0 (including -INF) ;
-//	log(+INF) is +INF; log(0) is -INF with signal;
-//	log(NaN) is that NaN with no signal.
+// 特殊情况：
+//	若 x < 0（包括 -INF），log(x) 为带信号的 NaN ;
+//	log(+INF) 为 +INF; log(0) 为带信号的 -INF;
+//	log(NaN) 为该 NaN 且无信号。
 //
-// Accuracy:
-//	according to an error analysis, the error is always less than
-//	1 ulp (unit in the last place).
+// 精度：
+//	根据误差分析，误差始终小于
+//	1 ulp（最后一位的单位）。
 //
-// Constants:
-// The hexadecimal values are the intended ones for the following
-// constants. The decimal values may be used, provided that the
-// compiler will convert from decimal to binary accurately enough
-// to produce the hexadecimal values shown.
+// 常量：
+// 十六进制值是下面这些常量的预期值。
+// 可以使用十进制值，前提是
+// 编译器从十进制到二进制的转换足够精确，
+// 以产生所示出的十六进制值。
 
-// Log returns the natural logarithm of x.
+// Log 返回 x 的自然对数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Log(+Inf) = +Inf
 //	Log(0) = -Inf
@@ -98,7 +97,7 @@ func log(x float64) float64 {
 		L7    = 1.479819860511658591e-01   /* 3FC2F112 DF3E5244 */
 	)
 
-	// special cases
+	// 特殊情况
 	switch {
 	case IsNaN(x) || IsInf(x, 1):
 		return x
@@ -108,7 +107,7 @@ func log(x float64) float64 {
 		return Inf(-1)
 	}
 
-	// reduce
+	// 归约
 	f1, ki := Frexp(x)
 	if f1 < Sqrt2/2 {
 		f1 *= 2
@@ -117,7 +116,7 @@ func log(x float64) float64 {
 	f := f1 - 1
 	k := float64(ki)
 
-	// compute
+	// 计算
 	s := f / (2 + f)
 	s2 := s * s
 	s4 := s2 * s2

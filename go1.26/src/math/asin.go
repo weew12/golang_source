@@ -5,18 +5,17 @@
 package math
 
 /*
-	Floating-point arcsine and arccosine.
+	浮点反正弦与反余弦。
 
-	They are implemented by computing the arctangent
-	after appropriate range reduction.
+	它们通过适当的范围缩减后计算反正切来实现。
 */
 
-// Asin returns the arcsine, in radians, of x.
+// Asin 返回 x 的反正弦（以弧度为单位）。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Asin(±0) = ±0
-//	Asin(x) = NaN if x < -1 or x > 1
+//	Asin(x) = NaN 若 x < -1 或 x > 1
 func Asin(x float64) float64 {
 	if haveArchAsin {
 		return archAsin(x)
@@ -26,7 +25,7 @@ func Asin(x float64) float64 {
 
 func asin(x float64) float64 {
 	if x == 0 {
-		return x // special case
+		return x // 特殊情况
 	}
 	sign := false
 	if x < 0 {
@@ -34,7 +33,7 @@ func asin(x float64) float64 {
 		sign = true
 	}
 	if x > 1 {
-		return NaN() // special case
+		return NaN() // 特殊情况
 	}
 
 	temp := Sqrt(1 - x*x)
@@ -50,11 +49,11 @@ func asin(x float64) float64 {
 	return temp
 }
 
-// Acos returns the arccosine, in radians, of x.
+// Acos 返回 x 的反余弦（以弧度为单位）。
 //
-// Special case is:
+// 特殊情况为：
 //
-//	Acos(x) = NaN if x < -1 or x > 1
+//	Acos(x) = NaN 若 x < -1 或 x > 1
 func Acos(x float64) float64 {
 	if haveArchAcos {
 		return archAcos(x)

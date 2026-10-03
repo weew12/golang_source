@@ -12,8 +12,8 @@ func expAsm(x float64) float64
 func logTrampolineSetup(x float64) float64
 func logAsm(x float64) float64
 
-// Below here all functions are grouped in stubs.go for other
-// architectures.
+// 以下所有函数在其他架构上都归入 stubs.go
+// 中。
 
 const haveArchLog10 = true
 
@@ -165,6 +165,6 @@ func archRemainder(x, y float64) float64 {
 	panic("not implemented")
 }
 
-// hasVX reports whether the machine has the z/Architecture
-// vector facility installed and enabled.
+// hasVX 报告机器是否安装并启用了 z/Architecture
+// 向量设施。
 var hasVX = cpu.S390X.HasVX

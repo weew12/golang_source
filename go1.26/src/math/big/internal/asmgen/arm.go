@@ -11,11 +11,11 @@ var ArchARM = &Arch{
 	CarrySafeLoop: true,
 
 	regs: []string{
-		// R10 is g.
-		// R11 is the assembler/linker temporary (but we use it as a regular register).
-		// R13 is SP.
-		// R14 is LR.
-		// R15 is PC.
+		// R10 是 g。
+		// R11 是汇编器/链接器临时寄存器（但我们把它当作常规寄存器使用）。
+		// R13 是 SP。
+		// R14 是 LR。
+		// R15 是 PC。
 		"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R11", "R12",
 	},
 	regShift: true,

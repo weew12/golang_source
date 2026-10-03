@@ -4,39 +4,38 @@
 
 package math
 
-// Dim returns the maximum of x-y or 0.
+// Dim 返回 x-y 与 0 中的较大值。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Dim(+Inf, +Inf) = NaN
 //	Dim(-Inf, -Inf) = NaN
 //	Dim(x, NaN) = Dim(NaN, x) = NaN
 func Dim(x, y float64) float64 {
-	// The special cases result in NaN after the subtraction:
+	// 这些特殊情况在减法后得到 NaN：
 	//      +Inf - +Inf = NaN
 	//      -Inf - -Inf = NaN
 	//       NaN - y    = NaN
 	//         x - NaN  = NaN
 	v := x - y
 	if v <= 0 {
-		// v is negative or 0
+		// v 为负数或 0
 		return 0
 	}
-	// v is positive or NaN
+	// v 为正数或 NaN
 	return v
 }
 
-// Max returns the larger of x or y.
+// Max 返回 x 或 y 中的较大值。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Max(x, +Inf) = Max(+Inf, x) = +Inf
 //	Max(x, NaN) = Max(NaN, x) = NaN
 //	Max(+0, ±0) = Max(±0, +0) = +0
 //	Max(-0, -0) = -0
 //
-// Note that this differs from the built-in function max when called
-// with NaN and +Inf.
+// 注意，当以 NaN 和 +Inf 调用时，这与内置函数 max 不同。
 func Max(x, y float64) float64 {
 	if haveArchMax {
 		return archMax(x, y)
@@ -45,7 +44,7 @@ func Max(x, y float64) float64 {
 }
 
 func max(x, y float64) float64 {
-	// special cases
+	// 特殊情况
 	switch {
 	case IsInf(x, 1) || IsInf(y, 1):
 		return Inf(1)
@@ -63,16 +62,15 @@ func max(x, y float64) float64 {
 	return y
 }
 
-// Min returns the smaller of x or y.
+// Min 返回 x 或 y 中的较小值。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Min(x, -Inf) = Min(-Inf, x) = -Inf
 //	Min(x, NaN) = Min(NaN, x) = NaN
 //	Min(-0, ±0) = Min(±0, -0) = -0
 //
-// Note that this differs from the built-in function min when called
-// with NaN and -Inf.
+// 注意，当以 NaN 和 -Inf 调用时，这与内置函数 min 不同。
 func Min(x, y float64) float64 {
 	if haveArchMin {
 		return archMin(x, y)
@@ -81,7 +79,7 @@ func Min(x, y float64) float64 {
 }
 
 func min(x, y float64) float64 {
-	// special cases
+	// 特殊情况
 	switch {
 	case IsInf(x, -1) || IsInf(y, -1):
 		return Inf(-1)

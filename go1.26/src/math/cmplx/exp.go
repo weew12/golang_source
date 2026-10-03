@@ -6,48 +6,47 @@ package cmplx
 
 import "math"
 
-// The original C code, the long comment, and the constants
-// below are from http://netlib.sandia.gov/cephes/c9x-complex/clog.c.
-// The go code is a simplified version of the original C.
+// 原始 C 代码、长注释以及下面的常量
+// 来自 http://netlib.sandia.gov/cephes/c9x-complex/clog.c。
+// Go 代码是原始 C 代码的简化版本。
 //
 // Cephes Math Library Release 2.8:  June, 2000
 // Copyright 1984, 1987, 1989, 1992, 2000 by Stephen L. Moshier
 //
-// The readme file at http://netlib.sandia.gov/cephes/ says:
-//    Some software in this archive may be from the book _Methods and
-// Programs for Mathematical Functions_ (Prentice-Hall or Simon & Schuster
-// International, 1989) or from the Cephes Mathematical Library, a
-// commercial product. In either event, it is copyrighted by the author.
-// What you see here may be used freely but it comes with no support or
-// guarantee.
+// http://netlib.sandia.gov/cephes/ 处的 readme 文件写道：
+//    本档案中的某些软件可能来自 _Methods and
+// Programs for Mathematical Functions_ 一书（Prentice-Hall 或 Simon & Schuster
+// International，1989），或者来自 Cephes 数学库，一个
+// 商业产品。无论哪种情况，其版权均归作者所有。
+// 你可以自由使用在此看到的内容，但对此不提供任何支持或
+// 担保。
 //
-//   The two known misprints in the book are repaired here in the
-// source listings for the gamma function and the incomplete beta
-// integral.
+//   书中已知的两处印刷错误已在此处修正，
+// 涉及 gamma 函数和不完全 beta 积分的源代码清单。
 //
 //   Stephen L. Moshier
 //   moshier@na-net.ornl.gov
 
-// Complex exponential function
+// 复数指数函数
 //
-// DESCRIPTION:
+// 描述：
 //
-// Returns the complex exponential of the complex argument z.
+// 返回复数参数 z 的复指数。
 //
-// If
+// 如果
 //     z = x + iy,
 //     r = exp(x),
-// then
+// 那么
 //     w = r cos y + i r sin y.
 //
-// ACCURACY:
+// 精度：
 //
-//                      Relative error:
-// arithmetic   domain     # trials      peak         rms
+//                      相对误差：
+// 算术         定义域     试验次数      峰值         均方根
 //    DEC       -10,+10      8700       3.7e-17     1.1e-17
 //    IEEE      -10,+10     30000       3.0e-16     8.7e-17
 
-// Exp returns e**x, the base-e exponential of x.
+// Exp 返回 e**x，即 x 的以 e 为底的指数。
 func Exp(x complex128) complex128 {
 	switch re, im := real(x), imag(x); {
 	case math.IsInf(re, 0):

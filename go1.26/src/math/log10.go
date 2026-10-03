@@ -4,8 +4,8 @@
 
 package math
 
-// Log10 returns the decimal logarithm of x.
-// The special cases are the same as for [Log].
+// Log10 返回 x 的十进制对数。
+// 特殊情况与 [Log] 的相同。
 func Log10(x float64) float64 {
 	if haveArchLog10 {
 		return archLog10(x)
@@ -17,8 +17,8 @@ func log10(x float64) float64 {
 	return Log(x) * (1 / Ln10)
 }
 
-// Log2 returns the binary logarithm of x.
-// The special cases are the same as for [Log].
+// Log2 返回 x 的二进制对数。
+// 特殊情况与 [Log] 的相同。
 func Log2(x float64) float64 {
 	if haveArchLog2 {
 		return archLog2(x)
@@ -28,8 +28,8 @@ func Log2(x float64) float64 {
 
 func log2(x float64) float64 {
 	frac, exp := Frexp(x)
-	// Make sure exact powers of two give an exact answer.
-	// Don't depend on Log(0.5)*(1/Ln2)+exp being exactly exp-1.
+	// 确保 2 的精确幂给出精确答案。
+	// 不要依赖 Log(0.5)*(1/Ln2)+exp 恰好等于 exp-1。
 	if frac == 0.5 {
 		return float64(exp - 1)
 	}

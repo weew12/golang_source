@@ -5,13 +5,12 @@
 package math
 
 /*
-	Floating-point logarithm of the Gamma function.
+	伽玛函数的浮点对数。
 */
 
-// The original C code and the long comment below are
-// from FreeBSD's /usr/src/lib/msun/src/e_lgamma_r.c and
-// came with this notice. The go code is a simplified
-// version of the original C.
+// 原始 C 代码及下面的长注释
+// 来自 FreeBSD 的 /usr/src/lib/msun/src/e_lgamma_r.c，
+// 并随附此声明。Go 代码是原始 C 的简化版本。
 //
 // ====================================================
 // Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -23,63 +22,63 @@ package math
 // ====================================================
 //
 // __ieee754_lgamma_r(x, signgamp)
-// Reentrant version of the logarithm of the Gamma function
-// with user provided pointer for the sign of Gamma(x).
+// 伽玛函数对数的可重入版本，
+// 用户提供指向 Gamma(x) 符号的指针。
 //
-// Method:
-//   1. Argument Reduction for 0 < x <= 8
-//      Since gamma(1+s)=s*gamma(s), for x in [0,8], we may
-//      reduce x to a number in [1.5,2.5] by
+// 方法：
+//   1. 对 0 < x <= 8 的参数归约
+//      由于 gamma(1+s)=s*gamma(s)，对于 x 在 [0,8] 内，我们可以
+//      通过以下方式将 x 归约到 [1.5,2.5] 内的一个数
 //              lgamma(1+s) = log(s) + lgamma(s)
-//      for example,
+//      例如，
 //              lgamma(7.3) = log(6.3) + lgamma(6.3)
 //                          = log(6.3*5.3) + lgamma(5.3)
 //                          = log(6.3*5.3*4.3*3.3*2.3) + lgamma(2.3)
-//   2. Polynomial approximation of lgamma around its
-//      minimum (ymin=1.461632144968362245) to maintain monotonicity.
-//      On [ymin-0.23, ymin+0.27] (i.e., [1.23164,1.73163]), use
+//   2. 在 lgamma 的最小值附近作多项式逼近
+//      （ymin=1.461632144968362245）以保持单调性。
+//      在 [ymin-0.23, ymin+0.27]（即 [1.23164,1.73163]）上，使用
 //              Let z = x-ymin;
 //              lgamma(x) = -1.214862905358496078218 + z**2*poly(z)
-//              poly(z) is a 14 degree polynomial.
-//   2. Rational approximation in the primary interval [2,3]
-//      We use the following approximation:
+//              poly(z) 是一个 14 次多项式。
+//   2. 在主区间 [2,3] 上有理逼近
+//      我们使用以下逼近：
 //              s = x-2.0;
 //              lgamma(x) = 0.5*s + s*P(s)/Q(s)
-//      with accuracy
+//      精度为
 //              |P/Q - (lgamma(x)-0.5s)| < 2**-61.71
-//      Our algorithms are based on the following observation
+//      我们的算法基于以下观察
 //
 //                             zeta(2)-1    2    zeta(3)-1    3
 // lgamma(2+s) = s*(1-Euler) + --------- * s  -  --------- * s  + ...
 //                                 2                 3
 //
-//      where Euler = 0.5772156649... is the Euler constant, which
-//      is very close to 0.5.
+//      其中 Euler = 0.5772156649... 是欧拉常数，它
+//      非常接近 0.5。
 //
-//   3. For x>=8, we have
+//   3. 对于 x>=8，我们有
 //      lgamma(x)~(x-0.5)log(x)-x+0.5*log(2pi)+1/(12x)-1/(360x**3)+....
-//      (better formula:
+//      （更好的公式：
 //         lgamma(x)~(x-0.5)*(log(x)-1)-.5*(log(2pi)-1) + ...)
-//      Let z = 1/x, then we approximation
+//      令 z = 1/x，然后我们逼近
 //              f(z) = lgamma(x) - (x-0.5)(log(x)-1)
-//      by
+//      通过
 //                                  3       5             11
 //              w = w0 + w1*z + w2*z  + w3*z  + ... + w6*z
-//      where
+//      其中
 //              |w - f(z)| < 2**-58.74
 //
-//   4. For negative x, since (G is gamma function)
+//   4. 对于负 x，由于（G 是伽玛函数）
 //              -x*G(-x)*G(x) = pi/sin(pi*x),
-//      we have
+//      我们有
 //              G(x) = pi/(sin(pi*x)*(-x)*G(-x))
-//      since G(-x) is positive, sign(G(x)) = sign(sin(pi*x)) for x<0
-//      Hence, for x<0, signgam = sign(sin(pi*x)) and
+//      由于 G(-x) 为正，对于 x<0 有 sign(G(x)) = sign(sin(pi*x))
+//      因此，对于 x<0，signgam = sign(sin(pi*x)) 且
 //              lgamma(x) = log(|Gamma(x)|)
 //                        = log(pi/(|x*sin(pi*x)|)) - lgamma(-x);
-//      Note: one should avoid computing pi*(-x) directly in the
-//            computation of sin(pi*(-x)).
+//      注意：在计算 sin(pi*(-x)) 时，
+//            应避免直接计算 pi*(-x)。
 //
-//   5. Special Cases
+//   5. 特殊情况
 //              lgamma(2+s) ~ s*(1-Euler) for tiny s
 //              lgamma(1)=lgamma(2)=0
 //              lgamma(x) ~ -log(x) for tiny x
@@ -163,9 +162,9 @@ var _lgamW = [...]float64{
 	-1.63092934096575273989e-03, // 0xBF5AB89D0B9E43E4
 }
 
-// Lgamma returns the natural logarithm and sign (-1 or +1) of [Gamma](x).
+// Lgamma 返回 [Gamma](x) 的自然对数和符号（-1 或 +1）。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Lgamma(+Inf) = +Inf
 //	Lgamma(0) = +Inf
@@ -181,10 +180,10 @@ func Lgamma(x float64) (lgamma float64, sign int) {
 		Tiny  = 1.0 / (1 << 70)             // 0x3b90000000000000 ~8.47033e-22
 		Tc    = 1.46163214496836224576e+00  // 0x3FF762D86356BE3F
 		Tf    = -1.21486290535849611461e-01 // 0xBFBF19B9BCC38A42
-		// Tt = -(tail of Tf)
+		// Tt = -(Tf 的尾部)
 		Tt = -3.63867699703950536541e-18 // 0xBC50C7CAA48A971F
 	)
-	// special cases
+	// 特殊情况
 	sign = 1
 	switch {
 	case IsNaN(x):
@@ -204,7 +203,7 @@ func Lgamma(x float64) (lgamma float64, sign int) {
 		neg = true
 	}
 
-	if x < Tiny { // if |x| < 2**-70, return -log(|x|)
+	if x < Tiny { // 若 |x| < 2**-70，返回 -log(|x|)
 		if neg {
 			sign = -1
 		}
@@ -213,13 +212,13 @@ func Lgamma(x float64) (lgamma float64, sign int) {
 	}
 	var nadj float64
 	if neg {
-		if x >= Two52 { // |x| >= 2**52, must be -integer
+		if x >= Two52 { // |x| >= 2**52，必为负整数
 			lgamma = Inf(1)
 			return
 		}
 		t := sinPi(x)
 		if t == 0 {
-			lgamma = Inf(1) // -integer
+			lgamma = Inf(1) // 负整数
 			return
 		}
 		nadj = Log(Pi / Abs(t*x))
@@ -229,10 +228,10 @@ func Lgamma(x float64) (lgamma float64, sign int) {
 	}
 
 	switch {
-	case x == 1 || x == 2: // purge off 1 and 2
+	case x == 1 || x == 2: // 剔除 1 和 2
 		lgamma = 0
 		return
-	case x < 2: // use lgamma(x) = lgamma(x+1) - log(x)
+	case x < 2: // 使用 lgamma(x) = lgamma(x+1) - log(x)
 		var y float64
 		var i int
 		if x <= 0.9 {
@@ -272,7 +271,7 @@ func Lgamma(x float64) (lgamma float64, sign int) {
 		case 1:
 			z := y * y
 			w := z * y
-			p1 := _lgamT[0] + w*(_lgamT[3]+w*(_lgamT[6]+w*(_lgamT[9]+w*_lgamT[12]))) // parallel comp
+			p1 := _lgamT[0] + w*(_lgamT[3]+w*(_lgamT[6]+w*(_lgamT[9]+w*_lgamT[12]))) // 并行计算
 			p2 := _lgamT[1] + w*(_lgamT[4]+w*(_lgamT[7]+w*(_lgamT[10]+w*_lgamT[13])))
 			p3 := _lgamT[2] + w*(_lgamT[5]+w*(_lgamT[8]+w*(_lgamT[11]+w*_lgamT[14])))
 			p := z*p1 - (Tt - w*(p2+y*p3))
@@ -321,7 +320,7 @@ func Lgamma(x float64) (lgamma float64, sign int) {
 	return
 }
 
-// sinPi(x) is a helper function for negative x
+// sinPi(x) 是用于负 x 的辅助函数
 func sinPi(x float64) float64 {
 	const (
 		Two52 = 1 << 52 // 0x4330000000000000 ~4.5036e+15
@@ -331,19 +330,19 @@ func sinPi(x float64) float64 {
 		return -Sin(Pi * x)
 	}
 
-	// argument reduction
+	// 参数归约
 	z := Floor(x)
 	var n int
-	if z != x { // inexact
+	if z != x { // 非精确
 		x = Mod(x, 2)
 		n = int(x * 4)
 	} else {
-		if x >= Two53 { // x must be even
+		if x >= Two53 { // x 必为偶数
 			x = 0
 			n = 0
 		} else {
 			if x < Two52 {
-				z = x + Two52 // exact
+				z = x + Two52 // 精确
 			}
 			n = int(1 & Float64bits(z))
 			x = float64(n)

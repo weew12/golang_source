@@ -4,30 +4,30 @@
 
 package math
 
-// Coefficients _sin[] and _cos[] are found in pkg/math/sin.go.
+// 系数 _sin[] 和 _cos[] 位于 pkg/math/sin.go 中。
 
-// Sincos returns Sin(x), Cos(x).
+// Sincos 返回 Sin(x), Cos(x)。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Sincos(±0) = ±0, 1
 //	Sincos(±Inf) = NaN, NaN
 //	Sincos(NaN) = NaN, NaN
 func Sincos(x float64) (sin, cos float64) {
 	const (
-		PI4A = 7.85398125648498535156e-1  // 0x3fe921fb40000000, Pi/4 split into three parts
+		PI4A = 7.85398125648498535156e-1  // 0x3fe921fb40000000, Pi/4 拆分为三部分
 		PI4B = 3.77489470793079817668e-8  // 0x3e64442d00000000,
 		PI4C = 2.69515142907905952645e-15 // 0x3ce8469898cc5170,
 	)
-	// special cases
+	// 特殊情况
 	switch {
 	case x == 0:
-		return x, 1 // return ±0.0, 1.0
+		return x, 1 // 返回 ±0.0, 1.0
 	case IsNaN(x) || IsInf(x, 0):
 		return NaN(), NaN()
 	}
 
-	// make argument positive
+	// 使参数为正
 	sinSign, cosSign := false, false
 	if x < 0 {
 		x = -x
@@ -39,17 +39,17 @@ func Sincos(x float64) (sin, cos float64) {
 	if x >= reduceThreshold {
 		j, z = trigReduce(x)
 	} else {
-		j = uint64(x * (4 / Pi)) // integer part of x/(Pi/4), as integer for tests on the phase angle
-		y = float64(j)           // integer part of x/(Pi/4), as float
+		j = uint64(x * (4 / Pi)) // x/(Pi/4) 的整数部分，作为整数用于相位角测试
+		y = float64(j)           // x/(Pi/4) 的整数部分，作为浮点数
 
-		if j&1 == 1 { // map zeros to origin
+		if j&1 == 1 { // 将零点映射到原点
 			j++
 			y++
 		}
-		j &= 7                               // octant modulo 2Pi radians (360 degrees)
-		z = ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
+		j &= 7                               // 对 2Pi 弧度（360 度）取模的八分圆
+		z = ((x - y*PI4A) - y*PI4B) - y*PI4C // 扩展精度模运算
 	}
-	if j > 3 { // reflect in x axis
+	if j > 3 { // 关于 x 轴反射
 		j -= 4
 		sinSign, cosSign = !sinSign, !cosSign
 	}

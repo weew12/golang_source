@@ -16,7 +16,7 @@ const (
 	fracMask = 1<<shift - 1
 )
 
-// Inf returns positive infinity if sign >= 0, negative infinity if sign < 0.
+// Inf 返回正无穷（若 sign >= 0）、负无穷（若 sign < 0）。
 func Inf(sign int) float64 {
 	var v uint64
 	if sign >= 0 {
@@ -27,25 +27,25 @@ func Inf(sign int) float64 {
 	return Float64frombits(v)
 }
 
-// NaN returns an IEEE 754 “not-a-number” value.
+// NaN 返回一个 IEEE 754 “非数”值。
 func NaN() float64 { return Float64frombits(uvnan) }
 
-// IsNaN reports whether f is an IEEE 754 “not-a-number” value.
+// IsNaN 报告 f 是否为 IEEE 754 “非数”值。
 func IsNaN(f float64) (is bool) {
-	// IEEE 754 says that only NaNs satisfy f != f.
-	// To avoid the floating-point hardware, could use:
+	// IEEE 754 规定只有 NaN 满足 f != f。
+	// 为避开浮点硬件，可以使用：
 	//	x := Float64bits(f);
 	//	return uint32(x>>shift)&mask == mask && x != uvinf && x != uvneginf
 	return f != f
 }
 
-// IsInf reports whether f is an infinity, according to sign.
-// If sign > 0, IsInf reports whether f is positive infinity.
-// If sign < 0, IsInf reports whether f is negative infinity.
-// If sign == 0, IsInf reports whether f is either infinity.
+// IsInf 根据 sign 报告 f 是否为无穷。
+// 若 sign > 0，IsInf 报告 f 是否为正无穷。
+// 若 sign < 0，IsInf 报告 f 是否为负无穷。
+// 若 sign == 0，IsInf 报告 f 是否为任一无穷。
 func IsInf(f float64, sign int) bool {
-	// Test for infinity by comparing against maximum float.
-	// To avoid the floating-point hardware, could use:
+	// 通过与大浮点数比较来测试无穷。
+	// 为避开浮点硬件，可以使用：
 	//	x := Float64bits(f);
 	//	return sign >= 0 && x == uvinf || sign <= 0 && x == uvneginf;
 	if sign == 0 {
@@ -56,8 +56,8 @@ func IsInf(f float64, sign int) bool {
 	return f > MaxFloat64
 }
 
-// normalize returns a normal number y and exponent exp
-// satisfying x == y × 2**exp. It assumes x is finite and non-zero.
+// normalize 返回一个规格化数 y 和指数 exp，
+// 满足 x == y × 2**exp。它假定 x 是有限且非零的。
 func normalize(x float64) (y float64, exp int) {
 	const SmallestNormal = 2.2250738585072014e-308 // 2**-1022
 	if Abs(x) < SmallestNormal {

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Asmgen generates math/big assembly.
+// Asmgen 生成 math/big 汇编。
 //
-// Usage:
+// 用法：
 //
 //	cd go/src/math/big
 //	go test ./internal/asmgen -generate
 //
-// Or:
+// 或者：
 //
 //	go generate math/big
 package asmgen
@@ -27,7 +27,7 @@ var arches = []*Arch{
 	ArchS390X,
 }
 
-// generate returns the file name and content of the generated assembly for the given architecture.
+// generate 返回给定架构所生成汇编的文件名和内容。
 func generate(arch *Arch) (file string, data []byte) {
 	file = "arith_" + arch.Name + ".s"
 	a := NewAsm(arch)

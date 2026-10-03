@@ -4,9 +4,9 @@
 
 package math
 
-// Abs returns the absolute value of x.
+// Abs 返回 x 的绝对值。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Abs(±Inf) = +Inf
 //	Abs(NaN) = NaN

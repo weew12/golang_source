@@ -6,7 +6,7 @@ package cmplx
 
 import "math"
 
-// IsInf reports whether either real(x) or imag(x) is an infinity.
+// IsInf 报告 real(x) 或 imag(x) 中是否有一个是无穷大。
 func IsInf(x complex128) bool {
 	if math.IsInf(real(x), 0) || math.IsInf(imag(x), 0) {
 		return true
@@ -14,7 +14,7 @@ func IsInf(x complex128) bool {
 	return false
 }
 
-// Inf returns a complex infinity, complex(+Inf, +Inf).
+// Inf 返回一个复数无穷大，即 complex(+Inf, +Inf)。
 func Inf() complex128 {
 	inf := math.Inf(1)
 	return complex(inf, inf)

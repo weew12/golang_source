@@ -6,11 +6,11 @@ package math
 
 func isOddInt(x float64) bool {
 	if Abs(x) >= (1 << 53) {
-		// 1 << 53 is the largest exact integer in the float64 format.
-		// Any number outside this range will be truncated before the decimal point and therefore will always be
-		// an even integer.
-		// Without this check and if x overflows int64 the int64(xi) conversion below may produce incorrect results
-		// on some architectures (and does so on arm64). See issue #57465.
+		// 1 << 53 是 float64 格式中最大的精确整数。
+		// 任何超出此范围的数都会在小数点前被截断，因此始终是
+		// 偶数。
+		// 如果没有此检查，且 x 溢出 int64，则下面的 int64(xi) 转换在某些架构上
+		// 可能产生错误结果（在 arm64 上确实如此）。参见 issue #57465。
 		return false
 	}
 
@@ -18,12 +18,12 @@ func isOddInt(x float64) bool {
 	return xf == 0 && int64(xi)&1 == 1
 }
 
-// Special cases taken from FreeBSD's /usr/src/lib/msun/src/e_pow.c
-// updated by IEEE Std. 754-2008 "Section 9.2.1 Special values".
+// 特殊情况取自 FreeBSD 的 /usr/src/lib/msun/src/e_pow.c，
+// 并由 IEEE Std. 754-2008 “Section 9.2.1 Special values” 更新。
 
-// Pow returns x**y, the base-x exponential of y.
+// Pow 返回 x**y，即 y 的以 x 为底的指数。
 //
-// Special cases are (in order):
+// 特殊情况（按顺序）为：
 //
 //	Pow(x, ±0) = 1 for any x
 //	Pow(1, y) = 1 for any y
@@ -103,8 +103,8 @@ func pow(x, y float64) float64 {
 		return NaN()
 	}
 	if yi >= 1<<63 {
-		// yi is a large even int that will lead to overflow (or underflow to 0)
-		// for all x except -1 (x == 1 was handled earlier)
+		// yi 是一个很大的偶数，对于除 -1 之外的所有 x 都会导致溢出（或下溢到 0）
+		// （x == 1 已在前面处理）
 		switch {
 		case x == -1:
 			return 1
@@ -115,7 +115,7 @@ func pow(x, y float64) float64 {
 		}
 	}
 
-	// ans = a1 * 2**ae (= 1 for now).
+	// ans = a1 * 2**ae（目前为 1）。
 	a1 := 1.0
 	ae := 0
 
@@ -129,17 +129,17 @@ func pow(x, y float64) float64 {
 	}
 
 	// ans *= x**yi
-	// by multiplying in successive squarings
-	// of x according to bits of yi.
-	// accumulate powers of two into exp.
+	// 通过对 x 进行逐次平方
+	// 根据 yi 的各位来累乘。
+	// 将 2 的幂累加到 exp 中。
 	x1, xe := Frexp(x)
 	for i := int64(yi); i != 0; i >>= 1 {
 		if xe < -1<<12 || 1<<12 < xe {
-			// catch xe before it overflows the left shift below
-			// Since i !=0 it has at least one bit still set, so ae will accumulate xe
-			// on at least one more iteration, ae += xe is a lower bound on ae
-			// the lower bound on ae exceeds the size of a float64 exp
-			// so the final call to Ldexp will produce under/overflow (0/Inf)
+			// 在 xe 溢出下面的左移之前捕获它
+			// 由于 i !=0，它至少还有一位被置位，因此 ae 将再累加 xe
+			// 至少一次迭代，ae += xe 是 ae 的下界
+			// ae 的下界超过了 float64 指数的范围
+			// 因此最终调用 Ldexp 将产生下溢/溢出（0/Inf）
 			ae += xe
 			break
 		}
@@ -157,7 +157,7 @@ func pow(x, y float64) float64 {
 
 	// ans = a1*2**ae
 	// if y < 0 { ans = 1 / ans }
-	// but in the opposite order
+	// 但顺序相反
 	if y < 0 {
 		a1 = 1 / a1
 		ae = -ae

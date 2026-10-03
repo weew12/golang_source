@@ -6,8 +6,8 @@ package cmplx
 
 import "math"
 
-// IsNaN reports whether either real(x) or imag(x) is NaN
-// and neither is an infinity.
+// IsNaN 报告 real(x) 或 imag(x) 中是否有一个是 NaN
+// 且两者都不是无穷大。
 func IsNaN(x complex128) bool {
 	switch {
 	case math.IsInf(real(x), 0) || math.IsInf(imag(x), 0):
@@ -18,7 +18,7 @@ func IsNaN(x complex128) bool {
 	return false
 }
 
-// NaN returns a complex “not-a-number” value.
+// NaN 返回一个复数“非数”（not-a-number）值。
 func NaN() complex128 {
 	nan := math.NaN()
 	return complex(nan, nan)

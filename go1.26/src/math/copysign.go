@@ -4,8 +4,8 @@
 
 package math
 
-// Copysign returns a value with the magnitude of f
-// and the sign of sign.
+// Copysign 返回一个值，其大小为 f 的大小，
+// 符号为 sign 的符号。
 func Copysign(f, sign float64) float64 {
 	const signBit = 1 << 63
 	return Float64frombits(Float64bits(f)&^signBit | Float64bits(sign)&signBit)

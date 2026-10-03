@@ -4,7 +4,7 @@
 
 //go:build ignore
 
-// This program generates bits_tables.go.
+// 此程序生成 bits_tables.go。
 
 package main
 
@@ -47,7 +47,7 @@ func main() {
 }
 
 func gen(w io.Writer, name string, f func(uint8) uint8) {
-	// Use a const string to allow the compiler to constant-evaluate lookups at constant index.
+	// 使用常量字符串以便编译器在常量索引处对查找进行常量求值。
 	fmt.Fprintf(w, "const %s = \"\"+\n\"", name)
 	for i := 0; i < 256; i++ {
 		fmt.Fprintf(w, "\\x%02x", f(uint8(i)))

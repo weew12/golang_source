@@ -4,34 +4,34 @@
 
 package math
 
-// The original C code, the long comment, and the constants
-// below were from http://netlib.sandia.gov/cephes/cmath/sin.c,
-// available from http://www.netlib.org/cephes/cmath.tgz.
-// The go code is a simplified version of the original C.
+// 原始 C 代码、长注释及下面的常量
+// 来自 http://netlib.sandia.gov/cephes/cmath/sin.c，
+// 可从 http://www.netlib.org/cephes/cmath.tgz 获取。
+// Go 代码是原始 C 的简化版本。
 //      tanh.c
 //
-//      Hyperbolic tangent
+//      双曲正切
 //
-// SYNOPSIS:
+// 概要：
 //
 // double x, y, tanh();
 //
 // y = tanh( x );
 //
-// DESCRIPTION:
+// 描述：
 //
-// Returns hyperbolic tangent of argument in the range MINLOG to MAXLOG.
+// 返回参数在 MINLOG 到 MAXLOG 范围内的双曲正切。
 //      MAXLOG = 8.8029691931113054295988e+01 = log(2**127)
 //      MINLOG = -8.872283911167299960540e+01 = log(2**-128)
 //
-// A rational function is used for |x| < 0.625.  The form
-// x + x**3 P(x)/Q(x) of Cody & Waite is employed.
-// Otherwise,
+// 对于 |x| < 0.625，使用有理函数。采用
+// Cody & Waite 的 x + x**3 P(x)/Q(x) 形式。
+// 否则，
 //      tanh(x) = sinh(x)/cosh(x) = 1  -  2/(exp(2x) + 1).
 //
-// ACCURACY:
+// 精度：
 //
-//                      Relative error:
+//                      相对误差：
 // arithmetic   domain     # trials      peak         rms
 //    IEEE      -2,2        30000       2.5e-16     5.8e-17
 //
@@ -65,9 +65,9 @@ var tanhQ = [...]float64{
 	4.84406305325125486048e3,
 }
 
-// Tanh returns the hyperbolic tangent of x.
+// Tanh 返回 x 的双曲正切。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Tanh(±0) = ±0
 //	Tanh(±Inf) = ±1

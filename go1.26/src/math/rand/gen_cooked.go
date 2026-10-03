@@ -4,10 +4,10 @@
 
 //go:build ignore
 
-// This program computes the value of rngCooked in rng.go,
-// which is used for seeding all instances of rand.Source.
-// a 64bit and a 63bit version of the array is printed to
-// the standard output.
+// 该程序计算 rng.go 中 rngCooked 的值，
+// 它用于为 rand.Source 的所有实例播种。
+// 数组的 64 位和 63 位版本会被打印到
+// 标准输出。
 
 package main
 

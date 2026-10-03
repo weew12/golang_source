@@ -4,9 +4,9 @@
 
 package asmgen
 
-// addOrSubVV generates addVV or subVV,
-// which do z, c = x ± y.
-// The caller guarantees that len(z) == len(x) == len(y).
+// addOrSubVV 生成 addVV 或 subVV，
+// 它们执行 z, c = x ± y。
+// 调用者保证 len(z) == len(x) == len(y)。
 func addOrSubVV(a *Asm, name string) {
 	f := a.Func("func " + name + "(z, x, y []Word) (c Word)")
 
@@ -19,20 +19,20 @@ func addOrSubVV(a *Asm, name string) {
 
 	n := f.Arg("z_len")
 	p := f.Pipe()
-	p.SetHint("y", HintMemOK) // allow y to be used from memory on x86
+	p.SetHint("y", HintMemOK) // 允许在 x86 上从内存使用 y
 	p.Start(n, 1, 4)
 	var c Reg
 	if !a.Arch.CarrySafeLoop {
-		// Carry smashed by loop tests; allocate and save in register
-		// around unrolled blocks.
+		// 进位被循环测试破坏；分配一个寄存器并在展开块前后
+		// 保存它。
 		c = a.Reg()
 		a.Mov(a.Imm(0), c)
 		a.EOL("clear saved carry")
 		p.AtUnrollStart(func() { a.RestoreCarry(c); a.Free(c) })
 		p.AtUnrollEnd(func() { a.Unfree(c); a.SaveCarry(c) })
 	} else {
-		// Carry preserved by loop; clear now, ahead of loop
-		// (but after Start, which may have modified it).
+		// 进位由循环保留；现在在循环之前清除
+		// （但在 Start 之后，Start 可能已修改了它）。
 		a.ClearCarry(which)
 	}
 	p.Loop(func(in, out [][]Reg) {
@@ -44,7 +44,7 @@ func addOrSubVV(a *Asm, name string) {
 	})
 	p.Done()
 
-	// Copy carry to output.
+	// 将进位复制到输出。
 	if c.Valid() {
 		a.ConvertCarry(which, c)
 	} else {

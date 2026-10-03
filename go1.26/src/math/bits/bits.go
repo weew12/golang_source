@@ -4,41 +4,37 @@
 
 //go:generate go run make_tables.go
 
-// Package bits implements bit counting and manipulation
-// functions for the predeclared unsigned integer types.
+// Package bits 实现了针对预声明无符号整数类型的位计数和位操作函数。
 //
-// Functions in this package may be implemented directly by
-// the compiler, for better performance. For those functions
-// the code in this package will not be used. Which
-// functions are implemented by the compiler depends on the
-// architecture and the Go release.
+// 本包中的函数可能由编译器直接实现，以获得更好的性能。对于这些函数，
+// 本包中的代码将不会被使用。哪些函数由编译器实现取决于架构和 Go 版本。
 package bits
 
 const uintSize = 32 << (^uint(0) >> 63) // 32 or 64
 
-// UintSize is the size of a uint in bits.
+// UintSize 是 uint 的大小（以位为单位）。
 const UintSize = uintSize
 
 // --- LeadingZeros ---
 
-// LeadingZeros returns the number of leading zero bits in x; the result is [UintSize] for x == 0.
+// LeadingZeros 返回 x 中前导零位的个数；当 x == 0 时结果为 [UintSize]。
 func LeadingZeros(x uint) int { return UintSize - Len(x) }
 
-// LeadingZeros8 returns the number of leading zero bits in x; the result is 8 for x == 0.
+// LeadingZeros8 返回 x 中前导零位的个数；当 x == 0 时结果为 8。
 func LeadingZeros8(x uint8) int { return 8 - Len8(x) }
 
-// LeadingZeros16 returns the number of leading zero bits in x; the result is 16 for x == 0.
+// LeadingZeros16 返回 x 中前导零位的个数；当 x == 0 时结果为 16。
 func LeadingZeros16(x uint16) int { return 16 - Len16(x) }
 
-// LeadingZeros32 returns the number of leading zero bits in x; the result is 32 for x == 0.
+// LeadingZeros32 返回 x 中前导零位的个数；当 x == 0 时结果为 32。
 func LeadingZeros32(x uint32) int { return 32 - Len32(x) }
 
-// LeadingZeros64 returns the number of leading zero bits in x; the result is 64 for x == 0.
+// LeadingZeros64 返回 x 中前导零位的个数；当 x == 0 时结果为 64。
 func LeadingZeros64(x uint64) int { return 64 - Len64(x) }
 
 // --- TrailingZeros ---
 
-// See http://keithandkatie.com/keith/papers/debruijn.html
+// 参见 http://keithandkatie.com/keith/papers/debruijn.html
 const deBruijn32 = 0x077CB531
 
 var deBruijn32tab = [32]byte{
@@ -55,7 +51,7 @@ var deBruijn64tab = [64]byte{
 	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
 }
 
-// TrailingZeros returns the number of trailing zero bits in x; the result is [UintSize] for x == 0.
+// TrailingZeros 返回 x 中末尾零位的个数；当 x == 0 时结果为 [UintSize]。
 func TrailingZeros(x uint) int {
 	if UintSize == 32 {
 		return TrailingZeros32(uint32(x))
@@ -63,45 +59,43 @@ func TrailingZeros(x uint) int {
 	return TrailingZeros64(uint64(x))
 }
 
-// TrailingZeros8 returns the number of trailing zero bits in x; the result is 8 for x == 0.
+// TrailingZeros8 返回 x 中末尾零位的个数；当 x == 0 时结果为 8。
 func TrailingZeros8(x uint8) int {
 	return int(ntz8tab[x])
 }
 
-// TrailingZeros16 returns the number of trailing zero bits in x; the result is 16 for x == 0.
+// TrailingZeros16 返回 x 中末尾零位的个数；当 x == 0 时结果为 16。
 func TrailingZeros16(x uint16) int {
 	if x == 0 {
 		return 16
 	}
-	// see comment in TrailingZeros64
+	// 参见 TrailingZeros64 中的注释
 	return int(deBruijn32tab[uint32(x&-x)*deBruijn32>>(32-5)])
 }
 
-// TrailingZeros32 returns the number of trailing zero bits in x; the result is 32 for x == 0.
+// TrailingZeros32 返回 x 中末尾零位的个数；当 x == 0 时结果为 32。
 func TrailingZeros32(x uint32) int {
 	if x == 0 {
 		return 32
 	}
-	// see comment in TrailingZeros64
+	// 参见 TrailingZeros64 中的注释
 	return int(deBruijn32tab[(x&-x)*deBruijn32>>(32-5)])
 }
 
-// TrailingZeros64 returns the number of trailing zero bits in x; the result is 64 for x == 0.
+// TrailingZeros64 返回 x 中末尾零位的个数；当 x == 0 时结果为 64。
 func TrailingZeros64(x uint64) int {
 	if x == 0 {
 		return 64
 	}
-	// If popcount is fast, replace code below with return popcount(^x & (x - 1)).
+	// 如果 popcount 很快，将下面的代码替换为 return popcount(^x & (x - 1))。
 	//
-	// x & -x leaves only the right-most bit set in the word. Let k be the
-	// index of that bit. Since only a single bit is set, the value is two
-	// to the power of k. Multiplying by a power of two is equivalent to
-	// left shifting, in this case by k bits. The de Bruijn (64 bit) constant
-	// is such that all six bit, consecutive substrings are distinct.
-	// Therefore, if we have a left shifted version of this constant we can
-	// find by how many bits it was shifted by looking at which six bit
-	// substring ended up at the top of the word.
-	// (Knuth, volume 4, section 7.3.1)
+	// x & -x 只保留字中最右边的置位。设 k 为该位的索引。
+	// 由于只设置了一个位，该值即 2 的 k 次幂。乘以 2 的幂
+	// 等价于左移，在此情况下是左移 k 位。de Bruijn（64 位）常量
+	// 的选取使得所有六个位的连续子串都互不相同。
+	// 因此，如果我们将该常量左移，就可以通过观察最终位于字顶部的
+	// 那个六位子串来确定它被移动了多少位。
+	// (Knuth，第 4 卷，7.3.1 节)
 	return int(deBruijn64tab[(x&-x)*deBruijn64>>(64-6)])
 }
 
@@ -113,7 +107,7 @@ const m2 = 0x0f0f0f0f0f0f0f0f // 00001111 ...
 const m3 = 0x00ff00ff00ff00ff // etc.
 const m4 = 0x0000ffff0000ffff
 
-// OnesCount returns the number of one bits ("population count") in x.
+// OnesCount 返回 x 中 1 位的个数（"population count"）。
 func OnesCount(x uint) int {
 	if UintSize == 32 {
 		return OnesCount32(uint32(x))
@@ -121,26 +115,26 @@ func OnesCount(x uint) int {
 	return OnesCount64(uint64(x))
 }
 
-// OnesCount8 returns the number of one bits ("population count") in x.
+// OnesCount8 返回 x 中 1 位的个数（"population count"）。
 func OnesCount8(x uint8) int {
 	return int(pop8tab[x])
 }
 
-// OnesCount16 returns the number of one bits ("population count") in x.
+// OnesCount16 返回 x 中 1 位的个数（"population count"）。
 func OnesCount16(x uint16) int {
 	return int(pop8tab[x>>8] + pop8tab[x&0xff])
 }
 
-// OnesCount32 returns the number of one bits ("population count") in x.
+// OnesCount32 返回 x 中 1 位的个数（"population count"）。
 func OnesCount32(x uint32) int {
 	return int(pop8tab[x>>24] + pop8tab[x>>16&0xff] + pop8tab[x>>8&0xff] + pop8tab[x&0xff])
 }
 
-// OnesCount64 returns the number of one bits ("population count") in x.
+// OnesCount64 返回 x 中 1 位的个数（"population count"）。
 func OnesCount64(x uint64) int {
-	// Implementation: Parallel summing of adjacent bits.
-	// See "Hacker's Delight", Chap. 5: Counting Bits.
-	// The following pattern shows the general approach:
+	// 实现：对相邻位进行并行求和。
+	// 参见《Hacker's Delight》第 5 章：Counting Bits。
+	// 以下模式展示了总体思路：
 	//
 	//   x = x>>1&(m0&m) + x&(m0&m)
 	//   x = x>>2&(m1&m) + x&(m1&m)
@@ -150,13 +144,11 @@ func OnesCount64(x uint64) int {
 	//   x = x>>32&(m5&m) + x&(m5&m)
 	//   return int(x)
 	//
-	// Masking (& operations) can be left away when there's no
-	// danger that a field's sum will carry over into the next
-	// field: Since the result cannot be > 64, 8 bits is enough
-	// and we can ignore the masks for the shifts by 8 and up.
-	// Per "Hacker's Delight", the first line can be simplified
-	// more, but it saves at best one instruction, so we leave
-	// it alone for clarity.
+	// 当字段之和没有进位到下一个字段的风险时，可以省略掩码（& 运算）：
+	// 由于结果不可能 > 64，8 位就足够了，因此对于移位 8 及以上的操作
+	// 我们可以忽略掩码。
+	// 根据《Hacker's Delight》，第一行还可以进一步简化，但最多只能节省
+	// 一条指令，因此为了清晰起见我们保持原样。
 	const m = 1<<64 - 1
 	x = x>>1&(m0&m) + x&(m0&m)
 	x = x>>2&(m1&m) + x&(m1&m)
@@ -169,10 +161,10 @@ func OnesCount64(x uint64) int {
 
 // --- RotateLeft ---
 
-// RotateLeft returns the value of x rotated left by (k mod [UintSize]) bits.
-// To rotate x right by k bits, call RotateLeft(x, -k).
+// RotateLeft 返回 x 循环左移 (k mod [UintSize]) 位后的值。
+// 要将 x 循环右移 k 位，请调用 RotateLeft(x, -k)。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func RotateLeft(x uint, k int) uint {
 	if UintSize == 32 {
 		return uint(RotateLeft32(uint32(x), k))
@@ -180,40 +172,40 @@ func RotateLeft(x uint, k int) uint {
 	return uint(RotateLeft64(uint64(x), k))
 }
 
-// RotateLeft8 returns the value of x rotated left by (k mod 8) bits.
-// To rotate x right by k bits, call RotateLeft8(x, -k).
+// RotateLeft8 返回 x 循环左移 (k mod 8) 位后的值。
+// 要将 x 循环右移 k 位，请调用 RotateLeft8(x, -k)。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func RotateLeft8(x uint8, k int) uint8 {
 	const n = 8
 	s := uint(k) & (n - 1)
 	return x<<s | x>>(n-s)
 }
 
-// RotateLeft16 returns the value of x rotated left by (k mod 16) bits.
-// To rotate x right by k bits, call RotateLeft16(x, -k).
+// RotateLeft16 返回 x 循环左移 (k mod 16) 位后的值。
+// 要将 x 循环右移 k 位，请调用 RotateLeft16(x, -k)。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func RotateLeft16(x uint16, k int) uint16 {
 	const n = 16
 	s := uint(k) & (n - 1)
 	return x<<s | x>>(n-s)
 }
 
-// RotateLeft32 returns the value of x rotated left by (k mod 32) bits.
-// To rotate x right by k bits, call RotateLeft32(x, -k).
+// RotateLeft32 返回 x 循环左移 (k mod 32) 位后的值。
+// 要将 x 循环右移 k 位，请调用 RotateLeft32(x, -k)。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func RotateLeft32(x uint32, k int) uint32 {
 	const n = 32
 	s := uint(k) & (n - 1)
 	return x<<s | x>>(n-s)
 }
 
-// RotateLeft64 returns the value of x rotated left by (k mod 64) bits.
-// To rotate x right by k bits, call RotateLeft64(x, -k).
+// RotateLeft64 返回 x 循环左移 (k mod 64) 位后的值。
+// 要将 x 循环右移 k 位，请调用 RotateLeft64(x, -k)。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func RotateLeft64(x uint64, k int) uint64 {
 	const n = 64
 	s := uint(k) & (n - 1)
@@ -222,7 +214,7 @@ func RotateLeft64(x uint64, k int) uint64 {
 
 // --- Reverse ---
 
-// Reverse returns the value of x with its bits in reversed order.
+// Reverse 返回将 x 的位按相反顺序排列后的值。
 func Reverse(x uint) uint {
 	if UintSize == 32 {
 		return uint(Reverse32(uint32(x)))
@@ -230,17 +222,17 @@ func Reverse(x uint) uint {
 	return uint(Reverse64(uint64(x)))
 }
 
-// Reverse8 returns the value of x with its bits in reversed order.
+// Reverse8 返回将 x 的位按相反顺序排列后的值。
 func Reverse8(x uint8) uint8 {
 	return rev8tab[x]
 }
 
-// Reverse16 returns the value of x with its bits in reversed order.
+// Reverse16 返回将 x 的位按相反顺序排列后的值。
 func Reverse16(x uint16) uint16 {
 	return uint16(rev8tab[x>>8]) | uint16(rev8tab[x&0xff])<<8
 }
 
-// Reverse32 returns the value of x with its bits in reversed order.
+// Reverse32 返回将 x 的位按相反顺序排列后的值。
 func Reverse32(x uint32) uint32 {
 	const m = 1<<32 - 1
 	x = x>>1&(m0&m) | x&(m0&m)<<1
@@ -249,7 +241,7 @@ func Reverse32(x uint32) uint32 {
 	return ReverseBytes32(x)
 }
 
-// Reverse64 returns the value of x with its bits in reversed order.
+// Reverse64 返回将 x 的位按相反顺序排列后的值。
 func Reverse64(x uint64) uint64 {
 	const m = 1<<64 - 1
 	x = x>>1&(m0&m) | x&(m0&m)<<1
@@ -260,9 +252,9 @@ func Reverse64(x uint64) uint64 {
 
 // --- ReverseBytes ---
 
-// ReverseBytes returns the value of x with its bytes in reversed order.
+// ReverseBytes 返回将 x 的字节按相反顺序排列后的值。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func ReverseBytes(x uint) uint {
 	if UintSize == 32 {
 		return uint(ReverseBytes32(uint32(x)))
@@ -270,25 +262,25 @@ func ReverseBytes(x uint) uint {
 	return uint(ReverseBytes64(uint64(x)))
 }
 
-// ReverseBytes16 returns the value of x with its bytes in reversed order.
+// ReverseBytes16 返回将 x 的字节按相反顺序排列后的值。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func ReverseBytes16(x uint16) uint16 {
 	return x>>8 | x<<8
 }
 
-// ReverseBytes32 returns the value of x with its bytes in reversed order.
+// ReverseBytes32 返回将 x 的字节按相反顺序排列后的值。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func ReverseBytes32(x uint32) uint32 {
 	const m = 1<<32 - 1
 	x = x>>8&(m3&m) | x&(m3&m)<<8
 	return x>>16 | x<<16
 }
 
-// ReverseBytes64 returns the value of x with its bytes in reversed order.
+// ReverseBytes64 返回将 x 的字节按相反顺序排列后的值。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func ReverseBytes64(x uint64) uint64 {
 	const m = 1<<64 - 1
 	x = x>>8&(m3&m) | x&(m3&m)<<8
@@ -298,7 +290,7 @@ func ReverseBytes64(x uint64) uint64 {
 
 // --- Len ---
 
-// Len returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+// Len 返回表示 x 所需的最小位数；当 x == 0 时结果为 0。
 func Len(x uint) int {
 	if UintSize == 32 {
 		return Len32(uint32(x))
@@ -306,12 +298,12 @@ func Len(x uint) int {
 	return Len64(uint64(x))
 }
 
-// Len8 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+// Len8 返回表示 x 所需的最小位数；当 x == 0 时结果为 0。
 func Len8(x uint8) int {
 	return int(len8tab[x])
 }
 
-// Len16 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+// Len16 返回表示 x 所需的最小位数；当 x == 0 时结果为 0。
 func Len16(x uint16) (n int) {
 	if x >= 1<<8 {
 		x >>= 8
@@ -320,7 +312,7 @@ func Len16(x uint16) (n int) {
 	return n + int(len8tab[uint8(x)])
 }
 
-// Len32 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+// Len32 返回表示 x 所需的最小位数；当 x == 0 时结果为 0。
 func Len32(x uint32) (n int) {
 	if x >= 1<<16 {
 		x >>= 16
@@ -333,7 +325,7 @@ func Len32(x uint32) (n int) {
 	return n + int(len8tab[uint8(x)])
 }
 
-// Len64 returns the minimum number of bits required to represent x; the result is 0 for x == 0.
+// Len64 返回表示 x 所需的最小位数；当 x == 0 时结果为 0。
 func Len64(x uint64) (n int) {
 	if x >= 1<<32 {
 		x >>= 32
@@ -350,13 +342,13 @@ func Len64(x uint64) (n int) {
 	return n + int(len8tab[uint8(x)])
 }
 
-// --- Add with carry ---
+// --- 带进位的加法 ---
 
-// Add returns the sum with carry of x, y and carry: sum = x + y + carry.
-// The carry input must be 0 or 1; otherwise the behavior is undefined.
-// The carryOut output is guaranteed to be 0 or 1.
+// Add 返回 x、y 与 carry 的带进位和：sum = x + y + carry。
+// carry 输入必须为 0 或 1；否则行为未定义。
+// carryOut 输出保证为 0 或 1。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func Add(x, y, carry uint) (sum, carryOut uint) {
 	if UintSize == 32 {
 		s32, c32 := Add32(uint32(x), uint32(y), uint32(carry))
@@ -366,11 +358,11 @@ func Add(x, y, carry uint) (sum, carryOut uint) {
 	return uint(s64), uint(c64)
 }
 
-// Add32 returns the sum with carry of x, y and carry: sum = x + y + carry.
-// The carry input must be 0 or 1; otherwise the behavior is undefined.
-// The carryOut output is guaranteed to be 0 or 1.
+// Add32 返回 x、y 与 carry 的带进位和：sum = x + y + carry。
+// carry 输入必须为 0 或 1；否则行为未定义。
+// carryOut 输出保证为 0 或 1。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func Add32(x, y, carry uint32) (sum, carryOut uint32) {
 	sum64 := uint64(x) + uint64(y) + uint64(carry)
 	sum = uint32(sum64)
@@ -378,27 +370,27 @@ func Add32(x, y, carry uint32) (sum, carryOut uint32) {
 	return
 }
 
-// Add64 returns the sum with carry of x, y and carry: sum = x + y + carry.
-// The carry input must be 0 or 1; otherwise the behavior is undefined.
-// The carryOut output is guaranteed to be 0 or 1.
+// Add64 返回 x、y 与 carry 的带进位和：sum = x + y + carry。
+// carry 输入必须为 0 或 1；否则行为未定义。
+// carryOut 输出保证为 0 或 1。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func Add64(x, y, carry uint64) (sum, carryOut uint64) {
 	sum = x + y + carry
-	// The sum will overflow if both top bits are set (x & y) or if one of them
-	// is (x | y), and a carry from the lower place happened. If such a carry
-	// happens, the top bit will be 1 + 0 + 1 = 0 (&^ sum).
+	// 如果两个最高位都置位 (x & y)，或者其中之一置位 (x | y) 且来自低位的
+	// 进位发生，则和将会溢出。如果这样的进位发生，最高位将是
+	// 1 + 0 + 1 = 0 (&^ sum)。
 	carryOut = ((x & y) | ((x | y) &^ sum)) >> 63
 	return
 }
 
-// --- Subtract with borrow ---
+// --- 带借位的减法 ---
 
-// Sub returns the difference of x, y and borrow: diff = x - y - borrow.
-// The borrow input must be 0 or 1; otherwise the behavior is undefined.
-// The borrowOut output is guaranteed to be 0 or 1.
+// Sub 返回 x、y 与 borrow 的带借位差：diff = x - y - borrow。
+// borrow 输入必须为 0 或 1；否则行为未定义。
+// borrowOut 输出保证为 0 或 1。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func Sub(x, y, borrow uint) (diff, borrowOut uint) {
 	if UintSize == 32 {
 		d32, b32 := Sub32(uint32(x), uint32(y), uint32(borrow))
@@ -408,40 +400,38 @@ func Sub(x, y, borrow uint) (diff, borrowOut uint) {
 	return uint(d64), uint(b64)
 }
 
-// Sub32 returns the difference of x, y and borrow, diff = x - y - borrow.
-// The borrow input must be 0 or 1; otherwise the behavior is undefined.
-// The borrowOut output is guaranteed to be 0 or 1.
+// Sub32 返回 x、y 与 borrow 的带借位差，diff = x - y - borrow。
+// borrow 输入必须为 0 或 1；否则行为未定义。
+// borrowOut 输出保证为 0 或 1。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func Sub32(x, y, borrow uint32) (diff, borrowOut uint32) {
 	diff = x - y - borrow
-	// The difference will underflow if the top bit of x is not set and the top
-	// bit of y is set (^x & y) or if they are the same (^(x ^ y)) and a borrow
-	// from the lower place happens. If that borrow happens, the result will be
-	// 1 - 1 - 1 = 0 - 0 - 1 = 1 (& diff).
+	// 如果 x 的最高位未置位而 y 的最高位置位 (^x & y)，或者它们相同
+	// (^(x ^ y)) 且来自低位的借位发生，则差将会下溢。如果该借位发生，
+	// 结果将是 1 - 1 - 1 = 0 - 0 - 1 = 1 (& diff)。
 	borrowOut = ((^x & y) | (^(x ^ y) & diff)) >> 31
 	return
 }
 
-// Sub64 returns the difference of x, y and borrow: diff = x - y - borrow.
-// The borrow input must be 0 or 1; otherwise the behavior is undefined.
-// The borrowOut output is guaranteed to be 0 or 1.
+// Sub64 返回 x、y 与 borrow 的带借位差：diff = x - y - borrow。
+// borrow 输入必须为 0 或 1；否则行为未定义。
+// borrowOut 输出保证为 0 或 1。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func Sub64(x, y, borrow uint64) (diff, borrowOut uint64) {
 	diff = x - y - borrow
-	// See Sub32 for the bit logic.
+	// 位运算逻辑参见 Sub32。
 	borrowOut = ((^x & y) | (^(x ^ y) & diff)) >> 63
 	return
 }
 
-// --- Full-width multiply ---
+// --- 全宽乘法 ---
 
-// Mul returns the full-width product of x and y: (hi, lo) = x * y
-// with the product bits' upper half returned in hi and the lower
-// half returned in lo.
+// Mul 返回 x 与 y 的全宽乘积：(hi, lo) = x * y，
+// 乘积位的高半部分在 hi 中返回，低半部分在 lo 中返回。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func Mul(x, y uint) (hi, lo uint) {
 	if UintSize == 32 {
 		h, l := Mul32(uint32(x), uint32(y))
@@ -451,22 +441,20 @@ func Mul(x, y uint) (hi, lo uint) {
 	return uint(h), uint(l)
 }
 
-// Mul32 returns the 64-bit product of x and y: (hi, lo) = x * y
-// with the product bits' upper half returned in hi and the lower
-// half returned in lo.
+// Mul32 返回 x 与 y 的 64 位乘积：(hi, lo) = x * y，
+// 乘积位的高半部分在 hi 中返回，低半部分在 lo 中返回。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func Mul32(x, y uint32) (hi, lo uint32) {
 	tmp := uint64(x) * uint64(y)
 	hi, lo = uint32(tmp>>32), uint32(tmp)
 	return
 }
 
-// Mul64 returns the 128-bit product of x and y: (hi, lo) = x * y
-// with the product bits' upper half returned in hi and the lower
-// half returned in lo.
+// Mul64 返回 x 与 y 的 128 位乘积：(hi, lo) = x * y，
+// 乘积位的高半部分在 hi 中返回，低半部分在 lo 中返回。
 //
-// This function's execution time does not depend on the inputs.
+// 此函数的执行时间不依赖于输入。
 func Mul64(x, y uint64) (hi, lo uint64) {
 	const mask32 = 1<<32 - 1
 	x0 := x & mask32
@@ -483,12 +471,12 @@ func Mul64(x, y uint64) (hi, lo uint64) {
 	return
 }
 
-// --- Full-width divide ---
+// --- 全宽除法 ---
 
-// Div returns the quotient and remainder of (hi, lo) divided by y:
-// quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
-// half in parameter hi and the lower half in parameter lo.
-// Div panics for y == 0 (division by zero) or y <= hi (quotient overflow).
+// Div 返回 (hi, lo) 除以 y 的商和余数：
+// quo = (hi, lo)/y，rem = (hi, lo)%y，其中被除数位的高半部分
+// 位于参数 hi 中，低半部分位于参数 lo 中。
+// 当 y == 0（除以零）或 y <= hi（商溢出）时，Div 会 panic。
 func Div(hi, lo, y uint) (quo, rem uint) {
 	if UintSize == 32 {
 		q, r := Div32(uint32(hi), uint32(lo), uint32(y))
@@ -498,10 +486,10 @@ func Div(hi, lo, y uint) (quo, rem uint) {
 	return uint(q), uint(r)
 }
 
-// Div32 returns the quotient and remainder of (hi, lo) divided by y:
-// quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
-// half in parameter hi and the lower half in parameter lo.
-// Div32 panics for y == 0 (division by zero) or y <= hi (quotient overflow).
+// Div32 返回 (hi, lo) 除以 y 的商和余数：
+// quo = (hi, lo)/y，rem = (hi, lo)%y，其中被除数位的高半部分
+// 位于参数 hi 中，低半部分位于参数 lo 中。
+// 当 y == 0（除以零）或 y <= hi（商溢出）时，Div32 会 panic。
 func Div32(hi, lo, y uint32) (quo, rem uint32) {
 	if y != 0 && y <= hi {
 		panic(overflowError)
@@ -511,10 +499,10 @@ func Div32(hi, lo, y uint32) (quo, rem uint32) {
 	return
 }
 
-// Div64 returns the quotient and remainder of (hi, lo) divided by y:
-// quo = (hi, lo)/y, rem = (hi, lo)%y with the dividend bits' upper
-// half in parameter hi and the lower half in parameter lo.
-// Div64 panics for y == 0 (division by zero) or y <= hi (quotient overflow).
+// Div64 返回 (hi, lo) 除以 y 的商和余数：
+// quo = (hi, lo)/y，rem = (hi, lo)%y，其中被除数位的高半部分
+// 位于参数 hi 中，低半部分位于参数 lo 中。
+// 当 y == 0（除以零）或 y <= hi（商溢出）时，Div64 会 panic。
 func Div64(hi, lo, y uint64) (quo, rem uint64) {
 	if y == 0 {
 		panic(divideError)
@@ -523,7 +511,7 @@ func Div64(hi, lo, y uint64) (quo, rem uint64) {
 		panic(overflowError)
 	}
 
-	// If high part is zero, we can directly return the results.
+	// 如果高位部分为零，我们可以直接返回结果。
 	if hi == 0 {
 		return lo / y, lo % y
 	}
@@ -567,9 +555,8 @@ func Div64(hi, lo, y uint64) (quo, rem uint64) {
 	return q1*two32 + q0, (un21*two32 + un0 - q0*y) >> s
 }
 
-// Rem returns the remainder of (hi, lo) divided by y. Rem panics for
-// y == 0 (division by zero) but, unlike Div, it doesn't panic on a
-// quotient overflow.
+// Rem 返回 (hi, lo) 除以 y 的余数。当 y == 0（除以零）时 Rem 会 panic，
+// 但与 Div 不同，它在商溢出时不会 panic。
 func Rem(hi, lo, y uint) uint {
 	if UintSize == 32 {
 		return uint(Rem32(uint32(hi), uint32(lo), uint32(y)))
@@ -577,22 +564,20 @@ func Rem(hi, lo, y uint) uint {
 	return uint(Rem64(uint64(hi), uint64(lo), uint64(y)))
 }
 
-// Rem32 returns the remainder of (hi, lo) divided by y. Rem32 panics
-// for y == 0 (division by zero) but, unlike [Div32], it doesn't panic
-// on a quotient overflow.
+// Rem32 返回 (hi, lo) 除以 y 的余数。当 y == 0（除以零）时 Rem32 会 panic，
+// 但与 [Div32] 不同，它在商溢出时不会 panic。
 func Rem32(hi, lo, y uint32) uint32 {
 	return uint32((uint64(hi)<<32 | uint64(lo)) % uint64(y))
 }
 
-// Rem64 returns the remainder of (hi, lo) divided by y. Rem64 panics
-// for y == 0 (division by zero) but, unlike [Div64], it doesn't panic
-// on a quotient overflow.
+// Rem64 返回 (hi, lo) 除以 y 的余数。当 y == 0（除以零）时 Rem64 会 panic，
+// 但与 [Div64] 不同，它在商溢出时不会 panic。
 func Rem64(hi, lo, y uint64) uint64 {
-	// We scale down hi so that hi < y, then use Div64 to compute the
-	// rem with the guarantee that it won't panic on quotient overflow.
-	// Given that
+	// 我们将 hi 缩小以使 hi < y，然后使用 Div64 计算余数，
+	// 并保证它不会因商溢出而 panic。
+	// 鉴于
 	//   hi ≡ hi%y    (mod y)
-	// we have
+	// 我们有
 	//   hi<<64 + lo ≡ (hi%y)<<64 + lo    (mod y)
 	_, rem := Div64(hi%y, lo, y)
 	return rem

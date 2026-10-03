@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements multi-precision floating-point numbers.
-// Like in the GNU MPFR library (https://www.mpfr.org/), operands
-// can be of mixed precision. Unlike MPFR, the rounding mode is
-// not specified with each operation, but with each operand. The
-// rounding mode of the result operand determines the rounding
-// mode of an operation. This is a from-scratch implementation.
+// 本文件实现多精度浮点数。
+// 与 GNU MPFR 库 (https://www.mpfr.org/) 类似，操作数
+// 可以具有混合精度。与 MPFR 不同的是，舍入模式不是
+// 随每个操作指定，而是随每个操作数指定。结果操作数的
+// 舍入模式决定了一个操作的舍入模式。这是一个从零开始
+// 的实现。
 
 package big
 
@@ -17,51 +17,47 @@ import (
 	"math/bits"
 )
 
-const debugFloat = false // enable for debugging
+const debugFloat = false // 启用用于调试
 
-// A nonzero finite Float represents a multi-precision floating point number
+// 非零有限 Float 表示一个多精度浮点数
 //
 //	sign × mantissa × 2**exponent
 //
-// with 0.5 <= mantissa < 1.0, and MinExp <= exponent <= MaxExp.
-// A Float may also be zero (+0, -0) or infinite (+Inf, -Inf).
-// All Floats are ordered, and the ordering of two Floats x and y
-// is defined by x.Cmp(y).
+// 满足 0.5 <= mantissa < 1.0，且 MinExp <= exponent <= MaxExp。
+// Float 也可以为零 (+0, -0) 或无穷 (+Inf, -Inf)。
+// 所有 Float 都是有序的，两个 Float x 和 y 的顺序
+// 由 x.Cmp(y) 定义。
 //
-// Each Float value also has a precision, rounding mode, and accuracy.
-// The precision is the maximum number of mantissa bits available to
-// represent the value. The rounding mode specifies how a result should
-// be rounded to fit into the mantissa bits, and accuracy describes the
-// rounding error with respect to the exact result.
+// 每个 Float 值还带有一个精度、舍入模式和准确性。
+// 精度是可用于表示该值的尾数位的最大数量。
+// 舍入模式规定了结果应如何舍入以适配尾数位，
+// 准确性则描述相对于精确结果的舍入误差。
 //
-// Unless specified otherwise, all operations (including setters) that
-// specify a *Float variable for the result (usually via the receiver
-// with the exception of [Float.MantExp]), round the numeric result according
-// to the precision and rounding mode of the result variable.
+// 除非另有说明，所有为结果指定了 *Float 变量（通常通过
+// 接收者，[Float.MantExp] 除外）的操作（包括 setter），
+// 都会根据结果变量的精度和舍入模式对数值结果进行舍入。
 //
-// If the provided result precision is 0 (see below), it is set to the
-// precision of the argument with the largest precision value before any
-// rounding takes place, and the rounding mode remains unchanged. Thus,
-// uninitialized Floats provided as result arguments will have their
-// precision set to a reasonable value determined by the operands, and
-// their mode is the zero value for RoundingMode (ToNearestEven).
+// 如果提供的结果精度为 0（见下文），则在进行任何舍入
+// 之前，它会被设为精度值最大的那个参数的精度，且舍入
+// 模式保持不变。因此，作为结果参数提供的未初始化 Float
+// 会将其精度设为由操作数决定的合理值，其模式为
+// RoundingMode 的零值 (ToNearestEven)。
 //
-// By setting the desired precision to 24 or 53 and using matching rounding
-// mode (typically [ToNearestEven]), Float operations produce the same results
-// as the corresponding float32 or float64 IEEE 754 arithmetic for operands
-// that correspond to normal (i.e., not denormal) float32 or float64 numbers.
-// Exponent underflow and overflow lead to a 0 or an Infinity for different
-// values than IEEE 754 because Float exponents have a much larger range.
+// 通过将所需精度设为 24 或 53 并使用匹配的舍入模式
+// （通常是 [ToNearestEven]），对于对应普通（即非非规格化）
+// float32 或 float64 数的操作数，Float 运算会产生与相应的
+// float32 或 float64 IEEE 754 算术相同的结果。
+// 指数下溢和上溢会导致与 IEEE 754 不同的值（0 或无穷），
+// 因为 Float 的指数范围要大得多。
 //
-// The zero (uninitialized) value for a Float is ready to use and represents
-// the number +0.0 exactly, with precision 0 and rounding mode [ToNearestEven].
+// Float 的零（未初始化）值可直接使用，它精确表示数 +0.0，
+// 精度为 0 且舍入模式为 [ToNearestEven]。
 //
-// Operations always take pointer arguments (*Float) rather
-// than Float values, and each unique Float value requires
-// its own unique *Float pointer. To "copy" a Float value,
-// an existing (or newly allocated) Float must be set to
-// a new value using the [Float.Set] method; shallow copies
-// of Floats are not supported and may lead to errors.
+// 操作始终接受指针参数 (*Float) 而非 Float 值，每个
+// 唯一的 Float 值都需要其自己唯一的 *Float 指针。
+// 要“复制”一个 Float 值，必须使用 [Float.Set] 方法将现有
+// 的（或新分配的）Float 设为新值；不支持 Float 的浅拷贝，
+// 且浅拷贝可能导致错误。
 type Float struct {
 	prec uint32
 	mode RoundingMode
@@ -72,8 +68,8 @@ type Float struct {
 	exp  int32
 }
 
-// An ErrNaN panic is raised by a [Float] operation that would lead to
-// a NaN under IEEE 754 rules. An ErrNaN implements the error interface.
+// [Float] 操作若在 IEEE 754 规则下会产生 NaN，则会引发
+// ErrNaN panic。ErrNaN 实现了 error 接口。
 type ErrNaN struct {
 	msg string
 }
@@ -82,9 +78,9 @@ func (err ErrNaN) Error() string {
 	return err.msg
 }
 
-// NewFloat allocates and returns a new [Float] set to x,
-// with precision 53 and rounding mode [ToNearestEven].
-// NewFloat panics with [ErrNaN] if x is a NaN.
+// NewFloat 分配并返回一个设为 x 的新 [Float]，
+// 其精度为 53，舍入模式为 [ToNearestEven]。
+// 若 x 为 NaN，NewFloat 会 panic 并给出 [ErrNaN]。
 func NewFloat(x float64) *Float {
 	if math.IsNaN(x) {
 		panic(ErrNaN{"NewFloat(NaN)"})
@@ -92,23 +88,23 @@ func NewFloat(x float64) *Float {
 	return new(Float).SetFloat64(x)
 }
 
-// Exponent and precision limits.
+// 指数和精度限制。
 const (
-	MaxExp  = math.MaxInt32  // largest supported exponent
-	MinExp  = math.MinInt32  // smallest supported exponent
-	MaxPrec = math.MaxUint32 // largest (theoretically) supported precision; likely memory-limited
+	MaxExp  = math.MaxInt32  // 支持的最大指数
+	MinExp  = math.MinInt32  // 支持的最小指数
+	MaxPrec = math.MaxUint32 // （理论上）支持的最大精度；可能受内存限制
 )
 
-// Internal representation: The mantissa bits x.mant of a nonzero finite
-// Float x are stored in a nat slice long enough to hold up to x.prec bits;
-// the slice may (but doesn't have to) be shorter if the mantissa contains
-// trailing 0 bits. x.mant is normalized if the msb of x.mant == 1 (i.e.,
-// the msb is shifted all the way "to the left"). Thus, if the mantissa has
-// trailing 0 bits or x.prec is not a multiple of the Word size _W,
-// x.mant[0] has trailing zero bits. The msb of the mantissa corresponds
-// to the value 0.5; the exponent x.exp shifts the binary point as needed.
+// 内部表示：非零有限 Float x 的尾数位 x.mant 存储在一个
+// nat 切片中，其长度足以容纳最多 x.prec 位；
+// 若尾数包含末尾 0 位，该切片可以（但不一定）更短。
+// 若 x.mant 的最高有效位 (msb) == 1（即 msb 一直“向左”移），
+// 则 x.mant 是规范化的。因此，若尾数带有末尾 0 位，
+// 或 x.prec 不是字长 _W 的倍数，
+// 则 x.mant[0] 带有末尾零位。尾数的 msb 对应
+// 值 0.5；指数 x.exp 按需平移二进制小数点。
 //
-// A zero or non-finite Float x ignores x.mant and x.exp.
+// 零或非有限的 Float x 会忽略 x.mant 和 x.exp。
 //
 // x                 form      neg      mant         exp
 // ----------------------------------------------------------
@@ -116,38 +112,38 @@ const (
 // 0 < |x| < +Inf    finite    sign     mantissa     exponent
 // ±Inf              inf       sign     -            -
 
-// A form value describes the internal representation.
+// form 值描述内部表示。
 type form byte
 
-// The form value order is relevant - do not change!
+// form 值的顺序很重要——请勿更改！
 const (
 	zero form = iota
 	finite
 	inf
 )
 
-// RoundingMode determines how a [Float] value is rounded to the
-// desired precision. Rounding may change the [Float] value; the
-// rounding error is described by the [Float]'s [Accuracy].
+// RoundingMode 决定 [Float] 值如何舍入到所需精度。
+// 舍入可能会改变 [Float] 值；舍入误差由
+// [Float] 的 [Accuracy] 描述。
 type RoundingMode byte
 
-// These constants define supported rounding modes.
+// 这些常量定义支持的舍入模式。
 const (
 	ToNearestEven RoundingMode = iota // == IEEE 754-2008 roundTiesToEven
 	ToNearestAway                     // == IEEE 754-2008 roundTiesToAway
 	ToZero                            // == IEEE 754-2008 roundTowardZero
-	AwayFromZero                      // no IEEE 754-2008 equivalent
+	AwayFromZero                      // 无 IEEE 754-2008 等价项
 	ToNegativeInf                     // == IEEE 754-2008 roundTowardNegative
 	ToPositiveInf                     // == IEEE 754-2008 roundTowardPositive
 )
 
 //go:generate stringer -type=RoundingMode
 
-// Accuracy describes the rounding error produced by the most recent
-// operation that generated a [Float] value, relative to the exact value.
+// Accuracy 描述生成 [Float] 值的最近一次操作所产生的、
+// 相对于精确值的舍入误差。
 type Accuracy int8
 
-// Constants describing the [Accuracy] of a [Float].
+// 描述 [Float] 的 [Accuracy] 的常量。
 const (
 	Below Accuracy = -1
 	Exact Accuracy = 0
@@ -156,26 +152,26 @@ const (
 
 //go:generate stringer -type=Accuracy
 
-// SetPrec sets z's precision to prec and returns the (possibly) rounded
-// value of z. Rounding occurs according to z's rounding mode if the mantissa
-// cannot be represented in prec bits without loss of precision.
-// SetPrec(0) maps all finite values to ±0; infinite values remain unchanged.
-// If prec > [MaxPrec], it is set to [MaxPrec].
+// SetPrec 将 z 的精度设为 prec，并返回 z 的（可能已舍入的）值。
+// 若尾数无法在不损失精度的情况下用 prec 位表示，
+// 则根据 z 的舍入模式进行舍入。
+// SetPrec(0) 将所有有限值映射为 ±0；无穷值保持不变。
+// 若 prec > [MaxPrec]，则将其设为 [MaxPrec]。
 func (z *Float) SetPrec(prec uint) *Float {
-	z.acc = Exact // optimistically assume no rounding is needed
+	z.acc = Exact // 乐观地假设无需舍入
 
-	// special case
+	// 特殊情况
 	if prec == 0 {
 		z.prec = 0
 		if z.form == finite {
-			// truncate z to 0
+			// 将 z 截断为 0
 			z.acc = makeAcc(z.neg)
 			z.form = zero
 		}
 		return z
 	}
 
-	// general case
+	// 一般情况
 	if prec > MaxPrec {
 		prec = MaxPrec
 	}
@@ -194,24 +190,24 @@ func makeAcc(above bool) Accuracy {
 	return Below
 }
 
-// SetMode sets z's rounding mode to mode and returns an exact z.
-// z remains unchanged otherwise.
-// z.SetMode(z.Mode()) is a cheap way to set z's accuracy to [Exact].
+// SetMode 将 z 的舍入模式设为 mode，并返回精确的 z。
+// 除此之外 z 保持不变。
+// z.SetMode(z.Mode()) 是将 z 的准确性设为 [Exact] 的廉价方式。
 func (z *Float) SetMode(mode RoundingMode) *Float {
 	z.mode = mode
 	z.acc = Exact
 	return z
 }
 
-// Prec returns the mantissa precision of x in bits.
-// The result may be 0 for |x| == 0 and |x| == Inf.
+// Prec 返回 x 的尾数精度（以位为单位）。
+// 对于 |x| == 0 和 |x| == Inf，结果可能为 0。
 func (x *Float) Prec() uint {
 	return uint(x.prec)
 }
 
-// MinPrec returns the minimum precision required to represent x exactly
-// (i.e., the smallest prec before x.SetPrec(prec) would start rounding x).
-// The result is 0 for |x| == 0 and |x| == Inf.
+// MinPrec 返回精确表示 x 所需的最小精度
+// （即 x.SetPrec(prec) 开始对 x 舍入之前的最小 prec）。
+// 对于 |x| == 0 和 |x| == Inf，结果为 0。
 func (x *Float) MinPrec() uint {
 	if x.form != finite {
 		return 0
@@ -219,22 +215,21 @@ func (x *Float) MinPrec() uint {
 	return uint(len(x.mant))*_W - x.mant.trailingZeroBits()
 }
 
-// Mode returns the rounding mode of x.
+// Mode 返回 x 的舍入模式。
 func (x *Float) Mode() RoundingMode {
 	return x.mode
 }
 
-// Acc returns the accuracy of x produced by the most recent
-// operation, unless explicitly documented otherwise by that
-// operation.
+// Acc 返回最近一次操作所产生的 x 的准确性，
+// 除非该操作另有明确说明。
 func (x *Float) Acc() Accuracy {
 	return x.acc
 }
 
-// Sign returns:
-//   - -1 if x < 0;
-//   - 0 if x is ±0;
-//   - +1 if x > 0.
+// Sign 返回：
+//   - 若 x < 0，返回 -1；
+//   - 若 x 为 ±0，返回 0；
+//   - 若 x > 0，返回 +1。
 func (x *Float) Sign() int {
 	if debugFloat {
 		x.validate()
@@ -248,21 +243,19 @@ func (x *Float) Sign() int {
 	return 1
 }
 
-// MantExp breaks x into its mantissa and exponent components
-// and returns the exponent. If a non-nil mant argument is
-// provided its value is set to the mantissa of x, with the
-// same precision and rounding mode as x. The components
-// satisfy x == mant × 2**exp, with 0.5 <= |mant| < 1.0.
-// Calling MantExp with a nil argument is an efficient way to
-// get the exponent of the receiver.
+// MantExp 将 x 分解为尾数和指数两部分，并返回指数。
+// 若提供了非 nil 的 mant 参数，则将其值设为 x 的尾数，
+// 精度和舍入模式与 x 相同。这些部分满足
+// x == mant × 2**exp，且 0.5 <= |mant| < 1.0。
+// 使用 nil 参数调用 MantExp 是获取接收者指数的
+// 高效方式。
 //
-// Special cases are:
+// 特殊情况有：
 //
 //	(  ±0).MantExp(mant) = 0, with mant set to   ±0
 //	(±Inf).MantExp(mant) = 0, with mant set to ±Inf
 //
-// x and mant may be the same in which case x is set to its
-// mantissa value.
+// x 和 mant 可以相同，此时 x 被设为其尾数值。
 func (x *Float) MantExp(mant *Float) (exp int) {
 	if debugFloat {
 		x.validate()
@@ -281,14 +274,14 @@ func (x *Float) MantExp(mant *Float) (exp int) {
 
 func (z *Float) setExpAndRound(exp int64, sbit uint) {
 	if exp < MinExp {
-		// underflow
+		// 下溢
 		z.acc = makeAcc(z.neg)
 		z.form = zero
 		return
 	}
 
 	if exp > MaxExp {
-		// overflow
+		// 上溢
 		z.acc = makeAcc(!z.neg)
 		z.form = inf
 		return
@@ -299,23 +292,21 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
 	z.round(sbit)
 }
 
-// SetMantExp sets z to mant × 2**exp and returns z.
-// The result z has the same precision and rounding mode
-// as mant. SetMantExp is an inverse of [Float.MantExp] but does
-// not require 0.5 <= |mant| < 1.0. Specifically, for a
-// given x of type *[Float], SetMantExp relates to [Float.MantExp]
-// as follows:
+// SetMantExp 将 z 设为 mant × 2**exp 并返回 z。
+// 结果 z 的精度和舍入模式与 mant 相同。
+// SetMantExp 是 [Float.MantExp] 的逆操作，但不要求
+// 0.5 <= |mant| < 1.0。具体而言，对于给定的 *[Float] 类型
+// 的 x，SetMantExp 与 [Float.MantExp] 的关系如下：
 //
 //	mant := new(Float)
 //	new(Float).SetMantExp(mant, x.MantExp(mant)).Cmp(x) == 0
 //
-// Special cases are:
+// 特殊情况有：
 //
 //	z.SetMantExp(  ±0, exp) =   ±0
 //	z.SetMantExp(±Inf, exp) = ±Inf
 //
-// z and mant may be the same in which case z's exponent
-// is set to exp.
+// z 和 mant 可以相同，此时 z 的指数被设为 exp。
 func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 	if debugFloat {
 		z.validate()
@@ -330,23 +321,23 @@ func (z *Float) SetMantExp(mant *Float, exp int) *Float {
 	return z
 }
 
-// Signbit reports whether x is negative or negative zero.
+// Signbit 报告 x 是否为负数或负零。
 func (x *Float) Signbit() bool {
 	return x.neg
 }
 
-// IsInf reports whether x is +Inf or -Inf.
+// IsInf 报告 x 是否为 +Inf 或 -Inf。
 func (x *Float) IsInf() bool {
 	return x.form == inf
 }
 
-// IsInt reports whether x is an integer.
-// ±Inf values are not integers.
+// IsInt 报告 x 是否为整数。
+// ±Inf 值不是整数。
 func (x *Float) IsInt() bool {
 	if debugFloat {
 		x.validate()
 	}
-	// special cases
+	// 特殊情况
 	if x.form != finite {
 		return x.form == zero
 	}
@@ -355,13 +346,13 @@ func (x *Float) IsInt() bool {
 		return false
 	}
 	// x.exp > 0
-	return x.prec <= uint32(x.exp) || x.MinPrec() <= uint(x.exp) // not enough bits for fractional mantissa
+	return x.prec <= uint32(x.exp) || x.MinPrec() <= uint(x.exp) // 用于小数尾数的位数不足
 }
 
-// debugging support
+// 调试支持
 func (x *Float) validate() {
 	if !debugFloat {
-		// avoid performance bugs
+		// 避免性能问题
 		panic("validate called but debugFloat is not set")
 	}
 	if msg := x.validate0(); msg != "" {
@@ -387,14 +378,12 @@ func (x *Float) validate0() string {
 	return ""
 }
 
-// round rounds z according to z.mode to z.prec bits and sets z.acc accordingly.
-// sbit must be 0 or 1 and summarizes any "sticky bit" information one might
-// have before calling round. z's mantissa must be normalized (with the msb set)
-// or empty.
+// round 根据 z.mode 将 z 舍入到 z.prec 位，并相应地设置 z.acc。
+// sbit 必须为 0 或 1，它汇总了调用 round 之前可能已有的任何
+// “粘滞位”信息。z 的尾数必须是规范化的（msb 已设置）或为空的。
 //
-// CAUTION: The rounding modes [ToNegativeInf], [ToPositiveInf] are affected by the
-// sign of z. For correct rounding, the sign of z must be set correctly before
-// calling round.
+// 注意：舍入模式 [ToNegativeInf]、[ToPositiveInf] 受 z 的符号影响。
+// 为实现正确的舍入，必须在调用 round 之前正确设置 z 的符号。
 func (z *Float) round(sbit uint) {
 	if debugFloat {
 		z.validate()
@@ -402,64 +391,63 @@ func (z *Float) round(sbit uint) {
 
 	z.acc = Exact
 	if z.form != finite {
-		// ±0 or ±Inf => nothing left to do
+		// ±0 或 ±Inf => 无事可做
 		return
 	}
 	// z.form == finite && len(z.mant) > 0
-	// m > 0 implies z.prec > 0 (checked by validate)
+	// m > 0 意味着 z.prec > 0（由 validate 检查）
 
-	m := uint32(len(z.mant)) // present mantissa length in words
-	bits := m * _W           // present mantissa bits; bits > 0
+	m := uint32(len(z.mant)) // 当前尾数长度（以字为单位）
+	bits := m * _W           // 当前尾数位数；bits > 0
 	if bits <= z.prec {
-		// mantissa fits => nothing to do
+		// 尾数可容纳 => 无事可做
 		return
 	}
 	// bits > z.prec
 
-	// Rounding is based on two bits: the rounding bit (rbit) and the
-	// sticky bit (sbit). The rbit is the bit immediately before the
-	// z.prec leading mantissa bits (the "0.5"). The sbit is set if any
-	// of the bits before the rbit are set (the "0.25", "0.125", etc.):
+	// 舍入基于两个位：舍入位 (rbit) 和粘滞位 (sbit)。
+	// rbit 是紧挨在 z.prec 个前导尾数位之前的位（即 “0.5”）。
+	// 若 rbit 之前的任何位被置位，则 sbit 被置位
+	// （即 “0.25”、“0.125” 等）：
 	//
-	//   rbit  sbit  => "fractional part"
+	//   rbit  sbit  => "小数部分"
 	//
 	//   0     0        == 0
 	//   0     1        >  0  , < 0.5
 	//   1     0        == 0.5
 	//   1     1        >  0.5, < 1.0
 
-	// bits > z.prec: mantissa too large => round
-	r := uint(bits - z.prec - 1) // rounding bit position; r >= 0
-	rbit := z.mant.bit(r) & 1    // rounding bit; be safe and ensure it's a single bit
-	// The sticky bit is only needed for rounding ToNearestEven
-	// or when the rounding bit is zero. Avoid computation otherwise.
+	// bits > z.prec：尾数过大 => 舍入
+	r := uint(bits - z.prec - 1) // 舍入位位置；r >= 0
+	rbit := z.mant.bit(r) & 1    // 舍入位；稳妥起见确保它是单个位
+	// 只有在舍入模式为 ToNearestEven 或舍入位为零时才需要粘滞位。
+	// 其他情况下避免计算它。
 	if sbit == 0 && (rbit == 0 || z.mode == ToNearestEven) {
 		sbit = z.mant.sticky(r)
 	}
-	sbit &= 1 // be safe and ensure it's a single bit
+	sbit &= 1 // 稳妥起见确保它是单个位
 
-	// cut off extra words
-	n := (z.prec + (_W - 1)) / _W // mantissa length in words for desired precision
+	// 截去多余的字
+	n := (z.prec + (_W - 1)) / _W // 所需精度的尾数长度（以字为单位）
 	if m > n {
-		copy(z.mant, z.mant[m-n:]) // move n last words to front
+		copy(z.mant, z.mant[m-n:]) // 将最后 n 个字移到前面
 		z.mant = z.mant[:n]
 	}
 
-	// determine number of trailing zero bits (ntz) and compute lsb mask of mantissa's least-significant word
+	// 确定末尾零位的数量 (ntz) 并计算尾数最低有效字的 lsb 掩码
 	ntz := n*_W - z.prec // 0 <= ntz < _W
 	lsb := Word(1) << ntz
 
-	// round if result is inexact
+	// 若结果不精确则舍入
 	if rbit|sbit != 0 {
-		// Make rounding decision: The result mantissa is truncated ("rounded down")
-		// by default. Decide if we need to increment, or "round up", the (unsigned)
-		// mantissa.
+		// 做出舍入决定：默认情况下结果尾数被截断（“向下舍入”）。
+		// 决定是否需要将（无符号）尾数加一，即“向上舍入”。
 		inc := false
 		switch z.mode {
 		case ToNegativeInf:
 			inc = z.neg
 		case ToZero:
-			// nothing to do
+			// 无事可做
 		case ToNearestEven:
 			inc = rbit != 0 && (sbit != 0 || z.mant[0]&lsb != 0)
 		case ToNearestAway:
@@ -472,31 +460,31 @@ func (z *Float) round(sbit uint) {
 			panic("unreachable")
 		}
 
-		// A positive result (!z.neg) is Above the exact result if we increment,
-		// and it's Below if we truncate (Exact results require no rounding).
-		// For a negative result (z.neg) it is exactly the opposite.
+		// 若我们加一，则正结果（!z.neg）高于精确结果；若我们截断，
+		// 则低于精确结果（精确结果无需舍入）。
+		// 对于负结果（z.neg）则恰好相反。
 		z.acc = makeAcc(inc != z.neg)
 
 		if inc {
-			// add 1 to mantissa
+			// 尾数加 1
 			if addVW(z.mant, z.mant, lsb) != 0 {
-				// mantissa overflow => adjust exponent
+				// 尾数溢出 => 调整指数
 				if z.exp >= MaxExp {
-					// exponent overflow
+					// 指数溢出
 					z.form = inf
 					return
 				}
 				z.exp++
-				// adjust mantissa: divide by 2 to compensate for exponent adjustment
+				// 调整尾数：除以 2 以补偿指数调整
 				rshVU(z.mant, z.mant, 1)
-				// set msb == carry == 1 from the mantissa overflow above
+				// 根据上面的尾数溢出设置 msb == carry == 1
 				const msb = 1 << (_W - 1)
 				z.mant[n-1] |= msb
 			}
 		}
 	}
 
-	// zero out trailing bits in least-significant word
+	// 将最低有效字中的末尾位清零
 	z.mant[0] &^= lsb - 1
 
 	if debugFloat {
@@ -518,36 +506,36 @@ func (z *Float) setBits64(neg bool, x uint64) *Float {
 	z.form = finite
 	s := bits.LeadingZeros64(x)
 	z.mant = z.mant.setUint64(x << uint(s))
-	z.exp = int32(64 - s) // always fits
+	z.exp = int32(64 - s) // 总能容纳
 	if z.prec < 64 {
 		z.round(0)
 	}
 	return z
 }
 
-// SetUint64 sets z to the (possibly rounded) value of x and returns z.
-// If z's precision is 0, it is changed to 64 (and rounding will have
-// no effect).
+// SetUint64 将 z 设为 x 的（可能已舍入的）值并返回 z。
+// 若 z 的精度为 0，则将其改为 64（此时舍入没有任何
+// 效果）。
 func (z *Float) SetUint64(x uint64) *Float {
 	return z.setBits64(false, x)
 }
 
-// SetInt64 sets z to the (possibly rounded) value of x and returns z.
-// If z's precision is 0, it is changed to 64 (and rounding will have
-// no effect).
+// SetInt64 将 z 设为 x 的（可能已舍入的）值并返回 z。
+// 若 z 的精度为 0，则将其改为 64（此时舍入没有任何
+// 效果）。
 func (z *Float) SetInt64(x int64) *Float {
 	u := x
 	if u < 0 {
 		u = -u
 	}
-	// We cannot simply call z.SetUint64(uint64(u)) and change
-	// the sign afterwards because the sign affects rounding.
+	// 我们不能简单地调用 z.SetUint64(uint64(u)) 然后更改
+	// 符号，因为符号会影响舍入。
 	return z.setBits64(x < 0, uint64(u))
 }
 
-// SetFloat64 sets z to the (possibly rounded) value of x and returns z.
-// If z's precision is 0, it is changed to 53 (and rounding will have
-// no effect). SetFloat64 panics with [ErrNaN] if x is a NaN.
+// SetFloat64 将 z 设为 x 的（可能已舍入的）值并返回 z。
+// 若 z 的精度为 0，则将其改为 53（此时舍入没有任何效果）。
+// 若 x 为 NaN，SetFloat64 会 panic 并给出 [ErrNaN]。
 func (z *Float) SetFloat64(x float64) *Float {
 	if z.prec == 0 {
 		z.prec = 53
@@ -556,7 +544,7 @@ func (z *Float) SetFloat64(x float64) *Float {
 		panic(ErrNaN{"Float.SetFloat64(NaN)"})
 	}
 	z.acc = Exact
-	z.neg = math.Signbit(x) // handle -0, -Inf correctly
+	z.neg = math.Signbit(x) // 正确处理 -0、-Inf
 	if x == 0 {
 		z.form = zero
 		return z
@@ -565,20 +553,20 @@ func (z *Float) SetFloat64(x float64) *Float {
 		z.form = inf
 		return z
 	}
-	// normalized x != 0
+	// 规范化后的 x != 0
 	z.form = finite
-	fmant, exp := math.Frexp(x) // get normalized mantissa
+	fmant, exp := math.Frexp(x) // 获取规范化后的尾数
 	z.mant = z.mant.setUint64(1<<63 | math.Float64bits(fmant)<<11)
-	z.exp = int32(exp) // always fits
+	z.exp = int32(exp) // 总能容纳
 	if z.prec < 53 {
 		z.round(0)
 	}
 	return z
 }
 
-// fnorm normalizes mantissa m by shifting it to the left
-// such that the msb of the most-significant word (msw) is 1.
-// It returns the shift amount. It assumes that len(m) != 0.
+// fnorm 通过将尾数 m 向左移位使其规范化，
+// 使最高有效字 (msw) 的 msb 为 1。
+// 它返回移位量。它假定 len(m) != 0。
 func fnorm(m nat) int64 {
 	if debugFloat && (len(m) == 0 || m[len(m)-1] == 0) {
 		panic("msw of mantissa is 0")
@@ -593,13 +581,12 @@ func fnorm(m nat) int64 {
 	return int64(s)
 }
 
-// SetInt sets z to the (possibly rounded) value of x and returns z.
-// If z's precision is 0, it is changed to the larger of x.BitLen()
-// or 64 (and rounding will have no effect).
+// SetInt 将 z 设为 x 的（可能已舍入的）值并返回 z。
+// 若 z 的精度为 0，则将其改为 x.BitLen() 与 64 中的
+// 较大者（此时舍入没有任何效果）。
 func (z *Float) SetInt(x *Int) *Float {
-	// TODO(gri) can be more efficient if z.prec > 0
-	// but small compared to the size of x, or if there
-	// are many trailing 0's.
+	// TODO(gri) 若 z.prec > 0 但相对于 x 的大小较小，
+	// 或者存在许多末尾 0，则可以更高效。
 	bits := uint32(x.BitLen())
 	if z.prec == 0 {
 		z.prec = max(bits, 64)
@@ -617,9 +604,9 @@ func (z *Float) SetInt(x *Int) *Float {
 	return z
 }
 
-// SetRat sets z to the (possibly rounded) value of x and returns z.
-// If z's precision is 0, it is changed to the largest of a.BitLen(),
-// b.BitLen(), or 64; with x = a/b.
+// SetRat 将 z 设为 x 的（可能已舍入的）值并返回 z。
+// 若 z 的精度为 0，则将其改为 a.BitLen()、b.BitLen()
+// 与 64 中的最大者；其中 x = a/b。
 func (z *Float) SetRat(x *Rat) *Float {
 	if x.IsInt() {
 		return z.SetInt(x.Num())
@@ -633,10 +620,9 @@ func (z *Float) SetRat(x *Rat) *Float {
 	return z.Quo(&a, &b)
 }
 
-// SetInf sets z to the infinite Float -Inf if signbit is
-// set, or +Inf if signbit is not set, and returns z. The
-// precision of z is unchanged and the result is always
-// [Exact].
+// 若 signbit 被置位，SetInf 将 z 设为无穷 Float -Inf，
+// 否则设为 +Inf，并返回 z。z 的精度保持不变，
+// 且结果始终为 [Exact]。
 func (z *Float) SetInf(signbit bool) *Float {
 	z.acc = Exact
 	z.form = inf
@@ -644,12 +630,11 @@ func (z *Float) SetInf(signbit bool) *Float {
 	return z
 }
 
-// Set sets z to the (possibly rounded) value of x and returns z.
-// If z's precision is 0, it is changed to the precision of x
-// before setting z (and rounding will have no effect).
-// Rounding is performed according to z's precision and rounding
-// mode; and z's accuracy reports the result error relative to the
-// exact (not rounded) result.
+// Set 将 z 设为 x 的（可能已舍入的）值并返回 z。
+// 若 z 的精度为 0，则在设置 z 之前将其改为 x 的精度
+// （此时舍入没有任何效果）。
+// 舍入根据 z 的精度和舍入模式执行；z 的准确性报告
+// 结果相对于精确（未舍入）结果的误差。
 func (z *Float) Set(x *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -671,8 +656,8 @@ func (z *Float) Set(x *Float) *Float {
 	return z
 }
 
-// Copy sets z to x, with the same precision, rounding mode, and accuracy as x.
-// Copy returns z. If x and z are identical, Copy is a no-op.
+// Copy 将 z 设为 x，其精度、舍入模式和准确性与 x 相同。
+// Copy 返回 z。若 x 和 z 相同，Copy 是空操作。
 func (z *Float) Copy(x *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -691,7 +676,7 @@ func (z *Float) Copy(x *Float) *Float {
 	return z
 }
 
-// msb32 returns the 32 most significant bits of x.
+// msb32 返回 x 的 32 个最高有效位。
 func msb32(x nat) uint32 {
 	i := len(x) - 1
 	if i < 0 {
@@ -709,7 +694,7 @@ func msb32(x nat) uint32 {
 	panic("unreachable")
 }
 
-// msb64 returns the 64 most significant bits of x.
+// msb64 返回 x 的 64 个最高有效位。
 func msb64(x nat) uint64 {
 	i := len(x) - 1
 	if i < 0 {
@@ -731,11 +716,11 @@ func msb64(x nat) uint64 {
 	panic("unreachable")
 }
 
-// Uint64 returns the unsigned integer resulting from truncating x
-// towards zero. If 0 <= x <= [math.MaxUint64], the result is [Exact]
-// if x is an integer and [Below] otherwise.
-// The result is (0, [Above]) for x < 0, and ([math.MaxUint64], [Below])
-// for x > [math.MaxUint64].
+// Uint64 返回将 x 向零截断得到的无符号整数。
+// 若 0 <= x <= [math.MaxUint64]，则当 x 为整数时结果为 [Exact]，
+// 否则为 [Below]。
+// 对于 x < 0，结果为 (0, [Above])；对于 x > [math.MaxUint64]，
+// 结果为 ([math.MaxUint64], [Below])。
 func (x *Float) Uint64() (uint64, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -753,14 +738,14 @@ func (x *Float) Uint64() (uint64, Accuracy) {
 		}
 		// 1 <= x < Inf
 		if x.exp <= 64 {
-			// u = trunc(x) fits into a uint64
+			// u = trunc(x) 可容纳于 uint64
 			u := msb64(x.mant) >> (64 - uint32(x.exp))
 			if x.MinPrec() <= 64 {
 				return u, Exact
 			}
-			return u, Below // x truncated
+			return u, Below // x 被截断
 		}
-		// x too large
+		// x 过大
 		return math.MaxUint64, Below
 
 	case zero:
@@ -776,11 +761,11 @@ func (x *Float) Uint64() (uint64, Accuracy) {
 	panic("unreachable")
 }
 
-// Int64 returns the integer resulting from truncating x towards zero.
-// If [math.MinInt64] <= x <= [math.MaxInt64], the result is [Exact] if x is
-// an integer, and [Above] (x < 0) or [Below] (x > 0) otherwise.
-// The result is ([math.MinInt64], [Above]) for x < [math.MinInt64],
-// and ([math.MaxInt64], [Below]) for x > [math.MaxInt64].
+// Int64 返回将 x 向零截断得到的整数。
+// 若 [math.MinInt64] <= x <= [math.MaxInt64]，则当 x 为整数时
+// 结果为 [Exact]，否则为 [Above]（x < 0）或 [Below]（x > 0）。
+// 对于 x < [math.MinInt64]，结果为 ([math.MinInt64], [Above])；
+// 对于 x > [math.MaxInt64]，结果为 ([math.MaxInt64], [Below])。
 func (x *Float) Int64() (int64, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -798,7 +783,7 @@ func (x *Float) Int64() (int64, Accuracy) {
 
 		// 1 <= |x| < +Inf
 		if x.exp <= 63 {
-			// i = trunc(x) fits into an int64 (excluding math.MinInt64)
+			// i = trunc(x) 可容纳于 int64（不含 math.MinInt64）
 			i := int64(msb64(x.mant) >> (64 - uint32(x.exp)))
 			if x.neg {
 				i = -i
@@ -806,16 +791,16 @@ func (x *Float) Int64() (int64, Accuracy) {
 			if x.MinPrec() <= uint(x.exp) {
 				return i, Exact
 			}
-			return i, acc // x truncated
+			return i, acc // x 被截断
 		}
 		if x.neg {
-			// check for special case x == math.MinInt64 (i.e., x == -(0.5 << 64))
+			// 检查特殊情况 x == math.MinInt64（即 x == -(0.5 << 64)）
 			if x.exp == 64 && x.MinPrec() == 1 {
 				acc = Exact
 			}
 			return math.MinInt64, acc
 		}
-		// x too large
+		// x 过大
 		return math.MaxInt64, Below
 
 	case zero:
@@ -831,11 +816,11 @@ func (x *Float) Int64() (int64, Accuracy) {
 	panic("unreachable")
 }
 
-// Float32 returns the float32 value nearest to x. If x is too small to be
-// represented by a float32 (|x| < [math.SmallestNonzeroFloat32]), the result
-// is (0, [Below]) or (-0, [Above]), respectively, depending on the sign of x.
-// If x is too large to be represented by a float32 (|x| > [math.MaxFloat32]),
-// the result is (+Inf, [Above]) or (-Inf, [Below]), depending on the sign of x.
+// Float32 返回最接近 x 的 float32 值。若 x 太小以致无法用
+// float32 表示（|x| < [math.SmallestNonzeroFloat32]），则结果
+// 根据 x 的符号分别为 (0, [Below]) 或 (-0, [Above])。
+// 若 x 太大以致无法用 float32 表示（|x| > [math.MaxFloat32]），
+// 则结果根据 x 的符号为 (+Inf, [Above]) 或 (-Inf, [Below])。
 func (x *Float) Float32() (float32, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -846,44 +831,44 @@ func (x *Float) Float32() (float32, Accuracy) {
 		// 0 < |x| < +Inf
 
 		const (
-			fbits = 32                //        float size
-			mbits = 23                //        mantissa size (excluding implicit msb)
-			ebits = fbits - mbits - 1 //     8  exponent size
-			bias  = 1<<(ebits-1) - 1  //   127  exponent bias
-			dmin  = 1 - bias - mbits  //  -149  smallest unbiased exponent (denormal)
-			emin  = 1 - bias          //  -126  smallest unbiased exponent (normal)
-			emax  = bias              //   127  largest unbiased exponent (normal)
+			fbits = 32                //        float 大小
+			mbits = 23                //        尾数大小（不含隐式 msb）
+			ebits = fbits - mbits - 1 //     8  指数大小
+			bias  = 1<<(ebits-1) - 1  //   127  指数偏置
+			dmin  = 1 - bias - mbits  //  -149  最小无偏指数（非规格化）
+			emin  = 1 - bias          //  -126  最小无偏指数（规格化）
+			emax  = bias              //   127  最大无偏指数（规格化）
 		)
 
-		// Float mantissa m is 0.5 <= m < 1.0; compute exponent e for float32 mantissa.
-		e := x.exp - 1 // exponent for normal mantissa m with 1.0 <= m < 2.0
+		// Float 尾数 m 满足 0.5 <= m < 1.0；为 float32 尾数计算指数 e。
+		e := x.exp - 1 // 满足 1.0 <= m < 2.0 的规格化尾数 m 的指数
 
-		// Compute precision p for float32 mantissa.
-		// If the exponent is too small, we have a denormal number before
-		// rounding and fewer than p mantissa bits of precision available
-		// (the exponent remains fixed but the mantissa gets shifted right).
-		p := mbits + 1 // precision of normal float
+		// 计算 float32 尾数的精度 p。
+		// 若指数太小，则在舍入前我们会得到一个非规格化数，
+		// 可用的尾数精度少于 p 位
+		// （指数保持固定，但尾数向右移位）。
+		p := mbits + 1 // 规格化 float 的精度
 		if e < emin {
-			// recompute precision
+			// 重新计算精度
 			p = mbits + 1 - emin + int(e)
-			// If p == 0, the mantissa of x is shifted so much to the right
-			// that its msb falls immediately to the right of the float32
-			// mantissa space. In other words, if the smallest denormal is
-			// considered "1.0", for p == 0, the mantissa value m is >= 0.5.
-			// If m > 0.5, it is rounded up to 1.0; i.e., the smallest denormal.
-			// If m == 0.5, it is rounded down to even, i.e., 0.0.
-			// If p < 0, the mantissa value m is <= "0.25" which is never rounded up.
+			// 若 p == 0，则 x 的尾数向右移动过多，
+			// 以致其 msb 正好落在 float32 尾数空间右侧。
+			// 换言之，若将最小的非规格化数视为“1.0”，
+			// 则对于 p == 0，尾数值 m >= 0.5。
+			// 若 m > 0.5，则向上舍入为 1.0，即最小的非规格化数。
+			// 若 m == 0.5，则向下舍入到偶数，即 0.0。
+			// 若 p < 0，则尾数值 m <= “0.25”，绝不会向上舍入。
 			if p < 0 /* m <= 0.25 */ || p == 0 && x.mant.sticky(uint(len(x.mant))*_W-1) == 0 /* m == 0.5 */ {
-				// underflow to ±0
+				// 下溢为 ±0
 				if x.neg {
 					var z float32
 					return -z, Above
 				}
 				return 0.0, Below
 			}
-			// otherwise, round up
-			// We handle p == 0 explicitly because it's easy and because
-			// Float.round doesn't support rounding to 0 bits of precision.
+			// 否则向上舍入
+			// 我们显式处理 p == 0，因为这很简单，且
+			// Float.round 不支持舍入到 0 位精度。
 			if p == 0 {
 				if x.neg {
 					return -math.SmallestNonzeroFloat32, Below
@@ -893,17 +878,17 @@ func (x *Float) Float32() (float32, Accuracy) {
 		}
 		// p > 0
 
-		// round
+		// 舍入
 		var r Float
 		r.prec = uint32(p)
 		r.Set(x)
 		e = r.exp - 1
 
-		// Rounding may have caused r to overflow to ±Inf
-		// (rounding never causes underflows to 0).
-		// If the exponent is too large, also overflow to ±Inf.
+		// 舍入可能已导致 r 上溢为 ±Inf
+		// （舍入绝不会导致下溢为 0）。
+		// 若指数太大，也会上溢为 ±Inf。
 		if r.form == inf || e > emax {
-			// overflow
+			// 上溢
 			if x.neg {
 				return float32(math.Inf(-1)), Below
 			}
@@ -911,25 +896,25 @@ func (x *Float) Float32() (float32, Accuracy) {
 		}
 		// e <= emax
 
-		// Determine sign, biased exponent, and mantissa.
+		// 确定符号、带偏置的指数和尾数。
 		var sign, bexp, mant uint32
 		if x.neg {
 			sign = 1 << (fbits - 1)
 		}
 
-		// Rounding may have caused a denormal number to
-		// become normal. Check again.
+		// 舍入可能已使一个非规格化数变为规格化数。
+		// 再次检查。
 		if e < emin {
-			// denormal number: recompute precision
-			// Since rounding may have at best increased precision
-			// and we have eliminated p <= 0 early, we know p > 0.
-			// bexp == 0 for denormals
+			// 非规格化数：重新计算精度
+			// 由于舍入最多只会提高精度，且我们已提前排除了 p <= 0，
+			// 因此可知 p > 0。
+			// 非规格化数的 bexp == 0
 			p = mbits + 1 - emin + int(e)
 			mant = msb32(r.mant) >> uint(fbits-p)
 		} else {
-			// normal number: emin <= e <= emax
+			// 规格化数：emin <= e <= emax
 			bexp = uint32(e+bias) << mbits
-			mant = msb32(r.mant) >> ebits & (1<<mbits - 1) // cut off msb (implicit 1 bit)
+			mant = msb32(r.mant) >> ebits & (1<<mbits - 1) // 截去 msb（隐式 1 位）
 		}
 
 		return math.Float32frombits(sign | bexp | mant), r.acc
@@ -951,11 +936,11 @@ func (x *Float) Float32() (float32, Accuracy) {
 	panic("unreachable")
 }
 
-// Float64 returns the float64 value nearest to x. If x is too small to be
-// represented by a float64 (|x| < [math.SmallestNonzeroFloat64]), the result
-// is (0, [Below]) or (-0, [Above]), respectively, depending on the sign of x.
-// If x is too large to be represented by a float64 (|x| > [math.MaxFloat64]),
-// the result is (+Inf, [Above]) or (-Inf, [Below]), depending on the sign of x.
+// Float64 返回最接近 x 的 float64 值。若 x 太小以致无法用
+// float64 表示（|x| < [math.SmallestNonzeroFloat64]），则结果
+// 根据 x 的符号分别为 (0, [Below]) 或 (-0, [Above])。
+// 若 x 太大以致无法用 float64 表示（|x| > [math.MaxFloat64]），
+// 则结果根据 x 的符号为 (+Inf, [Above]) 或 (-Inf, [Below])。
 func (x *Float) Float64() (float64, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -966,44 +951,44 @@ func (x *Float) Float64() (float64, Accuracy) {
 		// 0 < |x| < +Inf
 
 		const (
-			fbits = 64                //        float size
-			mbits = 52                //        mantissa size (excluding implicit msb)
-			ebits = fbits - mbits - 1 //    11  exponent size
-			bias  = 1<<(ebits-1) - 1  //  1023  exponent bias
-			dmin  = 1 - bias - mbits  // -1074  smallest unbiased exponent (denormal)
-			emin  = 1 - bias          // -1022  smallest unbiased exponent (normal)
-			emax  = bias              //  1023  largest unbiased exponent (normal)
+			fbits = 64                //        float 大小
+			mbits = 52                //        尾数大小（不含隐式 msb）
+			ebits = fbits - mbits - 1 //    11  指数大小
+			bias  = 1<<(ebits-1) - 1  //  1023  指数偏置
+			dmin  = 1 - bias - mbits  // -1074  最小无偏指数（非规格化）
+			emin  = 1 - bias          // -1022  最小无偏指数（规格化）
+			emax  = bias              //  1023  最大无偏指数（规格化）
 		)
 
-		// Float mantissa m is 0.5 <= m < 1.0; compute exponent e for float64 mantissa.
-		e := x.exp - 1 // exponent for normal mantissa m with 1.0 <= m < 2.0
+		// Float 尾数 m 满足 0.5 <= m < 1.0；为 float64 尾数计算指数 e。
+		e := x.exp - 1 // 满足 1.0 <= m < 2.0 的规格化尾数 m 的指数
 
-		// Compute precision p for float64 mantissa.
-		// If the exponent is too small, we have a denormal number before
-		// rounding and fewer than p mantissa bits of precision available
-		// (the exponent remains fixed but the mantissa gets shifted right).
-		p := mbits + 1 // precision of normal float
+		// 计算 float64 尾数的精度 p。
+		// 若指数太小，则在舍入前我们会得到一个非规格化数，
+		// 可用的尾数精度少于 p 位
+		// （指数保持固定，但尾数向右移位）。
+		p := mbits + 1 // 规格化 float 的精度
 		if e < emin {
-			// recompute precision
+			// 重新计算精度
 			p = mbits + 1 - emin + int(e)
-			// If p == 0, the mantissa of x is shifted so much to the right
-			// that its msb falls immediately to the right of the float64
-			// mantissa space. In other words, if the smallest denormal is
-			// considered "1.0", for p == 0, the mantissa value m is >= 0.5.
-			// If m > 0.5, it is rounded up to 1.0; i.e., the smallest denormal.
-			// If m == 0.5, it is rounded down to even, i.e., 0.0.
-			// If p < 0, the mantissa value m is <= "0.25" which is never rounded up.
+			// 若 p == 0，则 x 的尾数向右移动过多，
+			// 以致其 msb 正好落在 float64 尾数空间右侧。
+			// 换言之，若将最小的非规格化数视为“1.0”，
+			// 则对于 p == 0，尾数值 m >= 0.5。
+			// 若 m > 0.5，则向上舍入为 1.0，即最小的非规格化数。
+			// 若 m == 0.5，则向下舍入到偶数，即 0.0。
+			// 若 p < 0，则尾数值 m <= “0.25”，绝不会向上舍入。
 			if p < 0 /* m <= 0.25 */ || p == 0 && x.mant.sticky(uint(len(x.mant))*_W-1) == 0 /* m == 0.5 */ {
-				// underflow to ±0
+				// 下溢为 ±0
 				if x.neg {
 					var z float64
 					return -z, Above
 				}
 				return 0.0, Below
 			}
-			// otherwise, round up
-			// We handle p == 0 explicitly because it's easy and because
-			// Float.round doesn't support rounding to 0 bits of precision.
+			// 否则向上舍入
+			// 我们显式处理 p == 0，因为这很简单，且
+			// Float.round 不支持舍入到 0 位精度。
 			if p == 0 {
 				if x.neg {
 					return -math.SmallestNonzeroFloat64, Below
@@ -1013,17 +998,17 @@ func (x *Float) Float64() (float64, Accuracy) {
 		}
 		// p > 0
 
-		// round
+		// 舍入
 		var r Float
 		r.prec = uint32(p)
 		r.Set(x)
 		e = r.exp - 1
 
-		// Rounding may have caused r to overflow to ±Inf
-		// (rounding never causes underflows to 0).
-		// If the exponent is too large, also overflow to ±Inf.
+		// 舍入可能已导致 r 上溢为 ±Inf
+		// （舍入绝不会导致下溢为 0）。
+		// 若指数太大，也会上溢为 ±Inf。
 		if r.form == inf || e > emax {
-			// overflow
+			// 上溢
 			if x.neg {
 				return math.Inf(-1), Below
 			}
@@ -1031,25 +1016,25 @@ func (x *Float) Float64() (float64, Accuracy) {
 		}
 		// e <= emax
 
-		// Determine sign, biased exponent, and mantissa.
+		// 确定符号、带偏置的指数和尾数。
 		var sign, bexp, mant uint64
 		if x.neg {
 			sign = 1 << (fbits - 1)
 		}
 
-		// Rounding may have caused a denormal number to
-		// become normal. Check again.
+		// 舍入可能已使一个非规格化数变为规格化数。
+		// 再次检查。
 		if e < emin {
-			// denormal number: recompute precision
-			// Since rounding may have at best increased precision
-			// and we have eliminated p <= 0 early, we know p > 0.
-			// bexp == 0 for denormals
+			// 非规格化数：重新计算精度
+			// 由于舍入最多只会提高精度，且我们已提前排除了 p <= 0，
+			// 因此可知 p > 0。
+			// 非规格化数的 bexp == 0
 			p = mbits + 1 - emin + int(e)
 			mant = msb64(r.mant) >> uint(fbits-p)
 		} else {
-			// normal number: emin <= e <= emax
+			// 规格化数：emin <= e <= emax
 			bexp = uint64(e+bias) << mbits
-			mant = msb64(r.mant) >> ebits & (1<<mbits - 1) // cut off msb (implicit 1 bit)
+			mant = msb64(r.mant) >> ebits & (1<<mbits - 1) // 截去 msb（隐式 1 位）
 		}
 
 		return math.Float64frombits(sign | bexp | mant), r.acc
@@ -1071,12 +1056,12 @@ func (x *Float) Float64() (float64, Accuracy) {
 	panic("unreachable")
 }
 
-// Int returns the result of truncating x towards zero;
-// or nil if x is an infinity.
-// The result is [Exact] if x.IsInt(); otherwise it is [Below]
-// for x > 0, and [Above] for x < 0.
-// If a non-nil *[Int] argument z is provided, [Int] stores
-// the result in z instead of allocating a new [Int].
+// Int 返回将 x 向零截断的结果；
+// 若 x 为无穷则返回 nil。
+// 若 x.IsInt() 则结果为 [Exact]；否则对于 x > 0 为 [Below]，
+// 对于 x < 0 为 [Above]。
+// 若提供了非 nil 的 *[Int] 参数 z，[Int] 会将结果存储在 z 中，
+// 而不是分配新的 [Int]。
 func (x *Float) Int(z *Int) (*Int, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -1097,13 +1082,13 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 		// x.exp > 0
 
 		// 1 <= |x| < +Inf
-		// determine minimum required precision for x
+		// 确定 x 所需的最小精度
 		allBits := uint(len(x.mant)) * _W
 		exp := uint(x.exp)
 		if x.MinPrec() <= exp {
 			acc = Exact
 		}
-		// shift mantissa as needed
+		// 按需移位尾数
 		if z == nil {
 			z = new(Int)
 		}
@@ -1128,11 +1113,10 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
 	panic("unreachable")
 }
 
-// Rat returns the rational number corresponding to x;
-// or nil if x is an infinity.
-// The result is [Exact] if x is not an Inf.
-// If a non-nil *[Rat] argument z is provided, [Rat] stores
-// the result in z instead of allocating a new [Rat].
+// Rat 返回与 x 对应的有理数；若 x 为无穷则返回 nil。
+// 若 x 不是 Inf，则结果为 [Exact]。
+// 若提供了非 nil 的 *[Rat] 参数 z，[Rat] 会将结果存储在 z 中，
+// 而不是分配新的 [Rat]。
 func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
 	if debugFloat {
 		x.validate()
@@ -1146,17 +1130,17 @@ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
 	case finite:
 		// 0 < |x| < +Inf
 		allBits := int32(len(x.mant)) * _W
-		// build up numerator and denominator
+		// 构建分子和分母
 		z.a.neg = x.neg
 		switch {
 		case x.exp > allBits:
 			z.a.abs = z.a.abs.lsh(x.mant, uint(x.exp-allBits))
-			z.b.abs = z.b.abs[:0] // == 1 (see Rat)
-			// z already in normal form
+			z.b.abs = z.b.abs[:0] // == 1（见 Rat）
+			// z 已经是规范形式
 		default:
 			z.a.abs = z.a.abs.set(x.mant)
-			z.b.abs = z.b.abs[:0] // == 1 (see Rat)
-			// z already in normal form
+			z.b.abs = z.b.abs[:0] // == 1（见 Rat）
+			// z 已经是规范形式
 		case x.exp < allBits:
 			z.a.abs = z.a.abs.set(x.mant)
 			t := z.b.abs.setUint64(1)
@@ -1175,16 +1159,16 @@ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
 	panic("unreachable")
 }
 
-// Abs sets z to the (possibly rounded) value |x| (the absolute value of x)
-// and returns z.
+// Abs 将 z 设为 |x| 的（可能已舍入的）值（x 的绝对值）
+// 并返回 z。
 func (z *Float) Abs(x *Float) *Float {
 	z.Set(x)
 	z.neg = false
 	return z
 }
 
-// Neg sets z to the (possibly rounded) value of x with its sign negated,
-// and returns z.
+// Neg 将 z 设为 x 的（可能已舍入的）值并取反其符号，
+// 并返回 z。
 func (z *Float) Neg(x *Float) *Float {
 	z.Set(x)
 	z.neg = !z.neg
@@ -1193,7 +1177,7 @@ func (z *Float) Neg(x *Float) *Float {
 
 func validateBinaryOperands(x, y *Float) {
 	if !debugFloat {
-		// avoid performance bugs
+		// 避免性能问题
 		panic("validateBinaryOperands called but debugFloat is not set")
 	}
 	if len(x.mant) == 0 {
@@ -1204,15 +1188,14 @@ func validateBinaryOperands(x, y *Float) {
 	}
 }
 
-// z = x + y, ignoring signs of x and y for the addition
-// but using the sign of z for rounding the result.
-// x and y must have a non-empty mantissa and valid exponent.
+// z = x + y，加法时忽略 x 和 y 的符号，
+// 但使用 z 的符号对结果进行舍入。
+// x 和 y 必须具有非空尾数和有效指数。
 func (z *Float) uadd(x, y *Float) {
-	// Note: This implementation requires 2 shifts most of the
-	// time. It is also inefficient if exponents or precisions
-	// differ by wide margins. The following article describes
-	// an efficient (but much more complicated) implementation
-	// compatible with the internal representation used here:
+	// 注意：此实现大多数情况下需要 2 次移位。
+	// 若指数或精度相差悬殊，它效率也不高。
+	// 以下文章描述了一种与此处所用内部表示兼容的
+	// 高效（但复杂得多）的实现：
 	//
 	// Vincent Lefèvre: "The Generic Multiple-Precision Floating-
 	// Point Addition With Exact Rounding (as in the MPFR Library)"
@@ -1222,15 +1205,15 @@ func (z *Float) uadd(x, y *Float) {
 		validateBinaryOperands(x, y)
 	}
 
-	// compute exponents ex, ey for mantissa with "binary point"
-	// on the right (mantissa.0) - use int64 to avoid overflow
+	// 为“二进制小数点”在右侧（mantissa.0）的尾数
+	// 计算指数 ex、ey - 使用 int64 避免溢出
 	ex := int64(x.exp) - int64(len(x.mant))*_W
 	ey := int64(y.exp) - int64(len(y.mant))*_W
 
 	al := alias(z.mant, x.mant) || alias(z.mant, y.mant)
 
-	// TODO(gri) having a combined add-and-shift primitive
-	//           could make this code significantly faster
+	// TODO(gri) 提供一个组合的加法-移位原语
+	//           可以显著加快此代码
 	switch {
 	case ex < ey:
 		if al {
@@ -1241,7 +1224,7 @@ func (z *Float) uadd(x, y *Float) {
 			z.mant = z.mant.add(x.mant, z.mant)
 		}
 	default:
-		// ex == ey, no shift needed
+		// ex == ey，无需移位
 		z.mant = z.mant.add(x.mant, y.mant)
 	case ex > ey:
 		if al {
@@ -1258,14 +1241,13 @@ func (z *Float) uadd(x, y *Float) {
 	z.setExpAndRound(ex+int64(len(z.mant))*_W-fnorm(z.mant), 0)
 }
 
-// z = x - y for |x| > |y|, ignoring signs of x and y for the subtraction
-// but using the sign of z for rounding the result.
-// x and y must have a non-empty mantissa and valid exponent.
+// 对于 |x| > |y|，z = x - y，减法时忽略 x 和 y 的符号，
+// 但使用 z 的符号对结果进行舍入。
+// x 和 y 必须具有非空尾数和有效指数。
 func (z *Float) usub(x, y *Float) {
-	// This code is symmetric to uadd.
-	// We have not factored the common code out because
-	// eventually uadd (and usub) should be optimized
-	// by special-casing, and the code will diverge.
+	// 此代码与 uadd 对称。
+	// 我们没有把公共代码抽取出来，因为最终 uadd（和 usub）
+	// 应通过特殊化处理进行优化，届时代码将会分化。
 
 	if debugFloat {
 		validateBinaryOperands(x, y)
@@ -1286,7 +1268,7 @@ func (z *Float) usub(x, y *Float) {
 			z.mant = z.mant.sub(x.mant, z.mant)
 		}
 	default:
-		// ex == ey, no shift needed
+		// ex == ey，无需移位
 		z.mant = z.mant.sub(x.mant, y.mant)
 	case ex > ey:
 		if al {
@@ -1299,7 +1281,7 @@ func (z *Float) usub(x, y *Float) {
 		ex = ey
 	}
 
-	// operands may have canceled each other out
+	// 操作数可能相互抵消
 	if len(z.mant) == 0 {
 		z.acc = Exact
 		z.form = zero
@@ -1311,19 +1293,18 @@ func (z *Float) usub(x, y *Float) {
 	z.setExpAndRound(ex+int64(len(z.mant))*_W-fnorm(z.mant), 0)
 }
 
-// z = x * y, ignoring signs of x and y for the multiplication
-// but using the sign of z for rounding the result.
-// x and y must have a non-empty mantissa and valid exponent.
+// z = x * y，乘法时忽略 x 和 y 的符号，
+// 但使用 z 的符号对结果进行舍入。
+// x 和 y 必须具有非空尾数和有效指数。
 func (z *Float) umul(x, y *Float) {
 	if debugFloat {
 		validateBinaryOperands(x, y)
 	}
 
-	// Note: This is doing too much work if the precision
-	// of z is less than the sum of the precisions of x
-	// and y which is often the case (e.g., if all floats
-	// have the same precision).
-	// TODO(gri) Optimize this for the common case.
+	// 注意：若 z 的精度小于 x 与 y 的精度之和，
+	// 则会做过多的工作，而这通常是常见情况
+	// （例如，若所有 float 具有相同精度）。
+	// TODO(gri) 针对常见情况对此进行优化。
 
 	e := int64(x.exp) + int64(y.exp)
 	if x == y {
@@ -1334,45 +1315,44 @@ func (z *Float) umul(x, y *Float) {
 	z.setExpAndRound(e-fnorm(z.mant), 0)
 }
 
-// z = x / y, ignoring signs of x and y for the division
-// but using the sign of z for rounding the result.
-// x and y must have a non-empty mantissa and valid exponent.
+// z = x / y，除法时忽略 x 和 y 的符号，
+// 但使用 z 的符号对结果进行舍入。
+// x 和 y 必须具有非空尾数和有效指数。
 func (z *Float) uquo(x, y *Float) {
 	if debugFloat {
 		validateBinaryOperands(x, y)
 	}
 
-	// mantissa length in words for desired result precision + 1
-	// (at least one extra bit so we get the rounding bit after
-	// the division)
+	// 所需结果精度的尾数长度（以字为单位）+ 1
+	// （至少多一位，以便除法后能得到舍入位）
 	n := int(z.prec/_W) + 1
 
-	// compute adjusted x.mant such that we get enough result precision
+	// 计算调整后的 x.mant，以获得足够的结果精度
 	xadj := x.mant
 	if d := n - len(x.mant) + len(y.mant); d > 0 {
-		// d extra words needed => add d "0 digits" to x
+		// 需要 d 个额外的字 => 在 x 后添加 d 个“0 位”
 		xadj = make(nat, len(x.mant)+d)
 		copy(xadj[d:], x.mant)
 	}
-	// TODO(gri): If we have too many digits (d < 0), we should be able
-	// to shorten x for faster division. But we must be extra careful
-	// with rounding in that case.
+	// TODO(gri): 若位数太多（d < 0），我们应该能够
+	// 缩短 x 以加快除法。但在那种情况下必须格外小心
+	// 舍入。
 
-	// Compute d before division since there may be aliasing of x.mant
-	// (via xadj) or y.mant with z.mant.
+	// 在除法之前计算 d，因为 x.mant（经由 xadj）或 y.mant
+	// 可能与 z.mant 存在别名。
 	d := len(xadj) - len(y.mant)
 
-	// divide
+	// 相除
 	stk := getStack()
 	defer stk.free()
 	var r nat
 	z.mant, r = z.mant.div(stk, nil, xadj, y.mant)
 	e := int64(x.exp) - int64(y.exp) - int64(d-len(z.mant))*_W
 
-	// The result is long enough to include (at least) the rounding bit.
-	// If there's a non-zero remainder, the corresponding fractional part
-	// (if it were computed), would have a non-zero sticky bit (if it were
-	// zero, it couldn't have a non-zero remainder).
+	// 结果的长度足以包含（至少）舍入位。
+	// 若存在非零余数，则相应的（若计算出来的话）
+	// 小数部分会有非零的粘滞位（若它为零，
+	// 就不会有非零余数）。
 	var sbit uint
 	if len(r) > 0 {
 		sbit = 1
@@ -1381,9 +1361,9 @@ func (z *Float) uquo(x, y *Float) {
 	z.setExpAndRound(e-fnorm(z.mant), sbit)
 }
 
-// ucmp returns -1, 0, or +1, depending on whether
-// |x| < |y|, |x| == |y|, or |x| > |y|.
-// x and y must have a non-empty mantissa and valid exponent.
+// ucmp 返回 -1、0 或 +1，取决于
+// |x| < |y|、|x| == |y| 还是 |x| > |y|。
+// x 和 y 必须具有非空尾数和有效指数。
 func (x *Float) ucmp(y *Float) int {
 	if debugFloat {
 		validateBinaryOperands(x, y)
@@ -1397,7 +1377,7 @@ func (x *Float) ucmp(y *Float) int {
 	}
 	// x.exp == y.exp
 
-	// compare mantissas
+	// 比较尾数
 	i := len(x.mant)
 	j := len(y.mant)
 	for i > 0 || j > 0 {
@@ -1421,31 +1401,29 @@ func (x *Float) ucmp(y *Float) int {
 	return 0
 }
 
-// Handling of sign bit as defined by IEEE 754-2008, section 6.3:
+// 按 IEEE 754-2008 第 6.3 节的定义处理符号位：
 //
-// When neither the inputs nor result are NaN, the sign of a product or
-// quotient is the exclusive OR of the operands’ signs; the sign of a sum,
-// or of a difference x−y regarded as a sum x+(−y), differs from at most
-// one of the addends’ signs; and the sign of the result of conversions,
-// the quantize operation, the roundToIntegral operations, and the
-// roundToIntegralExact (see 5.3.1) is the sign of the first or only operand.
-// These rules shall apply even when operands or results are zero or infinite.
+// 当输入和结果均非 NaN 时，乘积或商的符号是操作数符号的
+// 异或；和（或被视为和 x+(−y) 的差 x−y）的符号与至多
+// 一个加数的符号不同；而转换、quantize 操作、
+// roundToIntegral 操作以及 roundToIntegralExact（见 5.3.1）
+// 的结果符号是第一个或唯一操作数的符号。
+// 即使操作数或结果为零或无穷，这些规则也应适用。
 //
-// When the sum of two operands with opposite signs (or the difference of
-// two operands with like signs) is exactly zero, the sign of that sum (or
-// difference) shall be +0 in all rounding-direction attributes except
-// roundTowardNegative; under that attribute, the sign of an exact zero
-// sum (or difference) shall be −0. However, x+x = x−(−x) retains the same
-// sign as x even when x is zero.
+// 当两个符号相反的操作数之和（或两个符号相同的操作数之差）
+// 恰好为零时，该和（或差）的符号在所有舍入方向属性下
+// 都应为 +0，但 roundTowardNegative 除外；在该属性下，
+// 精确零和（或差）的符号应为 −0。不过，即使 x 为零，
+// x+x = x−(−x) 也保持与 x 相同的符号。
 //
-// See also: https://play.golang.org/p/RtH3UCt5IH
+// 另见：https://play.golang.org/p/RtH3UCt5IH
 
-// Add sets z to the rounded sum x+y and returns z. If z's precision is 0,
-// it is changed to the larger of x's or y's precision before the operation.
-// Rounding is performed according to z's precision and rounding mode; and
-// z's accuracy reports the result error relative to the exact (not rounded)
-// result. Add panics with [ErrNaN] if x and y are infinities with opposite
-// signs. The value of z is undefined in that case.
+// Add 将 z 设为舍入后的和 x+y 并返回 z。若 z 的精度为 0，
+// 则在操作前将其改为 x 与 y 中较大的精度。
+// 舍入根据 z 的精度和舍入模式执行；z 的准确性报告
+// 结果相对于精确（未舍入）结果的误差。
+// 若 x 和 y 是符号相反的无穷，Add 会 panic 并给出 [ErrNaN]。
+// 此时 z 的值未定义。
 func (z *Float) Add(x, y *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -1457,13 +1435,13 @@ func (z *Float) Add(x, y *Float) *Float {
 	}
 
 	if x.form == finite && y.form == finite {
-		// x + y (common case)
+		// x + y（常见情况）
 
-		// Below we set z.neg = x.neg, and when z aliases y this will
-		// change the y operand's sign. This is fine, because if an
-		// operand aliases the receiver it'll be overwritten, but we still
-		// want the original x.neg and y.neg values when we evaluate
-		// x.neg != y.neg, so we need to save y.neg before setting z.neg.
+		// 下面我们设置 z.neg = x.neg，当 z 与 y 别名时，
+		// 这会改变 y 操作数的符号。这没问题，因为若某个
+		// 操作数与接收者别名，它将被覆盖，但在求值
+		// x.neg != y.neg 时我们仍然需要原始的 x.neg 和 y.neg 值，
+		// 因此需要在设置 z.neg 之前保存 y.neg。
 		yneg := y.neg
 
 		z.neg = x.neg
@@ -1490,7 +1468,7 @@ func (z *Float) Add(x, y *Float) *Float {
 	if x.form == inf && y.form == inf && x.neg != y.neg {
 		// +Inf + -Inf
 		// -Inf + +Inf
-		// value of z is undefined but make sure it's valid
+		// z 的值未定义，但要确保它是有效的
 		z.acc = Exact
 		z.form = zero
 		z.neg = false
@@ -1516,10 +1494,10 @@ func (z *Float) Add(x, y *Float) *Float {
 	return z.Set(y)
 }
 
-// Sub sets z to the rounded difference x-y and returns z.
-// Precision, rounding, and accuracy reporting are as for [Float.Add].
-// Sub panics with [ErrNaN] if x and y are infinities with equal
-// signs. The value of z is undefined in that case.
+// Sub 将 z 设为舍入后的差 x-y 并返回 z。
+// 精度、舍入和准确性报告与 [Float.Add] 相同。
+// 若 x 和 y 是符号相同的无穷，Sub 会 panic 并给出 [ErrNaN]。
+// 此时 z 的值未定义。
 func (z *Float) Sub(x, y *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -1531,7 +1509,7 @@ func (z *Float) Sub(x, y *Float) *Float {
 	}
 
 	if x.form == finite && y.form == finite {
-		// x - y (common case)
+		// x - y（常见情况）
 		yneg := y.neg
 		z.neg = x.neg
 		if x.neg != yneg {
@@ -1557,7 +1535,7 @@ func (z *Float) Sub(x, y *Float) *Float {
 	if x.form == inf && y.form == inf && x.neg == y.neg {
 		// +Inf - +Inf
 		// -Inf - -Inf
-		// value of z is undefined but make sure it's valid
+		// z 的值未定义，但要确保它是有效的
 		z.acc = Exact
 		z.form = zero
 		z.neg = false
@@ -1583,10 +1561,10 @@ func (z *Float) Sub(x, y *Float) *Float {
 	return z.Neg(y)
 }
 
-// Mul sets z to the rounded product x*y and returns z.
-// Precision, rounding, and accuracy reporting are as for [Float.Add].
-// Mul panics with [ErrNaN] if one operand is zero and the other
-// operand an infinity. The value of z is undefined in that case.
+// Mul 将 z 设为舍入后的积 x*y 并返回 z。
+// 精度、舍入和准确性报告与 [Float.Add] 相同。
+// 若一个操作数为零而另一个操作数为无穷，Mul 会 panic
+// 并给出 [ErrNaN]。此时 z 的值未定义。
 func (z *Float) Mul(x, y *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -1600,7 +1578,7 @@ func (z *Float) Mul(x, y *Float) *Float {
 	z.neg = x.neg != y.neg
 
 	if x.form == finite && y.form == finite {
-		// x * y (common case)
+		// x * y（常见情况）
 		z.umul(x, y)
 		return z
 	}
@@ -1609,7 +1587,7 @@ func (z *Float) Mul(x, y *Float) *Float {
 	if x.form == zero && y.form == inf || x.form == inf && y.form == zero {
 		// ±0 * ±Inf
 		// ±Inf * ±0
-		// value of z is undefined but make sure it's valid
+		// z 的值未定义，但要确保它是有效的
 		z.form = zero
 		z.neg = false
 		panic(ErrNaN{"multiplication of zero with infinity"})
@@ -1628,10 +1606,10 @@ func (z *Float) Mul(x, y *Float) *Float {
 	return z
 }
 
-// Quo sets z to the rounded quotient x/y and returns z.
-// Precision, rounding, and accuracy reporting are as for [Float.Add].
-// Quo panics with [ErrNaN] if both operands are zero or infinities.
-// The value of z is undefined in that case.
+// Quo 将 z 设为舍入后的商 x/y 并返回 z。
+// 精度、舍入和准确性报告与 [Float.Add] 相同。
+// 若两个操作数都为零或都为无穷，Quo 会 panic 并给出 [ErrNaN]。
+// 此时 z 的值未定义。
 func (z *Float) Quo(x, y *Float) *Float {
 	if debugFloat {
 		x.validate()
@@ -1645,7 +1623,7 @@ func (z *Float) Quo(x, y *Float) *Float {
 	z.neg = x.neg != y.neg
 
 	if x.form == finite && y.form == finite {
-		// x / y (common case)
+		// x / y（常见情况）
 		z.uquo(x, y)
 		return z
 	}
@@ -1654,7 +1632,7 @@ func (z *Float) Quo(x, y *Float) *Float {
 	if x.form == zero && y.form == zero || x.form == inf && y.form == inf {
 		// ±0 / ±0
 		// ±Inf / ±Inf
-		// value of z is undefined but make sure it's valid
+		// z 的值未定义，但要确保它是有效的
 		z.form = zero
 		z.neg = false
 		panic(ErrNaN{"division of zero by zero or infinity by infinity"})
@@ -1673,10 +1651,10 @@ func (z *Float) Quo(x, y *Float) *Float {
 	return z
 }
 
-// Cmp compares x and y and returns:
-//   - -1 if x < y;
-//   - 0 if x == y (incl. -0 == 0, -Inf == -Inf, and +Inf == +Inf);
-//   - +1 if x > y.
+// Cmp 比较 x 和 y 并返回：
+//   - 若 x < y，返回 -1；
+//   - 若 x == y（包括 -0 == 0、-Inf == -Inf 和 +Inf == +Inf），返回 0；
+//   - 若 x > y，返回 +1。
 func (x *Float) Cmp(y *Float) int {
 	if debugFloat {
 		x.validate()
@@ -1693,7 +1671,7 @@ func (x *Float) Cmp(y *Float) int {
 	}
 	// mx == my
 
-	// only if |mx| == 1 we have to compare the mantissae
+	// 只有当 |mx| == 1 时我们才需要比较尾数
 	switch mx {
 	case -1:
 		return y.ucmp(x)
@@ -1704,13 +1682,13 @@ func (x *Float) Cmp(y *Float) int {
 	return 0
 }
 
-// ord classifies x and returns:
+// ord 对 x 进行分类并返回：
 //
-//	-2 if -Inf == x
-//	-1 if -Inf < x < 0
-//	 0 if x == 0 (signed or unsigned)
-//	+1 if 0 < x < +Inf
-//	+2 if x == +Inf
+//	-2 若 -Inf == x
+//	-1 若 -Inf < x < 0
+//	 0 若 x == 0（有符号或无符号）
+//	+1 若 0 < x < +Inf
+//	+2 若 x == +Inf
 func (x *Float) ord() int {
 	var m int
 	switch x.form {

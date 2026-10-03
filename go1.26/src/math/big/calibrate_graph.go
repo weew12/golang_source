@@ -4,15 +4,15 @@
 
 //go:build ignore
 
-// This program converts CSV calibration data printed by
+// 本程序将以下命令打印的 CSV 校准数据
 //
 //	go test -run=Calibrate/Name -calibrate >file.csv
 //
-// into an SVG file. Invoke as:
+// 转换为 SVG 文件。调用方式：
 //
 //	go run calibrate_graph.go file.csv >file.svg
 //
-// See calibrate.md for more details.
+// 详见 calibrate.md。
 
 package main
 
@@ -32,20 +32,20 @@ func usage() {
 	os.Exit(2)
 }
 
-// A Point is an X, Y coordinate in the data being plotted.
+// A Point 是所绘制数据中的一个 X、Y 坐标。
 type Point struct {
 	X, Y float64
 }
 
-// A Graph is a graph to draw as SVG.
+// A Graph 是要绘制为 SVG 的图。
 type Graph struct {
-	Title   string    // title above graph
-	Geomean []Point   // geomean line
-	Lines   [][]Point // normalized data lines
-	XAxis   string    // x-axis label
-	YAxis   string    // y-axis label
-	Min     Point     // min point of data display
-	Max     Point     // max point of data display
+	Title   string    // 图上方标题
+	Geomean []Point   // 几何平均线
+	Lines   [][]Point // 归一化数据线
+	XAxis   string    // x 轴标签
+	YAxis   string    // y 轴标签
+	Min     Point     // 数据显示的最小点
+	Max     Point     // 数据显示的最大点
 }
 
 var yMax = flag.Float64("ymax", 1.2, "maximum y axis value")
@@ -58,11 +58,11 @@ func main() {
 		usage()
 	}
 
-	// Read CSV. It may be enclosed in
+	// 读取 CSV。它可能被包裹在
 	//	-- name.csv --
 	//	...
 	//	-- eof --
-	// framing, in which case remove the framing.
+	// 框架中，此时移除该框架。
 	fdata, err := os.ReadFile(flag.Arg(0))
 	if err != nil {
 		log.Fatal(err)
@@ -80,30 +80,30 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Construct graph from loaded CSV.
-	// CSV starts with metadata lines like
+	// 从加载的 CSV 构造图。
+	// CSV 以元数据行开头，例如
 	//	goos,darwin
-	// and then has two tables of timings.
-	// Each table looks like
+	// 然后包含两张计时表。
+	// 每张表看起来像
 	//	size \ threshold,10,20,30,40
 	//	100,1,2,3,4
 	//	200,2,3,4,5
 	//	300,3,4,5,6
 	//	400,4,5,6,7
 	//	500,5,6,7,8
-	// The header line gives the threshold values and then each row
-	// gives an input size and the timings for each threshold.
-	// Omitted timings are empty strings and turn into infinities when parsing.
-	// The first table gives raw nanosecond timings.
-	// The second table gives timings normalized relative to the fastest
-	// possible threshold for a given input size.
-	// We only want the second table.
-	// The tables are followed by a list of geomeans of all the normalized
-	// timings for each threshold:
+	// 表头行给出阈值，随后每一行
+	// 给出一个输入大小以及每个阈值的计时。
+	// 省略的计时是空字符串，解析时会变成无穷大。
+	// 第一张表给出原始纳秒计时。
+	// 第二张表给出相对于给定输入大小下最快
+	// 可能阈值的归一化计时。
+	// 我们只需要第二张表。
+	// 两张表之后是所有归一化计时针对每个阈值的
+	// 几何平均列表：
 	//	geomean,1.2,1.1,1.0,1.4
-	// We turn each normalized timing row into a line in the graph,
-	// and we turn the geomean into an overlaid thick line.
-	// The metadata is used for preparing the titles.
+	// 我们将每一行归一化计时变成图中的一条线，
+	// 并将几何平均变成一条叠加的粗线。
+	// 元数据用于准备标题。
 	g := &Graph{
 		YAxis: "Relative Slowdown",
 		Min:   Point{0, 1},
@@ -159,8 +159,8 @@ func main() {
 	os.Stdout.Write(g.SVG())
 }
 
-// parseFloats parses rec[1:] as floating point values.
-// If a field is the empty string, it is represented as +Inf.
+// parseFloats 将 rec[1:] 解析为浮点值。
+// 如果某个字段是空字符串，则将其表示为 +Inf。
 func parseFloats(rec []string) []float64 {
 	floats := make([]float64, 0, len(rec)-1)
 	for _, v := range rec[1:] {
@@ -177,7 +177,7 @@ func parseFloats(rec []string) []float64 {
 	return floats
 }
 
-// floatsToLine converts a sequence of floats into a line, ignoring missing (infinite) values.
+// floatsToLine 将一串浮点数转换为一条线，忽略缺失（无穷）的值。
 func floatsToLine(x, y []float64) []Point {
 	var line []Point
 	for i, yi := range y {
@@ -206,22 +206,22 @@ const svgHeader = `<svg width="%d" height="%d" version="1.1" xmlns="http://www.w
   <g class="def">
 `
 
-// Layout constants for drawing graph
+// 绘制图的布局常量
 const (
-	DX   = 600          // width of graphed data
-	DY   = 150          // height of graphed data
-	ML   = 80           // margin left
-	MT   = 30           // margin top
-	MR   = 10           // margin right
-	MB   = 50           // margin bottom
-	PS   = 14           // point size of text
-	W    = ML + DX + MR // width of overall graph
-	H    = MT + DY + MB // height of overall graph
-	Tick = 5            // axis tick length
+	DX   = 600          // 所绘数据的宽度
+	DY   = 150          // 所绘数据的高度
+	ML   = 80           // 左边距
+	MT   = 30           // 上边距
+	MR   = 10           // 右边距
+	MB   = 50           // 下边距
+	PS   = 14           // 文本点大小
+	W    = ML + DX + MR // 整个图的宽度
+	H    = MT + DY + MB // 整个图的高度
+	Tick = 5            // 坐标轴刻度长度
 )
 
-// An SVGPoint is a point in the SVG image, in pixel units,
-// with Y increasing down the page.
+// An SVGPoint 是 SVG 图像中的一个点，以像素为单位，
+// Y 向下递增。
 type SVGPoint struct {
 	X, Y int
 }
@@ -230,7 +230,7 @@ func (p SVGPoint) String() string {
 	return fmt.Sprintf("%d,%d", p.X, p.Y)
 }
 
-// pt converts an x, y data value (such as from a Point) to an SVGPoint.
+// pt 将 x、y 数据值（例如来自一个 Point）转换为 SVGPoint。
 func (g *Graph) pt(x, y float64) SVGPoint {
 	return SVGPoint{
 		X: ML + int((x-g.Min.X)/(g.Max.X-g.Min.X)*DX),
@@ -238,13 +238,13 @@ func (g *Graph) pt(x, y float64) SVGPoint {
 	}
 }
 
-// SVG returns the SVG text for the graph.
+// SVG 返回该图的 SVG 文本。
 func (g *Graph) SVG() []byte {
 
 	var svg bytes.Buffer
 	fmt.Fprintf(&svg, svgHeader, W, H, PS, PS, *alphaNorm)
 
-	// Draw data, clipped.
+	// 绘制数据，已裁剪。
 	fmt.Fprintf(&svg, "<clipPath id=\"cp\"><path d=\"M %v L %v L %v L %v Z\" /></clipPath>\n",
 		g.pt(g.Min.X, g.Min.Y), g.pt(g.Max.X, g.Min.Y), g.pt(g.Max.X, g.Max.Y), g.pt(g.Min.X, g.Max.Y))
 	fmt.Fprintf(&svg, "<g clip-path=\"url(#cp)\">\n")
@@ -258,7 +258,7 @@ func (g *Graph) SVG() []byte {
 		}
 		fmt.Fprintf(&svg, "\"/>\n")
 	}
-	// Draw geomean.
+	// 绘制几何平均。
 	if len(g.Geomean) > 0 {
 		line := g.Geomean
 		fmt.Fprintf(&svg, "<path class=\"geomean\" d=\"M %v", g.pt(line[0].X, line[0].Y))
@@ -269,10 +269,10 @@ func (g *Graph) SVG() []byte {
 	}
 	fmt.Fprintf(&svg, "</g>\n")
 
-	// Draw axes and major and minor tick marks.
+	// 绘制坐标轴以及主、次刻度线。
 	fmt.Fprintf(&svg, "<path class=\"axis\" d=\"")
-	fmt.Fprintf(&svg, " M %v L %v", g.pt(g.Min.X, g.Min.Y), g.pt(g.Max.X, g.Min.Y)) // x axis
-	fmt.Fprintf(&svg, " M %v L %v", g.pt(g.Min.X, g.Min.Y), g.pt(g.Min.X, g.Max.Y)) // y axis
+	fmt.Fprintf(&svg, " M %v L %v", g.pt(g.Min.X, g.Min.Y), g.pt(g.Max.X, g.Min.Y)) // x 轴
+	fmt.Fprintf(&svg, " M %v L %v", g.pt(g.Min.X, g.Min.Y), g.pt(g.Min.X, g.Max.Y)) // y 轴
 	xscale := 10.0
 	if g.Max.X-g.Min.X < 100 {
 		xscale = 1.0
@@ -297,7 +297,7 @@ func (g *Graph) SVG() []byte {
 	}
 	fmt.Fprintf(&svg, "\"/>\n")
 
-	// Draw tick labels on major marks.
+	// 在主刻度上绘制刻度标签。
 	for x := int(math.Ceil(g.Min.X / xscale)); float64(x)*xscale <= g.Max.X; x++ {
 		if x%5 == 0 {
 			p := g.pt(float64(x)*xscale, g.Min.Y)
@@ -311,7 +311,7 @@ func (g *Graph) SVG() []byte {
 		}
 	}
 
-	// Draw graph title and axis titles.
+	// 绘制图标题和坐标轴标题。
 	fmt.Fprintf(&svg, "<text x=\"%d\" y=\"%d\" class=\"title hjc\">%s</text>\n", ML+DX/2, MT-PS/3, g.Title)
 	fmt.Fprintf(&svg, "<text x=\"%d\" y=\"%d\" class=\"title hjc\">%s</text>\n", ML+DX/2, MT+DY+2*Tick+2*PS+PS/2, g.XAxis)
 	fmt.Fprintf(&svg, "<g transform=\"translate(%d,%d) rotate(-90)\"><text x=\"0\" y=\"0\" class=\"title hjc\">%s</text></g>\n", ML-Tick-Tick-3*PS, MT+DY/2, g.YAxis)

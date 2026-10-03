@@ -4,15 +4,15 @@
 
 package math
 
-// Exp returns e**x, the base-e exponential of x.
+// Exp 返回 e**x，即 x 的以 e 为底的指数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Exp(+Inf) = +Inf
 //	Exp(NaN) = NaN
 //
-// Very large values overflow to 0 or +Inf.
-// Very small values underflow to 1.
+// 非常大的值会溢出为 0 或 +Inf。
+// 非常小的值会下溢为 1。
 func Exp(x float64) float64 {
 	if haveArchExp {
 		return archExp(x)
@@ -20,10 +20,9 @@ func Exp(x float64) float64 {
 	return exp(x)
 }
 
-// The original C code, the long comment, and the constants
-// below are from FreeBSD's /usr/src/lib/msun/src/e_exp.c
-// and came with this notice. The go code is a simplified
-// version of the original C.
+// 以下原始 C 代码、长篇注释及常量来自 FreeBSD 的
+// /usr/src/lib/msun/src/e_exp.c，并附带下述声明。
+// Go 代码是原始 C 代码的简化版本。
 //
 // ====================================================
 // Copyright (C) 2004 by Sun Microsystems, Inc. All rights reserved.
@@ -35,66 +34,65 @@ func Exp(x float64) float64 {
 //
 //
 // exp(x)
-// Returns the exponential of x.
+// 返回 x 的指数。
 //
-// Method
-//   1. Argument reduction:
-//      Reduce x to an r so that |r| <= 0.5*ln2 ~ 0.34658.
-//      Given x, find r and integer k such that
+// 方法
+//   1. 参数归约：
+//      将 x 归约为 r，使得 |r| <= 0.5*ln2 ~ 0.34658。
+//      给定 x，求 r 和整数 k，使得
 //
 //               x = k*ln2 + r,  |r| <= 0.5*ln2.
 //
-//      Here r will be represented as r = hi-lo for better
-//      accuracy.
+//      这里 r 将表示为 r = hi-lo，以获得更好的
+//      精度。
 //
-//   2. Approximation of exp(r) by a special rational function on
-//      the interval [0,0.34658]:
-//      Write
+//   2. 用特殊有理函数逼近 exp(r)，
+//      区间为 [0,0.34658]：
+//      记作
 //          R(r**2) = r*(exp(r)+1)/(exp(r)-1) = 2 + r*r/6 - r**4/360 + ...
-//      We use a special Remez algorithm on [0,0.34658] to generate
-//      a polynomial of degree 5 to approximate R. The maximum error
-//      of this polynomial approximation is bounded by 2**-59. In
-//      other words,
+//      我们在 [0,0.34658] 上使用特殊的 Remez 算法生成
+//      一个 5 次多项式来逼近 R。该多项式
+//      逼近的最大误差以 2**-59 为界。换
+//      言之，
 //          R(z) ~ 2.0 + P1*z + P2*z**2 + P3*z**3 + P4*z**4 + P5*z**5
-//      (where z=r*r, and the values of P1 to P5 are listed below)
-//      and
+//      （其中 z=r*r，P1 到 P5 的值列出如下）
+//      并且
 //          |                  5          |     -59
 //          | 2.0+P1*z+...+P5*z   -  R(z) | <= 2
 //          |                             |
-//      The computation of exp(r) thus becomes
+//      exp(r) 的计算因此变为
 //                             2*r
 //              exp(r) = 1 + -------
 //                            R - r
 //                                 r*R1(r)
-//                     = 1 + r + ----------- (for better accuracy)
+//                     = 1 + r + ----------- （以获得更好的精度）
 //                                2 - R1(r)
-//      where
+//      其中
 //                               2       4             10
 //              R1(r) = r - (P1*r  + P2*r  + ... + P5*r   ).
 //
-//   3. Scale back to obtain exp(x):
-//      From step 1, we have
+//   3. 缩放回去以得到 exp(x)：
+//      由第 1 步，我们有
 //         exp(x) = 2**k * exp(r)
 //
-// Special cases:
-//      exp(INF) is INF, exp(NaN) is NaN;
-//      exp(-INF) is 0, and
-//      for finite argument, only exp(0)=1 is exact.
+// 特殊情况：
+//      exp(INF) 为 INF，exp(NaN) 为 NaN；
+//      exp(-INF) 为 0，并且
+//      对于有限参数，只有 exp(0)=1 是精确的。
 //
-// Accuracy:
-//      according to an error analysis, the error is always less than
-//      1 ulp (unit in the last place).
+// 精度：
+//      根据误差分析，误差始终小于
+//      1 ulp（单位末位）。
 //
-// Misc. info.
-//      For IEEE double
-//          if x >  7.09782712893383973096e+02 then exp(x) overflow
-//          if x < -7.45133219101941108420e+02 then exp(x) underflow
+// 其他信息。
+//      对于 IEEE double
+//          若 x >  7.09782712893383973096e+02 则 exp(x) 溢出
+//          若 x < -7.45133219101941108420e+02 则 exp(x) 下溢
 //
-// Constants:
-// The hexadecimal values are the intended ones for the following
-// constants. The decimal values may be used, provided that the
-// compiler will convert from decimal to binary accurately enough
-// to produce the hexadecimal values shown.
+// 常量：
+// 十六进制值是以下常量的预期取值。只要编译器
+// 能将十进制准确转换为二进制，从而产生
+// 所示的十六进制值，也可以使用十进制值。
 
 func exp(x float64) float64 {
 	const (
@@ -107,19 +105,19 @@ func exp(x float64) float64 {
 		NearZero  = 1.0 / (1 << 28) // 2**-28
 	)
 
-	// special cases
+	// 特殊情况
 	switch {
 	case IsNaN(x):
 		return x
-	case x > Overflow: // handles case where x is +∞
+	case x > Overflow: // 处理 x 为 +∞ 的情况
 		return Inf(1)
-	case x < Underflow: // handles case where x is -∞
+	case x < Underflow: // 处理 x 为 -∞ 的情况
 		return 0
 	case -NearZero < x && x < NearZero:
 		return 1 + x
 	}
 
-	// reduce; computed as r = hi - lo for extra precision.
+	// 归约；为获得额外精度按 r = hi - lo 计算。
 	var k int
 	switch {
 	case x < 0:
@@ -134,9 +132,9 @@ func exp(x float64) float64 {
 	return expmulti(hi, lo, k)
 }
 
-// Exp2 returns 2**x, the base-2 exponential of x.
+// Exp2 返回 2**x，即 x 的以 2 为底的指数。
 //
-// Special cases are the same as [Exp].
+// 特殊情况与 [Exp] 相同。
 func Exp2(x float64) float64 {
 	if haveArchExp2 {
 		return archExp2(x)
@@ -153,18 +151,18 @@ func exp2(x float64) float64 {
 		Underflow = -1.0740e+03
 	)
 
-	// special cases
+	// 特殊情况
 	switch {
 	case IsNaN(x):
 		return x
-	case x > Overflow: // handles case where x is +∞
+	case x > Overflow: // 处理 x 为 +∞ 的情况
 		return Inf(1)
-	case x < Underflow: // handles case where x is -∞
+	case x < Underflow: // 处理 x 为 -∞ 的情况
 		return 0
 	}
 
-	// argument reduction; x = r×lg(e) + k with |r| ≤ ln(2)/2.
-	// computed as r = hi - lo for extra precision.
+	// 参数归约；x = r×lg(e) + k，其中 |r| ≤ ln(2)/2。
+	// 为获得额外精度按 r = hi - lo 计算。
 	var k int
 	switch {
 	case x > 0:
@@ -180,7 +178,7 @@ func exp2(x float64) float64 {
 	return expmulti(hi, lo, k)
 }
 
-// exp1 returns e**r × 2**k where r = hi - lo and |r| ≤ ln(2)/2.
+// exp1 返回 e**r × 2**k，其中 r = hi - lo 且 |r| ≤ ln(2)/2。
 func expmulti(hi, lo float64, k int) float64 {
 	const (
 		P1 = 1.66666666666666657415e-01  /* 0x3FC55555; 0x55555555 */
@@ -194,6 +192,6 @@ func expmulti(hi, lo float64, k int) float64 {
 	t := r * r
 	c := r - t*(P1+t*(P2+t*(P3+t*(P4+t*P5))))
 	y := 1 - ((lo - (r*c)/(2-c)) - hi)
-	// TODO(rsc): make sure Ldexp can handle boundary k
+	// TODO(rsc)：确保 Ldexp 能处理边界 k
 	return Ldexp(y, k)
 }

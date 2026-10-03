@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements encoding/decoding of Rats.
+// 本文件实现 Rat 的编码/解码。
 
 package big
 
@@ -13,25 +13,25 @@ import (
 	"math"
 )
 
-// Gob codec version. Permits backward-compatible changes to the encoding.
+// Gob 编解码版本。允许对编码进行向后兼容的修改。
 const ratGobVersion byte = 1
 
-// GobEncode implements the [encoding/gob.GobEncoder] interface.
+// GobEncode 实现 [encoding/gob.GobEncoder] 接口。
 func (x *Rat) GobEncode() ([]byte, error) {
 	if x == nil {
 		return nil, nil
 	}
-	buf := make([]byte, 1+4+(len(x.a.abs)+len(x.b.abs))*_S) // extra bytes for version and sign bit (1), and numerator length (4)
+	buf := make([]byte, 1+4+(len(x.a.abs)+len(x.b.abs))*_S) // 用于版本和符号位（1）、分子长度（4）的额外字节
 	i := x.b.abs.bytes(buf)
 	j := x.a.abs.bytes(buf[:i])
 	n := i - j
 	if int(uint32(n)) != n {
-		// this should never happen
+		// 这不应该发生
 		return nil, errors.New("Rat.GobEncode: numerator too large")
 	}
 	byteorder.BEPutUint32(buf[j-4:j], uint32(n))
 	j -= 1 + 4
-	b := ratGobVersion << 1 // make space for sign bit
+	b := ratGobVersion << 1 // 为符号位腾出空间
 	if x.a.neg {
 		b |= 1
 	}
@@ -39,10 +39,10 @@ func (x *Rat) GobEncode() ([]byte, error) {
 	return buf[j:], nil
 }
 
-// GobDecode implements the [encoding/gob.GobDecoder] interface.
+// GobDecode 实现 [encoding/gob.GobDecoder] 接口。
 func (z *Rat) GobDecode(buf []byte) error {
 	if len(buf) == 0 {
-		// Other side sent a nil or default value.
+		// 对端发送了 nil 或默认值。
 		*z = Rat{}
 		return nil
 	}
@@ -68,7 +68,7 @@ func (z *Rat) GobDecode(buf []byte) error {
 	return nil
 }
 
-// AppendText implements the [encoding.TextAppender] interface.
+// AppendText 实现 [encoding.TextAppender] 接口。
 func (x *Rat) AppendText(b []byte) ([]byte, error) {
 	if x.IsInt() {
 		return x.a.AppendText(b)
@@ -76,14 +76,14 @@ func (x *Rat) AppendText(b []byte) ([]byte, error) {
 	return x.marshal(b), nil
 }
 
-// MarshalText implements the [encoding.TextMarshaler] interface.
+// MarshalText 实现 [encoding.TextMarshaler] 接口。
 func (x *Rat) MarshalText() (text []byte, err error) {
 	return x.AppendText(nil)
 }
 
-// UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+// UnmarshalText 实现 [encoding.TextUnmarshaler] 接口。
 func (z *Rat) UnmarshalText(text []byte) error {
-	// TODO(gri): get rid of the []byte/string conversion
+	// TODO(gri): 去掉 []byte/string 转换
 	if _, ok := z.SetString(string(text)); !ok {
 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Rat", text)
 	}

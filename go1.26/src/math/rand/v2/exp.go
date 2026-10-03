@@ -9,9 +9,9 @@ import (
 )
 
 /*
- * Exponential distribution
+ * 指数分布
  *
- * See "The Ziggurat Method for Generating Random Variables"
+ * 参见 "The Ziggurat Method for Generating Random Variables"
  * (Marsaglia & Tsang, 2000)
  * https://www.jstatsoft.org/v05/i08/paper [pdf]
  */
@@ -20,11 +20,11 @@ const (
 	re = 7.69711747013104972
 )
 
-// ExpFloat64 returns an exponentially distributed float64 in the range
-// (0, +math.MaxFloat64] with an exponential distribution whose rate parameter
-// (lambda) is 1 and whose mean is 1/lambda (1).
-// To produce a distribution with a different rate parameter,
-// callers can adjust the output using:
+// ExpFloat64 返回一个在范围
+// (0, +math.MaxFloat64] 内服从指数分布的 float64，其速率参数
+// (lambda) 为 1，均值为 1/lambda (1)。
+// 要产生具有不同速率参数的分布，
+// 调用者可以使用以下方式调整输出：
 //
 //	sample = ExpFloat64() / desiredRateParameter
 func (r *Rand) ExpFloat64() float64 {

@@ -4,11 +4,10 @@
 
 package math
 
-// Atan2 returns the arc tangent of y/x, using
-// the signs of the two to determine the quadrant
-// of the return value.
+// Atan2 返回 y/x 的反正切，使用
+// 两者的符号来确定返回值的象限。
 //
-// Special cases are (in order):
+// 特殊情况为（按顺序）：
 //
 //	Atan2(y, NaN) = NaN
 //	Atan2(NaN, x) = NaN
@@ -35,7 +34,7 @@ func Atan2(y, x float64) float64 {
 }
 
 func atan2(y, x float64) float64 {
-	// special cases
+	// 特殊情况
 	switch {
 	case IsNaN(y) || IsNaN(x):
 		return NaN()
@@ -65,7 +64,7 @@ func atan2(y, x float64) float64 {
 		return Copysign(Pi/2, y)
 	}
 
-	// Call atan and determine the quadrant.
+	// 调用 atan 并确定象限。
 	q := Atan(y / x)
 	if x < 0 {
 		if q <= 0 {

@@ -10,31 +10,31 @@ import (
 	"internal/chacha8rand"
 )
 
-// A ChaCha8 is a ChaCha8-based cryptographically strong
-// random number generator.
+// ChaCha8 是一个基于 ChaCha8 的密码学强
+// 随机数生成器。
 type ChaCha8 struct {
 	state chacha8rand.State
 
-	// The last readLen bytes of readBuf are still to be consumed by Read.
+	// readBuf 的最后 readLen 个字节仍待 Read 消费。
 	readBuf [8]byte
 	readLen int // 0 <= readLen <= 8
 }
 
-// NewChaCha8 returns a new ChaCha8 seeded with the given seed.
+// NewChaCha8 返回一个用给定种子播种的新 ChaCha8。
 func NewChaCha8(seed [32]byte) *ChaCha8 {
 	c := new(ChaCha8)
 	c.state.Init(seed)
 	return c
 }
 
-// Seed resets the ChaCha8 to behave the same way as NewChaCha8(seed).
+// Seed 重置 ChaCha8，使其行为与 NewChaCha8(seed) 相同。
 func (c *ChaCha8) Seed(seed [32]byte) {
 	c.state.Init(seed)
 	c.readLen = 0
 	c.readBuf = [8]byte{}
 }
 
-// Uint64 returns a uniformly distributed random uint64 value.
+// Uint64 返回一个均匀分布的随机 uint64 值。
 func (c *ChaCha8) Uint64() uint64 {
 	for {
 		x, ok := c.state.Next()
@@ -45,12 +45,12 @@ func (c *ChaCha8) Uint64() uint64 {
 	}
 }
 
-// Read reads exactly len(p) bytes into p.
-// It always returns len(p) and a nil error.
+// Read 恰好将 len(p) 个字节读入 p。
+// 它总是返回 len(p) 和一个 nil 错误。
 //
-// If calls to Read and Uint64 are interleaved, the order in which bits are
-// returned by the two is undefined, and Read may return bits generated before
-// the last call to Uint64.
+// 如果对 Read 和 Uint64 的调用交替进行，两者返回位的顺序
+// 是未定义的，并且 Read 可能返回在
+// 最后一次调用 Uint64 之前生成的位。
 func (c *ChaCha8) Read(p []byte) (n int, err error) {
 	if c.readLen > 0 {
 		n = copy(p, c.readBuf[len(c.readBuf)-c.readLen:])
@@ -70,7 +70,7 @@ func (c *ChaCha8) Read(p []byte) (n int, err error) {
 	return
 }
 
-// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+// UnmarshalBinary 实现了 [encoding.BinaryUnmarshaler] 接口。
 func (c *ChaCha8) UnmarshalBinary(data []byte) error {
 	data, ok := cutPrefix(data, []byte("readbuf:"))
 	if ok {
@@ -98,7 +98,7 @@ func readUint8LengthPrefixed(b []byte) (buf, rest []byte, ok bool) {
 	return b[1 : 1+b[0]], b[1+b[0]:], true
 }
 
-// AppendBinary implements the [encoding.BinaryAppender] interface.
+// AppendBinary 实现了 [encoding.BinaryAppender] 接口。
 func (c *ChaCha8) AppendBinary(b []byte) ([]byte, error) {
 	if c.readLen > 0 {
 		b = append(b, "readbuf:"...)
@@ -108,8 +108,8 @@ func (c *ChaCha8) AppendBinary(b []byte) ([]byte, error) {
 	return append(b, chacha8rand.Marshal(&c.state)...), nil
 }
 
-// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+// MarshalBinary 实现了 [encoding.BinaryMarshaler] 接口。
 func (c *ChaCha8) MarshalBinary() ([]byte, error) {
-	// the maximum length of (chacha8rand.Marshal + c.readBuf + "readbuf:") is 64
+	// (chacha8rand.Marshal + c.readBuf + "readbuf:") 的最大长度是 64
 	return c.AppendBinary(make([]byte, 0, 64))
 }

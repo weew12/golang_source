@@ -4,36 +4,34 @@
 
 package math
 
-// The original C code, the long comment, and the constants
-// below are from http://netlib.sandia.gov/cephes/cprob/gamma.c.
-// The go code is a simplified version of the original C.
+// 原始 C 代码、长注释以及下面的常量
+// 来自 http://netlib.sandia.gov/cephes/cprob/gamma.c。
+// Go 代码是原始 C 代码的简化版本。
 //
 //      tgamma.c
 //
-//      Gamma function
+//      伽玛函数
 //
-// SYNOPSIS:
+// 概要：
 //
 // double x, y, tgamma();
 // extern int signgam;
 //
 // y = tgamma( x );
 //
-// DESCRIPTION:
+// 描述：
+
+// 返回参数的伽玛函数。结果带有正确的符号，
+// 且符号（+1 或 -1）也会通过一个名为 signgam
+// 的全局（extern）变量返回。
+// 该变量也会由对数伽玛函数 lgamma() 填充。
 //
-// Returns gamma function of the argument. The result is
-// correctly signed, and the sign (+1 or -1) is also
-// returned in a global (extern) variable named signgam.
-// This variable is also filled in by the logarithmic gamma
-// function lgamma().
+// |x| <= 34 的参数通过递推进行归约，函数在
+// 区间 (2,3) 上用 6/7 次有理函数逼近。
+// 较大的参数由 Stirling 公式处理。
+// 较大的负参数利用反射公式转换为正数。
 //
-// Arguments |x| <= 34 are reduced by recurrence and the function
-// approximated by a rational function of degree 6/7 in the
-// interval (2,3).  Large arguments are handled by Stirling's
-// formula. Large negative arguments are made positive using
-// a reflection formula.
-//
-// ACCURACY:
+// 精度：
 //
 //                      Relative error:
 // arithmetic   domain     # trials      peak         rms
@@ -42,8 +40,8 @@ package math
 //    IEEE     -33,  33     20000       9.4e-16     2.2e-16
 //    IEEE      33, 171.6   20000       2.3e-15     3.2e-16
 //
-// Error for arguments outside the test range will be larger
-// owing to error amplification by the exponential function.
+// 测试范围之外的参数误差会更大，
+// 这是由于指数函数对误差的放大。
 //
 // Cephes Math Library Release 2.8:  June, 2000
 // Copyright 1984, 1987, 1989, 1992, 2000 by Stephen L. Moshier
@@ -90,13 +88,13 @@ var _gamS = [...]float64{
 	8.33333333333482257126e-02,
 }
 
-// Gamma function computed by Stirling's formula.
-// The pair of results must be multiplied together to get the actual answer.
-// The multiplication is left to the caller so that, if careful, the caller can avoid
-// infinity for 172 <= x <= 180.
-// The polynomial is valid for 33 <= x <= 172; larger values are only used
-// in reciprocal and produce denormalized floats. The lower precision there
-// masks any imprecision in the polynomial.
+// 由 Stirling 公式计算的伽玛函数。
+// 两个结果必须相乘才能得到实际答案。
+// 乘法留给调用者，这样如果调用者足够小心，就可以避免
+// 在 172 <= x <= 180 时出现无穷。
+// 该多项式对 33 <= x <= 172 有效；更大的值仅用于
+// 倒数，并产生非规格化浮点数。那里的较低精度
+// 掩盖了多项式中的任何不精确。
 func stirling(x float64) (float64, float64) {
 	if x > 200 {
 		return Inf(1), 1
@@ -109,7 +107,7 @@ func stirling(x float64) (float64, float64) {
 	w = 1 + w*((((_gamS[0]*w+_gamS[1])*w+_gamS[2])*w+_gamS[3])*w+_gamS[4])
 	y1 := Exp(x)
 	y2 := 1.0
-	if x > MaxStirling { // avoid Pow() overflow
+	if x > MaxStirling { // 避免 Pow() 溢出
 		v := Pow(x, 0.5*x-0.25)
 		y1, y2 = v, v/y1
 	} else {
@@ -118,9 +116,9 @@ func stirling(x float64) (float64, float64) {
 	return y1, SqrtTwoPi * w * y2
 }
 
-// Gamma returns the Gamma function of x.
+// Gamma 返回 x 的 Gamma 函数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Gamma(+Inf) = +Inf
 //	Gamma(+0) = +Inf
@@ -130,7 +128,7 @@ func stirling(x float64) (float64, float64) {
 //	Gamma(NaN) = NaN
 func Gamma(x float64) float64 {
 	const Euler = 0.57721566490153286060651209008240243104215933593992 // A001620
-	// special cases
+	// 特殊情况
 	switch {
 	case isNegInt(x) || IsInf(x, -1) || IsNaN(x):
 		return NaN()
@@ -149,9 +147,9 @@ func Gamma(x float64) float64 {
 			y1, y2 := stirling(x)
 			return y1 * y2
 		}
-		// Note: x is negative but (checked above) not a negative integer,
-		// so x must be small enough to be in range for conversion to int64.
-		// If |x| were >= 2⁶³ it would have to be an integer.
+		// 注意：x 为负数，但（上面已检查）不是负整数，
+		// 因此 x 必须足够小，以便能转换为 int64。
+		// 如果 |x| >= 2⁶³，则它必定是整数。
 		signgam := 1
 		if ip := int64(p); ip&1 == 0 {
 			signgam = -1
@@ -176,7 +174,7 @@ func Gamma(x float64) float64 {
 		return float64(signgam) * z
 	}
 
-	// Reduce argument
+	// 归约参数
 	z := 1.0
 	for x >= 3 {
 		x = x - 1

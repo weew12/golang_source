@@ -5,41 +5,41 @@
 package math
 
 /*
-	Floating-point tangent.
+	浮点正切。
 */
 
-// The original C code, the long comment, and the constants
-// below were from http://netlib.sandia.gov/cephes/cmath/sin.c,
-// available from http://www.netlib.org/cephes/cmath.tgz.
-// The go code is a simplified version of the original C.
+// 原始 C 代码、长注释及下面的常量
+// 来自 http://netlib.sandia.gov/cephes/cmath/sin.c，
+// 可从 http://www.netlib.org/cephes/cmath.tgz 获取。
+// Go 代码是原始 C 的简化版本。
 //
 //      tan.c
 //
-//      Circular tangent
+//      圆正切
 //
-// SYNOPSIS:
+// 概要：
 //
 // double x, y, tan();
 // y = tan( x );
 //
-// DESCRIPTION:
+// 描述：
 //
-// Returns the circular tangent of the radian argument x.
+// 返回弧度参数 x 的圆正切。
 //
-// Range reduction is modulo pi/4.  A rational function
+// 参数归约为 pi/4 的模。在基本区间 [0, pi/4] 中
 //       x + x**3 P(x**2)/Q(x**2)
-// is employed in the basic interval [0, pi/4].
+// 使用有理函数
 //
-// ACCURACY:
-//                      Relative error:
+// 精度：
+//                      相对误差：
 // arithmetic   domain     # trials      peak         rms
 //    DEC      +-1.07e9      44000      4.1e-17     1.0e-17
 //    IEEE     +-1.07e9      30000      2.9e-16     8.1e-17
 //
-// Partial loss of accuracy begins to occur at x = 2**30 = 1.074e9.  The loss
-// is not gradual, but jumps suddenly to about 1 part in 10e7.  Results may
-// be meaningless for x > 2**49 = 5.6e14.
-// [Accuracy loss statement from sin.go comments.]
+// 精度的部分损失开始出现在 x = 2**30 = 1.074e9 处。这种损失
+// 不是渐进的，而是突然跃升到约 10e7 分之一。对于
+// x > 2**49 = 5.6e14，结果可能没有意义。
+// [精度损失说明取自 sin.go 的注释。]
 //
 // Cephes Math Library Release 2.8:  June, 2000
 // Copyright 1984, 1987, 1989, 1992, 2000 by Stephen L. Moshier
@@ -59,7 +59,7 @@ package math
 //   Stephen L. Moshier
 //   moshier@na-net.ornl.gov
 
-// tan coefficients
+// tan 系数
 var _tanP = [...]float64{
 	-1.30936939181383777646e4, // 0xc0c992d8d24f3f38
 	1.15351664838587416140e6,  // 0x413199eca5fc9ddd
@@ -73,9 +73,9 @@ var _tanQ = [...]float64{
 	-5.38695755929454629881e7, // 0xc189afe03cbe5a31
 }
 
-// Tan returns the tangent of the radian argument x.
+// Tan 返回弧度参数 x 的正切。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Tan(±0) = ±0
 //	Tan(±Inf) = NaN
@@ -89,19 +89,19 @@ func Tan(x float64) float64 {
 
 func tan(x float64) float64 {
 	const (
-		PI4A = 7.85398125648498535156e-1  // 0x3fe921fb40000000, Pi/4 split into three parts
+		PI4A = 7.85398125648498535156e-1  // 0x3fe921fb40000000, Pi/4 拆分为三部分
 		PI4B = 3.77489470793079817668e-8  // 0x3e64442d00000000,
 		PI4C = 2.69515142907905952645e-15 // 0x3ce8469898cc5170,
 	)
-	// special cases
+	// 特殊情况
 	switch {
 	case x == 0 || IsNaN(x):
-		return x // return ±0 || NaN()
+		return x // 返回 ±0 || NaN()
 	case IsInf(x, 0):
 		return NaN()
 	}
 
-	// make argument positive but save the sign
+	// 使参数为正但保留符号
 	sign := false
 	if x < 0 {
 		x = -x
@@ -112,10 +112,10 @@ func tan(x float64) float64 {
 	if x >= reduceThreshold {
 		j, z = trigReduce(x)
 	} else {
-		j = uint64(x * (4 / Pi)) // integer part of x/(Pi/4), as integer for tests on the phase angle
-		y = float64(j)           // integer part of x/(Pi/4), as float
+		j = uint64(x * (4 / Pi)) // x/(Pi/4) 的整数部分，作为整数用于相位角测试
+		y = float64(j)           // x/(Pi/4) 的整数部分，作为浮点数
 
-		/* map zeros and singularities to origin */
+		/* 将零点和奇点映射到原点 */
 		if j&1 == 1 {
 			j++
 			y++

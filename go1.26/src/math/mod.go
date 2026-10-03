@@ -5,14 +5,14 @@
 package math
 
 /*
-	Floating-point mod function.
+	浮点取模函数。
 */
 
-// Mod returns the floating-point remainder of x/y.
-// The magnitude of the result is less than y and its
-// sign agrees with that of x.
+// Mod 返回 x/y 的浮点余数。
+// 结果的绝对值小于 y，且其
+// 符号与 x 的相同。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Mod(±Inf, y) = NaN
 //	Mod(NaN, y) = NaN

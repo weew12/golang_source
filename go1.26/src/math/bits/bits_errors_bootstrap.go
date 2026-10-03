@@ -4,8 +4,8 @@
 
 //go:build compiler_bootstrap
 
-// This version used only for bootstrap (on this path we want
-// to avoid use of go:linkname as applied to variables).
+// 此版本仅用于引导（bootstrap）（在此路径上我们希望
+// 避免对变量使用 go:linkname）。
 
 package bits
 

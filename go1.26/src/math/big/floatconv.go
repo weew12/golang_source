@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements string-to-Float conversion functions.
+// 本文件实现字符串到 Float 的转换函数。
 
 package big
 
@@ -14,11 +14,10 @@ import (
 
 var floatZero Float
 
-// SetString sets z to the value of s and returns z and a boolean indicating
-// success. s must be a floating-point number of the same format as accepted
-// by [Float.Parse], with base argument 0. The entire string (not just a prefix) must
-// be valid for success. If the operation failed, the value of z is undefined
-// but the returned value is nil.
+// SetString 将 z 设置为 s 的值，并返回 z 和一个表示成功与否的布尔值。
+// s 必须是格式与 [Float.Parse] 所接受格式相同的浮点数，且 base 参数为 0。
+// 成功时整个字符串（不只是前缀）都必须有效。如果操作失败，
+// z 的值未定义，但返回的值为 nil。
 func (z *Float) SetString(s string) (*Float, bool) {
 	if f, _, err := z.Parse(s, 0); err == nil {
 		return f, true
@@ -26,33 +25,32 @@ func (z *Float) SetString(s string) (*Float, bool) {
 	return nil, false
 }
 
-// scan is like Parse but reads the longest possible prefix representing a valid
-// floating point number from an io.ByteScanner rather than a string. It serves
-// as the implementation of Parse. It does not recognize ±Inf and does not expect
-// EOF at the end.
+// scan 类似于 Parse，但它从 io.ByteScanner（而非字符串）读取表示有效
+// 浮点数的最长可能前缀。它作为 Parse 的实现。它不识别 ±Inf，
+// 也不期望结尾出现 EOF。
 func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	prec := z.prec
 	if prec == 0 {
 		prec = 64
 	}
 
-	// A reasonable value in case of an error.
+	// 出错时使用的一个合理值。
 	z.form = zero
 
-	// sign
+	// 符号
 	z.neg, err = scanSign(r)
 	if err != nil {
 		return
 	}
 
-	// mantissa
-	var fcount int // fractional digit count; valid if <= 0
+	// 尾数
+	var fcount int // 小数位数；如果 <= 0 则有效
 	z.mant, b, fcount, err = z.mant.scan(r, base, true)
 	if err != nil {
 		return
 	}
 
-	// exponent
+	// 指数
 	var exp int64
 	var ebase int
 	exp, ebase, err = scanExponent(r, true, base == 0)
@@ -60,7 +58,7 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 		return
 	}
 
-	// special-case 0
+	// 特殊情况 0
 	if len(z.mant) == 0 {
 		z.prec = prec
 		z.acc = Exact
@@ -70,26 +68,23 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	}
 	// len(z.mant) > 0
 
-	// The mantissa may have a radix point (fcount <= 0) and there
-	// may be a nonzero exponent exp. The radix point amounts to a
-	// division by b**(-fcount). An exponent means multiplication by
-	// ebase**exp. Finally, mantissa normalization (shift left) requires
-	// a correcting multiplication by 2**(-shiftcount). Multiplications
-	// are commutative, so we can apply them in any order as long as there
-	// is no loss of precision. We only have powers of 2 and 10, and
-	// we split powers of 10 into the product of the same powers of
-	// 2 and 5. This reduces the size of the multiplication factor
-	// needed for base-10 exponents.
+	// 尾数可能带有一个小数点（fcount <= 0），并且可能存在
+	// 非零指数 exp。小数点相当于除以 b**(-fcount)。指数表示
+	// 乘以 ebase**exp。最后，尾数规范化（左移）需要乘以
+	// 2**(-shiftcount) 进行修正。乘法是可交换的，因此只要不损失
+	// 精度，我们可以按任意顺序应用它们。我们只涉及 2 的幂和 10 的幂，
+	// 并将 10 的幂拆分为相同幂次的 2 和 5 的乘积。这减小了
+	// 以 10 为底指数所需的乘法因子的大小。
 
-	// normalize mantissa and determine initial exponent contributions
+	// 规范化尾数并确定初始指数贡献
 	exp2 := int64(len(z.mant))*_W - fnorm(z.mant)
 	exp5 := int64(0)
 
-	// determine binary or decimal exponent contribution of radix point
+	// 确定小数点引入的二进制或十进制指数贡献
 	if fcount < 0 {
-		// The mantissa has a radix point ddd.dddd; and
-		// -fcount is the number of digits to the right
-		// of '.'. Adjust relevant exponent accordingly.
+		// 尾数带有小数点 ddd.dddd；
+		// -fcount 是 '.' 右侧的数字个数。
+		// 相应地调整相关指数。
 		d := int64(fcount)
 		switch b {
 		case 10:
@@ -98,28 +93,28 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 		case 2:
 			exp2 += d
 		case 8:
-			exp2 += d * 3 // octal digits are 3 bits each
+			exp2 += d * 3 // 八进制数字每位占 3 位
 		case 16:
-			exp2 += d * 4 // hexadecimal digits are 4 bits each
+			exp2 += d * 4 // 十六进制数字每位占 4 位
 		default:
 			panic("unexpected mantissa base")
 		}
-		// fcount consumed - not needed anymore
+		// fcount 已消费 - 不再需要
 	}
 
-	// take actual exponent into account
+	// 将实际指数考虑进来
 	switch ebase {
 	case 10:
 		exp5 += exp
-		fallthrough // see fallthrough above
+		fallthrough // 参见上面的 fallthrough
 	case 2:
 		exp2 += exp
 	default:
 		panic("unexpected exponent base")
 	}
-	// exp consumed - not needed anymore
+	// exp 已消费 - 不再需要
 
-	// apply 2**exp2
+	// 应用 2**exp2
 	if MinExp <= exp2 && exp2 <= MaxExp {
 		z.prec = prec
 		z.form = finite
@@ -131,14 +126,14 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	}
 
 	if exp5 == 0 {
-		// no decimal exponent contribution
+		// 没有十进制指数贡献
 		z.round(0)
 		return
 	}
 	// exp5 != 0
 
-	// apply 5**exp5
-	p := new(Float).SetPrec(z.Prec() + 64) // use more bits for p -- TODO(gri) what is the right number?
+	// 应用 5**exp5
+	p := new(Float).SetPrec(z.Prec() + 64) // 为 p 使用更多位 -- TODO(gri) 正确的数值是多少？
 	if exp5 < 0 {
 		z.Quo(z, p.pow5(uint64(-exp5)))
 	} else {
@@ -148,7 +143,7 @@ func (z *Float) scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
 	return
 }
 
-// These powers of 5 fit into a uint64.
+// 这些 5 的幂可以放入 uint64。
 //
 //	for p, q := uint64(0), uint64(1); p < q; p, q = q, q*5 {
 //		fmt.Println(q)
@@ -184,8 +179,8 @@ var pow5tab = [...]uint64{
 	7450580596923828125,
 }
 
-// pow5 sets z to 5**n and returns z.
-// n must not be negative.
+// pow5 将 z 设置为 5**n 并返回 z。
+// n 不能为负数。
 func (z *Float) pow5(n uint64) *Float {
 	const m = uint64(len(pow5tab) - 1)
 	if n <= m {
@@ -196,8 +191,8 @@ func (z *Float) pow5(n uint64) *Float {
 	z.SetUint64(pow5tab[m])
 	n -= m
 
-	// use more bits for f than for z
-	// TODO(gri) what is the right number?
+	// 为 f 使用比 z 更多的位
+	// TODO(gri) 正确的数值是多少？
 	f := new(Float).SetPrec(z.Prec() + 64).SetUint64(5)
 
 	for n > 0 {
@@ -211,23 +206,19 @@ func (z *Float) pow5(n uint64) *Float {
 	return z
 }
 
-// Parse parses s which must contain a text representation of a floating-
-// point number with a mantissa in the given conversion base (the exponent
-// is always a decimal number), or a string representing an infinite value.
+// Parse 解析 s，s 必须包含给定转换进制下带尾数的浮点数文本表示
+// （指数始终是十进制数），或者是表示无穷值的字符串。
 //
-// For base 0, an underscore character “_” may appear between a base
-// prefix and an adjacent digit, and between successive digits; such
-// underscores do not change the value of the number, or the returned
-// digit count. Incorrect placement of underscores is reported as an
-// error if there are no other errors. If base != 0, underscores are
-// not recognized and thus terminate scanning like any other character
-// that is not a valid radix point or digit.
+// 对于进制 0，下划线字符 “_” 可以出现在进制前缀与相邻数字之间，
+// 以及连续数字之间；这样的下划线不会改变数字的值，也不会改变
+// 返回的数字个数。如果没有其他错误，下划线位置不正确会报告为错误。
+// 如果 base != 0，则不识别下划线，因此会像任何其他不是有效小数点
+// 或数字的字符一样终止扫描。
 //
-// It sets z to the (possibly rounded) value of the corresponding floating-
-// point value, and returns z, the actual base b, and an error err, if any.
-// The entire string (not just a prefix) must be consumed for success.
-// If z's precision is 0, it is changed to 64 before rounding takes effect.
-// The number must be of the form:
+// 它将 z 设置为对应浮点值的（可能经过舍入的）值，并返回 z、
+// 实际使用的进制 b，以及错误 err（如果有）。成功时必须消费整个
+// 字符串（不只是前缀）。如果 z 的精度为 0，则在舍入生效之前
+// 会被改为 64。数字必须具有以下形式：
 //
 //	number    = [ sign ] ( float | "inf" | "Inf" ) .
 //	sign      = "+" | "-" .
@@ -239,25 +230,22 @@ func (z *Float) pow5(n uint64) *Float {
 //	digits    = digit { [ "_" ] digit } .
 //	digit     = "0" ... "9" | "a" ... "z" | "A" ... "Z" .
 //
-// The base argument must be 0, 2, 8, 10, or 16. Providing an invalid base
-// argument will lead to a run-time panic.
+// base 参数必须是 0、2、8、10 或 16。提供无效的 base 参数
+// 会导致运行时 panic。
 //
-// For base 0, the number prefix determines the actual base: A prefix of
-// “0b” or “0B” selects base 2, “0o” or “0O” selects base 8, and
-// “0x” or “0X” selects base 16. Otherwise, the actual base is 10 and
-// no prefix is accepted. The octal prefix "0" is not supported (a leading
-// "0" is simply considered a "0").
+// 对于进制 0，数字前缀决定实际使用的进制：“0b” 或 “0B” 选择进制 2，
+// “0o” 或 “0O” 选择进制 8，“0x” 或 “0X” 选择进制 16。否则，实际
+// 进制为 10，且不接受前缀。不支持八进制前缀 "0"（前导的 "0" 会被
+// 直接视为 "0"）。
 //
-// A "p" or "P" exponent indicates a base 2 (rather than base 10) exponent;
-// for instance, "0x1.fffffffffffffp1023" (using base 0) represents the
-// maximum float64 value. For hexadecimal mantissae, the exponent character
-// must be one of 'p' or 'P', if present (an "e" or "E" exponent indicator
-// cannot be distinguished from a mantissa digit).
+// "p" 或 "P" 指数表示以 2 为底（而非以 10 为底）的指数；例如，
+// "0x1.fffffffffffffp1023"（使用进制 0）表示最大的 float64 值。
+// 对于十六进制尾数，如果存在指数字符，则必须是 'p' 或 'P' 之一
+// （"e" 或 "E" 指数指示符无法与尾数数字区分开）。
 //
-// The returned *Float f is nil and the value of z is valid but not
-// defined if an error is reported.
+// 如果报告了错误，返回的 *Float f 为 nil，z 的值有效但未定义。
 func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
-	// scan doesn't handle ±Inf
+	// scan 不处理 ±Inf
 	if len(s) == 3 && (s == "Inf" || s == "inf") {
 		f = z.SetInf(false)
 		return
@@ -272,7 +260,7 @@ func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
 		return
 	}
 
-	// entire string must have been consumed
+	// 必须已消费整个字符串
 	if ch, err2 := r.ReadByte(); err2 == nil {
 		err = fmt.Errorf("expected end of string, found %q", ch)
 	} else if err2 != io.EOF {
@@ -282,19 +270,17 @@ func (z *Float) Parse(s string, base int) (f *Float, b int, err error) {
 	return
 }
 
-// ParseFloat is like f.Parse(s, base) with f set to the given precision
-// and rounding mode.
+// ParseFloat 类似于 f.Parse(s, base)，其中 f 被设置为给定的精度和舍入模式。
 func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b int, err error) {
 	return new(Float).SetPrec(prec).SetMode(mode).Parse(s, base)
 }
 
-var _ fmt.Scanner = (*Float)(nil) // *Float must implement fmt.Scanner
+var _ fmt.Scanner = (*Float)(nil) // *Float 必须实现 fmt.Scanner
 
-// Scan is a support routine for [fmt.Scanner]; it sets z to the value of
-// the scanned number. It accepts formats whose verbs are supported by
-// [fmt.Scan] for floating point values, which are:
-// 'b' (binary), 'e', 'E', 'f', 'F', 'g' and 'G'.
-// Scan doesn't handle ±Inf.
+// Scan 是 [fmt.Scanner] 的辅助例程；它将 z 设置为所扫描数字的值。
+// 它接受 [fmt.Scan] 对浮点值所支持的动词格式，即：
+// 'b'（二进制）、'e'、'E'、'f'、'F'、'g' 和 'G'。
+// Scan 不处理 ±Inf。
 func (z *Float) Scan(s fmt.ScanState, ch rune) error {
 	s.SkipSpace()
 	_, _, err := z.scan(byteReader{s}, 0)

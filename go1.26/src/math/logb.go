@@ -4,15 +4,15 @@
 
 package math
 
-// Logb returns the binary exponent of x.
+// Logb 返回 x 的二进制指数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Logb(±Inf) = +Inf
 //	Logb(0) = -Inf
 //	Logb(NaN) = NaN
 func Logb(x float64) float64 {
-	// special cases
+	// 特殊情况
 	switch {
 	case x == 0:
 		return Inf(-1)
@@ -24,15 +24,15 @@ func Logb(x float64) float64 {
 	return float64(ilogb(x))
 }
 
-// Ilogb returns the binary exponent of x as an integer.
+// Ilogb 以整数形式返回 x 的二进制指数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Ilogb(±Inf) = MaxInt32
 //	Ilogb(0) = MinInt32
 //	Ilogb(NaN) = MaxInt32
 func Ilogb(x float64) int {
-	// special cases
+	// 特殊情况
 	switch {
 	case x == 0:
 		return MinInt32
@@ -44,8 +44,8 @@ func Ilogb(x float64) int {
 	return ilogb(x)
 }
 
-// ilogb returns the binary exponent of x. It assumes x is finite and
-// non-zero.
+// ilogb 返回 x 的二进制指数。它假定 x 是有限且
+// 非零的。
 func ilogb(x float64) int {
 	x, exp := normalize(x)
 	return int((Float64bits(x)>>shift)&mask) - bias + exp

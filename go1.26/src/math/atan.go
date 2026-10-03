@@ -5,30 +5,29 @@
 package math
 
 /*
-	Floating-point arctangent.
+	浮点反正切。
 */
 
-// The original C code, the long comment, and the constants below were
-// from http://netlib.sandia.gov/cephes/cmath/atan.c, available from
-// http://www.netlib.org/cephes/cmath.tgz.
-// The go code is a version of the original C.
+// 以下原始 C 代码、长篇注释及常量来自
+// http://netlib.sandia.gov/cephes/cmath/atan.c，可从
+// http://www.netlib.org/cephes/cmath.tgz 获取。
+// Go 代码是原始 C 代码的一个版本。
 //
 // atan.c
-// Inverse circular tangent (arctangent)
+// 反正切（arctangent）
 //
-// SYNOPSIS:
+// 概要：
 // double x, y, atan();
 // y = atan( x );
 //
-// DESCRIPTION:
-// Returns radian angle between -pi/2 and +pi/2 whose tangent is x.
+// 描述：
+// 返回正切值为 x 的弧度角，其范围在 -pi/2 与 +pi/2 之间。
 //
-// Range reduction is from three intervals into the interval from zero to 0.66.
-// The approximant uses a rational function of degree 4/5 of the form
-// x + x**3 P(x)/Q(x).
+// 范围缩减将三个区间归约到从 0 到 0.66 的区间。
+// 近似式使用形式为 x + x**3 P(x)/Q(x) 的 4/5 次有理函数。
 //
-// ACCURACY:
-//                      Relative error:
+// 精度：
+//                      相对误差：
 // arithmetic   domain    # trials  peak     rms
 //    DEC       -10, 10   50000     2.4e-17  8.3e-18
 //    IEEE      -10, 10   10^6      1.8e-16  5.0e-17
@@ -51,7 +50,7 @@ package math
 //   Stephen L. Moshier
 //   moshier@na-net.ornl.gov
 
-// xatan evaluates a series valid in the range [0, 0.66].
+// xatan 计算在区间 [0, 0.66] 内有效的级数。
 func xatan(x float64) float64 {
 	const (
 		P0 = -8.750608600031904122785e-01
@@ -71,8 +70,8 @@ func xatan(x float64) float64 {
 	return z
 }
 
-// satan reduces its argument (known to be positive)
-// to the range [0, 0.66] and calls xatan.
+// satan 将其参数（已知为正）归约到区间
+// [0, 0.66]，并调用 xatan。
 func satan(x float64) float64 {
 	const (
 		Morebits = 6.123233995736765886130e-17 // pi/2 = PIO2 + Morebits
@@ -87,9 +86,9 @@ func satan(x float64) float64 {
 	return Pi/4 + xatan((x-1)/(x+1)) + 0.5*Morebits
 }
 
-// Atan returns the arctangent, in radians, of x.
+// Atan 返回 x 的反正切（以弧度为单位）。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Atan(±0) = ±0
 //	Atan(±Inf) = ±Pi/2

@@ -6,48 +6,47 @@ package cmplx
 
 import "math"
 
-// The original C code, the long comment, and the constants
-// below are from http://netlib.sandia.gov/cephes/c9x-complex/clog.c.
-// The go code is a simplified version of the original C.
+// 原始 C 代码、长注释以及下面的常量
+// 来自 http://netlib.sandia.gov/cephes/c9x-complex/clog.c。
+// Go 代码是原始 C 代码的简化版本。
 //
 // Cephes Math Library Release 2.8:  June, 2000
 // Copyright 1984, 1987, 1989, 1992, 2000 by Stephen L. Moshier
 //
-// The readme file at http://netlib.sandia.gov/cephes/ says:
-//    Some software in this archive may be from the book _Methods and
-// Programs for Mathematical Functions_ (Prentice-Hall or Simon & Schuster
-// International, 1989) or from the Cephes Mathematical Library, a
-// commercial product. In either event, it is copyrighted by the author.
-// What you see here may be used freely but it comes with no support or
-// guarantee.
+// http://netlib.sandia.gov/cephes/ 处的 readme 文件写道：
+//    本档案中的某些软件可能来自 _Methods and
+// Programs for Mathematical Functions_ 一书（Prentice-Hall 或 Simon & Schuster
+// International，1989），或者来自 Cephes 数学库，一个
+// 商业产品。无论哪种情况，其版权均归作者所有。
+// 你可以自由使用在此看到的内容，但对此不提供任何支持或
+// 担保。
 //
-//   The two known misprints in the book are repaired here in the
-// source listings for the gamma function and the incomplete beta
-// integral.
+//   书中已知的两处印刷错误已在此处修正，
+// 涉及 gamma 函数和不完全 beta 积分的源代码清单。
 //
 //   Stephen L. Moshier
 //   moshier@na-net.ornl.gov
 
-// Complex circular arc sine
+// 复数反正弦
 //
-// DESCRIPTION:
+// 描述：
 //
-// Inverse complex sine:
+// 复数正弦的反函数：
 //                               2
 // w = -i clog( iz + csqrt( 1 - z ) ).
 //
 // casin(z) = -i casinh(iz)
 //
-// ACCURACY:
+// 精度：
 //
-//                      Relative error:
-// arithmetic   domain     # trials      peak         rms
+//                      相对误差：
+// 算术         定义域     试验次数      峰值         均方根
 //    DEC       -10,+10     10100       2.1e-15     3.4e-16
 //    IEEE      -10,+10     30000       2.2e-14     2.7e-15
-// Larger relative error can be observed for z near zero.
-// Also tested by csin(casin(z)) = z.
+// 当 z 接近零时可以观察到更大的相对误差。
+// 也通过 csin(casin(z)) = z 进行了测试。
 
-// Asin returns the inverse sine of x.
+// Asin 返回 x 的反正弦。
 func Asin(x complex128) complex128 {
 	switch re, im := real(x), imag(x); {
 	case im == 0 && math.Abs(re) <= 1:
@@ -83,7 +82,7 @@ func Asin(x complex128) complex128 {
 	return complex(imag(w), -real(w)) // -i * w
 }
 
-// Asinh returns the inverse hyperbolic sine of x.
+// Asinh 返回 x 的反双曲正弦。
 func Asinh(x complex128) complex128 {
 	switch re, im := real(x), imag(x); {
 	case im == 0 && math.Abs(re) <= 1:
@@ -116,26 +115,26 @@ func Asinh(x complex128) complex128 {
 	return Log(x + Sqrt(x1))            // log(x + sqrt(1 + x*x))
 }
 
-// Complex circular arc cosine
+// 复数反余弦
 //
-// DESCRIPTION:
+// 描述：
 //
 // w = arccos z  =  PI/2 - arcsin z.
 //
-// ACCURACY:
+// 精度：
 //
-//                      Relative error:
-// arithmetic   domain     # trials      peak         rms
+//                      相对误差：
+// 算术         定义域     试验次数      峰值         均方根
 //    DEC       -10,+10      5200      1.6e-15      2.8e-16
 //    IEEE      -10,+10     30000      1.8e-14      2.2e-15
 
-// Acos returns the inverse cosine of x.
+// Acos 返回 x 的反余弦。
 func Acos(x complex128) complex128 {
 	w := Asin(x)
 	return complex(math.Pi/2-real(w), -imag(w))
 }
 
-// Acosh returns the inverse hyperbolic cosine of x.
+// Acosh 返回 x 的反双曲余弦。
 func Acosh(x complex128) complex128 {
 	if x == 0 {
 		return complex(0, math.Copysign(math.Pi/2, imag(x)))
@@ -147,14 +146,14 @@ func Acosh(x complex128) complex128 {
 	return complex(imag(w), -real(w)) // -i * w
 }
 
-// Complex circular arc tangent
+// 复数反正切
 //
-// DESCRIPTION:
+// 描述：
 //
-// If
+// 如果
 //     z = x + iy,
 //
-// then
+// 那么
 //          1       (    2x     )
 // Re w  =  - arctan(-----------)  +  k PI
 //          2       (     2    2)
@@ -166,21 +165,21 @@ func Acosh(x complex128) complex128 {
 //          4    ( 2         2)
 //               (x  +  (y-1) )
 //
-// Where k is an arbitrary integer.
+// 其中 k 是任意整数。
 //
 // catan(z) = -i catanh(iz).
 //
-// ACCURACY:
+// 精度：
 //
-//                      Relative error:
-// arithmetic   domain     # trials      peak         rms
+//                      相对误差：
+// 算术         定义域     试验次数      峰值         均方根
 //    DEC       -10,+10      5900       1.3e-16     7.8e-18
 //    IEEE      -10,+10     30000       2.3e-15     8.5e-17
-// The check catan( ctan(z) )  =  z, with |x| and |y| < PI/2,
-// had peak relative error 1.5e-16, rms relative error
-// 2.9e-17.  See also clog().
+// 在 |x| 和 |y| < PI/2 的条件下，检验 catan( ctan(z) )  =  z，
+// 峰值相对误差为 1.5e-16，均方根相对误差
+// 为 2.9e-17。另见 clog()。
 
-// Atan returns the inverse tangent of x.
+// Atan 返回 x 的反正切。
 func Atan(x complex128) complex128 {
 	switch re, im := real(x), imag(x); {
 	case im == 0:
@@ -213,7 +212,7 @@ func Atan(x complex128) complex128 {
 	return complex(w, 0.25*math.Log(c))
 }
 
-// Atanh returns the inverse hyperbolic tangent of x.
+// Atanh 返回 x 的反双曲正切。
 func Atanh(x complex128) complex128 {
 	z := complex(-imag(x), real(x)) // z = i * x
 	z = Atan(z)

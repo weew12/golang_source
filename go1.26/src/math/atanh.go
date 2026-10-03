@@ -4,10 +4,9 @@
 
 package math
 
-// The original C code, the long comment, and the constants
-// below are from FreeBSD's /usr/src/lib/msun/src/e_atanh.c
-// and came with this notice. The go code is a simplified
-// version of the original C.
+// 以下原始 C 代码、长篇注释及常量来自 FreeBSD 的
+// /usr/src/lib/msun/src/e_atanh.c，并附带下述声明。
+// Go 代码是原始 C 代码的简化版本。
 //
 // ====================================================
 // Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -20,30 +19,30 @@ package math
 //
 //
 // __ieee754_atanh(x)
-// Method :
-//	1. Reduce x to positive by atanh(-x) = -atanh(x)
-//	2. For x>=0.5
+// 方法：
+//	1. 利用 atanh(-x) = -atanh(x) 将 x 化为正数
+//	2. 当 x>=0.5 时
 //	            1              2x                          x
 //	atanh(x) = --- * log(1 + -------) = 0.5 * log1p(2 * --------)
 //	            2             1 - x                      1 - x
 //
-//	For x<0.5
+//	当 x<0.5 时
 //	atanh(x) = 0.5*log1p(2x+2x*x/(1-x))
 //
-// Special cases:
-//	atanh(x) is NaN if |x| > 1 with signal;
-//	atanh(NaN) is that NaN with no signal;
-//	atanh(+-1) is +-INF with signal.
+// 特殊情况：
+//	若 |x| > 1，atanh(x) 为带信号的 NaN；
+//	atanh(NaN) 为该 NaN，不带信号；
+//	atanh(+-1) 为带信号的 +-INF。
 //
 
-// Atanh returns the inverse hyperbolic tangent of x.
+// Atanh 返回 x 的反双曲正切。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Atanh(1) = +Inf
 //	Atanh(±0) = ±0
 //	Atanh(-1) = -Inf
-//	Atanh(x) = NaN if x < -1 or x > 1
+//	Atanh(x) = NaN 若 x < -1 或 x > 1
 //	Atanh(NaN) = NaN
 func Atanh(x float64) float64 {
 	if haveArchAtanh {
@@ -54,7 +53,7 @@ func Atanh(x float64) float64 {
 
 func atanh(x float64) float64 {
 	const NearZero = 1.0 / (1 << 28) // 2**-28
-	// special cases
+	// 特殊情况
 	switch {
 	case x < -1 || x > 1 || IsNaN(x):
 		return NaN()

@@ -4,10 +4,9 @@
 
 package math
 
-// The original C code, the long comment, and the constants
-// below are from FreeBSD's /usr/src/lib/msun/src/s_log1p.c
-// and came with this notice. The go code is a simplified
-// version of the original C.
+// 原始 C 代码、长注释及下面的常量
+// 来自 FreeBSD 的 /usr/src/lib/msun/src/s_log1p.c，
+// 并随附此声明。Go 代码是原始 C 的简化版本。
 //
 // ====================================================
 // Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -21,72 +20,72 @@ package math
 //
 // double log1p(double x)
 //
-// Method :
-//   1. Argument Reduction: find k and f such that
+// 方法：
+//   1. 参数归约：找到 k 和 f 使得
 //                      1+x = 2**k * (1+f),
-//         where  sqrt(2)/2 < 1+f < sqrt(2) .
+//         其中  sqrt(2)/2 < 1+f < sqrt(2) 。
 //
-//      Note. If k=0, then f=x is exact. However, if k!=0, then f
-//      may not be representable exactly. In that case, a correction
-//      term is need. Let u=1+x rounded. Let c = (1+x)-u, then
-//      log(1+x) - log(u) ~ c/u. Thus, we proceed to compute log(u),
-//      and add back the correction term c/u.
-//      (Note: when x > 2**53, one can simply return log(x))
+//      注意：若 k=0，则 f=x 是精确的。然而，若 k!=0，则 f
+//      可能无法精确表示。在这种情况下，需要一个修正
+//      项。令 u=1+x 的舍入值。令 c = (1+x)-u，则
+//      log(1+x) - log(u) ~ c/u。因此，我们继续计算 log(u)，
+//      并加回修正项 c/u。
+//      （注意：当 x > 2**53 时，直接返回 log(x) 即可）
 //
-//   2. Approximation of log1p(f).
-//      Let s = f/(2+f) ; based on log(1+f) = log(1+s) - log(1-s)
+//   2. log1p(f) 的逼近。
+//      令 s = f/(2+f) ; 基于 log(1+f) = log(1+s) - log(1-s)
 //               = 2s + 2/3 s**3 + 2/5 s**5 + .....,
 //               = 2s + s*R
-//      We use a special Reme algorithm on [0,0.1716] to generate
-//      a polynomial of degree 14 to approximate R The maximum error
-//      of this polynomial approximation is bounded by 2**-58.45. In
-//      other words,
+//      我们使用一种特殊的 Reme 算法在 [0,0.1716] 上生成
+//      一个 14 次多项式来逼近 R，该多项式逼近的最大误差
+//      以 2**-58.45 为界。换
+//      句话说，
 //                      2      4      6      8      10      12      14
 //          R(z) ~ Lp1*s +Lp2*s +Lp3*s +Lp4*s +Lp5*s  +Lp6*s  +Lp7*s
-//      (the values of Lp1 to Lp7 are listed in the program)
-//      and
+//      （Lp1 到 Lp7 的值列在程序中）
+//      且
 //          |      2          14          |     -58.45
 //          | Lp1*s +...+Lp7*s    -  R(z) | <= 2
 //          |                             |
-//      Note that 2s = f - s*f = f - hfsq + s*hfsq, where hfsq = f*f/2.
-//      In order to guarantee error in log below 1ulp, we compute log
-//      by
+//      注意 2s = f - s*f = f - hfsq + s*hfsq，其中 hfsq = f*f/2。
+//      为了保证 log 的误差低于 1ulp，我们计算 log
+//      通过
 //              log1p(f) = f - (hfsq - s*(hfsq+R)).
 //
-//   3. Finally, log1p(x) = k*ln2 + log1p(f).
+//   3. 最后， log1p(x) = k*ln2 + log1p(f).
 //                        = k*ln2_hi+(f-(hfsq-(s*(hfsq+R)+k*ln2_lo)))
-//      Here ln2 is split into two floating point number:
+//      这里 ln2 被拆分为两个浮点数：
 //                   ln2_hi + ln2_lo,
-//      where n*ln2_hi is always exact for |n| < 2000.
+//      其中当 |n| < 2000 时 n*ln2_hi 总是精确的。
 //
-// Special cases:
-//      log1p(x) is NaN with signal if x < -1 (including -INF) ;
-//      log1p(+INF) is +INF; log1p(-1) is -INF with signal;
-//      log1p(NaN) is that NaN with no signal.
+// 特殊情况：
+//      若 x < -1（包括 -INF），log1p(x) 为带信号的 NaN ;
+//      log1p(+INF) 为 +INF; log1p(-1) 为带信号的 -INF;
+//      log1p(NaN) 为该 NaN 且无信号。
 //
-// Accuracy:
-//      according to an error analysis, the error is always less than
-//      1 ulp (unit in the last place).
+// 精度：
+//      根据误差分析，误差始终小于
+//      1 ulp（最后一位的单位）。
 //
-// Constants:
-// The hexadecimal values are the intended ones for the following
-// constants. The decimal values may be used, provided that the
-// compiler will convert from decimal to binary accurately enough
-// to produce the hexadecimal values shown.
+// 常量：
+// 十六进制值是下面这些常量的预期值。
+// 可以使用十进制值，前提是
+// 编译器从十进制到二进制的转换足够精确，
+// 以产生所示出的十六进制值。
 //
-// Note: Assuming log() return accurate answer, the following
-//       algorithm can be used to compute log1p(x) to within a few ULP:
+// 注意：假设 log() 返回准确结果，可以使用以下
+//       算法将 log1p(x) 计算到几个 ULP 以内：
 //
 //              u = 1+x;
 //              if(u==1.0) return x ; else
 //                         return log(u)*(x/(u-1.0));
 //
-//       See HP-15C Advanced Functions Handbook, p.193.
+//       参见 HP-15C Advanced Functions Handbook, p.193.
 
-// Log1p returns the natural logarithm of 1 plus its argument x.
-// It is more accurate than [Log](1 + x) when x is near zero.
+// Log1p 返回 1 加上其参数 x 的自然对数。
+// 当 x 接近零时，它比 [Log](1 + x) 更精确。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Log1p(+Inf) = +Inf
 //	Log1p(±0) = ±0
@@ -118,7 +117,7 @@ func log1p(x float64) float64 {
 		Lp7         = 1.479819860511658591e-01     // 3FC2F112DF3E5244
 	)
 
-	// special cases
+	// 特殊情况
 	switch {
 	case x < -1 || IsNaN(x): // includes -Inf
 		return NaN()
@@ -154,7 +153,7 @@ func log1p(x float64) float64 {
 			u = 1.0 + x
 			iu = Float64bits(u)
 			k = int((iu >> 52) - 1023)
-			// correction term
+			// 修正项
 			if k > 0 {
 				c = 1.0 - (u - x)
 			} else {
@@ -168,11 +167,11 @@ func log1p(x float64) float64 {
 			c = 0
 		}
 		iu &= 0x000fffffffffffff
-		if iu < 0x0006a09e667f3bcd { // mantissa of Sqrt(2)
-			u = Float64frombits(iu | 0x3ff0000000000000) // normalize u
+		if iu < 0x0006a09e667f3bcd { // Sqrt(2) 的尾数
+			u = Float64frombits(iu | 0x3ff0000000000000) // 规格化 u
 		} else {
 			k++
-			u = Float64frombits(iu | 0x3fe0000000000000) // normalize u/2
+			u = Float64frombits(iu | 0x3fe0000000000000) // 规格化 u/2
 			iu = (0x0010000000000000 - iu) >> 2
 		}
 		f = u - 1.0 // Sqrt(2)/2 < u < Sqrt(2)
@@ -187,7 +186,7 @@ func log1p(x float64) float64 {
 			c += float64(k) * Ln2Lo
 			return float64(k)*Ln2Hi + c
 		}
-		R = hfsq * (1.0 - 0.66666666666666666*f) // avoid division
+		R = hfsq * (1.0 - 0.66666666666666666*f) // 避免除法
 		if k == 0 {
 			return f - R
 		}

@@ -4,8 +4,8 @@
 
 //go:build !s390x
 
-// This is a large group of functions that most architectures don't
-// implement in assembly.
+// 这是一大组大多数架构都不会用汇编
+// 实现的函数。
 
 package math
 

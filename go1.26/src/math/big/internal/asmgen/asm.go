@@ -13,20 +13,20 @@ import (
 	"strings"
 )
 
-// Note: Exported fields and methods are expected to be used
-// by function generators (like the ones in add.go and so on).
-// Unexported fields and methods should not be.
+// 注意：导出的字段和方法预期由函数生成器
+// （如 add.go 等文件中的那些）使用。
+// 未导出的字段和方法则不应被使用。
 
-// An Asm is an assembly file being written.
+// Asm 是正在写入的汇编文件。
 type Asm struct {
-	Arch     *Arch           // architecture
-	out      bytes.Buffer    // output buffer
-	regavail uint64          // bitmap of available registers
-	enabled  map[Option]bool // enabled optional CPU features
+	Arch     *Arch           // 架构
+	out      bytes.Buffer    // 输出缓冲区
+	regavail uint64          // 可用寄存器的位图
+	enabled  map[Option]bool // 已启用的可选 CPU 特性
 }
 
-// NewAsm returns a new Asm preparing assembly
-// for the given architecture to be written to file.
+// NewAsm 返回一个新的 Asm，准备为给定架构生成
+// 要写入文件的汇编代码。
 func NewAsm(arch *Arch) *Asm {
 	a := &Asm{Arch: arch, enabled: make(map[Option]bool)}
 	buildTag := ""
@@ -37,11 +37,11 @@ func NewAsm(arch *Arch) *Asm {
 	return a
 }
 
-// Note: Using Copyright 2025, not the current year, to avoid test failures
-// on January 1 and spurious diffs when regenerating assembly.
-// The generator was written in 2025; that's good enough.
-// (As a matter of policy the Go project does not update copyright
-// notices every year, since copyright terms are so long anyway.)
+// 注意：使用 Copyright 2025，而非当前年份，以避免在 1 月 1 日
+// 出现测试失败，以及重新生成汇编时出现虚假差异。
+// 生成器写于 2025 年；这就足够了。
+// （按照惯例，Go 项目不会每年更新版权
+// 声明，因为版权期限本来就很长。）
 
 var asmHeader = `// Copyright 2025 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -54,9 +54,9 @@ var asmHeader = `// Copyright 2025 The Go Authors. All rights reserved.
 #include "textflag.h"
 `
 
-// Fatalf reports a fatal error by panicking.
-// Panicking is appropriate because there is a bug in the generator,
-// and panicking will show the exact source lines leading to that bug.
+// Fatalf 通过 panic 报告致命错误。
+// panic 是合适的，因为生成器中存在 bug，
+// 而 panic 会显示导致该 bug 的准确源代码行。
 func (a *Asm) Fatalf(format string, args ...any) {
 	text := a.out.String()
 	i := strings.LastIndex(text, "\nTEXT")
@@ -64,7 +64,7 @@ func (a *Asm) Fatalf(format string, args ...any) {
 	panic("[" + a.Arch.Name + "] asmgen internal error: " + fmt.Sprintf(format, args...) + "\n" + text)
 }
 
-// hint returns the register name for the given hint.
+// hint 返回给定提示对应的寄存器名称。
 func (a *Asm) hint(h Hint) string {
 	if h == HintCarry && a.Arch.regCarry != "" {
 		return a.Arch.regCarry
@@ -78,36 +78,35 @@ func (a *Asm) hint(h Hint) string {
 	return a.Arch.hint(a, h)
 }
 
-// ZR returns the zero register (the specific register guaranteed to hold the integer 0),
-// or else the zero Reg (Reg{}, which has r.Valid() == false).
+// ZR 返回零寄存器（保证保存整数 0 的特定寄存器），
+// 否则返回零 Reg（Reg{}，其 r.Valid() == false）。
 func (a *Asm) ZR() Reg {
 	return Reg{a.Arch.reg0}
 }
 
-// tmp returns the temporary register, or else the zero Reg.
-// The temporary register is one available for use implementing logical instructions
-// that compile into multiple actual instructions on a given system.
-// The assembler sometimes uses it for that purpose, as do we.
-// Of course, if we are using it, we'd better not emit an instruction that
-// will cause the assembler to smash it while we want it to be holding
-// a live value. In general it is the architecture implementation's responsibility
-// not to suggest the use of any such pseudo-instructions in situations
-// where they would cause problems.
+// tmp 返回临时寄存器，否则返回零 Reg。
+// 临时寄存器可用于实现那些在给定系统上会编译成
+// 多条实际指令的逻辑指令。
+// 汇编器有时会为此目的使用它，我们也是如此。
+// 当然，如果我们正在使用它，最好不要发出这样的指令：
+// 在我们希望它保存一个活跃值时，导致汇编器破坏它。
+// 一般来说，架构实现有责任不在可能导致问题的
+// 情形下建议使用任何此类伪指令。
 func (a *Asm) tmp() Reg {
 	return Reg{a.Arch.regTmp}
 }
 
-// Carry returns the carry register, or else the zero Reg.
+// Carry 返回进位寄存器，否则返回零 Reg。
 func (a *Asm) Carry() Reg {
 	return Reg{a.Arch.regCarry}
 }
 
-// AltCarry returns the secondary carry register, or else the zero Reg.
+// AltCarry 返回次级进位寄存器，否则返回零 Reg。
 func (a *Asm) AltCarry() Reg {
 	return Reg{a.Arch.regAltCarry}
 }
 
-// Imm returns a Reg representing an immediate (constant) value.
+// Imm 返回一个表示立即（常量）值的 Reg。
 func (a *Asm) Imm(x int) Reg {
 	if x == 0 && a.Arch.reg0 != "" {
 		return Reg{a.Arch.reg0}
@@ -115,12 +114,12 @@ func (a *Asm) Imm(x int) Reg {
 	return Reg{fmt.Sprintf("$%d", x)}
 }
 
-// IsZero reports whether r is a zero immediate or the zero register.
+// IsZero 报告 r 是零立即数还是零寄存器。
 func (a *Asm) IsZero(r Reg) bool {
 	return r.name == "$0" || a.Arch.reg0 != "" && r.name == a.Arch.reg0
 }
 
-// Reg allocates a new register.
+// Reg 分配一个新寄存器。
 func (a *Asm) Reg() Reg {
 	i := bits.TrailingZeros64(a.regavail)
 	if i == 64 {
@@ -130,7 +129,7 @@ func (a *Asm) Reg() Reg {
 	return Reg{a.Arch.regs[i]}
 }
 
-// RegHint allocates a new register, with a hint as to its purpose.
+// RegHint 分配一个新寄存器，并给出其用途的提示。
 func (a *Asm) RegHint(hint Hint) Reg {
 	if name := a.hint(hint); name != "" {
 		i := slices.Index(a.Arch.regs, name)
@@ -146,8 +145,8 @@ func (a *Asm) RegHint(hint Hint) Reg {
 	return a.Reg()
 }
 
-// Free frees a previously allocated register.
-// If r is not a register (if it's an immediate or a memory reference), Free is a no-op.
+// Free 释放先前分配的寄存器。
+// 如果 r 不是寄存器（如果是立即数或内存引用），Free 不执行任何操作。
 func (a *Asm) Free(r Reg) {
 	i := slices.Index(a.Arch.regs, r.name)
 	if i < 0 {
@@ -159,11 +158,11 @@ func (a *Asm) Free(r Reg) {
 	a.regavail |= 1 << i
 }
 
-// Unfree reallocates a previously freed register r.
-// If r is not a register (if it's an immediate or a memory reference), Unfree is a no-op.
-// If r is not free for allocation, Unfree panics.
-// A Free paired with Unfree can release a register for use temporarily
-// but then reclaim it, such as at the end of a loop body when it must be restored.
+// Unfree 重新分配先前被释放的寄存器 r。
+// 如果 r 不是寄存器（如果是立即数或内存引用），Unfree 不执行任何操作。
+// 如果 r 不空闲可用于分配，Unfree 会 panic。
+// 与 Unfree 配对的 Free 可以临时释放一个寄存器供使用，
+// 随后再收回它，例如在循环体末尾必须恢复它时。
 func (a *Asm) Unfree(r Reg) {
 	i := slices.Index(a.Arch.regs, r.name)
 	if i < 0 {
@@ -175,30 +174,29 @@ func (a *Asm) Unfree(r Reg) {
 	a.regavail &^= 1 << i
 }
 
-// A RegsUsed is a snapshot of which registers are allocated.
+// RegsUsed 是哪些寄存器已分配的快照。
 type RegsUsed struct {
 	avail uint64
 }
 
-// RegsUsed returns a snapshot of which registers are currently allocated,
-// which can be passed to a future call to [Asm.SetRegsUsed].
+// RegsUsed 返回当前已分配寄存器的快照，
+// 可传递给未来的 [Asm.SetRegsUsed] 调用。
 func (a *Asm) RegsUsed() RegsUsed {
 	return RegsUsed{a.regavail}
 }
 
-// SetRegsUsed sets which registers are currently allocated.
-// The argument should have been returned from a previous
-// call to [Asm.RegsUsed].
+// SetRegsUsed 设置当前已分配的寄存器。
+// 该参数应来自先前对 [Asm.RegsUsed] 的调用。
 func (a *Asm) SetRegsUsed(used RegsUsed) {
 	a.regavail = used.avail
 }
 
-// FreeAll frees all known registers.
+// FreeAll 释放所有已知寄存器。
 func (a *Asm) FreeAll() {
 	a.regavail = 1<<len(a.Arch.regs) - 1
 }
 
-// Printf emits to the assembly output.
+// Printf 输出到汇编输出。
 func (a *Asm) Printf(format string, args ...any) {
 	text := fmt.Sprintf(format, args...)
 	if strings.Contains(text, "%!") {
@@ -207,12 +205,12 @@ func (a *Asm) Printf(format string, args ...any) {
 	a.out.WriteString(text)
 }
 
-// Comment emits a line comment to the assembly output.
+// Comment 向汇编输出发出一行注释。
 func (a *Asm) Comment(format string, args ...any) {
 	fmt.Fprintf(&a.out, "\t// %s\n", fmt.Sprintf(format, args...))
 }
 
-// EOL appends an end-of-line comment to the previous line.
+// EOL 向上一行追加行尾注释。
 func (a *Asm) EOL(format string, args ...any) {
 	bytes := a.out.Bytes()
 	if len(bytes) > 0 && bytes[len(bytes)-1] == '\n' {
@@ -221,8 +219,8 @@ func (a *Asm) EOL(format string, args ...any) {
 	a.Comment(format, args...)
 }
 
-// JmpEnable emits a test for the optional CPU feature that jumps to label if the feature is present.
-// If JmpEnable returns false, the feature is not available on this architecture and no code was emitted.
+// JmpEnable 发出对可选 CPU 特性的测试，若该特性存在则跳转到 label。
+// 如果 JmpEnable 返回 false，则该特性在此架构上不可用，且未发出任何代码。
 func (a *Asm) JmpEnable(option Option, label string) bool {
 	jmpEnable := a.Arch.options[option]
 	if jmpEnable == nil {
@@ -232,54 +230,54 @@ func (a *Asm) JmpEnable(option Option, label string) bool {
 	return true
 }
 
-// Enabled reports whether the optional CPU feature is considered
-// to be enabled at this point in the assembly output.
+// Enabled 报告在汇编输出的此位置是否认为
+// 该可选 CPU 特性已启用。
 func (a *Asm) Enabled(option Option) bool {
 	return a.enabled[option]
 }
 
-// SetOption changes whether the optional CPU feature should be
-// considered to be enabled.
+// SetOption 改变是否认为该可选 CPU 特性
+// 已启用。
 func (a *Asm) SetOption(option Option, on bool) {
 	a.enabled[option] = on
 }
 
-// op3 emits a 3-operand instruction op src1, src2, dst,
-// taking care to handle 2-operand machines and also
-// to simplify the printout when src2==dst.
+// op3 发出三操作数指令 op src1, src2, dst，
+// 注意处理双操作数机器，并在 src2==dst 时
+// 简化打印输出。
 func (a *Asm) op3(op string, src1, src2, dst Reg) {
 	if op == "" {
 		a.Fatalf("missing instruction")
 	}
 	if src2 == dst {
-		// src2 and dst are same; print as 2-op form.
+		// src2 和 dst 相同；打印为双操作数形式。
 		a.Printf("\t%s %s, %s\n", op, src1, dst)
 	} else if a.Arch.op3 != nil && !a.Arch.op3(op) {
-		// Machine does not have 3-op form for op; convert to 2-op.
+		// 机器对 op 没有三操作数形式；转换为双操作数。
 		if src1 == dst {
 			a.Fatalf("implicit mov %s, %s would smash src1", src2, dst)
 		}
 		a.Mov(src2, dst)
 		a.Printf("\t%s %s, %s\n", op, src1, dst)
 	} else {
-		// Full 3-op form.
+		// 完整的三操作数形式。
 		a.Printf("\t%s %s, %s, %s\n", op, src1, src2, dst)
 	}
 }
 
-// Mov emits dst = src.
+// Mov 发出 dst = src。
 func (a *Asm) Mov(src, dst Reg) {
 	if src != dst {
 		a.Printf("\t%s %s, %s\n", a.Arch.mov, src, dst)
 	}
 }
 
-// AddWords emits dst = src1*WordBytes + src2.
-// It does not set or use the carry flag.
+// AddWords 发出 dst = src1*WordBytes + src2。
+// 它不设置也不使用进位标志。
 func (a *Asm) AddWords(src1 Reg, src2, dst RegPtr) {
 	if a.Arch.addWords == "" {
-		// Note: Assuming that Lsh does not clobber the carry flag.
-		// Architectures where this is not true (x86) need to provide Arch.addWords.
+		// 注意：假定 Lsh 不会破坏进位标志。
+		// 不满足这一点的架构（x86）需要提供 Arch.addWords。
 		t := a.Reg()
 		a.Lsh(a.Imm(bits.TrailingZeros(uint(a.Arch.WordBytes))), src1, t)
 		a.Add(t, Reg(src2), Reg(dst), KeepCarry)
@@ -289,26 +287,26 @@ func (a *Asm) AddWords(src1 Reg, src2, dst RegPtr) {
 	a.Printf("\t"+a.Arch.addWords+"\n", src1, src2, dst)
 }
 
-// And emits dst = src1 & src2
-// It may modify the carry flag.
+// And 发出 dst = src1 & src2
+// 它可能修改进位标志。
 func (a *Asm) And(src1, src2, dst Reg) {
 	a.op3(a.Arch.and, src1, src2, dst)
 }
 
-// Or emits dst = src1 | src2
-// It may modify the carry flag.
+// Or 发出 dst = src1 | src2
+// 它可能修改进位标志。
 func (a *Asm) Or(src1, src2, dst Reg) {
 	a.op3(a.Arch.or, src1, src2, dst)
 }
 
-// Xor emits dst = src1 ^ src2
-// It may modify the carry flag.
+// Xor 发出 dst = src1 ^ src2
+// 它可能修改进位标志。
 func (a *Asm) Xor(src1, src2, dst Reg) {
 	a.op3(a.Arch.xor, src1, src2, dst)
 }
 
-// Neg emits dst = -src.
-// It may modify the carry flag.
+// Neg 发出 dst = -src。
+// 它可能修改进位标志。
 func (a *Asm) Neg(src, dst Reg) {
 	if a.Arch.neg == "" {
 		if a.Arch.rsb != "" {
@@ -328,13 +326,13 @@ func (a *Asm) Neg(src, dst Reg) {
 	}
 }
 
-// HasRegShift reports whether the architecture can use shift expressions as operands.
+// HasRegShift 报告该架构是否可以将移位表达式用作操作数。
 func (a *Asm) HasRegShift() bool {
 	return a.Arch.regShift
 }
 
-// LshReg returns a shift-expression operand src<<shift.
-// If a.HasRegShift() == false, LshReg panics.
+// LshReg 返回移位表达式操作数 src<<shift。
+// 如果 a.HasRegShift() == false，LshReg 会 panic。
 func (a *Asm) LshReg(shift, src Reg) Reg {
 	if !a.HasRegShift() {
 		a.Fatalf("no reg shift")
@@ -342,8 +340,8 @@ func (a *Asm) LshReg(shift, src Reg) Reg {
 	return Reg{fmt.Sprintf("%s<<%s", src, strings.TrimPrefix(shift.name, "$"))}
 }
 
-// Lsh emits dst = src << shift.
-// It may modify the carry flag.
+// Lsh 发出 dst = src << shift。
+// 它可能修改进位标志。
 func (a *Asm) Lsh(shift, src, dst Reg) {
 	if need := a.hint(HintShiftCount); need != "" && shift.name != need && !shift.IsImm() {
 		a.Fatalf("shift count not in %s", need)
@@ -355,8 +353,8 @@ func (a *Asm) Lsh(shift, src, dst Reg) {
 	a.op3(a.Arch.lsh, shift, src, dst)
 }
 
-// LshWide emits dst = src << shift with low bits shifted from adj.
-// It may modify the carry flag.
+// LshWide 发出 dst = src << shift，低位从 adj 移入。
+// 它可能修改进位标志。
 func (a *Asm) LshWide(shift, adj, src, dst Reg) {
 	if a.Arch.lshd == "" {
 		a.Fatalf("no lshwide on %s", a.Arch.Name)
@@ -367,8 +365,8 @@ func (a *Asm) LshWide(shift, adj, src, dst Reg) {
 	a.op3(fmt.Sprintf("%s %s,", a.Arch.lshd, shift), adj, src, dst)
 }
 
-// RshReg returns a shift-expression operand src>>shift.
-// If a.HasRegShift() == false, RshReg panics.
+// RshReg 返回移位表达式操作数 src>>shift。
+// 如果 a.HasRegShift() == false，RshReg 会 panic。
 func (a *Asm) RshReg(shift, src Reg) Reg {
 	if !a.HasRegShift() {
 		a.Fatalf("no reg shift")
@@ -376,8 +374,8 @@ func (a *Asm) RshReg(shift, src Reg) Reg {
 	return Reg{fmt.Sprintf("%s>>%s", src, strings.TrimPrefix(shift.name, "$"))}
 }
 
-// Rsh emits dst = src >> shift.
-// It may modify the carry flag.
+// Rsh 发出 dst = src >> shift。
+// 它可能修改进位标志。
 func (a *Asm) Rsh(shift, src, dst Reg) {
 	if need := a.hint(HintShiftCount); need != "" && shift.name != need && !shift.IsImm() {
 		a.Fatalf("shift count not in %s", need)
@@ -389,8 +387,8 @@ func (a *Asm) Rsh(shift, src, dst Reg) {
 	a.op3(a.Arch.rsh, shift, src, dst)
 }
 
-// RshWide emits dst = src >> shift with high bits shifted from adj.
-// It may modify the carry flag.
+// RshWide 发出 dst = src >> shift，高位从 adj 移入。
+// 它可能修改进位标志。
 func (a *Asm) RshWide(shift, adj, src, dst Reg) {
 	if a.Arch.lshd == "" {
 		a.Fatalf("no rshwide on %s", a.Arch.Name)
@@ -401,7 +399,7 @@ func (a *Asm) RshWide(shift, adj, src, dst Reg) {
 	a.op3(fmt.Sprintf("%s %s,", a.Arch.rshd, shift), adj, src, dst)
 }
 
-// SLTU emits dst = src2 < src1 (0 or 1), using an unsigned comparison.
+// SLTU 使用无符号比较发出 dst = src2 < src1（0 或 1）。
 func (a *Asm) SLTU(src1, src2, dst Reg) {
 	switch {
 	default:
@@ -413,13 +411,13 @@ func (a *Asm) SLTU(src1, src2, dst Reg) {
 	}
 }
 
-// Add emits dst = src1+src2, with the specified carry behavior.
+// Add 发出 dst = src1+src2，采用指定的进位行为。
 func (a *Asm) Add(src1, src2, dst Reg, carry Carry) {
 	switch {
 	default:
 		a.Fatalf("unsupported carry behavior")
 	case a.Arch.addF != nil && a.Arch.addF(a, src1, src2, dst, carry):
-		// handled
+		// 已处理
 	case a.Arch.add != "" && (carry == KeepCarry || carry == SmashCarry):
 		a.op3(a.Arch.add, src1, src2, dst)
 	case a.Arch.adds != "" && (carry == SetCarry || carry == SmashCarry):
@@ -430,7 +428,7 @@ func (a *Asm) Add(src1, src2, dst Reg, carry Carry) {
 		a.op3(a.Arch.adcs, src1, src2, dst)
 	case a.Arch.lea != "" && (carry == KeepCarry || carry == SmashCarry):
 		if src1.IsImm() {
-			a.Printf("\t%s %s(%s), %s\n", a.Arch.lea, src1.name[1:], src2, dst) // name[1:] removes $
+			a.Printf("\t%s %s(%s), %s\n", a.Arch.lea, src1.name[1:], src2, dst) // name[1:] 去掉 $
 		} else {
 			a.Printf("\t%s (%s)(%s), %s\n", a.Arch.lea, src1, src2, dst)
 		}
@@ -441,15 +439,15 @@ func (a *Asm) Add(src1, src2, dst Reg, carry Carry) {
 		}
 
 	case a.Arch.add != "" && a.Arch.regCarry != "":
-		// Machine has no carry flag; instead we've dedicated a register
-		// and use SLTU/SGTU (set less-than/greater-than unsigned)
-		// to compute the carry flags as needed.
-		// For ADD x, y, z, SLTU x/y, z, c computes the carry (borrow) bit.
-		// Either of x or y can be used as the second argument, provided
-		// it is not aliased to z.
-		// To make the output less of a wall of instructions,
-		// we comment the “higher-level” operation, with ... marking
-		// continued instructions implementing the operation.
+		// 机器没有进位标志；取而代之的是我们专用一个寄存器
+		// 并使用 SLTU/SGTU（无符号设定小于/大于）
+		// 来按需计算进位标志。
+		// 对于 ADD x, y, z，SLTU x/y, z, c 计算进位（借位）位。
+		// x 或 y 中任一都可以用作第二个参数，前提是
+		// 它不与 z 别名。
+		// 为使输出不至于像一堵指令墙，
+		// 我们注释“更高级别”的操作，用 ... 标记
+		// 实现该操作的后续指令。
 		cr := a.Carry()
 		if carry&AltCarry != 0 {
 			cr = a.AltCarry()
@@ -466,9 +464,9 @@ func (a *Asm) Add(src1, src2, dst Reg, carry Carry) {
 		default:
 			a.Fatalf("unsupported carry behavior")
 		case UseCarry, UseCarry | SmashCarry:
-			// Easy case, just add the carry afterward.
+			// 简单情况，之后只需加上进位。
 			if a.IsZero(src1) {
-				// Only here to use the carry.
+				// 在此只是为了使用进位。
 				a.Add(cr, src2, dst, KeepCarry)
 				a.EOL("ADC $0, %s, %s", src2, dst)
 				break
@@ -480,19 +478,19 @@ func (a *Asm) Add(src1, src2, dst Reg, carry Carry) {
 
 		case SetCarry:
 			if a.IsZero(src1) && src2 == dst {
-				// Only here to clear the carry flag. (Caller will comment.)
+				// 在此只是为了清除进位标志。（调用者会添加注释。）
 				a.Xor(cr, cr, cr)
 				break
 			}
-			var old Reg // old is a src distinct from dst
+			var old Reg // old 是一个不同于 dst 的 src
 			switch {
 			case dst != src1:
 				old = src1
 			case dst != src2:
 				old = src2
 			default:
-				// src1 == src2 == dst.
-				// Overflows if and only if the high bit is set, so copy high bit to carry.
+				// src1 == src2 == dst。
+				// 当且仅当高位被设置时溢出，因此将高位复制到进位。
 				a.Rsh(a.Imm(a.Arch.WordBits-1), src1, cr)
 				a.EOL("ADDS %s, %s, %s (cr=%s)", src1, src2, dst, cr)
 				a.Add(src1, src2, dst, KeepCarry)
@@ -501,23 +499,23 @@ func (a *Asm) Add(src1, src2, dst Reg, carry Carry) {
 			}
 			a.Add(src1, src2, dst, KeepCarry)
 			a.EOL("ADDS %s, %s, %s (cr=%s)", src1, src2, dst, cr)
-			a.SLTU(old, dst, cr) // dst < old (one of the src) implies carry
+			a.SLTU(old, dst, cr) // dst < old（src 之一）意味着进位
 			a.EOL("...")
 
 		case UseCarry | SetCarry:
 			if a.IsZero(src1) {
-				// Only here to use and then set the carry.
-				// Easy since carry is not aliased to dst.
+				// 在此只是为了使用进位然后设置进位。
+				// 简单，因为进位不与 dst 别名。
 				a.Add(cr, src2, dst, KeepCarry)
 				a.EOL("ADCS $0, %s, %s (cr=%s)", src2, dst, cr)
-				a.SLTU(cr, dst, cr) // dst < cr implies carry
+				a.SLTU(cr, dst, cr) // dst < cr 意味着进位
 				a.EOL("...")
 				break
 			}
-			// General case. Need to do two different adds (src1 + src2 + cr),
-			// computing carry bits for both, and add'ing them together.
-			// Start with src1+src2.
-			var old Reg // old is a src distinct from dst
+			// 一般情况。需要做两次不同的加法（src1 + src2 + cr），
+			// 计算两者的进位位，然后把它们相加。
+			// 从 src1+src2 开始。
+			var old Reg // old 是一个不同于 dst 的 src
 			switch {
 			case dst != src1:
 				old = src1
@@ -527,35 +525,35 @@ func (a *Asm) Add(src1, src2, dst Reg, carry Carry) {
 			if old.Valid() {
 				a.Add(src1, src2, dst, KeepCarry)
 				a.EOL("ADCS %s, %s, %s (cr=%s)", src1, src2, dst, cr)
-				a.SLTU(old, dst, tmp) // // dst < old (one of the src) implies carry
+				a.SLTU(old, dst, tmp) // // dst < old（src 之一）意味着进位
 				a.EOL("...")
 			} else {
-				// src1 == src2 == dst, like above. Sign bit is carry bit,
-				// but we copy it into tmp, not cr.
+				// src1 == src2 == dst，如上。符号位就是进位位，
+				// 但我们把它复制到 tmp，而非 cr。
 				a.Rsh(a.Imm(a.Arch.WordBits-1), src1, tmp)
 				a.EOL("ADCS %s, %s, %s (cr=%s)", src1, src2, dst, cr)
 				a.Add(src1, src2, dst, KeepCarry)
 				a.EOL("...")
 			}
-			// Add cr to dst.
+			// 将 cr 加到 dst。
 			a.Add(cr, dst, dst, KeepCarry)
 			a.EOL("...")
-			a.SLTU(cr, dst, cr) // sum < cr implies carry
+			a.SLTU(cr, dst, cr) // sum < cr 意味着进位
 			a.EOL("...")
-			// Add the two carry bits (at most one can be set, because (2⁶⁴-1)+(2⁶⁴-1)+1 < 2·2⁶⁴).
+			// 将两个进位位相加（最多只能设置一个，因为 (2⁶⁴-1)+(2⁶⁴-1)+1 < 2·2⁶⁴）。
 			a.Add(tmp, cr, cr, KeepCarry)
 			a.EOL("...")
 		}
 	}
 }
 
-// Sub emits dst = src2-src1, with the specified carry behavior.
+// Sub 发出 dst = src2-src1，采用指定的进位行为。
 func (a *Asm) Sub(src1, src2, dst Reg, carry Carry) {
 	switch {
 	default:
 		a.Fatalf("unsupported carry behavior")
 	case a.Arch.subF != nil && a.Arch.subF(a, src1, src2, dst, carry):
-		// handled
+		// 已处理
 	case a.Arch.sub != "" && (carry == KeepCarry || carry == SmashCarry):
 		a.op3(a.Arch.sub, src1, src2, dst)
 	case a.Arch.subs != "" && (carry == SetCarry || carry == SmashCarry):
@@ -565,9 +563,9 @@ func (a *Asm) Sub(src1, src2, dst Reg, carry Carry) {
 	case a.Arch.sbcs != "" && (carry == UseCarry|SetCarry || carry == UseCarry|SmashCarry):
 		a.op3(a.Arch.sbcs, src1, src2, dst)
 	case strings.HasPrefix(src1.name, "$") && (carry == KeepCarry || carry == SmashCarry):
-		// Running out of options; if this is an immediate
-		// and we don't need to worry about carry semantics,
-		// try adding the negation.
+		// 选项快用完了；如果这是一个立即数
+		// 且我们不需要担心进位语义，
+		// 就尝试加上它的相反数。
 		if strings.HasPrefix(src1.name, "$-") {
 			src1.name = "$" + src1.name[2:]
 		} else {
@@ -576,15 +574,15 @@ func (a *Asm) Sub(src1, src2, dst Reg, carry Carry) {
 		a.Add(src1, src2, dst, carry)
 
 	case a.Arch.sub != "" && a.Arch.regCarry != "":
-		// Machine has no carry flag; instead we've dedicated a register
-		// and use SLTU/SGTU (set less-than/greater-than unsigned)
-		// to compute the carry bits as needed.
-		// For SUB x, y, z, SLTU x, y, c computes the carry (borrow) bit.
-		// To make the output less of a wall of instructions,
-		// we comment the “higher-level” operation, with ... marking
-		// continued instructions implementing the operation.
-		// Be careful! Subtract and add have different overflow behaviors,
-		// so the details here are NOT the same as in Add above.
+		// 机器没有进位标志；取而代之的是我们专用一个寄存器
+		// 并使用 SLTU/SGTU（无符号设定小于/大于）
+		// 来按需计算进位位。
+		// 对于 SUB x, y, z，SLTU x, y, c 计算进位（借位）位。
+		// 为使输出不至于像一堵指令墙，
+		// 我们注释“更高级别”的操作，用 ... 标记
+		// 实现该操作的后续指令。
+		// 小心！减法与加法有不同的溢出行为，
+		// 因此此处的细节与上面 Add 中的并不相同。
 		cr := a.Carry()
 		if carry&AltCarry != 0 {
 			a.Fatalf("alt carry not supported")
@@ -597,9 +595,9 @@ func (a *Asm) Sub(src1, src2, dst Reg, carry Carry) {
 		default:
 			a.Fatalf("unsupported carry behavior")
 		case UseCarry, UseCarry | SmashCarry:
-			// Easy case, just subtract the carry afterward.
+			// 简单情况，之后只需减去进位。
 			if a.IsZero(src1) {
-				// Only here to use the carry.
+				// 在此只是为了使用进位。
 				a.Sub(cr, src2, dst, KeepCarry)
 				a.EOL("SBC $0, %s, %s", src2, dst)
 				break
@@ -611,11 +609,11 @@ func (a *Asm) Sub(src1, src2, dst Reg, carry Carry) {
 
 		case SetCarry:
 			if a.IsZero(src1) && src2 == dst {
-				// Only here to clear the carry flag.
+				// 在此只是为了清除进位标志。
 				a.Xor(cr, cr, cr)
 				break
 			}
-			// Compute the new carry first, in case dst is src1 or src2.
+			// 先计算新的进位，以防 dst 是 src1 或 src2。
 			a.SLTU(src1, src2, cr)
 			a.EOL("SUBS %s, %s, %s", src1, src2, dst)
 			a.Sub(src1, src2, dst, KeepCarry)
@@ -623,14 +621,14 @@ func (a *Asm) Sub(src1, src2, dst Reg, carry Carry) {
 
 		case UseCarry | SetCarry:
 			if a.IsZero(src1) {
-				// Only here to use and then set the carry.
+				// 在此只是为了使用进位然后设置进位。
 				if src2 == dst {
-					// Unfortunate case. Using src2==dst is common (think x -= y)
-					// and also more efficient on two-operand machines (like x86),
-					// but here subtracting from dst will smash src2, making it
-					// impossible to recover the carry information after the SUB.
-					// But we want to use the carry, so we can't compute it before
-					// the SUB either. Compute into a temporary and MOV.
+					// 不幸的情况。使用 src2==dst 很常见（想想 x -= y），
+					// 而且在双操作数机器（如 x86）上更高效，
+					// 但此处从 dst 中减去会破坏 src2，导致
+					// 在 SUB 之后无法恢复进位信息。
+					// 但我们想使用进位，所以也不能在 SUB 之前
+					// 计算它。先计算到一个临时寄存器再 MOV。
 					a.SLTU(cr, src2, tmp)
 					a.EOL("SBCS $0, %s, %s", src2, dst)
 					a.Sub(cr, src2, dst, KeepCarry)
@@ -639,13 +637,13 @@ func (a *Asm) Sub(src1, src2, dst Reg, carry Carry) {
 					a.EOL("...")
 					break
 				}
-				a.Sub(cr, src2, dst, KeepCarry) // src2 not dst, so src2 preserved
+				a.Sub(cr, src2, dst, KeepCarry) // src2 不是 dst，因此 src2 得以保留
 				a.SLTU(cr, src2, cr)
 				break
 			}
-			// General case. Need to do two different subtracts (src2 - cr - src1),
-			// computing carry bits for both, and add'ing them together.
-			// Doing src2 - cr first frees up cr to store the carry from the sub of src1.
+			// 一般情况。需要做两次不同的减法（src2 - cr - src1），
+			// 计算两者的进位位，然后把它们相加。
+			// 先做 src2 - cr 可以腾出 cr 来存储 src1 相减产生的进位。
 			a.SLTU(cr, src2, tmp)
 			a.EOL("SBCS %s, %s, %s", src1, src2, dst)
 			a.Sub(cr, src2, dst, KeepCarry)
@@ -660,11 +658,11 @@ func (a *Asm) Sub(src1, src2, dst Reg, carry Carry) {
 	}
 }
 
-// ClearCarry clears the carry flag.
-// The ‘which’ parameter must be AddCarry or SubCarry to specify how the flag will be used.
-// (On some systems, the sub carry's actual processor bit is inverted from its usual value.)
+// ClearCarry 清除进位标志。
+// ‘which’ 参数必须是 AddCarry 或 SubCarry，以指定该标志将如何使用。
+// （在某些系统上，减法进位的实际处理器位与其通常值相反。）
 func (a *Asm) ClearCarry(which Carry) {
-	dst := Reg{a.Arch.regs[0]} // not actually modified
+	dst := Reg{a.Arch.regs[0]} // 实际上未被修改
 	switch which & (AddCarry | SubCarry) {
 	default:
 		a.Fatalf("bad carry")
@@ -676,16 +674,16 @@ func (a *Asm) ClearCarry(which Carry) {
 	a.EOL("clear carry")
 }
 
-// SaveCarry saves the carry flag into dst.
-// The meaning of the bits in dst is architecture-dependent.
-// The carry flag is left in an undefined state.
+// SaveCarry 将进位标志保存到 dst。
+// dst 中各位的含义依赖于架构。
+// 进位标志被留在未定义状态。
 func (a *Asm) SaveCarry(dst Reg) {
-	// Note: As implemented here, the carry flag is actually left unmodified,
-	// but we say it is in an undefined state in case that changes in the future.
-	// (The SmashCarry could be changed to SetCarry if so.)
+	// 注意：如这里所实现的，进位标志实际上保持不变，
+	// 但我们说它处于未定义状态，以防将来发生变化。
+	// （如果真的这样，可以把 SmashCarry 改为 SetCarry。）
 	if cr := a.Carry(); cr.Valid() {
 		if cr == dst {
-			return // avoid EOL
+			return // 避免 EOL
 		}
 		a.Mov(cr, dst)
 	} else {
@@ -694,30 +692,30 @@ func (a *Asm) SaveCarry(dst Reg) {
 	a.EOL("save carry")
 }
 
-// RestoreCarry restores the carry flag from src.
-// src is left in an undefined state.
+// RestoreCarry 从 src 恢复进位标志。
+// src 被留在未定义状态。
 func (a *Asm) RestoreCarry(src Reg) {
 	if cr := a.Carry(); cr.Valid() {
 		if cr == src {
-			return // avoid EOL
+			return // 避免 EOL
 		}
 		a.Mov(src, cr)
 	} else if a.Arch.subCarryIsBorrow {
 		a.Add(src, src, src, SetCarry)
 	} else {
-		// SaveCarry saved the sub carry flag with an encoding of 0, 1 -> 0, ^0.
-		// Restore it by subtracting from a value less than ^0, which will carry if src != 0.
-		// If there is no zero register, the SP register is guaranteed to be less than ^0.
-		// (This may seem too clever, but on GOARCH=arm we have no other good options.)
+		// SaveCarry 保存减法进位标志时使用的编码为 0, 1 -> 0, ^0。
+		// 通过从一个小于 ^0 的值中减去来恢复它，若 src != 0 则产生进位。
+		// 如果没有零寄存器，SP 寄存器保证小于 ^0。
+		// （这可能显得过于取巧，但在 GOARCH=arm 上我们没有其他好办法。）
 		a.Sub(src, cmp.Or(a.ZR(), Reg{"SP"}), src, SetCarry)
 	}
 	a.EOL("restore carry")
 }
 
-// ConvertCarry converts the carry flag in dst from the internal format to a 0 or 1.
-// The carry flag is left in an undefined state.
+// ConvertCarry 将 dst 中的进位标志从内部格式转换为 0 或 1。
+// 进位标志被留在未定义状态。
 func (a *Asm) ConvertCarry(which Carry, dst Reg) {
-	if a.Carry().Valid() { // already 0 or 1
+	if a.Carry().Valid() { // 已是 0 或 1
 		return
 	}
 	switch which {
@@ -734,8 +732,8 @@ func (a *Asm) ConvertCarry(which Carry, dst Reg) {
 	}
 }
 
-// SaveConvertCarry saves and converts the carry flag into dst: 0 unset, 1 set.
-// The carry flag is left in an undefined state.
+// SaveConvertCarry 保存进位标志并将其转换到 dst：0 表示未设置，1 表示已设置。
+// 进位标志被留在未定义状态。
 func (a *Asm) SaveConvertCarry(which Carry, dst Reg) {
 	switch which {
 	default:
@@ -747,15 +745,15 @@ func (a *Asm) SaveConvertCarry(which Carry, dst Reg) {
 			return
 		}
 	case SubCarry:
-		// no special cases
+		// 没有特殊情况
 	}
 	a.SaveCarry(dst)
 	a.ConvertCarry(which, dst)
 }
 
-// MulWide emits dstlo = src1 * src2 and dsthi = (src1 * src2) >> WordBits.
-// The carry flag is left in an undefined state.
-// If dstlo or dsthi is the zero Reg, then those outputs are discarded.
+// MulWide 发出 dstlo = src1 * src2 和 dsthi = (src1 * src2) >> WordBits。
+// 进位标志被留在未定义状态。
+// 如果 dstlo 或 dsthi 是零 Reg，则丢弃那些输出。
 func (a *Asm) MulWide(src1, src2, dstlo, dsthi Reg) {
 	switch {
 	default:
@@ -775,30 +773,30 @@ func (a *Asm) MulWide(src1, src2, dstlo, dsthi Reg) {
 	}
 }
 
-// Jmp jumps to the label.
+// Jmp 跳转到 label。
 func (a *Asm) Jmp(label string) {
-	// Note: Some systems prefer the spelling B or BR, but all accept JMP.
+	// 注意：有些系统更喜欢 B 或 BR 的写法，但所有系统都接受 JMP。
 	a.Printf("\tJMP %s\n", label)
 }
 
-// JmpZero jumps to the label if src is zero.
-// It may modify the carry flag unless a.Arch.CarrySafeLoop is true.
+// JmpZero 若 src 为零则跳转到 label。
+// 除非 a.Arch.CarrySafeLoop 为 true，否则它可能修改进位标志。
 func (a *Asm) JmpZero(src Reg, label string) {
 	a.Printf("\t"+a.Arch.jmpZero+"\n", src, label)
 }
 
-// JmpNonZero jumps to the label if src is non-zero.
-// It may modify the carry flag unless a.Arch,CarrySafeLoop is true.
+// JmpNonZero 若 src 非零则跳转到 label。
+// 除非 a.Arch,CarrySafeLoop 为 true，否则它可能修改进位标志。
 func (a *Asm) JmpNonZero(src Reg, label string) {
 	a.Printf("\t"+a.Arch.jmpNonZero+"\n", src, label)
 }
 
-// Label emits a label with the given name.
+// Label 发出具有给定名称的标签。
 func (a *Asm) Label(name string) {
 	a.Printf("%s:\n", name)
 }
 
-// Ret returns.
+// Ret 返回。
 func (a *Asm) Ret() {
 	a.Printf("\tRET\n")
 }

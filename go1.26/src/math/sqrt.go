@@ -4,10 +4,9 @@
 
 package math
 
-// The original C code and the long comment below are
-// from FreeBSD's /usr/src/lib/msun/src/e_sqrt.c and
-// came with this notice. The go code is a simplified
-// version of the original C.
+// 原始 C 代码及下面的长注释
+// 来自 FreeBSD 的 /usr/src/lib/msun/src/e_sqrt.c，
+// 并随附此声明。Go 代码是原始 C 的简化版本。
 //
 // ====================================================
 // Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -19,72 +18,72 @@ package math
 // ====================================================
 //
 // __ieee754_sqrt(x)
-// Return correctly rounded sqrt.
+// 返回正确舍入的 sqrt。
 //           -----------------------------------------
 //           | Use the hardware sqrt if you have one |
 //           -----------------------------------------
-// Method:
-//   Bit by bit method using integer arithmetic. (Slow, but portable)
-//   1. Normalization
-//      Scale x to y in [1,4) with even powers of 2:
-//      find an integer k such that  1 <= (y=x*2**(2k)) < 4, then
+// 方法：
+//   使用整数运算的逐位方法。（较慢，但可移植）
+//   1. 规格化
+//      用 2 的偶数次幂将 x 缩放到 [1,4) 内的 y：
+//      找到整数 k 使得  1 <= (y=x*2**(2k)) < 4，则
 //              sqrt(x) = 2**k * sqrt(y)
-//   2. Bit by bit computation
-//      Let q  = sqrt(y) truncated to i bit after binary point (q = 1),
+//   2. 逐位计算
+//      令 q  = sqrt(y) 截断到二进制小数点后 i 位 (q = 1),
 //           i                                                   0
 //                                     i+1         2
 //          s  = 2*q , and      y  =  2   * ( y - q  ).          (1)
 //           i      i            i                 i
 //
-//      To compute q    from q , one checks whether
+//      为了从 q 计算 q ，需要检查是否
 //                  i+1       i
 //
 //                            -(i+1) 2
 //                      (q + 2      )  <= y.                     (2)
 //                        i
 //                                                            -(i+1)
-//      If (2) is false, then q   = q ; otherwise q   = q  + 2      .
+//      若 (2) 不成立，则 q   = q ; 否则 q   = q  + 2      .
 //                             i+1   i             i+1   i
 //
-//      With some algebraic manipulation, it is not difficult to see
-//      that (2) is equivalent to
+//      经过一些代数变换，不难看出
+//      (2) 等价于
 //                             -(i+1)
 //                      s  +  2       <= y                       (3)
 //                       i                i
 //
-//      The advantage of (3) is that s  and y  can be computed by
+//      (3) 的优点是 s 和 y 可以通过以下递推公式计算：
 //                                    i      i
-//      the following recurrence formula:
-//          if (3) is false
+//      以下递推公式：
+//          若 (3) 不成立
 //
 //          s     =  s  ,       y    = y   ;                     (4)
 //           i+1      i          i+1    i
 //
-//      otherwise,
+//      否则，
 //                         -i                      -(i+1)
 //          s     =  s  + 2  ,  y    = y  -  s  - 2              (5)
 //           i+1      i          i+1    i     i
 //
-//      One may easily use induction to prove (4) and (5).
-//      Note. Since the left hand side of (3) contain only i+2 bits,
-//            it is not necessary to do a full (53-bit) comparison
-//            in (3).
-//   3. Final rounding
-//      After generating the 53 bits result, we compute one more bit.
-//      Together with the remainder, we can decide whether the
-//      result is exact, bigger than 1/2ulp, or less than 1/2ulp
-//      (it will never equal to 1/2ulp).
-//      The rounding mode can be detected by checking whether
-//      huge + tiny is equal to huge, and whether huge - tiny is
-//      equal to huge for some floating point number "huge" and "tiny".
+//      可以很容易地用归纳法证明 (4) 和 (5)。
+//      注意：由于 (3) 的左侧仅包含 i+2 位，
+//            没有必要在 (3) 中
+//            进行完整的（53 位）比较。
+//   3. 最终舍入
+//      在生成 53 位结果后，我们再计算一位。
+//      结合余数，我们可以判断
+//      结果是精确的、大于 1/2ulp，还是小于 1/2ulp
+//      （它永远不会等于 1/2ulp）。
+//      舍入模式可以通过检查以下情况来检测：
+//      对于某个浮点数 "huge" 和 "tiny"，huge + tiny 是否等于 huge，
+//      以及 huge - tiny 是否等于 huge。
 //
 //
-// Notes:  Rounding mode detection omitted. The constants "mask", "shift",
-// and "bias" are found in src/math/bits.go
+// 注意：省略了舍入模式检测。常量 "mask"、"shift"、
+// 和 "bias" 位于 src/math/bits.go 中
 
-// Sqrt returns the square root of x.
+// Sqrt 返回 x 的平方根。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Sqrt(+Inf) = +Inf
 //	Sqrt(±0) = ±0
@@ -94,11 +93,11 @@ func Sqrt(x float64) float64 {
 	return sqrt(x)
 }
 
-// Note: On systems where Sqrt is a single instruction, the compiler
-// may turn a direct call into a direct use of that instruction instead.
+// 注意：在 Sqrt 是单条指令的系统上，
+// 编译器可能会将直接调用改为直接使用该指令。
 
 func sqrt(x float64) float64 {
-	// special cases
+	// 特殊情况
 	switch {
 	case x == 0 || IsNaN(x) || IsInf(x, 1):
 		return x
@@ -106,26 +105,26 @@ func sqrt(x float64) float64 {
 		return NaN()
 	}
 	ix := Float64bits(x)
-	// normalize x
+	// 规格化 x
 	exp := int((ix >> shift) & mask)
-	if exp == 0 { // subnormal x
+	if exp == 0 { // 非规格化 x
 		for ix&(1<<shift) == 0 {
 			ix <<= 1
 			exp--
 		}
 		exp++
 	}
-	exp -= bias // unbias exponent
+	exp -= bias // 去偏置指数
 	ix &^= mask << shift
 	ix |= 1 << shift
-	if exp&1 == 1 { // odd exp, double x to make it even
+	if exp&1 == 1 { // 奇数指数，将 x 加倍使其为偶数
 		ix <<= 1
 	}
-	exp >>= 1 // exp = exp/2, exponent of square root
-	// generate sqrt(x) bit by bit
+	exp >>= 1 // exp = exp/2，平方根的指数
+	// 逐位生成 sqrt(x)
 	ix <<= 1
 	var q, s uint64               // q = sqrt(x)
-	r := uint64(1 << (shift + 1)) // r = moving bit from MSB to LSB
+	r := uint64(1 << (shift + 1)) // r = 从最高位到最低位移动的位
 	for r != 0 {
 		t := s + r
 		if t <= ix {
@@ -136,10 +135,10 @@ func sqrt(x float64) float64 {
 		ix <<= 1
 		r >>= 1
 	}
-	// final rounding
-	if ix != 0 { // remainder, result not exact
-		q += q & 1 // round according to extra bit
+	// 最终舍入
+	if ix != 0 { // 余数，结果不精确
+		q += q & 1 // 根据额外位进行舍入
 	}
-	ix = q>>1 + uint64(exp-1+bias)<<shift // significand + biased exponent
+	ix = q>>1 + uint64(exp-1+bias)<<shift // 有效数字 + 偏置指数
 	return Float64frombits(ix)
 }

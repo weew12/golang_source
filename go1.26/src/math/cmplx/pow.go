@@ -6,49 +6,48 @@ package cmplx
 
 import "math"
 
-// The original C code, the long comment, and the constants
-// below are from http://netlib.sandia.gov/cephes/c9x-complex/clog.c.
-// The go code is a simplified version of the original C.
+// 原始 C 代码、长注释以及下面的常量
+// 来自 http://netlib.sandia.gov/cephes/c9x-complex/clog.c。
+// Go 代码是原始 C 代码的简化版本。
 //
 // Cephes Math Library Release 2.8:  June, 2000
 // Copyright 1984, 1987, 1989, 1992, 2000 by Stephen L. Moshier
 //
-// The readme file at http://netlib.sandia.gov/cephes/ says:
-//    Some software in this archive may be from the book _Methods and
-// Programs for Mathematical Functions_ (Prentice-Hall or Simon & Schuster
-// International, 1989) or from the Cephes Mathematical Library, a
-// commercial product. In either event, it is copyrighted by the author.
-// What you see here may be used freely but it comes with no support or
-// guarantee.
+// http://netlib.sandia.gov/cephes/ 处的 readme 文件写道：
+//    本档案中的某些软件可能来自 _Methods and
+// Programs for Mathematical Functions_ 一书（Prentice-Hall 或 Simon & Schuster
+// International，1989），或者来自 Cephes 数学库，一个
+// 商业产品。无论哪种情况，其版权均归作者所有。
+// 你可以自由使用在此看到的内容，但对此不提供任何支持或
+// 担保。
 //
-//   The two known misprints in the book are repaired here in the
-// source listings for the gamma function and the incomplete beta
-// integral.
+//   书中已知的两处印刷错误已在此处修正，
+// 涉及 gamma 函数和不完全 beta 积分的源代码清单。
 //
 //   Stephen L. Moshier
 //   moshier@na-net.ornl.gov
 
-// Complex power function
+// 复数幂函数
 //
-// DESCRIPTION:
+// 描述：
 //
-// Raises complex A to the complex Zth power.
-// Definition is per AMS55 # 4.2.8,
-// analytically equivalent to cpow(a,z) = cexp(z clog(a)).
+// 将复数 A 提升到复数的 Z 次幂。
+// 定义依据 AMS55 # 4.2.8，
+// 在解析上等价于 cpow(a,z) = cexp(z clog(a))。
 //
-// ACCURACY:
+// 精度：
 //
-//                      Relative error:
-// arithmetic   domain     # trials      peak         rms
+//                      相对误差：
+// 算术         定义域     试验次数      峰值         均方根
 //    IEEE      -10,+10     30000       9.4e-15     1.5e-15
 
-// Pow returns x**y, the base-x exponential of y.
-// For generalized compatibility with [math.Pow]:
+// Pow 返回 x**y，即以 x 为底 y 的指数。
+// 为了与 [math.Pow] 保持泛化的兼容性：
 //
 //	Pow(0, ±0) returns 1+0i
 //	Pow(0, c) for real(c)<0 returns Inf+0i if imag(c) is zero, otherwise Inf+Inf i.
 func Pow(x, y complex128) complex128 {
-	if x == 0 { // Guaranteed also true for x == -0.
+	if x == 0 { // 对于 x == -0 也保证为真。
 		if IsNaN(y) {
 			return NaN()
 		}

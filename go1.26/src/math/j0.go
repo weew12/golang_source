@@ -5,13 +5,13 @@
 package math
 
 /*
-	Bessel function of the first and second kinds of order zero.
+	零阶第一类和第二类贝塞尔函数。
 */
 
-// The original C code and the long comment below are
-// from FreeBSD's /usr/src/lib/msun/src/e_j0.c and
-// came with this notice. The go code is a simplified
-// version of the original C.
+// 原始 C 代码及下面的长注释
+// 来自 FreeBSD 的 /usr/src/lib/msun/src/e_j0.c，
+// 并随附此声明。Go 代码是原始 C
+// 的简化版本。
 //
 // ====================================================
 // Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -23,53 +23,52 @@ package math
 // ====================================================
 //
 // __ieee754_j0(x), __ieee754_y0(x)
-// Bessel function of the first and second kinds of order zero.
-// Method -- j0(x):
-//      1. For tiny x, we use j0(x) = 1 - x**2/4 + x**4/64 - ...
-//      2. Reduce x to |x| since j0(x)=j0(-x),  and
-//         for x in (0,2)
-//              j0(x) = 1-z/4+ z**2*R0/S0,  where z = x*x;
-//         (precision:  |j0-1+z/4-z**2R0/S0 |<2**-63.67 )
-//         for x in (2,inf)
+// 零阶第一类和第二类贝塞尔函数。
+// 方法 -- j0(x)：
+//      1. 对于极小的 x，使用 j0(x) = 1 - x**2/4 + x**4/64 - ...
+//      2. 将 x 归约到 |x|，因为 j0(x)=j0(-x)，并且
+//         对于 x 在 (0,2) 内
+//              j0(x) = 1-z/4+ z**2*R0/S0,  其中 z = x*x;
+//         （精度： |j0-1+z/4-z**2R0/S0 |<2**-63.67 ）
+//         对于 x 在 (2,inf) 内
 //              j0(x) = sqrt(2/(pi*x))*(p0(x)*cos(x0)-q0(x)*sin(x0))
-//         where x0 = x-pi/4. It is better to compute sin(x0),cos(x0)
-//         as follow:
+//         其中 x0 = x-pi/4。最好按如下方式计算 sin(x0),cos(x0)：
+//         如下：
 //              cos(x0) = cos(x)cos(pi/4)+sin(x)sin(pi/4)
 //                      = 1/sqrt(2) * (cos(x) + sin(x))
 //              sin(x0) = sin(x)cos(pi/4)-cos(x)sin(pi/4)
 //                      = 1/sqrt(2) * (sin(x) - cos(x))
-//         (To avoid cancellation, use
+//         （为避免相消，使用
 //              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
-//         to compute the worse one.)
+//         来计算较不利的那个。）
 //
-//      3 Special cases
+//      3 特殊情况
 //              j0(nan)= nan
 //              j0(0) = 1
 //              j0(inf) = 0
 //
-// Method -- y0(x):
-//      1. For x<2.
-//         Since
+// 方法 -- y0(x)：
+//      1. 对于 x<2。
+//         由于
 //              y0(x) = 2/pi*(j0(x)*(ln(x/2)+Euler) + x**2/4 - ...)
-//         therefore y0(x)-2/pi*j0(x)*ln(x) is an even function.
-//         We use the following function to approximate y0,
+//         因此 y0(x)-2/pi*j0(x)*ln(x) 是偶函数。
+//         我们使用以下函数来逼近 y0，
 //              y0(x) = U(z)/V(z) + (2/pi)*(j0(x)*ln(x)), z= x**2
-//         where
+//         其中
 //              U(z) = u00 + u01*z + ... + u06*z**6
 //              V(z) = 1  + v01*z + ... + v04*z**4
-//         with absolute approximation error bounded by 2**-72.
-//         Note: For tiny x, U/V = u0 and j0(x)~1, hence
-//              y0(tiny) = u0 + (2/pi)*ln(tiny), (choose tiny<2**-27)
-//      2. For x>=2.
+//         绝对逼近误差以 2**-72 为界。
+//         注意：对于极小的 x，U/V = u0 且 j0(x)~1，因此
+//              y0(tiny) = u0 + (2/pi)*ln(tiny)，（选择 tiny<2**-27）
+//      2. 对于 x>=2。
 //              y0(x) = sqrt(2/(pi*x))*(p0(x)*cos(x0)+q0(x)*sin(x0))
-//         where x0 = x-pi/4. It is better to compute sin(x0),cos(x0)
-//         by the method mentioned above.
-//      3. Special cases: y0(0)=-inf, y0(x<0)=NaN, y0(inf)=0.
+//         其中 x0 = x-pi/4。最好按上述方法计算 sin(x0),cos(x0)。
+//      3. 特殊情况：y0(0)=-inf, y0(x<0)=NaN, y0(inf)=0.
 //
 
-// J0 returns the order-zero Bessel function of the first kind.
+// J0 返回零阶第一类贝塞尔函数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	J0(±Inf) = 0
 //	J0(0) = 1
@@ -80,7 +79,7 @@ func J0(x float64) float64 {
 		TwoM27 = 1.0 / (1 << 27) // 2**-27 0x3e40000000000000
 		TwoM13 = 1.0 / (1 << 13) // 2**-13 0x3f20000000000000
 		Two129 = 1 << 129        // 2**129 0x4800000000000000
-		// R0/S0 on [0, 2]
+		// [0, 2] 上的 R0/S0
 		R02 = 1.56249999999999947958e-02  // 0x3F8FFFFFFFFFFFFD
 		R03 = -1.89979294238854721751e-04 // 0xBF28E6A5B61AC6E9
 		R04 = 1.82954049532700665670e-06  // 0x3EBEB1D10C503919
@@ -145,9 +144,9 @@ func J0(x float64) float64 {
 	return (1+u)*(1-u) + z*(r/s) // 1.0 < |x| < 2.0
 }
 
-// Y0 returns the order-zero Bessel function of the second kind.
+// Y0 返回零阶第二类贝塞尔函数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Y0(+Inf) = 0
 //	Y0(0) = -Inf
@@ -182,15 +181,15 @@ func Y0(x float64) float64 {
 	if x >= 2 { // |x| >= 2.0
 
 		// y0(x) = sqrt(2/(pi*x))*(p0(x)*sin(x0)+q0(x)*cos(x0))
-		//     where x0 = x-pi/4
-		// Better formula:
+		//     其中 x0 = x-pi/4
+		// 更好的公式：
 		//     cos(x0) = cos(x)cos(pi/4)+sin(x)sin(pi/4)
 		//             =  1/sqrt(2) * (sin(x) + cos(x))
 		//     sin(x0) = sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
 		//             =  1/sqrt(2) * (sin(x) - cos(x))
-		// To avoid cancellation, use
+		// 为避免相消，使用
 		//     sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
-		// to compute the worse one.
+		// 来计算较不利的那个。
 
 		s, c := Sincos(x)
 		ss := s - c
@@ -227,13 +226,13 @@ func Y0(x float64) float64 {
 	return u/v + (2/Pi)*J0(x)*Log(x) // ~7.4506e-9 < |x| < 2.0
 }
 
-// The asymptotic expansions of pzero is
-//      1 - 9/128 s**2 + 11025/98304 s**4 - ..., where s = 1/x.
-// For x >= 2, We approximate pzero by
+// pzero 的渐近展开为
+//      1 - 9/128 s**2 + 11025/98304 s**4 - ..., 其中 s = 1/x。
+// 对于 x >= 2，我们用以下式子逼近 pzero：
 // 	pzero(x) = 1 + (R/S)
-// where  R = pR0 + pR1*s**2 + pR2*s**4 + ... + pR5*s**10
+// 其中  R = pR0 + pR1*s**2 + pR2*s**4 + ... + pR5*s**10
 // 	  S = 1 + pS0*s**2 + ... + pS4*s**10
-// and
+// 并且
 //      | pzero(x)-1-R/S | <= 2  ** ( -60.26)
 
 // for x in [inf, 8]=1/[0,0.125]
@@ -326,13 +325,13 @@ func pzero(x float64) float64 {
 	return 1 + r/s
 }
 
-// For x >= 8, the asymptotic expansions of qzero is
-//      -1/8 s + 75/1024 s**3 - ..., where s = 1/x.
-// We approximate pzero by
+// 对于 x >= 8，qzero 的渐近展开为
+//      -1/8 s + 75/1024 s**3 - ..., 其中 s = 1/x。
+// 我们用以下式子逼近 pzero：
 //      qzero(x) = s*(-1.25 + (R/S))
-// where R = qR0 + qR1*s**2 + qR2*s**4 + ... + qR5*s**10
+// 其中 R = qR0 + qR1*s**2 + qR2*s**4 + ... + qR5*s**10
 //       S = 1 + qS0*s**2 + ... + qS5*s**12
-// and
+// 并且
 //      | qzero(x)/s +1.25-R/S | <= 2**(-61.22)
 
 // for x in [inf, 8]=1/[0,0.125]

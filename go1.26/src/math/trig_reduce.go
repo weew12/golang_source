@@ -8,76 +8,76 @@ import (
 	"math/bits"
 )
 
-// reduceThreshold is the maximum value of x where the reduction using Pi/4
-// in 3 float64 parts still gives accurate results. This threshold
-// is set by y*C being representable as a float64 without error
-// where y is given by y = floor(x * (4 / Pi)) and C is the leading partial
-// terms of 4/Pi. Since the leading terms (PI4A and PI4B in sin.go) have 30
-// and 32 trailing zero bits, y should have less than 30 significant bits.
+// reduceThreshold 是使用 Pi/4 分三部分进行归约仍能给出
+// 准确结果时 x 的最大值。该阈值
+// 由 y*C 能够无误差地表示为 float64 决定，
+// 其中 y 由 y = floor(x * (4 / Pi)) 给出，而 C 是 4/Pi 的前导部分
+// 项。由于前导项（sin.go 中的 PI4A 和 PI4B）有 30
+// 和 32 个尾随零位，因此 y 的有效位数应少于 30 位。
 //
 //	y < 1<<30  -> floor(x*4/Pi) < 1<<30 -> x < (1<<30 - 1) * Pi/4
 //
-// So, conservatively we can take x < 1<<29.
-// Above this threshold Payne-Hanek range reduction must be used.
+// 因此，保守地可以取 x < 1<<29。
+// 超过此阈值则必须使用 Payne-Hanek 参数归约。
 const reduceThreshold = 1 << 29
 
-// trigReduce implements Payne-Hanek range reduction by Pi/4
-// for x > 0. It returns the integer part mod 8 (j) and
-// the fractional part (z) of x / (Pi/4).
-// The implementation is based on:
+// trigReduce 对 x > 0 实现按 Pi/4 的 Payne-Hanek 参数归约。
+// 它返回 x / (Pi/4) 的整数部分模 8 (j) 和
+// 小数部分 (z)。
+// 实现基于：
 // "ARGUMENT REDUCTION FOR HUGE ARGUMENTS: Good to the Last Bit"
 // K. C. Ng et al, March 24, 1992
-// The simulated multi-precision calculation of x*B uses 64-bit integer arithmetic.
+// x*B 的模拟多精度计算使用 64 位整数运算。
 func trigReduce(x float64) (j uint64, z float64) {
 	const PI4 = Pi / 4
 	if x < PI4 {
 		return 0, x
 	}
-	// Extract out the integer and exponent such that,
+	// 提取出整数和指数，使得，
 	// x = ix * 2 ** exp.
 	ix := Float64bits(x)
 	exp := int(ix>>shift&mask) - bias - shift
 	ix &^= mask << shift
 	ix |= 1 << shift
-	// Use the exponent to extract the 3 appropriate uint64 digits from mPi4,
-	// B ~ (z0, z1, z2), such that the product leading digit has the exponent -61.
-	// Note, exp >= -53 since x >= PI4 and exp < 971 for maximum float64.
+	// 使用该指数从 mPi4 中提取 3 个合适的 uint64 数字，
+	// B ~ (z0, z1, z2)，使得乘积的前导数字具有指数 -61。
+	// 注意，由于 x >= PI4 且对于最大 float64 有 exp < 971，故 exp >= -53。
 	digit, bitshift := uint(exp+61)/64, uint(exp+61)%64
 	z0 := (mPi4[digit] << bitshift) | (mPi4[digit+1] >> (64 - bitshift))
 	z1 := (mPi4[digit+1] << bitshift) | (mPi4[digit+2] >> (64 - bitshift))
 	z2 := (mPi4[digit+2] << bitshift) | (mPi4[digit+3] >> (64 - bitshift))
-	// Multiply mantissa by the digits and extract the upper two digits (hi, lo).
+	// 将尾数乘以这些数字并提取高两位数字 (hi, lo)。
 	z2hi, _ := bits.Mul64(z2, ix)
 	z1hi, z1lo := bits.Mul64(z1, ix)
 	z0lo := z0 * ix
 	lo, c := bits.Add64(z1lo, z2hi, 0)
 	hi, _ := bits.Add64(z0lo, z1hi, c)
-	// The top 3 bits are j.
+	// 最高 3 位是 j。
 	j = hi >> 61
-	// Extract the fraction and find its magnitude.
+	// 提取小数部分并求其量级。
 	hi = hi<<3 | lo>>61
 	lz := uint(bits.LeadingZeros64(hi))
 	e := uint64(bias - (lz + 1))
-	// Clear implicit mantissa bit and shift into place.
+	// 清除隐含的尾数位并移位到位。
 	hi = (hi << (lz + 1)) | (lo >> (64 - (lz + 1)))
 	hi >>= 64 - shift
-	// Include the exponent and convert to a float.
+	// 包含指数并转换为浮点数。
 	hi |= e << shift
 	z = Float64frombits(hi)
-	// Map zeros to origin.
+	// 将零点映射到原点。
 	if j&1 == 1 {
 		j++
 		j &= 7
 		z--
 	}
-	// Multiply the fractional part by pi/4.
+	// 将小数部分乘以 pi/4。
 	return j, z * PI4
 }
 
-// mPi4 is the binary digits of 4/pi as a uint64 array,
-// that is, 4/pi = Sum mPi4[i]*2^(-64*i)
-// 19 64-bit digits and the leading one bit give 1217 bits
-// of precision to handle the largest possible float64 exponent.
+// mPi4 是 4/pi 的二进制数字，表示为 uint64 数组，
+// 即 4/pi = Sum mPi4[i]*2^(-64*i)
+// 19 个 64 位数字加上前导一位共给出 1217 位
+// 精度，以处理最大的 float64 指数。
 var mPi4 = [...]uint64{
 	0x0000000000000001,
 	0x45f306dc9c882a53,

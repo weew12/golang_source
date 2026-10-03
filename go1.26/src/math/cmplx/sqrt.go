@@ -6,33 +6,32 @@ package cmplx
 
 import "math"
 
-// The original C code, the long comment, and the constants
-// below are from http://netlib.sandia.gov/cephes/c9x-complex/clog.c.
-// The go code is a simplified version of the original C.
+// 原始 C 代码、长注释以及下面的常量
+// 来自 http://netlib.sandia.gov/cephes/c9x-complex/clog.c。
+// Go 代码是原始 C 代码的简化版本。
 //
 // Cephes Math Library Release 2.8:  June, 2000
 // Copyright 1984, 1987, 1989, 1992, 2000 by Stephen L. Moshier
 //
-// The readme file at http://netlib.sandia.gov/cephes/ says:
-//    Some software in this archive may be from the book _Methods and
-// Programs for Mathematical Functions_ (Prentice-Hall or Simon & Schuster
-// International, 1989) or from the Cephes Mathematical Library, a
-// commercial product. In either event, it is copyrighted by the author.
-// What you see here may be used freely but it comes with no support or
-// guarantee.
+// http://netlib.sandia.gov/cephes/ 处的 readme 文件写道：
+//    本档案中的某些软件可能来自 _Methods and
+// Programs for Mathematical Functions_ 一书（Prentice-Hall 或 Simon & Schuster
+// International，1989），或者来自 Cephes 数学库，一个
+// 商业产品。无论哪种情况，其版权均归作者所有。
+// 你可以自由使用在此看到的内容，但对此不提供任何支持或
+// 担保。
 //
-//   The two known misprints in the book are repaired here in the
-// source listings for the gamma function and the incomplete beta
-// integral.
+//   书中已知的两处印刷错误已在此处修正，
+// 涉及 gamma 函数和不完全 beta 积分的源代码清单。
 //
 //   Stephen L. Moshier
 //   moshier@na-net.ornl.gov
 
-// Complex square root
+// 复数平方根
 //
-// DESCRIPTION:
+// 描述：
 //
-// If z = x + iy,  r = |z|, then
+// 如果 z = x + iy，r = |z|，那么
 //
 //                       1/2
 // Re w  =  [ (r + x)/2 ]   ,
@@ -40,24 +39,24 @@ import "math"
 //                       1/2
 // Im w  =  [ (r - x)/2 ]   .
 //
-// Cancellation error in r-x or r+x is avoided by using the
-// identity  2 Re w Im w  =  y.
+// r-x 或 r+x 中的抵消误差通过使用
+// 恒等式  2 Re w Im w  =  y 来避免。
 //
-// Note that -w is also a square root of z. The root chosen
-// is always in the right half plane and Im w has the same sign as y.
+// 注意 -w 也是 z 的一个平方根。所选取的根
+// 始终位于右半平面，并且 Im w 与 y 具有相同的符号。
 //
-// ACCURACY:
+// 精度：
 //
-//                      Relative error:
-// arithmetic   domain     # trials      peak         rms
+//                      相对误差：
+// 算术         定义域     试验次数      峰值         均方根
 //    DEC       -10,+10     25000       3.2e-17     9.6e-18
 //    IEEE      -10,+10   1,000,000     2.9e-16     6.1e-17
 
-// Sqrt returns the square root of x.
-// The result r is chosen so that real(r) ≥ 0 and imag(r) has the same sign as imag(x).
+// Sqrt 返回 x 的平方根。
+// 结果 r 的选取使得 real(r) ≥ 0 且 imag(r) 与 imag(x) 具有相同的符号。
 func Sqrt(x complex128) complex128 {
 	if imag(x) == 0 {
-		// Ensure that imag(r) has the same sign as imag(x) for imag(x) == signed zero.
+		// 确保当 imag(x) == 有符号零时，imag(r) 与 imag(x) 具有相同的符号。
 		if real(x) == 0 {
 			return complex(0, imag(x))
 		}
@@ -79,7 +78,7 @@ func Sqrt(x complex128) complex128 {
 	a := real(x)
 	b := imag(x)
 	var scale float64
-	// Rescale to avoid internal overflow or underflow.
+	// 重新缩放以避免内部溢出或下溢。
 	if math.Abs(a) > 4 || math.Abs(b) > 4 {
 		a *= 0.25
 		b *= 0.25

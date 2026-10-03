@@ -4,16 +4,16 @@
 
 package math
 
-// Nextafter32 returns the next representable float32 value after x towards y.
+// Nextafter32 返回朝 y 方向 x 之后的下一个可表示的 float32 值。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Nextafter32(x, x)   = x
 //	Nextafter32(NaN, y) = NaN
 //	Nextafter32(x, NaN) = NaN
 func Nextafter32(x, y float32) (r float32) {
 	switch {
-	case IsNaN(float64(x)) || IsNaN(float64(y)): // special case
+	case IsNaN(float64(x)) || IsNaN(float64(y)): // 特殊情况
 		r = float32(NaN())
 	case x == y:
 		r = x
@@ -27,16 +27,16 @@ func Nextafter32(x, y float32) (r float32) {
 	return
 }
 
-// Nextafter returns the next representable float64 value after x towards y.
+// Nextafter 返回朝 y 方向 x 之后的下一个可表示的 float64 值。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Nextafter(x, x)   = x
 //	Nextafter(NaN, y) = NaN
 //	Nextafter(x, NaN) = NaN
 func Nextafter(x, y float64) (r float64) {
 	switch {
-	case IsNaN(x) || IsNaN(y): // special case
+	case IsNaN(x) || IsNaN(y): // 特殊情况
 		r = NaN()
 	case x == y:
 		r = x

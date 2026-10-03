@@ -5,20 +5,18 @@
 package math
 
 /*
-	Floating-point hyperbolic sine and cosine.
+	浮点双曲正弦和双曲余弦。
 
-	The exponential func is called for arguments
-	greater in magnitude than 0.5.
+	对于绝对值大于 0.5 的参数，调用指数函数。
 
-	A series is used for arguments smaller in magnitude than 0.5.
+	对于绝对值小于 0.5 的参数，使用级数。
 
-	Cosh(x) is computed from the exponential func for
-	all arguments.
+	对于所有参数，Cosh(x) 都由指数函数计算。
 */
 
-// Sinh returns the hyperbolic sine of x.
+// Sinh 返回 x 的双曲正弦。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Sinh(±0) = ±0
 //	Sinh(±Inf) = ±Inf
@@ -31,7 +29,7 @@ func Sinh(x float64) float64 {
 }
 
 func sinh(x float64) float64 {
-	// The coefficients are #2029 from Hart & Cheney. (20.36D)
+	// 这些系数是 Hart & Cheney 的 #2029。（20.36D）
 	const (
 		P0 = -0.6307673640497716991184787251e+6
 		P1 = -0.8991272022039509355398013511e+5
@@ -69,9 +67,9 @@ func sinh(x float64) float64 {
 	return temp
 }
 
-// Cosh returns the hyperbolic cosine of x.
+// Cosh 返回 x 的双曲余弦。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Cosh(±0) = 1
 //	Cosh(±Inf) = +Inf

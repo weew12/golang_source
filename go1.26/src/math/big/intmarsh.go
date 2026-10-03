@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements encoding/decoding of Ints.
+// 本文件实现 Int 的编码/解码。
 
 package big
 
@@ -11,17 +11,17 @@ import (
 	"fmt"
 )
 
-// Gob codec version. Permits backward-compatible changes to the encoding.
+// Gob 编解码版本。允许对编码进行向后兼容的修改。
 const intGobVersion byte = 1
 
-// GobEncode implements the [encoding/gob.GobEncoder] interface.
+// GobEncode 实现 [encoding/gob.GobEncoder] 接口。
 func (x *Int) GobEncode() ([]byte, error) {
 	if x == nil {
 		return nil, nil
 	}
-	buf := make([]byte, 1+len(x.abs)*_S) // extra byte for version and sign bit
+	buf := make([]byte, 1+len(x.abs)*_S) // 用于版本和符号位的额外字节
 	i := x.abs.bytes(buf) - 1            // i >= 0
-	b := intGobVersion << 1              // make space for sign bit
+	b := intGobVersion << 1              // 为符号位腾出空间
 	if x.neg {
 		b |= 1
 	}
@@ -29,10 +29,10 @@ func (x *Int) GobEncode() ([]byte, error) {
 	return buf[i:], nil
 }
 
-// GobDecode implements the [encoding/gob.GobDecoder] interface.
+// GobDecode 实现 [encoding/gob.GobDecoder] 接口。
 func (z *Int) GobDecode(buf []byte) error {
 	if len(buf) == 0 {
-		// Other side sent a nil or default value.
+		// 对端发送了 nil 或默认值。
 		*z = Int{}
 		return nil
 	}
@@ -45,17 +45,17 @@ func (z *Int) GobDecode(buf []byte) error {
 	return nil
 }
 
-// AppendText implements the [encoding.TextAppender] interface.
+// AppendText 实现 [encoding.TextAppender] 接口。
 func (x *Int) AppendText(b []byte) (text []byte, err error) {
 	return x.Append(b, 10), nil
 }
 
-// MarshalText implements the [encoding.TextMarshaler] interface.
+// MarshalText 实现 [encoding.TextMarshaler] 接口。
 func (x *Int) MarshalText() (text []byte, err error) {
 	return x.AppendText(nil)
 }
 
-// UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+// UnmarshalText 实现 [encoding.TextUnmarshaler] 接口。
 func (z *Int) UnmarshalText(text []byte) error {
 	if _, ok := z.setFromScanner(bytes.NewReader(text), 0); !ok {
 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
@@ -63,11 +63,11 @@ func (z *Int) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// The JSON marshalers are only here for API backward compatibility
-// (programs that explicitly look for these two methods). JSON works
-// fine with the TextMarshaler only.
+// 这里保留 JSON 编组函数只是为了 API 向后兼容
+//（即那些显式查找这两个方法的程序）。仅使用 TextMarshaler，
+// JSON 也能正常工作。
 
-// MarshalJSON implements the [encoding/json.Marshaler] interface.
+// MarshalJSON 实现 [encoding/json.Marshaler] 接口。
 func (x *Int) MarshalJSON() ([]byte, error) {
 	if x == nil {
 		return []byte("null"), nil
@@ -75,9 +75,9 @@ func (x *Int) MarshalJSON() ([]byte, error) {
 	return x.abs.itoa(x.neg, 10), nil
 }
 
-// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
+// UnmarshalJSON 实现 [encoding/json.Unmarshaler] 接口。
 func (z *Int) UnmarshalJSON(text []byte) error {
-	// Ignore null, like in the main JSON package.
+	// 就像主 JSON 包一样，忽略 null。
 	if string(text) == "null" {
 		return nil
 	}

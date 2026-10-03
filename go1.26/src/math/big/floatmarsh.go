@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements encoding/decoding of Floats.
+// 本文件实现 Float 的编码/解码。
 
 package big
 
@@ -12,28 +12,27 @@ import (
 	"internal/byteorder"
 )
 
-// Gob codec version. Permits backward-compatible changes to the encoding.
+// Gob 编解码版本。允许对编码进行向后兼容的修改。
 const floatGobVersion byte = 1
 
-// GobEncode implements the [encoding/gob.GobEncoder] interface.
-// The [Float] value and all its attributes (precision,
-// rounding mode, accuracy) are marshaled.
+// GobEncode 实现 [encoding/gob.GobEncoder] 接口。
+// [Float] 值及其所有属性（精度、舍入模式、准确性）都会被编组。
 func (x *Float) GobEncode() ([]byte, error) {
 	if x == nil {
 		return nil, nil
 	}
 
-	// determine max. space (bytes) required for encoding
+	// 确定编码所需的最大空间（字节数）
 	sz := 1 + 1 + 4 // version + mode|acc|form|neg (3+2+2+1bit) + prec
-	n := 0          // number of mantissa words
+	n := 0          // 尾数字（word）的数量
 	if x.form == finite {
-		// add space for mantissa and exponent
-		n = int((x.prec + (_W - 1)) / _W) // required mantissa length in words for given precision
-		// actual mantissa slice could be shorter (trailing 0's) or longer (unused bits):
-		// - if shorter, only encode the words present
-		// - if longer, cut off unused words when encoding in bytes
-		//   (in practice, this should never happen since rounding
-		//   takes care of it, but be safe and do it always)
+		// 为尾数和指数增加空间
+		n = int((x.prec + (_W - 1)) / _W) // 给定精度下所需的尾数长度（以字为单位）
+		// 实际的尾数切片可能更短（末尾有 0）或更长（有未使用的位）：
+		// - 如果更短，只编码存在的字
+		// - 如果更长，在编码为字节时截掉未使用的字
+		//   （实际上这不应发生，因为舍入会处理它，
+		//   但为了安全起见，总是这样做）
 		if len(x.mant) < n {
 			n = len(x.mant)
 		}
@@ -52,19 +51,18 @@ func (x *Float) GobEncode() ([]byte, error) {
 
 	if x.form == finite {
 		byteorder.BEPutUint32(buf[6:], uint32(x.exp))
-		x.mant[len(x.mant)-n:].bytes(buf[10:]) // cut off unused trailing words
+		x.mant[len(x.mant)-n:].bytes(buf[10:]) // 截掉未使用的尾随字
 	}
 
 	return buf, nil
 }
 
-// GobDecode implements the [encoding/gob.GobDecoder] interface.
-// The result is rounded per the precision and rounding mode of
-// z unless z's precision is 0, in which case z is set exactly
-// to the decoded value.
+// GobDecode 实现 [encoding/gob.GobDecoder] 接口。
+// 结果按照 z 的精度和舍入模式进行舍入，除非 z 的精度为 0，
+// 此时 z 会被精确地设置为解码后的值。
 func (z *Float) GobDecode(buf []byte) error {
 	if len(buf) == 0 {
-		// Other side sent a nil or default value.
+		// 对端发送了 nil 或默认值。
 		*z = Float{}
 		return nil
 	}
@@ -106,9 +104,8 @@ func (z *Float) GobDecode(buf []byte) error {
 	return nil
 }
 
-// AppendText implements the [encoding.TextAppender] interface.
-// Only the [Float] value is marshaled (in full precision), other
-// attributes such as precision or accuracy are ignored.
+// AppendText 实现 [encoding.TextAppender] 接口。
+// 仅编组 [Float] 值（全精度），精度或准确性等其他属性会被忽略。
 func (x *Float) AppendText(b []byte) ([]byte, error) {
 	if x == nil {
 		return append(b, "<nil>"...), nil
@@ -116,19 +113,17 @@ func (x *Float) AppendText(b []byte) ([]byte, error) {
 	return x.Append(b, 'g', -1), nil
 }
 
-// MarshalText implements the [encoding.TextMarshaler] interface.
-// Only the [Float] value is marshaled (in full precision), other
-// attributes such as precision or accuracy are ignored.
+// MarshalText 实现 [encoding.TextMarshaler] 接口。
+// 仅编组 [Float] 值（全精度），精度或准确性等其他属性会被忽略。
 func (x *Float) MarshalText() (text []byte, err error) {
 	return x.AppendText(nil)
 }
 
-// UnmarshalText implements the [encoding.TextUnmarshaler] interface.
-// The result is rounded per the precision and rounding mode of z.
-// If z's precision is 0, it is changed to 64 before rounding takes
-// effect.
+// UnmarshalText 实现 [encoding.TextUnmarshaler] 接口。
+// 结果按照 z 的精度和舍入模式进行舍入。
+// 如果 z 的精度为 0，则在舍入生效之前会被改为 64。
 func (z *Float) UnmarshalText(text []byte) error {
-	// TODO(gri): get rid of the []byte/string conversion
+	// TODO(gri): 去掉 []byte/string 转换
 	_, _, err := z.Parse(string(text), 0)
 	if err != nil {
 		err = fmt.Errorf("math/big: cannot unmarshal %q into a *big.Float (%v)", text, err)

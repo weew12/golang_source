@@ -4,10 +4,9 @@
 
 package math
 
-// The original C code and the comment below are from
-// FreeBSD's /usr/src/lib/msun/src/e_remainder.c and came
-// with this notice. The go code is a simplified version of
-// the original C.
+// 原始 C 代码及下面的注释来自
+// FreeBSD 的 /usr/src/lib/msun/src/e_remainder.c，并随附
+// 此声明。Go 代码是原始 C 的简化版本。
 //
 // ====================================================
 // Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -19,16 +18,16 @@ package math
 // ====================================================
 //
 // __ieee754_remainder(x,y)
-// Return :
-//      returns  x REM y  =  x - [x/y]*y  as if in infinite
-//      precision arithmetic, where [x/y] is the (infinite bit)
-//      integer nearest x/y (in half way cases, choose the even one).
-// Method :
-//      Based on Mod() returning  x - [x/y]chopped * y  exactly.
+// 返回：
+//      返回  x REM y  =  x - [x/y]*y，如同在无限
+//      精度算术中一样，其中 [x/y] 是最接近 x/y 的（无限位）
+//      整数（在恰好居中的情况下，选择偶数）。
+// 方法：
+//      基于 Mod() 精确返回  x - [x/y]截断 * y 。
 
-// Remainder returns the IEEE 754 floating-point remainder of x/y.
+// Remainder 返回 x/y 的 IEEE 754 浮点余数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Remainder(±Inf, y) = NaN
 //	Remainder(NaN, y) = NaN
@@ -47,7 +46,7 @@ func remainder(x, y float64) float64 {
 		Tiny    = 4.45014771701440276618e-308 // 0x0020000000000000
 		HalfMax = MaxFloat64 / 2
 	)
-	// special cases
+	// 特殊情况
 	switch {
 	case IsNaN(x) || IsNaN(y) || IsInf(x, 0) || y == 0:
 		return NaN()
@@ -70,7 +69,7 @@ func remainder(x, y float64) float64 {
 		return 0
 	}
 	if y <= HalfMax {
-		x = Mod(x, y+y) // now x < 2y
+		x = Mod(x, y+y) // 现在 x < 2y
 	}
 	if y < Tiny {
 		if x+x > y {

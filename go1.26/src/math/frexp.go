@@ -4,12 +4,12 @@
 
 package math
 
-// Frexp breaks f into a normalized fraction
-// and an integral power of two.
-// It returns frac and exp satisfying f == frac × 2**exp,
-// with the absolute value of frac in the interval [½, 1).
+// Frexp 将 f 拆分为一个归一化小数
+// 和一个 2 的整数次幂。
+// 它返回满足 f == frac × 2**exp 的 frac 和 exp，
+// 其中 frac 的绝对值位于区间 [½, 1)。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Frexp(±0) = ±0, 0
 //	Frexp(±Inf) = ±Inf, 0
@@ -22,10 +22,10 @@ func Frexp(f float64) (frac float64, exp int) {
 }
 
 func frexp(f float64) (frac float64, exp int) {
-	// special cases
+	// 特殊情况
 	switch {
 	case f == 0:
-		return f, 0 // correctly return -0
+		return f, 0 // 正确地返回 -0
 	case IsInf(f, 0) || IsNaN(f):
 		return f, 0
 	}

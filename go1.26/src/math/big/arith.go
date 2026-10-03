@@ -2,42 +2,41 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file provides Go implementations of elementary multi-precision
-// arithmetic operations on word vectors. These have the suffix _g.
-// These are needed for platforms without assembly implementations of these routines.
-// This file also contains elementary operations that can be implemented
-// sufficiently efficiently in Go.
+// 本文件提供了对字向量进行基本多精度算术运算的 Go 实现。
+// 这些实现带有后缀 _g。
+// 对于没有这些例程汇编实现的平台，需要它们。
+// 本文件还包含一些可以在 Go 中足够高效实现的基本运算。
 
 package big
 
 import (
 	"math/bits"
-	_ "unsafe" // for go:linkname
+	_ "unsafe" // 用于 go:linkname
 )
 
-// A Word represents a single digit of a multi-precision unsigned integer.
+// A Word 表示多精度无符号整数的一个数位。
 type Word uint
 
 const (
-	_S = _W / 8 // word size in bytes
+	_S = _W / 8 // 字长（字节）
 
-	_W = bits.UintSize // word size in bits
-	_B = 1 << _W       // digit base
-	_M = _B - 1        // digit mask
+	_W = bits.UintSize // 字长（比特）
+	_B = 1 << _W       // 数位基数
+	_M = _B - 1        // 数位掩码
 )
 
-// In these routines, it is the caller's responsibility to arrange for
-// x, y, and z to all have the same length. We check this and panic.
-// The assembly versions of these routines do not include that check.
+// 在这些例程中，调用者有责任确保 x、y 和 z 三者长度相同。
+// 我们会检查这一点并 panic。
+// 这些例程的汇编版本不包含该检查。
 //
-// The check+panic also has the effect of teaching the compiler that
-// “i in range for z” implies “i in range for x and y”, eliminating all
-// bounds checks in loops from 0 to len(z) and vice versa.
+// 检查+panic 还有教导编译器的作用：即
+// “i 在 z 的范围内”蕴含“i 在 x 和 y 的范围内”，从而消除
+// 从 0 到 len(z) 的循环中的所有边界检查，反之亦然。
 
 // ----------------------------------------------------------------------------
-// Elementary operations on words
+// 对字的基本运算
 //
-// These operations are used by the vector operations below.
+// 这些运算被下面的向量运算所使用。
 
 // z1<<_W + z0 = x*y
 func mulWW(x, y Word) (z1, z0 Word) {
@@ -53,13 +52,13 @@ func mulAddWWW_g(x, y, c Word) (z1, z0 Word) {
 	return Word(hi + cc), Word(lo)
 }
 
-// nlz returns the number of leading zeros in x.
-// Wraps bits.LeadingZeros call for convenience.
+// nlz 返回 x 中前导零的个数。
+// 为方便起见，封装了 bits.LeadingZeros 调用。
 func nlz(x Word) uint {
 	return uint(bits.LeadingZeros(uint(x)))
 }
 
-// The resulting carry c is either 0 or 1.
+// 产生的进位 c 要么为 0 要么为 1。
 func addVV_g(z, x, y []Word) (c Word) {
 	if len(x) != len(z) || len(y) != len(z) {
 		panic("addVV len")
@@ -73,7 +72,7 @@ func addVV_g(z, x, y []Word) (c Word) {
 	return
 }
 
-// The resulting carry c is either 0 or 1.
+// 产生的进位 c 要么为 0 要么为 1。
 func subVV_g(z, x, y []Word) (c Word) {
 	if len(x) != len(z) || len(y) != len(z) {
 		panic("subVV len")
@@ -87,17 +86,17 @@ func subVV_g(z, x, y []Word) (c Word) {
 	return
 }
 
-// addVW sets z = x + y, returning the final carry c.
-// The behavior is undefined if len(x) != len(z).
-// If len(z) == 0, c = y; otherwise, c is 0 or 1.
+// addVW 设置 z = x + y，返回最终的进位 c。
+// 如果 len(x) != len(z)，行为未定义。
+// 如果 len(z) == 0，c = y；否则 c 为 0 或 1。
 //
-// addVW should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
+// addVW 应当是内部细节，
+// 但广泛使用的包通过 linkname 访问它。
+// “耻辱墙”上的著名成员包括：
 //   - github.com/remyoudompheng/bigfft
 //
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
+// 不要删除或更改类型签名。
+// 参见 go.dev/issue/67401。
 //
 //go:linkname addVW
 func addVW(z, x []Word, y Word) (c Word) {
@@ -130,7 +129,7 @@ func addVW(z, x []Word, y Word) (c Word) {
 	return 1
 }
 
-// addVW_ref is the reference implementation for addVW, used only for testing.
+// addVW_ref 是 addVW 的参考实现，仅用于测试。
 func addVW_ref(z, x []Word, y Word) (c Word) {
 	c = y
 	for i := range z {
@@ -141,17 +140,17 @@ func addVW_ref(z, x []Word, y Word) (c Word) {
 	return
 }
 
-// subVW sets z = x - y, returning the final carry c.
-// The behavior is undefined if len(x) != len(z).
-// If len(z) == 0, c = y; otherwise, c is 0 or 1.
+// subVW 设置 z = x - y，返回最终的进位 c。
+// 如果 len(x) != len(z)，行为未定义。
+// 如果 len(z) == 0，c = y；否则 c 为 0 或 1。
 //
-// subVW should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
+// subVW 应当是内部细节，
+// 但广泛使用的包通过 linkname 访问它。
+// “耻辱墙”上的著名成员包括：
 //   - github.com/remyoudompheng/bigfft
 //
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
+// 不要删除或更改类型签名。
+// 参见 go.dev/issue/67401。
 //
 //go:linkname subVW
 func subVW(z, x []Word, y Word) (c Word) {
@@ -184,7 +183,7 @@ func subVW(z, x []Word, y Word) (c Word) {
 	return 1
 }
 
-// subVW_ref is the reference implementation for subVW, used only for testing.
+// subVW_ref 是 subVW 的参考实现，仅用于测试。
 func subVW_ref(z, x []Word, y Word) (c Word) {
 	c = y
 	for i := range z {
@@ -207,9 +206,9 @@ func lshVU_g(z, x []Word, s uint) (c Word) {
 	if len(z) == 0 {
 		return
 	}
-	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
+	s &= _W - 1 // 向编译器提示：按 s 移位不需要保护代码
 	ŝ := _W - s
-	ŝ &= _W - 1 // ditto
+	ŝ &= _W - 1 // 同上
 	c = x[len(z)-1] >> ŝ
 	for i := len(z) - 1; i > 0; i-- {
 		z[i] = x[i]<<s | x[i-1]>>ŝ
@@ -230,9 +229,9 @@ func rshVU_g(z, x []Word, s uint) (c Word) {
 	if len(z) == 0 {
 		return
 	}
-	s &= _W - 1 // hint to the compiler that shifts by s don't need guard code
+	s &= _W - 1 // 向编译器提示：按 s 移位不需要保护代码
 	ŝ := _W - s
-	ŝ &= _W - 1 // ditto
+	ŝ &= _W - 1 // 同上
 	c = x[0] << ŝ
 	for i := 1; i < len(z); i++ {
 		z[i-1] = x[i-1]>>s | x[i]<<ŝ
@@ -267,8 +266,8 @@ func addMulVVWW_g(z, x, y []Word, m, a Word) (c Word) {
 	return
 }
 
-// q = ( x1 << _W + x0 - r)/y. m = floor(( _B^2 - 1 ) / d - _B). Requiring x1<y.
-// An approximate reciprocal with a reference to "Improved Division by Invariant Integers
+// q = ( x1 << _W + x0 - r)/y. m = floor(( _B^2 - 1 ) / d - _B). 要求 x1<y。
+// 近似倒数，参考文献 "Improved Division by Invariant Integers
 // (IEEE Transactions on Computers, 11 Jun. 2010)"
 func divWW(x1, x0, y, m Word) (q, r Word) {
 	s := nlz(y)
@@ -278,29 +277,29 @@ func divWW(x1, x0, y, m Word) (q, r Word) {
 		y <<= s
 	}
 	d := uint(y)
-	// We know that
+	// 我们知道
 	//   m = ⎣(B^2-1)/d⎦-B
 	//   ⎣(B^2-1)/d⎦ = m+B
 	//   (B^2-1)/d = m+B+delta1    0 <= delta1 <= (d-1)/d
 	//   B^2/d = m+B+delta2        0 <= delta2 <= 1
-	// The quotient we're trying to compute is
+	// 我们要计算的商是
 	//   quotient = ⎣(x1*B+x0)/d⎦
 	//            = ⎣(x1*B*(B^2/d)+x0*(B^2/d))/B^2⎦
 	//            = ⎣(x1*B*(m+B+delta2)+x0*(m+B+delta2))/B^2⎦
 	//            = ⎣(x1*m+x1*B+x0)/B + x0*m/B^2 + delta2*(x1*B+x0)/B^2⎦
-	// The latter two terms of this three-term sum are between 0 and 1.
-	// So we can compute just the first term, and we will be low by at most 2.
+	// 这个三项和的后两项介于 0 和 1 之间。
+	// 所以我们只需计算第一项，结果至多偏小 2。
 	t1, t0 := bits.Mul(uint(m), uint(x1))
 	_, c := bits.Add(t0, uint(x0), 0)
 	t1, _ = bits.Add(t1, uint(x1), c)
-	// The quotient is either t1, t1+1, or t1+2.
-	// We'll try t1 and adjust if needed.
+	// 商要么是 t1，要么是 t1+1，要么是 t1+2。
+	// 我们尝试 t1 并在需要时进行调整。
 	qq := t1
-	// compute remainder r=x-d*q.
+	// 计算余数 r=x-d*q。
 	dq1, dq0 := bits.Mul(d, qq)
 	r0, b := bits.Sub(uint(x0), dq0, 0)
 	r1, _ := bits.Sub(uint(x1), dq1, b)
-	// The remainder we just computed is bounded above by B+d:
+	// 我们刚计算的余数上界为 B+d：
 	// r = x1*B + x0 - d*q.
 	//   = x1*B + x0 - d*⎣(x1*m+x1*B+x0)/B⎦
 	//   = x1*B + x0 - d*((x1*m+x1*B+x0)/B-alpha)                                   0 <= alpha < 1
@@ -314,14 +313,14 @@ func divWW(x1, x0, y, m Word) (q, r Word) {
 	//   <  B*(1-d/B) +  d*B/B          + d          because x0<B (and 1-d/B>0), x1<d, 1+d*beta<=B, alpha<1
 	//   =  B - d     +  d              + d
 	//   = B+d
-	// So r1 can only be 0 or 1. If r1 is 1, then we know q was too small.
-	// Add 1 to q and subtract d from r. That guarantees that r is <B, so
-	// we no longer need to keep track of r1.
+	// 所以 r1 只能是 0 或 1。如果 r1 为 1，则我们可知 q 太小了。
+	// 给 q 加 1 并从 r 中减去 d。这保证 r <B，因此
+	// 我们不再需要跟踪 r1。
 	if r1 != 0 {
 		qq++
 		r0 -= d
 	}
-	// If the remainder is still too large, increment q one more time.
+	// 如果余数仍然太大，再将 q 增一。
 	if r0 >= d {
 		qq++
 		r0 -= d
@@ -329,7 +328,7 @@ func divWW(x1, x0, y, m Word) (q, r Word) {
 	return Word(qq), Word(r0 >> s)
 }
 
-// reciprocalWord return the reciprocal of the divisor. rec = floor(( _B^2 - 1 ) / u - _B). u = d1 << nlz(d1).
+// reciprocalWord 返回除数的倒数。rec = floor(( _B^2 - 1 ) / u - _B)。u = d1 << nlz(d1)。
 func reciprocalWord(d1 Word) Word {
 	u := uint(d1 << nlz(d1))
 	x1 := ^u

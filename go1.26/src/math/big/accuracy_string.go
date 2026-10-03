@@ -5,8 +5,8 @@ package big
 import "strconv"
 
 func _() {
-	// An "invalid array index" compiler error signifies that the constant values have changed.
-	// Re-run the stringer command to generate them again.
+	// "invalid array index" 编译器错误表示常量值已经改变。
+	// 请重新运行 stringer 命令以再次生成它们。
 	var x [1]struct{}
 	_ = x[Below - -1]
 	_ = x[Exact-0]

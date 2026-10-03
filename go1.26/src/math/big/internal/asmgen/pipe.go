@@ -10,40 +10,39 @@ import (
 	"slices"
 )
 
-// Note: Exported fields and methods are expected to be used
-// by function generators (like the ones in add.go and so on).
-// Unexported fields and methods should not be.
+// 注意：导出的字段和方法预期由函数生成器
+// （如 add.go 等文件中的那些）使用。
+// 未导出的字段和方法则不应被使用。
 
-// A Pipe manages the input and output data pipelines for a function's
-// memory operations.
+// Pipe 管理函数内存操作的输入和输出数据流水线。
 //
-// The input is one or more equal-length slices of words, so collectively
-// it can be viewed as a matrix, in which each slice is a row and each column
-// is a set of corresponding words from the different slices.
-// The output can be viewed the same way, although it is often just one row.
+// 输入是一个或多个等长的字切片，因此整体上
+// 可以把它看作一个矩阵，其中每个切片是一行，每一列
+// 是来自不同切片的一组对应字。
+// 输出可以同样看待，尽管它通常只有一行。
 type Pipe struct {
-	f               *Func    // function being generated
-	label           string   // prefix for loop labels (default "loop")
-	backward        bool     // processing columns in reverse
-	started         bool     // Start has been called
-	loaded          bool     // LoadPtrs has been called
-	inPtr           []RegPtr // input slice pointers
-	hints           []Hint   // for each inPtr, a register hint to use for its data
-	outPtr          []RegPtr // output slice pointers
-	index           Reg      // index register, if in use
-	useIndexCounter bool     // index counter requested
-	indexCounter    int      // index is also counter (386); 0 no, -1 negative counter, +1 positive counter
-	readOff         int      // read offset not yet added to index
-	writeOff        int      // write offset not yet added to index
-	factors         []int    // unrolling factors
-	counts          []Reg    // iterations for each factor
-	needWrite       bool     // need a write call during Loop1/LoopN
-	maxColumns      int      // maximum columns during unrolled loop
-	unrollStart     func()   // emit code at start of unrolled body
-	unrollEnd       func()   // emit code end of unrolled body
+	f               *Func    // 正在生成的函数
+	label           string   // 循环标签的前缀（默认 "loop"）
+	backward        bool     // 以相反顺序处理列
+	started         bool     // 已调用 Start
+	loaded          bool     // 已调用 LoadPtrs
+	inPtr           []RegPtr // 输入切片指针
+	hints           []Hint   // 对每个 inPtr，其数据要使用的寄存器提示
+	outPtr          []RegPtr // 输出切片指针
+	index           Reg      // 索引寄存器，如果正在使用
+	useIndexCounter bool     // 请求使用索引计数器
+	indexCounter    int      // 索引同时作为计数器（386）；0 否，-1 负计数器，+1 正计数器
+	readOff         int      // 尚未加到索引上的读偏移量
+	writeOff        int      // 尚未加到索引上的写偏移量
+	factors         []int    // 展开因子
+	counts          []Reg    // 每个因子的迭代次数
+	needWrite       bool     // 在 Loop1/LoopN 期间需要一次写调用
+	maxColumns      int      // 展开循环期间的最大列数
+	unrollStart     func()   // 在展开体开始时发出代码
+	unrollEnd       func()   // 在展开体结束时发出代码
 }
 
-// Pipe creates and returns a new pipe for use in the function f.
+// Pipe 创建并返回一个供函数 f 使用的新 pipe。
 func (f *Func) Pipe() *Pipe {
 	a := f.Asm
 	p := &Pipe{
@@ -57,8 +56,8 @@ func (f *Func) Pipe() *Pipe {
 	return p
 }
 
-// SetBackward sets the pipe to process the input and output columns in reverse order.
-// This is needed for left shifts, which might otherwise overwrite data they will read later.
+// SetBackward 设置 pipe 以相反顺序处理输入和输出列。
+// 左移需要这样做，否则可能会覆盖它们稍后要读取的数据。
 func (p *Pipe) SetBackward() {
 	if p.loaded {
 		p.f.Asm.Fatalf("SetBackward after Start/LoadPtrs")
@@ -66,35 +65,35 @@ func (p *Pipe) SetBackward() {
 	p.backward = true
 }
 
-// SetUseIndexCounter sets the pipe to use an index counter if possible,
-// meaning the loop counter is also used as an index for accessing the slice data.
-// This clever trick is slower on modern processors, but it is still necessary on 386.
-// On non-386 systems, SetUseIndexCounter is a no-op.
+// SetUseIndexCounter 使 pipe 在可能的情况下使用索引计数器，
+// 这意味着循环计数器同时用作访问切片数据的索引。
+// 这个巧妙的技巧在现代处理器上较慢，但在 386 上仍然是必需的。
+// 在非 386 系统上，SetUseIndexCounter 是空操作。
 func (p *Pipe) SetUseIndexCounter() {
-	if p.f.Asm.Arch.memIndex == nil { // need memIndex (only 386 provides it)
+	if p.f.Asm.Arch.memIndex == nil { // 需要 memIndex（只有 386 提供它）
 		return
 	}
 	p.useIndexCounter = true
 }
 
-// SetLabel sets the label prefix for the loops emitted by the pipe.
-// The default prefix is "loop".
+// SetLabel 设置 pipe 所发出循环的标签前缀。
+// 默认前缀是 "loop"。
 func (p *Pipe) SetLabel(label string) {
 	p.label = label
 }
 
-// SetMaxColumns sets the maximum number of
-// columns processed in a single loop body call.
+// SetMaxColumns 设置在单次循环体调用中
+// 处理的最大列数。
 func (p *Pipe) SetMaxColumns(m int) {
 	p.maxColumns = m
 }
 
-// SetHint records that the inputs from the named vector
-// should be allocated with the given register hint.
+// SetHint 记录来自命名向量的输入
+// 应使用给定的寄存器提示进行分配。
 //
-// If the hint indicates a single register on the target architecture,
-// then SetHint calls SetMaxColumns(1), since the hinted register
-// can only be used for one value at a time.
+// 如果该提示在目标架构上指示单个寄存器，
+// 那么 SetHint 会调用 SetMaxColumns(1)，因为被提示的寄存器
+// 一次只能用于一个值。
 func (p *Pipe) SetHint(name string, hint Hint) {
 	if hint == HintMemOK && !p.f.Asm.Arch.memOK {
 		return
@@ -112,21 +111,21 @@ func (p *Pipe) SetHint(name string, hint Hint) {
 	p.hints[i] = hint
 }
 
-// LoadPtrs loads the slice pointer arguments into registers,
-// assuming that the slice length n has already been loaded
-// into the register n.
+// LoadPtrs 将切片指针参数加载到寄存器中，
+// 假定切片长度 n 已经加载到
+// 寄存器 n 中。
 //
-// Start will call LoadPtrs if it has not been called already.
-// LoadPtrs only needs to be called explicitly when code needs
-// to use LoadN before Start, like when the shift.go generators
-// read an initial word before the loop.
+// 如果尚未调用，Start 会调用 LoadPtrs。
+// 只有当代码需要在 Start 之前使用 LoadN 时，
+// 才需要显式调用 LoadPtrs，比如 shift.go 的生成器
+// 在循环之前读取初始字时。
 func (p *Pipe) LoadPtrs(n Reg) {
 	a := p.f.Asm
 	if p.loaded {
 		a.Fatalf("pointers already loaded")
 	}
 
-	// Load the actual pointers.
+	// 加载实际的指针。
 	p.loaded = true
 	for _, name := range p.f.inputs {
 		p.inPtr = append(p.inPtr, RegPtr(p.f.Arg(name+"_base")))
@@ -135,25 +134,25 @@ func (p *Pipe) LoadPtrs(n Reg) {
 		p.outPtr = append(p.outPtr, RegPtr(p.f.Arg(name+"_base")))
 	}
 
-	// Decide the memory access strategy for LoadN and StoreN.
+	// 决定 LoadN 和 StoreN 的内存访问策略。
 	switch {
 	case p.backward && p.useIndexCounter:
-		// Generator wants an index counter, meaning when the iteration counter
-		// is AX, we will access the slice with pointer BX using (BX)(AX*WordBytes).
-		// The loop is moving backward through the slice, but the counter
-		// is also moving backward, so not much to do.
+		// 生成器想要一个索引计数器，这意味着当迭代计数器
+		// 为 AX 时，我们将使用 (BX)(AX*WordBytes) 通过指针 BX 访问切片。
+		// 循环在切片中向后移动，但计数器
+		// 也在向后移动，所以没什么要做的。
 		a.Comment("run loop backward, using counter as positive index")
 		p.indexCounter = +1
 		p.index = n
 
 	case !p.backward && p.useIndexCounter:
-		// Generator wants an index counter, but the loop is moving forward.
-		// To make the counter move in the direction of data access,
-		// we negate the counter, counting up from -len(z) to -1.
-		// To make the index access the right words, we add len(z)*WordBytes
-		// to each of the pointers.
-		// See comment below about the garbage collector (non-)implications
-		// of pointing beyond the slice bounds.
+		// 生成器想要一个索引计数器，但循环在向前移动。
+		// 为了使计数器沿数据访问的方向移动，
+		// 我们取反计数器，从 -len(z) 向上计数到 -1。
+		// 为了使索引访问到正确的字，我们将 len(z)*WordBytes
+		// 加到每个指针上。
+		// 关于指向切片边界之外对垃圾回收器的（非）影响，
+		// 见下面的注释。
 		a.Comment("use counter as negative index")
 		p.indexCounter = -1
 		p.index = n
@@ -166,19 +165,19 @@ func (p *Pipe) LoadPtrs(n Reg) {
 		a.Neg(n, n)
 
 	case p.backward:
-		// Generator wants to run the loop backward.
-		// We'll decrement the pointers before using them,
-		// so position them at the very end of the slices.
-		// If we had precise pointer information for assembly,
-		// these pointers would cause problems with the garbage collector,
-		// since they no longer point into the allocated slice,
-		// but the garbage collector ignores unexpected values in assembly stacks,
-		// and the actual slice pointers are still in the argument stack slots,
-		// so the slices won't be collected early.
-		// If we switched to the register ABI, we might have to rethink this.
-		// (The same thing happens by the end of forward loops,
-		// but it's less important since once the pointers go off the slice
-		// in a forward loop, the loop is over and the slice won't be accessed anymore.)
+		// 生成器想要向后运行循环。
+		// 我们会在使用指针之前递减它们，
+		// 因此将它们定位在切片的最末端。
+		// 如果我们有用于汇编的精确指针信息，
+		// 这些指针会给垃圾回收器带来问题，
+		// 因为它们不再指向已分配的切片，
+		// 但垃圾回收器会忽略汇编栈中出乎意料的值，
+		// 而实际的切片指针仍然在参数栈槽中，
+		// 所以切片不会被提前回收。
+		// 如果我们改用寄存器 ABI，可能就得重新考虑这一点。
+		// （在向前循环结束时也会发生同样的事，
+		// 但那没那么重要，因为在向前循环中一旦指针越出切片，
+		// 循环就结束了，切片也不会再被访问。）
 		a.Comment("run loop backward")
 		for _, ptr := range p.inPtr {
 			a.AddWords(n, ptr, ptr)
@@ -188,13 +187,13 @@ func (p *Pipe) LoadPtrs(n Reg) {
 		}
 
 	case !p.backward:
-		// Nothing to do!
+		// 无需做任何事！
 	}
 }
 
-// LoadN returns the next n columns of input words as a slice of rows.
-// Regs for inputs that have been marked using p.SetMemOK will be direct memory references.
-// Regs for other inputs will be newly allocated registers and must be freed.
+// LoadN 以行的切片形式返回接下来的 n 列输入字。
+// 使用 p.SetMemOK 标记过的输入的 Reg 将是直接内存引用。
+// 其他输入的 Reg 将是新分配的寄存器，必须释放。
 func (p *Pipe) LoadN(n int) [][]Reg {
 	a := p.f.Asm
 	regs := make([][]Reg, len(p.inPtr))
@@ -202,7 +201,7 @@ func (p *Pipe) LoadN(n int) [][]Reg {
 		regs[i] = make([]Reg, n)
 		switch {
 		case a.Arch.loadIncN != nil:
-			// Load from memory and advance pointers at the same time.
+			// 从内存加载并同时推进指针。
 			for j := range regs[i] {
 				regs[i][j] = p.f.Asm.Reg()
 			}
@@ -213,8 +212,8 @@ func (p *Pipe) LoadN(n int) [][]Reg {
 			}
 
 		default:
-			// Load from memory using offsets.
-			// We'll advance the pointers or the index counter later.
+			// 使用偏移量从内存加载。
+			// 我们稍后会推进指针或索引计数器。
 			for j := range n {
 				off := p.readOff + j
 				if p.backward {
@@ -244,7 +243,7 @@ func (p *Pipe) LoadN(n int) [][]Reg {
 	return regs
 }
 
-// StoreN writes regs (a slice of rows) to the next n columns of output, where n = len(regs[0]).
+// StoreN 将 regs（行的切片）写入接下来的 n 列输出，其中 n = len(regs[0])。
 func (p *Pipe) StoreN(regs [][]Reg) {
 	p.needWrite = false
 	a := p.f.Asm
@@ -255,7 +254,7 @@ func (p *Pipe) StoreN(regs [][]Reg) {
 	for i, ptr := range p.outPtr {
 		switch {
 		case a.Arch.storeIncN != nil:
-			// Store to memory and advance pointers at the same time.
+			// 存储到内存并同时推进指针。
 			if p.backward {
 				a.Arch.storeDecN(a, ptr, regs[i])
 			} else {
@@ -263,8 +262,8 @@ func (p *Pipe) StoreN(regs [][]Reg) {
 			}
 
 		default:
-			// Store to memory using offsets.
-			// We'll advance the pointers or the index counter later.
+			// 使用偏移量存储到内存。
+			// 我们稍后会推进指针或索引计数器。
 			for j, r := range regs[i] {
 				off := p.writeOff + j
 				if p.backward {
@@ -283,22 +282,22 @@ func (p *Pipe) StoreN(regs [][]Reg) {
 	p.writeOff += n
 }
 
-// advancePtrs advances the pointers by step
-// or handles bookkeeping for an imminent index advance by step
-// that the caller will do.
+// advancePtrs 将指针推进 step，
+// 或者为调用者即将执行的索引推进 step
+// 处理簿记工作。
 func (p *Pipe) advancePtrs(step int) {
 	a := p.f.Asm
 	switch {
 	case a.Arch.loadIncN != nil:
-		// nothing to do
+		// 无需做任何事
 
 	default:
-		// Adjust read/write offsets for pointer advance (or imminent index advance).
+		// 为指针推进（或即将进行的索引推进）调整读/写偏移量。
 		p.readOff -= step
 		p.writeOff -= step
 
 		if p.indexCounter == 0 {
-			// Advance pointers.
+			// 推进指针。
 			if p.backward {
 				step = -step
 			}
@@ -312,9 +311,9 @@ func (p *Pipe) advancePtrs(step int) {
 	}
 }
 
-// DropInput deletes the named input from the pipe,
-// usually because it has been exhausted.
-// (This is not used yet but will be used in a future generator.)
+// DropInput 从 pipe 中删除命名输入，
+// 通常是因为它已被耗尽。
+// （这尚未使用，但会在未来的生成器中使用。）
 func (p *Pipe) DropInput(name string) {
 	i := slices.Index(p.f.inputs, name)
 	if i < 0 {
@@ -329,26 +328,25 @@ func (p *Pipe) DropInput(name string) {
 	}
 }
 
-// Start prepares to loop over n columns.
-// The factors give a sequence of unrolling factors to use,
-// which must be either strictly increasing or strictly decreasing
-// and must include 1.
-// For example, 4, 1 means to process 4 elements at a time
-// and then 1 at a time for the final 0-3; specifying 1,4 instead
-// handles 0-3 elements first and then 4 at a time.
-// Similarly, 32, 4, 1 means to process 32 at a time,
-// then 4 at a time, then 1 at a time.
+// Start 准备对 n 列进行循环。
+// factors 给出要使用的一系列展开因子，
+// 它必须严格递增或严格递减，
+// 并且必须包含 1。
+// 例如，4, 1 表示一次处理 4 个元素，
+// 然后对最后 0-3 个一次处理 1 个；改为指定 1,4
+// 则先处理 0-3 个元素，然后一次处理 4 个。
+// 类似地，32, 4, 1 表示一次处理 32 个，
+// 然后一次 4 个，然后一次 1 个。
 //
-// One benefit of using 1, 4 instead of 4, 1 is that the body
-// processing 4 at a time needs more registers, and if it is
-// the final body, the register holding the fragment count (0-3)
-// has been freed and is available for use.
+// 使用 1, 4 而非 4, 1 的一个好处是：一次处理 4 个的
+// 主体需要更多寄存器，而如果它是最后一个主体，
+// 保存片段计数（0-3）的寄存器已被释放，可供使用。
 //
-// Start may modify the carry flag.
+// Start 可能修改进位标志。
 //
-// Start must be followed by a call to Loop1 or LoopN,
-// but it is permitted to emit other instructions first,
-// for example to set an initial carry flag.
+// Start 之后必须调用 Loop1 或 LoopN，
+// 但允许先发出其他指令，
+// 例如设置初始进位标志。
 func (p *Pipe) Start(n Reg, factors ...int) {
 	a := p.f.Asm
 	if p.started {
@@ -365,20 +363,20 @@ func (p *Pipe) Start(n Reg, factors ...int) {
 		p.LoadPtrs(n)
 	}
 
-	// If there were calls to LoadN between LoadPtrs and Start,
-	// adjust the loop not to scan those columns, assuming that
-	// either the code already called an equivalent StoreN or else
-	// that it will do so after the loop.
+	// 如果在 LoadPtrs 和 Start 之间调用了 LoadN，
+	// 则调整循环使其不扫描那些列，假定
+	// 代码已经调用了等效的 StoreN，或者
+	// 将在循环之后调用。
 	if off := p.readOff; off != 0 {
 		if p.indexCounter < 0 {
-			// Index is negated, so add off instead of subtracting.
+			// 索引被取反了，所以加 off 而不是减。
 			a.Add(a.Imm(off), n, n, SmashCarry)
 		} else {
 			a.Sub(a.Imm(off), n, n, SmashCarry)
 		}
 		if p.indexCounter != 0 {
-			// n is also the index we are using, so adjust readOff and writeOff
-			// to continue to point at the same positions as before we changed n.
+			// n 也是我们正在使用的索引，所以调整 readOff 和 writeOff，
+			// 使其继续指向我们改变 n 之前相同的位置。
 			p.readOff -= off
 			p.writeOff -= off
 		}
@@ -387,8 +385,8 @@ func (p *Pipe) Start(n Reg, factors ...int) {
 	p.Restart(n, factors...)
 }
 
-// Restart prepares to loop over an additional n columns,
-// beyond a previous loop run by p.Start/p.Loop.
+// Restart 准备在 p.Start/p.Loop 先前运行的循环之外，
+// 再对额外的 n 列进行循环。
 func (p *Pipe) Restart(n Reg, factors ...int) {
 	a := p.f.Asm
 	if !p.started {
@@ -400,9 +398,9 @@ func (p *Pipe) Restart(n Reg, factors ...int) {
 		factors = []int{1}
 	}
 
-	// Compute the loop lengths for each unrolled section into separate registers.
-	// We compute them all ahead of time in case the computation would smash
-	// a carry flag that the loop bodies need preserved.
+	// 将每个展开段的循环长度计算到单独的寄存器中。
+	// 我们提前把它们全部计算好，以防该计算会破坏
+	// 循环体需要保留的进位标志。
 	if len(factors) > 1 {
 		a.Comment("compute unrolled loop lengths")
 	}
@@ -411,7 +409,7 @@ func (p *Pipe) Restart(n Reg, factors ...int) {
 		a.Fatalf("invalid factors %v", factors)
 
 	case factors[0] == 1:
-		// increasing loop factors
+		// 递增的循环因子
 		div := 1
 		for i, f := range factors[1:] {
 			if f <= factors[i] {
@@ -430,7 +428,7 @@ func (p *Pipe) Restart(n Reg, factors ...int) {
 		p.counts[len(p.counts)-1] = n
 
 	case factors[len(factors)-1] == 1:
-		// decreasing loop factors
+		// 递减的循环因子
 		for i, f := range factors[:len(factors)-1] {
 			if f <= factors[i+1] {
 				a.Fatalf("non-decreasing factors %v", factors)
@@ -447,7 +445,7 @@ func (p *Pipe) Restart(n Reg, factors ...int) {
 	}
 }
 
-// Done frees all the registers allocated by the pipe.
+// Done 释放 pipe 分配的所有寄存器。
 func (p *Pipe) Done() {
 	for _, ptr := range p.inPtr {
 		p.f.Asm.Free(Reg(ptr))
@@ -460,26 +458,26 @@ func (p *Pipe) Done() {
 	p.index = Reg{}
 }
 
-// Loop emits code for the loop, calling block repeatedly to emit code that
-// handles a block of N input columns (for arbitrary N = len(in[0]) chosen by p).
-// block must call p.StoreN(out) to write N output columns.
-// The out slice is a pre-allocated matrix of uninitialized Reg values.
-// block is expected to set each entry to the Reg that should be written
-// before calling p.StoreN(out).
+// Loop 发出循环代码，反复调用 block 以发出处理
+// N 个输入列（N 为任意的 N = len(in[0])，由 p 选择）的代码。
+// block 必须调用 p.StoreN(out) 来写入 N 个输出列。
+// out 切片是一个预分配的、未初始化 Reg 值的矩阵。
+// 预期 block 在调用 p.StoreN(out) 之前将每个条目
+// 设置为应写入的 Reg。
 //
-// For example, if the loop is to be unrolled 4x in blocks of 2 columns each,
-// the sequence of calls to emit the unrolled loop body is:
+// 例如，如果循环要以每块 2 列的方式展开 4 次，
+// 发出展开循环体的调用序列是：
 //
-//	start()  // set by pAtUnrollStart
-//	... reads for 2 columns ...
+//	start()  // 由 pAtUnrollStart 设置
+//	... 2 列的读取 ...
 //	block()
-//	... writes for 2 columns ...
-//	... reads for 2 columns ...
+//	... 2 列的写入 ...
+//	... 2 列的读取 ...
 //	block()
-//	... writes for 2 columns ...
-//	end()  // set by p.AtUnrollEnd
+//	... 2 列的写入 ...
+//	end()  // 由 p.AtUnrollEnd 设置
 //
-// Any registers allocated during block are freed automatically when block returns.
+// block 期间分配的任何寄存器在 block 返回时自动释放。
 func (p *Pipe) Loop(block func(in, out [][]Reg)) {
 	if p.factors == nil {
 		p.f.Asm.Fatalf("Pipe.Start not called")
@@ -494,24 +492,24 @@ func (p *Pipe) Loop(block func(in, out [][]Reg)) {
 	p.factors = nil
 }
 
-// AtUnrollStart sets a function to call at the start of an unrolled sequence.
-// See [Pipe.Loop] for details.
+// AtUnrollStart 设置在展开序列开始时调用的函数。
+// 详情见 [Pipe.Loop]。
 func (p *Pipe) AtUnrollStart(start func()) {
 	p.unrollStart = start
 }
 
-// AtUnrollEnd sets a function to call at the end of an unrolled sequence.
-// See [Pipe.Loop] for details.
+// AtUnrollEnd 设置在展开序列结束时调用的函数。
+// 详情见 [Pipe.Loop]。
 func (p *Pipe) AtUnrollEnd(end func()) {
 	p.unrollEnd = end
 }
 
-// unroll emits a single unrolled loop for the given factor, iterating n times.
+// unroll 为给定因子发出单个展开循环，迭代 n 次。
 func (p *Pipe) unroll(n Reg, factor int, block func(in, out [][]Reg)) {
 	a := p.f.Asm
 	label := fmt.Sprintf("%s%d", p.label, factor)
 
-	// Top of loop control flow.
+	// 循环控制流的顶部。
 	a.Label(label)
 	if a.Arch.loopTop != "" {
 		a.Printf("\t"+a.Arch.loopTop+"\n", n, label+"done")
@@ -520,7 +518,7 @@ func (p *Pipe) unroll(n Reg, factor int, block func(in, out [][]Reg)) {
 	}
 	a.Label(label + "cont")
 
-	// Unrolled loop body.
+	// 展开的循环体。
 	if factor < p.maxColumns {
 		a.Comment("unroll %dX", factor)
 	} else {
@@ -542,7 +540,7 @@ func (p *Pipe) unroll(n Reg, factor int, block func(in, out [][]Reg)) {
 		if p.needWrite && len(p.outPtr) > 0 {
 			a.Fatalf("missing p.Write1 or p.StoreN")
 		}
-		a.SetRegsUsed(regs) // free anything block allocated
+		a.SetRegsUsed(regs) // 释放 block 分配的任何东西
 		done += batch
 	}
 	if p.unrollEnd != nil {
@@ -550,7 +548,7 @@ func (p *Pipe) unroll(n Reg, factor int, block func(in, out [][]Reg)) {
 	}
 	p.advancePtrs(factor)
 
-	// Bottom of loop control flow.
+	// 循环控制流的底部。
 	switch {
 	case p.indexCounter >= 0 && a.Arch.loopBottom != "":
 		a.Printf("\t"+a.Arch.loopBottom+"\n", n, label+"cont")

@@ -4,8 +4,8 @@
 
 package math
 
-// The go code is a modified version of the original C code from
-// http://www.netlib.org/fdlibm/s_cbrt.c and came with this notice.
+// Go 代码是来自 http://www.netlib.org/fdlibm/s_cbrt.c 的原始 C 代码的
+// 修改版本，并附带下述声明。
 //
 // ====================================================
 // Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -16,9 +16,9 @@ package math
 // is preserved.
 // ====================================================
 
-// Cbrt returns the cube root of x.
+// Cbrt 返回 x 的立方根。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Cbrt(±0) = ±0
 //	Cbrt(±Inf) = ±Inf
@@ -41,7 +41,7 @@ func cbrt(x float64) float64 {
 		G              = 3.57142857142857150787e-01  // 5/14      = 0x3FD6DB6DB6DB6DB7
 		SmallestNormal = 2.22507385850720138309e-308 // 2**-1022  = 0x0010000000000000
 	)
-	// special cases
+	// 特殊情况
 	switch {
 	case x == 0 || IsNaN(x) || IsInf(x, 0):
 		return x
@@ -53,31 +53,31 @@ func cbrt(x float64) float64 {
 		sign = true
 	}
 
-	// rough cbrt to 5 bits
+	// 粗略计算 cbrt 至 5 位
 	t := Float64frombits(Float64bits(x)/3 + B1<<32)
 	if x < SmallestNormal {
-		// subnormal number
-		t = float64(1 << 54) // set t= 2**54
+		// 非规格化数
+		t = float64(1 << 54) // 令 t= 2**54
 		t *= x
 		t = Float64frombits(Float64bits(t)/3 + B2<<32)
 	}
 
-	// new cbrt to 23 bits
+	// 新的 cbrt 精确到 23 位
 	r := t * t / x
 	s := C + r*t
 	t *= G + F/(s+E+D/s)
 
-	// chop to 22 bits, make larger than cbrt(x)
+	// 截断到 22 位，使其大于 cbrt(x)
 	t = Float64frombits(Float64bits(t)&(0xFFFFFFFFC<<28) + 1<<30)
 
-	// one step newton iteration to 53 bits with error less than 0.667ulps
-	s = t * t // t*t is exact
+	// 一步牛顿迭代至 53 位，误差小于 0.667ulps
+	s = t * t // t*t 是精确的
 	r = x / s
 	w := t + t
-	r = (r - t) / (w + r) // r-s is exact
+	r = (r - t) / (w + r) // r-s 是精确的
 	t = t + t*r
 
-	// restore the sign bit
+	// 恢复符号位
 	if sign {
 		t = -t
 	}

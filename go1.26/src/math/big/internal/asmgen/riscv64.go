@@ -11,14 +11,14 @@ var ArchRISCV64 = &Arch{
 	CarrySafeLoop: true,
 
 	regs: []string{
-		// X0 is zero.
-		// X1 is LR.
-		// X2 is SP.
-		// X3 is SB.
-		// X4 is TP.
-		// X27 is g.
-		// X28 and X29 are our virtual carry flags.
-		// X31 is the assembler/linker temporary (which we use too).
+		// X0 是零。
+		// X1 是 LR。
+		// X2 是 SP。
+		// X3 是 SB。
+		// X4 是 TP。
+		// X27 是 g。
+		// X28 和 X29 是我们的虚拟进位标志。
+		// X31 是汇编器/链接器临时寄存器（我们也使用它）。
 		"X5", "X6", "X7", "X8", "X9",
 		"X10", "X11", "X12", "X13", "X14", "X15", "X16", "X17", "X18", "X19",
 		"X20", "X21", "X22", "X23", "X24", "X25", "X26",

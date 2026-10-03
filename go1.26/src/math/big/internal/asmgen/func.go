@@ -10,20 +10,20 @@ import (
 	"strings"
 )
 
-// Note: Exported fields and methods are expected to be used
-// by function generators (like the ones in add.go and so on).
-// Unexported fields and methods should not be.
+// 注意：导出的字段和方法预期由函数生成器
+// （如 add.go 等文件中的那些）使用。
+// 未导出的字段和方法则不应被使用。
 
-// A Func represents a single assembly function.
+// Func 表示单个汇编函数。
 type Func struct {
 	Name    string
 	Asm     *Asm
-	inputs  []string       // name of input slices (not beginning with z)
-	outputs []string       // names of output slices (beginning with z)
-	args    map[string]int // offsets of args, results on stack
+	inputs  []string       // 输入切片名称（不以 z 开头）
+	outputs []string       // 输出切片名称（以 z 开头）
+	args    map[string]int // 参数、结果在栈上的偏移量
 }
 
-// Func starts a new function in the assembly output.
+// Func 在汇编输出中开始一个新函数。
 func (a *Asm) Func(decl string) *Func {
 	d, ok := strings.CutPrefix(decl, "func ")
 	if !ok {
@@ -40,13 +40,13 @@ func (a *Asm) Func(decl string) *Func {
 	}
 	a.FreeAll()
 
-	// Parse argument names and types. Quick and dirty.
-	// Convert (args) (results) into args, results.
+	// 解析参数名称和类型。简单粗暴。
+	// 将 (args) (results) 转换为 args, results。
 	d = strings.ReplaceAll(d, ") (", ", ")
 	d = strings.TrimSuffix(d, ")")
 	args := strings.Split(d, ",")
 
-	// Assign implicit types to all arguments (x, y int -> x int, y int).
+	// 为所有参数分配隐式类型（x, y int -> x int, y int）。
 	typ := ""
 	for i, arg := range slices.Backward(args) {
 		arg = strings.TrimSpace(arg)
@@ -61,7 +61,7 @@ func (a *Asm) Func(decl string) *Func {
 		args[i] = arg
 	}
 
-	// Record mapping from names to offsets.
+	// 记录从名称到偏移量的映射。
 	off := 0
 	for _, arg := range args {
 		name, typ, _ := strings.Cut(arg, " ")
@@ -93,13 +93,13 @@ func (a *Asm) Func(decl string) *Func {
 	return f
 }
 
-// Arg allocates a new register, copies the named argument (or result) into it,
-// and returns that register.
+// Arg 分配一个新寄存器，将命名参数（或结果）复制到其中，
+// 并返回该寄存器。
 func (f *Func) Arg(name string) Reg {
 	return f.ArgHint(name, HintNone)
 }
 
-// ArgHint is like Arg but uses a register allocation hint.
+// ArgHint 类似 Arg，但使用寄存器分配提示。
 func (f *Func) ArgHint(name string, hint Hint) Reg {
 	off, ok := f.args[name]
 	if !ok {
@@ -114,12 +114,12 @@ func (f *Func) ArgHint(name string, hint Hint) Reg {
 	return r
 }
 
-// ArgPtr is like Arg but returns a RegPtr.
+// ArgPtr 类似 Arg，但返回 RegPtr。
 func (f *Func) ArgPtr(name string) RegPtr {
 	return RegPtr(f.Arg(name))
 }
 
-// StoreArg stores src into the named argument (or result).
+// StoreArg 将 src 存储到命名参数（或结果）中。
 func (f *Func) StoreArg(src Reg, name string) {
 	off, ok := f.args[name]
 	if !ok {

@@ -4,11 +4,10 @@
 
 //go:build ignore
 
-// This program can be compiled with -S to produce a “cheat sheet”
-// for filling out a new Arch: the compiler will show you how to implement
-// the various operations.
+// 本程序可以用 -S 编译，生成一份用于填写新 Arch 的“速查表”：
+// 编译器会向你展示如何实现各种操作。
 //
-// Usage (replace TARGET with your target architecture):
+// 用法（将 TARGET 替换为你的目标架构）：
 //
 //	GOOS=linux GOARCH=TARGET go build -gcflags='-p=cheat -S' cheat.go
 
@@ -36,19 +35,19 @@ func loop(x int) int {
 	s := 0
 	for i := 1; i < x; i++ {
 		s += i
-		if s == 98 { // useful for jmpEqual
+		if s == 98 { // 对 jmpEqual 有用
 			return 99
 		}
 		if s == 99 {
 			return 100
 		}
-		if s == 0 { // useful for jmpZero
+		if s == 0 { // 对 jmpZero 有用
 			return 101
 		}
-		if s != 0 { // useful for jmpNonZero
+		if s != 0 { // 对 jmpNonZero 有用
 			s *= 3
 		}
-		s += 2 // keep last condition from being inverted
+		s += 2 // 使最后一个条件不会被反转
 	}
 	return s
 }

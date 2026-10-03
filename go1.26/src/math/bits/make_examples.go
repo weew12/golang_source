@@ -4,7 +4,7 @@
 
 //go:build ignore
 
-// This program generates example_test.go.
+// 此程序生成 example_test.go。
 
 package main
 
@@ -78,7 +78,7 @@ func main() {
 	} {
 		for i, size := range []int{8, 16, 32, 64} {
 			if e.out[i] == nil {
-				continue // function doesn't exist
+				continue // 函数不存在
 			}
 			f := fmt.Sprintf("%s%d", e.name, size)
 			fmt.Fprintf(w, "\nfunc Example%s() {\n", f)

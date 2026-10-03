@@ -4,10 +4,10 @@
 
 package math
 
-// Modf returns integer and fractional floating-point numbers
-// that sum to f. Both values have the same sign as f.
+// Modf 返回相加等于 f 的整数部分和小数部分浮点数。
+// 两个值的符号都与 f 相同。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Modf(±Inf) = ±Inf, NaN
 //	Modf(NaN) = NaN, NaN

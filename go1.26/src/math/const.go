@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package math provides basic constants and mathematical functions.
+// math 包提供基本的常量和数学函数。
 //
-// This package does not guarantee bit-identical results across architectures.
+// 本包不保证跨架构的位完全一致结果。
 package math
 
-// Mathematical constants.
+// 数学常量。
 const (
 	E   = 2.71828182845904523536028747135266249775724709369995957496696763 // https://oeis.org/A001113
 	Pi  = 3.14159265358979323846264338327950288419716939937510582097494459 // https://oeis.org/A000796
@@ -24,9 +24,9 @@ const (
 	Log10E = 1 / Ln10
 )
 
-// Floating-point limit values.
-// Max is the largest finite value representable by the type.
-// SmallestNonzero is the smallest positive, non-zero value representable by the type.
+// 浮点极限值。
+// Max 是该类型可表示的最大有限值。
+// SmallestNonzero 是该类型可表示的最小正非零值。
 const (
 	MaxFloat32             = 0x1p127 * (1 + (1 - 0x1p-23)) // 3.40282346638528859811704183484516925440e+38
 	SmallestNonzeroFloat32 = 0x1p-126 * 0x1p-23            // 1.401298464324817070923729583289916131280e-45
@@ -35,12 +35,12 @@ const (
 	SmallestNonzeroFloat64 = 0x1p-1022 * 0x1p-52            // 4.9406564584124654417656879286822137236505980e-324
 )
 
-// Integer limit values.
+// 整数极限值。
 const (
-	intSize = 32 << (^uint(0) >> 63) // 32 or 64
+	intSize = 32 << (^uint(0) >> 63) // 32 或 64
 
-	MaxInt    = 1<<(intSize-1) - 1  // MaxInt32 or MaxInt64 depending on intSize.
-	MinInt    = -1 << (intSize - 1) // MinInt32 or MinInt64 depending on intSize.
+	MaxInt    = 1<<(intSize-1) - 1  // MaxInt32 或 MaxInt64，取决于 intSize。
+	MinInt    = -1 << (intSize - 1) // MinInt32 或 MinInt64，取决于 intSize。
 	MaxInt8   = 1<<7 - 1            // 127
 	MinInt8   = -1 << 7             // -128
 	MaxInt16  = 1<<15 - 1           // 32767
@@ -49,7 +49,7 @@ const (
 	MinInt32  = -1 << 31            // -2147483648
 	MaxInt64  = 1<<63 - 1           // 9223372036854775807
 	MinInt64  = -1 << 63            // -9223372036854775808
-	MaxUint   = 1<<intSize - 1      // MaxUint32 or MaxUint64 depending on intSize.
+	MaxUint   = 1<<intSize - 1      // MaxUint32 或 MaxUint64，取决于 intSize。
 	MaxUint8  = 1<<8 - 1            // 255
 	MaxUint16 = 1<<16 - 1           // 65535
 	MaxUint32 = 1<<32 - 1           // 4294967295

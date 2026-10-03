@@ -12,16 +12,16 @@ var ArchAMD64 = &Arch{
 	regs: []string{
 		"BX", "SI", "DI",
 		"R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15",
-		"AX", "DX", "CX", // last to leave available for hinted allocation
+		"AX", "DX", "CX", // 放在最后，以留作带提示的分配使用
 	},
 	op3:              x86Op3,
 	hint:             x86Hint,
 	memOK:            true,
 	subCarryIsBorrow: true,
 
-	// Note: Not setting memIndex, because code generally runs faster
-	// if we avoid the use of scaled-index memory references,
-	// particularly in ADX instructions.
+	// 注意：不设置 memIndex，因为如果避免使用
+	// 比例索引内存引用，代码通常运行得更快，
+	// 尤其是在 ADX 指令中。
 
 	options: map[Option]func(*Asm, string){
 		OptionAltCarry: amd64JmpADX,
@@ -58,11 +58,11 @@ func amd64JmpADX(a *Asm, label string) {
 
 func amd64Add(a *Asm, src1, src2 Reg, dst Reg, carry Carry) bool {
 	if a.Enabled(OptionAltCarry) {
-		// If OptionAltCarry is enabled, the generator is emitting ADD instructions
-		// both with and without the AltCarry flag set; the AltCarry flag means to
-		// use ADOX. Otherwise we have to use ADCX.
-		// Using regular ADD/ADC would smash both carry flags,
-		// so we reject anything we can't handled with ADCX/ADOX.
+		// 如果启用了 OptionAltCarry，生成器会同时发出
+		// 设置了和未设置 AltCarry 标志的 ADD 指令；AltCarry 标志表示
+		// 使用 ADOX。否则我们必须使用 ADCX。
+		// 使用常规的 ADD/ADC 会破坏两个进位标志，
+		// 因此我们拒绝任何无法用 ADCX/ADOX 处理的情况。
 		if carry&UseCarry != 0 && carry&(SetCarry|SmashCarry) != 0 {
 			if carry&AltCarry != 0 {
 				a.op3("ADOXQ", src1, src2, dst)
@@ -72,7 +72,7 @@ func amd64Add(a *Asm, src1, src2 Reg, dst Reg, carry Carry) bool {
 			return true
 		}
 		if carry&(SetCarry|UseCarry) == SetCarry && a.IsZero(src1) && src2 == dst {
-			// Clearing carry flag. Caller will add EOL comment.
+			// 清除进位标志。调用者将添加 EOL 注释。
 			a.Printf("\tTESTQ AX, AX\n")
 			return true
 		}
@@ -83,11 +83,11 @@ func amd64Add(a *Asm, src1, src2 Reg, dst Reg, carry Carry) bool {
 	return false
 }
 
-// The x86-prefixed functions are shared with Arch386 in 386.go.
+// 以 x86 为前缀的函数与 386.go 中的 Arch386 共享。
 
 func x86Op3(name string) bool {
-	// As far as a.op3 is concerned, there are no 3-op instructions.
-	// (We print instructions like MULX ourselves.)
+	// 就 a.op3 而言，不存在三操作数指令。
+	// （像 MULX 这样的指令由我们自己打印。）
 	return false
 }
 
@@ -96,12 +96,12 @@ func x86Hint(a *Asm, h Hint) string {
 	case HintShiftCount:
 		return "CX"
 	case HintMulSrc:
-		if a.Enabled(OptionAltCarry) { // using MULX
+		if a.Enabled(OptionAltCarry) { // 使用 MULX
 			return "DX"
 		}
 		return "AX"
 	case HintMulHi:
-		if a.Enabled(OptionAltCarry) { // using MULX
+		if a.Enabled(OptionAltCarry) { // 使用 MULX
 			return ""
 		}
 		return "DX"
@@ -110,7 +110,7 @@ func x86Hint(a *Asm, h Hint) string {
 }
 
 func x86Suffix(a *Asm) string {
-	// Note: Not using a.Arch == Arch386 to avoid init cycle.
+	// 注意：不使用 a.Arch == Arch386，以避免初始化循环。
 	if a.Arch.Name == "386" {
 		return "L"
 	}
@@ -119,7 +119,7 @@ func x86Suffix(a *Asm) string {
 
 func x86MulWide(a *Asm, src1, src2, dstlo, dsthi Reg) {
 	if a.Enabled(OptionAltCarry) {
-		// Using ADCX/ADOX; use MULX to avoid clearing carry flag.
+		// 使用 ADCX/ADOX；用 MULX 以避免清除进位标志。
 		if src1.name != "DX" {
 			if src2.name != "DX" {
 				a.Fatalf("mul src1 or src2 must be DX")

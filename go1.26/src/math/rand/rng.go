@@ -5,10 +5,10 @@
 package rand
 
 /*
- * Uniform distribution
+ * 均匀分布
  *
- * algorithm by
- * DP Mitchell and JA Reeds
+ * 算法由
+ * DP Mitchell 和 JA Reeds 提出
  */
 
 const (
@@ -20,7 +20,7 @@ const (
 )
 
 var (
-	// rngCooked used for seeding. See gen_cooked.go for details.
+	// rngCooked 用于播种。详见 gen_cooked.go。
 	rngCooked [rngLen]int64 = [...]int64{
 		-4181792142133755926, -4576982950128230565, 1395769623340756751, 5333664234075297259,
 		-6347679516498800754, 9033628115061424579, 7143218595135194537, 4812947590706362721,
@@ -178,12 +178,12 @@ var (
 )
 
 type rngSource struct {
-	tap  int           // index into vec
-	feed int           // index into vec
-	vec  [rngLen]int64 // current feedback register
+	tap  int           // vec 的索引
+	feed int           // vec 的索引
+	vec  [rngLen]int64 // 当前反馈寄存器
 }
 
-// seed rng x[n+1] = 48271 * x[n] mod (2**31 - 1)
+// 为 rng 播种 x[n+1] = 48271 * x[n] mod (2**31 - 1)
 func seedrand(x int32) int32 {
 	const (
 		A = 48271
@@ -200,7 +200,7 @@ func seedrand(x int32) int32 {
 	return x
 }
 
-// Seed uses the provided seed value to initialize the generator to a deterministic state.
+// Seed 使用提供的种子值将生成器初始化为确定性的状态。
 func (rng *rngSource) Seed(seed int64) {
 	rng.tap = 0
 	rng.feed = rngLen - rngTap
@@ -229,12 +229,12 @@ func (rng *rngSource) Seed(seed int64) {
 	}
 }
 
-// Int63 returns a non-negative pseudo-random 63-bit integer as an int64.
+// Int63 以 int64 返回一个非负的伪随机 63 位整数。
 func (rng *rngSource) Int63() int64 {
 	return int64(rng.Uint64() & rngMask)
 }
 
-// Uint64 returns a non-negative pseudo-random 64-bit integer as a uint64.
+// Uint64 以 uint64 返回一个非负的伪随机 64 位整数。
 func (rng *rngSource) Uint64() uint64 {
 	rng.tap--
 	if rng.tap < 0 {

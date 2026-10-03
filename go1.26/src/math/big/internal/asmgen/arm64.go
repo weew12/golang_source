@@ -11,11 +11,11 @@ var ArchARM64 = &Arch{
 	CarrySafeLoop: true,
 
 	regs: []string{
-		// R18 is the platform register.
-		// R27 is the assembler/linker temporary (which we could potentially use but don't).
-		// R28 is g.
-		// R29 is FP.
-		// R30 is LR.
+		// R18 是平台寄存器。
+		// R27 是汇编器/链接器临时寄存器（我们本可以使用但并未使用）。
+		// R28 是 g。
+		// R29 是 FP。
+		// R30 是 LR。
 		"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9",
 		"R10", "R11", "R12", "R13", "R14", "R15", "R16", "R17", "R19",
 		"R20", "R21", "R22", "R23", "R24", "R25", "R26",

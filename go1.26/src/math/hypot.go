@@ -5,13 +5,13 @@
 package math
 
 /*
-	Hypot -- sqrt(p*p + q*q), but overflows only if the result does.
+	Hypot —— sqrt(p*p + q*q)，但仅当结果溢出时才溢出。
 */
 
-// Hypot returns [Sqrt](p*p + q*q), taking care to avoid
-// unnecessary overflow and underflow.
+// Hypot 返回 [Sqrt](p*p + q*q)，并注意避免
+// 不必要的溢出和下溢。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Hypot(±Inf, q) = +Inf
 //	Hypot(p, ±Inf) = +Inf
@@ -26,7 +26,7 @@ func Hypot(p, q float64) float64 {
 
 func hypot(p, q float64) float64 {
 	p, q = Abs(p), Abs(q)
-	// special cases
+	// 特殊情况
 	switch {
 	case IsInf(p, 1) || IsInf(q, 1):
 		return Inf(1)

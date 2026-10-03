@@ -9,9 +9,9 @@ import (
 )
 
 /*
- * Normal distribution
+ * 正态分布
  *
- * See "The Ziggurat Method for Generating Random Variables"
+ * 参见 "The Ziggurat Method for Generating Random Variables"
  * (Marsaglia & Tsang, 2000)
  * http://www.jstatsoft.org/v05/i08/paper [pdf]
  */
@@ -27,26 +27,26 @@ func absInt32(i int32) uint32 {
 	return uint32(i)
 }
 
-// NormFloat64 returns a normally distributed float64 in
-// the range -math.MaxFloat64 through +math.MaxFloat64 inclusive,
-// with standard normal distribution (mean = 0, stddev = 1).
-// To produce a different normal distribution, callers can
-// adjust the output using:
+// NormFloat64 返回一个在
+// 范围 -math.MaxFloat64 到 +math.MaxFloat64（含两端）内，
+// 服从标准正态分布（均值 = 0，标准差 = 1）的 float64。
+// 要产生不同的正态分布，调用者可以使用以下方式
+// 调整输出：
 //
 //	sample = NormFloat64() * desiredStdDev + desiredMean
 func (r *Rand) NormFloat64() float64 {
 	for {
 		u := r.Uint64()
-		j := int32(u) // Possibly negative
+		j := int32(u) // 可能为负
 		i := u >> 32 & 0x7F
 		x := float64(j) * float64(wn[i])
 		if absInt32(j) < kn[i] {
-			// This case should be hit better than 99% of the time.
+			// 这种情况应在超过 99% 的情况下被命中。
 			return x
 		}
 
 		if i == 0 {
-			// This extra work is only required for the base strip.
+			// 只有在基础条带中才需要这项额外工作。
 			for {
 				x = -math.Log(r.Float64()) * (1.0 / rn)
 				y := -math.Log(r.Float64())

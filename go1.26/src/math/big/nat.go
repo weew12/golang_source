@@ -2,14 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements unsigned multi-precision integers (natural
-// numbers). They are the building blocks for the implementation
-// of signed integers, rationals, and floating-point numbers.
+// 本文件实现无符号多精度整数（自然数）。它们是
+// 有符号整数、有理数和浮点数实现的基础构件。
 //
-// Caution: This implementation relies on the function "alias"
-//          which assumes that (nat) slice capacities are never
-//          changed (no 3-operand slice expressions). If that
-//          changes, alias needs to be updated for correctness.
+// 注意：此实现依赖函数 "alias"，它假设 (nat) 切片的容量
+//       永远不会改变（没有三操作数的切片表达式）。
+//       如果这一点发生变化，为保持正确性需要更新 alias。
 
 package big
 
@@ -21,17 +19,16 @@ import (
 	"sync"
 )
 
-// An unsigned integer x of the form
+// 形如
 //
 //	x = x[n-1]*_B^(n-1) + x[n-2]*_B^(n-2) + ... + x[1]*_B + x[0]
 //
-// with 0 <= x[i] < _B and 0 <= i < n is stored in a slice of length n,
-// with the digits x[i] as the slice elements.
+// 的无符号整数 x，其中 0 <= x[i] < _B 且 0 <= i < n，存储在一个
+// 长度为 n 的切片中，以数字 x[i] 作为切片元素。
 //
-// A number is normalized if the slice contains no leading 0 digits.
-// During arithmetic operations, denormalized values may occur but are
-// always normalized before returning the final result. The normalized
-// representation of 0 is the empty or nil slice (length = 0).
+// 如果切片不包含前导 0 数字，则称该数是规范化的。
+// 在算术运算过程中可能出现非规范化的值，但在返回最终结果之前
+// 总是会进行规范化。0 的规范化表示是空切片或 nil 切片（长度 = 0）。
 type nat []Word
 
 var (
@@ -55,15 +52,15 @@ func (z nat) norm() nat {
 
 func (z nat) make(n int) nat {
 	if n <= cap(z) {
-		return z[:n] // reuse z
+		return z[:n] // 复用 z
 	}
 	if n == 1 {
-		// Most nats start small and stay that way; don't over-allocate.
+		// 大多数 nat 开始时很小并保持如此；不要过度分配。
 		return make(nat, 1)
 	}
-	// Choosing a good value for e has significant performance impact
-	// because it increases the chance that a value can be reused.
-	const e = 4 // extra capacity
+	// 为 e 选择一个好的值对性能有显著影响，
+	// 因为它增加了值可被复用的机会。
+	const e = 4 // 额外容量
 	return make(nat, n, n+e)
 }
 
@@ -77,11 +74,11 @@ func (z nat) setWord(x Word) nat {
 }
 
 func (z nat) setUint64(x uint64) nat {
-	// single-word value
+	// 单字值
 	if w := Word(x); uint64(w) == x {
 		return z.setWord(w)
 	}
-	// 2-word value
+	// 双字值
 	z = z.make(2)
 	z[1] = Word(x >> 32)
 	z[0] = Word(x)
@@ -102,10 +99,10 @@ func (z nat) add(x, y nat) nat {
 	case m < n:
 		return z.add(y, x)
 	case m == 0:
-		// n == 0 because m >= n; result is 0
+		// 因为 m >= n，所以 n == 0；结果为 0
 		return z[:0]
 	case n == 0:
-		// result is x
+		// 结果为 x
 		return z.set(x)
 	}
 	// m > 0
@@ -128,10 +125,10 @@ func (z nat) sub(x, y nat) nat {
 	case m < n:
 		panic("underflow")
 	case m == 0:
-		// n == 0 because m >= n; result is 0
+		// 因为 m >= n，所以 n == 0；结果为 0
 		return z[:0]
 	case n == 0:
-		// result is x
+		// 结果为 x
 		return z.set(x)
 	}
 	// m > 0
@@ -175,20 +172,20 @@ func (x nat) cmp(y nat) (r int) {
 	return
 }
 
-// montgomery computes z mod m = x*y*2**(-n*_W) mod m,
-// assuming k = -1/m mod 2**_W.
-// z is used for storing the result which is returned;
-// z must not alias x, y or m.
-// See Gueron, "Efficient Software Implementations of Modular Exponentiation".
+// montgomery 计算 z mod m = x*y*2**(-n*_W) mod m，
+// 假设 k = -1/m mod 2**_W。
+// z 用于存储被返回的结果；
+// z 不能与 x、y 或 m 互为别名。
+// 参见 Gueron, "Efficient Software Implementations of Modular Exponentiation"。
 // https://eprint.iacr.org/2011/239.pdf
-// In the terminology of that paper, this is an "Almost Montgomery Multiplication":
-// x and y are required to satisfy 0 <= z < 2**(n*_W) and then the result
-// z is guaranteed to satisfy 0 <= z < 2**(n*_W), but it may not be < m.
+// 用该论文的术语来说，这是一种 "Almost Montgomery Multiplication"（近似
+// Montgomery 乘法）：要求 x 和 y 满足 0 <= z < 2**(n*_W)，此时结果
+// z 保证满足 0 <= z < 2**(n*_W)，但不一定 < m。
 func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
-	// This code assumes x, y, m are all the same length, n.
-	// (required by addMulVVW and the for loop).
-	// It also assumes that x, y are already reduced mod m,
-	// or else the result will not be properly reduced.
+	// 此代码假设 x、y、m 长度都相同，均为 n。
+	// （addMulVVW 和 for 循环都要求如此）。
+	// 它还假设 x、y 已经对 m 取模化简，
+	// 否则结果将无法正确化简。
 	if len(x) != n || len(y) != n || len(m) != n {
 		panic("math/big: mismatched montgomery number lengths")
 	}
@@ -217,19 +214,18 @@ func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
 	return z[:n]
 }
 
-// alias reports whether x and y share the same base array.
+// alias 报告 x 和 y 是否共享同一个底层数组。
 //
-// Note: alias assumes that the capacity of underlying arrays
-// is never changed for nat values; i.e. that there are
-// no 3-operand slice expressions in this code (or worse,
-// reflect-based operations to the same effect).
+// 注意：alias 假设底层数组的容量对 nat 值而言永远不会改变；
+// 即此代码中不存在三操作数的切片表达式（或更糟的情况，
+// 借助 reflect 的等效操作）。
 func alias(x, y nat) bool {
 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
 }
 
-// addTo implements z += x; z must be long enough.
-// (we don't use nat.add because we need z to stay the same
-// slice, and we don't need to normalize z after each addition)
+// addTo 实现 z += x；z 必须足够长。
+// （我们不使用 nat.add，因为需要 z 保持同一个
+// 切片，并且不需要在每次加法后对 z 进行规范化）
 func addTo(z, x nat) {
 	if n := len(x); n > 0 {
 		if c := addVV(z[:n], z[:n], x[:n]); c != 0 {
@@ -240,13 +236,13 @@ func addTo(z, x nat) {
 	}
 }
 
-// mulRange computes the product of all the unsigned integers in the
-// range [a, b] inclusively. If a > b (empty range), the result is 1.
-// The caller may pass stk == nil to request that mulRange obtain and release one itself.
+// mulRange 计算闭区间 [a, b] 中所有无符号整数的乘积。
+// 如果 a > b（空区间），结果为 1。
+// 调用者可以传入 stk == nil，以请求 mulRange 自行获取并释放一个。
 func (z nat) mulRange(stk *stack, a, b uint64) nat {
 	switch {
 	case a == 0:
-		// cut long ranges short (optimization)
+		// 缩短长区间（优化）
 		return z.setUint64(0)
 	case a > b:
 		return z.setUint64(1)
@@ -261,27 +257,26 @@ func (z nat) mulRange(stk *stack, a, b uint64) nat {
 		defer stk.free()
 	}
 
-	m := a + (b-a)/2 // avoid overflow
+	m := a + (b-a)/2 // 避免溢出
 	return z.mul(stk, nat(nil).mulRange(stk, a, m), nat(nil).mulRange(stk, m+1, b))
 }
 
-// A stack provides temporary storage for complex calculations
-// such as multiplication and division.
-// The stack is a simple slice of words, extended as needed
-// to hold all the temporary storage for a calculation.
-// In general, if a function takes a *stack, it expects a non-nil *stack.
-// However, certain functions may allow passing a nil *stack instead,
-// so that they can handle trivial stack-free cases without forcing the
-// caller to obtain and free a stack that will be unused. These functions
-// document that they accept a nil *stack in their doc comments.
+// stack 为乘法、除法等复杂计算提供临时存储。
+// 该 stack 是一个简单的 Word 切片，按需扩展
+// 以容纳某次计算的全部临时存储。
+// 通常，如果函数接受 *stack 参数，它期望得到非 nil 的 *stack。
+// 但某些函数允许传入 nil *stack，
+// 这样它们就能处理无需 stack 的简单情形，而不必强迫
+// 调用者获取并释放一个不会被使用的 stack。这些函数
+// 会在其文档注释中说明它们接受 nil *stack。
 type stack struct {
 	w []Word
 }
 
 var stackPool sync.Pool
 
-// getStack returns a temporary stack.
-// The caller must call [stack.free] to give up use of the stack when finished.
+// getStack 返回一个临时 stack。
+// 调用者用完后必须调用 [stack.free] 以放弃对该 stack 的使用。
 func getStack() *stack {
 	s, _ := stackPool.Get().(*stack)
 	if s == nil {
@@ -290,33 +285,32 @@ func getStack() *stack {
 	return s
 }
 
-// free returns the stack for use by another calculation.
+// free 将该 stack 归还以供其他计算使用。
 func (s *stack) free() {
 	s.w = s.w[:0]
 	stackPool.Put(s)
 }
 
-// save returns the current stack pointer.
-// A future call to restore with the same value
-// frees any temporaries allocated on the stack after the call to save.
+// save 返回当前栈指针。
+// 之后用相同值调用 restore，
+// 会释放在调用 save 之后分配在栈上的任何临时对象。
 func (s *stack) save() int {
 	return len(s.w)
 }
 
-// restore restores the stack pointer to n.
-// It is almost always invoked as
+// restore 将栈指针恢复到 n。
+// 它几乎总是这样调用：
 //
 //	defer stk.restore(stk.save())
 //
-// which makes sure to pop any temporaries allocated in the current function
-// from the stack before returning.
+// 这确保在返回之前，从栈上弹出当前函数中分配的任何临时对象。
 func (s *stack) restore(n int) {
 	s.w = s.w[:n]
 }
 
-// nat returns a nat of n words, allocated on the stack.
+// nat 返回一个包含 n 个 Word 的 nat，分配在栈上。
 func (s *stack) nat(n int) nat {
-	nr := (n + 3) &^ 3 // round up to multiple of 4
+	nr := (n + 3) &^ 3 // 向上取整到 4 的倍数
 	off := len(s.w)
 	s.w = slices.Grow(s.w, nr)
 	s.w = s.w[:off+nr]
@@ -327,30 +321,29 @@ func (s *stack) nat(n int) nat {
 	return x
 }
 
-// bitLen returns the length of x in bits.
-// Unlike most methods, it works even if x is not normalized.
+// bitLen 返回 x 的位长度。
+// 与大多数方法不同，即使 x 未规范化它也能正常工作。
 func (x nat) bitLen() int {
-	// This function is used in cryptographic operations. It must not leak
-	// anything but the Int's sign and bit size through side-channels. Any
-	// changes must be reviewed by a security expert.
+	// 此函数用于密码学操作。它不能通过边信道泄露
+	// 除 Int 的符号和位长之外的任何信息。任何
+	// 修改都必须由安全专家审查。
 	if i := len(x) - 1; i >= 0 {
-		// bits.Len uses a lookup table for the low-order bits on some
-		// architectures. Neutralize any input-dependent behavior by setting all
-		// bits after the first one bit.
+		// 在某些架构上，bits.Len 对低位使用查找表。
+		// 通过把第一个 1 位之后的所有位都置为 1，
+		// 来消除任何依赖于输入的行为。
 		top := uint(x[i])
 		top |= top >> 1
 		top |= top >> 2
 		top |= top >> 4
 		top |= top >> 8
 		top |= top >> 16
-		top |= top >> 16 >> 16 // ">> 32" doesn't compile on 32-bit architectures
+		top |= top >> 16 >> 16 // 在 32 位架构上 ">> 32" 无法编译
 		return i*_W + bits.Len(top)
 	}
 	return 0
 }
 
-// trailingZeroBits returns the number of consecutive least significant zero
-// bits of x.
+// trailingZeroBits 返回 x 中连续的、最低有效零位的个数。
 func (x nat) trailingZeroBits() uint {
 	if len(x) == 0 {
 		return 0
@@ -363,7 +356,7 @@ func (x nat) trailingZeroBits() uint {
 	return i*_W + uint(bits.TrailingZeros(uint(x[i])))
 }
 
-// isPow2 returns i, true when x == 2**i and 0, false otherwise.
+// isPow2 在 x == 2**i 时返回 i, true，否则返回 0, false。
 func (x nat) isPow2() (uint, bool) {
 	var i uint
 	for x[i] == 0 {
@@ -446,7 +439,7 @@ func (z nat) setBit(x nat, i uint, b uint) nat {
 		z = z.make(n)
 		copy(z, x)
 		if j >= n {
-			// no need to grow
+			// 无需增长
 			return z
 		}
 		z[j] &^= m
@@ -460,13 +453,13 @@ func (z nat) setBit(x nat, i uint, b uint) nat {
 		}
 		copy(z, x)
 		z[j] |= m
-		// no need to normalize
+		// 无需规范化
 		return z
 	}
 	panic("set bit is not 0 or 1")
 }
 
-// bit returns the value of the i'th bit, with lsb == bit 0.
+// bit 返回第 i 位的值，最低有效位为第 0 位。
 func (x nat) bit(i uint) uint {
 	j := i / _W
 	if j >= uint(len(x)) {
@@ -476,8 +469,8 @@ func (x nat) bit(i uint) uint {
 	return uint(x[j] >> (i % _W) & 1)
 }
 
-// sticky returns 1 if there's a 1 bit within the
-// i least significant bits, otherwise it returns 0.
+// sticky 如果 i 个最低有效位内存在 1 位，则返回 1，
+// 否则返回 0。
 func (x nat) sticky(i uint) uint {
 	j := i / _W
 	if j >= uint(len(x)) {
@@ -514,7 +507,7 @@ func (z nat) and(x, y nat) nat {
 	return z.norm()
 }
 
-// trunc returns z = x mod 2ⁿ.
+// trunc 返回 z = x mod 2ⁿ。
 func (z nat) trunc(x nat, n uint) nat {
 	w := (n + _W - 1) / _W
 	if uint(len(x)) < w {
@@ -583,11 +576,11 @@ func (z nat) xor(x, y nat) nat {
 	return z.norm()
 }
 
-// random creates a random integer in [0..limit), using the space in z if
-// possible. n is the bit length of limit.
+// random 在 [0..limit) 中创建一个随机整数，如有可能
+// 则使用 z 的空间。n 是 limit 的位长度。
 func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
 	if alias(z, limit) {
-		z = nil // z is an alias for limit - cannot reuse
+		z = nil // z 是 limit 的别名 - 无法复用
 	}
 	z = z.make(len(limit))
 
@@ -619,12 +612,12 @@ func (z nat) random(rand *rand.Rand, limit nat, n int) nat {
 	return z.norm()
 }
 
-// If m != 0 (i.e., len(m) != 0), expNN sets z to x**y mod m;
-// otherwise it sets z to x**y. The result is the value of z.
-// The caller may pass stk == nil to request that expNN obtain and release one itself.
+// 如果 m != 0（即 len(m) != 0），expNN 将 z 置为 x**y mod m；
+// 否则将 z 置为 x**y。结果是 z 的值。
+// 调用者可以传入 stk == nil，以请求 expNN 自行获取并释放一个。
 func (z nat) expNN(stk *stack, x, y, m nat, slow bool) nat {
 	if alias(z, x) || alias(z, y) {
-		// We cannot allow in-place modification of x or y.
+		// 我们不能允许就地修改 x 或 y。
 		z = nil
 	}
 
@@ -667,14 +660,14 @@ func (z nat) expNN(stk *stack, x, y, m nat, slow bool) nat {
 	// y > 1
 
 	if len(m) != 0 {
-		// We likely end up being as long as the modulus.
+		// 我们最终很可能与模数一样长。
 		z = z.make(len(m))
 
-		// If the exponent is large, we use the Montgomery method for odd values,
-		// and a 4-bit, windowed exponentiation for powers of two,
-		// and a CRT-decomposed Montgomery method for the remaining values
-		// (even values times non-trivial odd values, which decompose into one
-		// instance of each of the first two cases).
+		// 如果指数很大，对奇数值我们使用 Montgomery 方法，
+		// 对 2 的幂使用 4 位窗口化指数运算，
+		// 对剩余的值使用 CRT 分解的 Montgomery 方法
+		// （偶数值乘以非平凡的奇数值，可分解为前两种情形
+		// 各一个实例）。
 		if len(y) > 1 && !slow {
 			if m[0]&1 == 1 {
 				return z.expNNMontgomery(stk, x, y, m)
@@ -687,20 +680,20 @@ func (z nat) expNN(stk *stack, x, y, m nat, slow bool) nat {
 	}
 
 	z = z.set(x)
-	v := y[len(y)-1] // v > 0 because y is normalized and y > 0
+	v := y[len(y)-1] // v > 0，因为 y 已规范化且 y > 0
 	shift := nlz(v) + 1
 	v <<= shift
 	var q nat
 
 	const mask = 1 << (_W - 1)
 
-	// We walk through the bits of the exponent one by one. Each time we
-	// see a bit, we square, thus doubling the power. If the bit is a one,
-	// we also multiply by x, thus adding one to the power.
+	// 我们逐个遍历指数的各位。每遇到一位就做一次平方，
+	// 从而使幂翻倍。如果该位为 1，
+	// 我们还要乘以 x，从而使幂加一。
 
 	w := _W - int(shift)
-	// zz and r are used to avoid allocating in mul and div as
-	// otherwise the arguments would alias.
+	// 使用 zz 和 r 以避免在 mul 和 div 中分配内存，
+	// 否则参数会互为别名。
 	var zz, r nat
 	for j := 0; j < w; j++ {
 		zz = zz.sqr(stk, z)
@@ -743,34 +736,35 @@ func (z nat) expNN(stk *stack, x, y, m nat, slow bool) nat {
 	return z.norm()
 }
 
-// expNNMontgomeryEven calculates x**y mod m where m = m1 × m2 for m1 = 2ⁿ and m2 odd.
-// It uses two recursive calls to expNN for x**y mod m1 and x**y mod m2
-// and then uses the Chinese Remainder Theorem to combine the results.
-// The recursive call using m1 will use expNNWindowed,
-// while the recursive call using m2 will use expNNMontgomery.
-// For more details, see Ç. K. Koç, “Montgomery Reduction with Even Modulus”,
+// expNNMontgomeryEven 计算 x**y mod m，其中 m = m1 × m2，
+// m1 = 2ⁿ 且 m2 为奇数。
+// 它对 x**y mod m1 和 x**y mod m2 分别递归调用 expNN，
+// 然后使用中国剩余定理合并结果。
+// 使用 m1 的递归调用将使用 expNNWindowed，
+// 而使用 m2 的递归调用将使用 expNNMontgomery。
+// 更多细节参见 Ç. K. Koç, “Montgomery Reduction with Even Modulus”,
 // IEE Proceedings: Computers and Digital Techniques, 141(5) 314-316, September 1994.
 // http://www.people.vcu.edu/~jwang3/CMSC691/j34monex.pdf
 func (z nat) expNNMontgomeryEven(stk *stack, x, y, m nat) nat {
-	// Split m = m₁ × m₂ where m₁ = 2ⁿ
+	// 将 m 拆分为 m = m₁ × m₂，其中 m₁ = 2ⁿ
 	n := m.trailingZeroBits()
 	m1 := nat(nil).lsh(natOne, n)
 	m2 := nat(nil).rsh(m, n)
 
-	// We want z = x**y mod m.
+	// 我们希望得到 z = x**y mod m。
 	// z₁ = x**y mod m1 = (x**y mod m) mod m1 = z mod m1
 	// z₂ = x**y mod m2 = (x**y mod m) mod m2 = z mod m2
-	// (We are using the math/big convention for names here,
-	// where the computation is z = x**y mod m, so its parts are z1 and z2.
-	// The paper is computing x = a**e mod n; it refers to these as x2 and z1.)
+	// （这里我们采用 math/big 的命名约定，
+	// 即计算 z = x**y mod m，所以其各部分为 z1 和 z2。
+	// 论文中计算的是 x = a**e mod n；它将这些称为 x2 和 z1。）
 	z1 := nat(nil).expNN(stk, x, y, m1, false)
 	z2 := nat(nil).expNN(stk, x, y, m2, false)
 
-	// Reconstruct z from z₁, z₂ using CRT, using algorithm from paper,
-	// which uses only a single modInverse (and an easy one at that).
+	// 使用 CRT 从 z₁、z₂ 重建 z，采用论文中的算法，
+	// 该算法只使用一次 modInverse（而且是一次简单的求逆）。
 	//	p = (z₁ - z₂) × m₂⁻¹ (mod m₁)
 	//	z = z₂ + p × m₂
-	// The final addition is in range because:
+	// 最后一次加法在范围内，因为：
 	//	z = z₂ + p × m₂
 	//	  ≤ z₂ + (m₁-1) × m₂
 	//	  < m₂ + (m₁-1) × m₂
@@ -778,43 +772,43 @@ func (z nat) expNNMontgomeryEven(stk *stack, x, y, m nat) nat {
 	//	  = m.
 	z = z.set(z2)
 
-	// Compute (z₁ - z₂) mod m1 [m1 == 2**n] into z1.
+	// 计算 (z₁ - z₂) mod m1 [m1 == 2**n] 并存入 z1。
 	z1 = z1.subMod2N(z1, z2, n)
 
-	// Reuse z2 for p = (z₁ - z₂) [in z1] * m2⁻¹ (mod m₁ [= 2ⁿ]).
+	// 复用 z2 存放 p = (z₁ - z₂) [在 z1 中] * m2⁻¹ (mod m₁ [= 2ⁿ])。
 	m2inv := nat(nil).modInverse(m2, m1)
 	z2 = z2.mul(stk, z1, m2inv)
 	z2 = z2.trunc(z2, n)
 
-	// Reuse z1 for p * m2.
+	// 复用 z1 存放 p * m2。
 	z = z.add(z, z1.mul(stk, z2, m2))
 
 	return z
 }
 
-// expNNWindowed calculates x**y mod m using a fixed, 4-bit window,
-// where m = 2**logM.
+// expNNWindowed 使用固定的 4 位窗口计算 x**y mod m，
+// 其中 m = 2**logM。
 func (z nat) expNNWindowed(stk *stack, x, y nat, logM uint) nat {
 	if len(y) <= 1 {
 		panic("big: misuse of expNNWindowed")
 	}
 	if x[0]&1 == 0 {
-		// len(y) > 1, so y  > logM.
-		// x is even, so x**y is a multiple of 2**y which is a multiple of 2**logM.
+		// len(y) > 1，所以 y > logM。
+		// x 为偶数，所以 x**y 是 2**y 的倍数，而后者是 2**logM 的倍数。
 		return z.setWord(0)
 	}
 	if logM == 1 {
 		return z.setWord(1)
 	}
 
-	// zz is used to avoid allocating in mul as otherwise
-	// the arguments would alias.
+	// 使用 zz 以避免在 mul 中分配内存，否则
+	// 参数会互为别名。
 	defer stk.restore(stk.save())
 	w := int((logM + _W - 1) / _W)
 	zz := stk.nat(w)
 
 	const n = 4
-	// powers[i] contains x^i.
+	// powers[i] 保存 x^i。
 	var powers [1 << n]nat
 	for i := range powers {
 		powers[i] = stk.nat(w)
@@ -829,13 +823,13 @@ func (z nat) expNNWindowed(stk *stack, x, y nat, logM uint) nat {
 		*p1 = p1.trunc(*p1, logM)
 	}
 
-	// Because phi(2**logM) = 2**(logM-1), x**(2**(logM-1)) = 1,
-	// so we can compute x**(y mod 2**(logM-1)) instead of x**y.
-	// That is, we can throw away all but the bottom logM-1 bits of y.
-	// Instead of allocating a new y, we start reading y at the right word
-	// and truncate it appropriately at the start of the loop.
+	// 因为 phi(2**logM) = 2**(logM-1)，所以 x**(2**(logM-1)) = 1，
+	// 因此我们可以计算 x**(y mod 2**(logM-1)) 而非 x**y。
+	// 也就是说，我们可以丢弃 y 除最低 logM-1 位之外的所有位。
+	// 我们不分配新的 y，而是从正确的字开始读取 y，
+	// 并在循环开始时适当地截断它。
 	i := len(y) - 1
-	mtop := int((logM - 2) / _W) // -2 because the top word of N bits is the (N-1)/W'th word.
+	mtop := int((logM - 2) / _W) // -2 是因为 N 位的最高字是第 (N-1)/W 个字。
 	mmask := ^Word(0)
 	if mbits := (logM - 1) & (_W - 1); mbits != 0 {
 		mmask = (1 << mbits) - 1
@@ -852,10 +846,10 @@ func (z nat) expNNWindowed(stk *stack, x, y nat, logM uint) nat {
 		}
 		for j := 0; j < _W; j += n {
 			if advance {
-				// Account for use of 4 bits in previous iteration.
-				// Unrolled loop for significant performance
-				// gain. Use go test -bench=".*" in crypto/rsa
-				// to check performance before making changes.
+				// 处理上一轮迭代中使用的 4 位。
+				// 展开循环以获得显著的性能提升。
+				// 在做出改动前，使用 crypto/rsa 中的
+				// go test -bench=".*" 检查性能。
 				zz = zz.sqr(stk, z)
 				zz, z = z, zz
 				z = z.trunc(z, logM)
@@ -885,16 +879,16 @@ func (z nat) expNNWindowed(stk *stack, x, y nat, logM uint) nat {
 	return z.norm()
 }
 
-// expNNMontgomery calculates x**y mod m using a fixed, 4-bit window.
-// Uses Montgomery representation.
+// expNNMontgomery 使用固定的 4 位窗口计算 x**y mod m。
+// 使用 Montgomery 表示。
 func (z nat) expNNMontgomery(stk *stack, x, y, m nat) nat {
 	numWords := len(m)
 
-	// We want the lengths of x and m to be equal.
-	// It is OK if x >= m as long as len(x) == len(m).
+	// 我们希望 x 和 m 的长度相等。
+	// 只要 len(x) == len(m)，x >= m 也可以。
 	if len(x) > numWords {
 		_, x = nat(nil).div(stk, nil, x, m)
-		// Note: now len(x) <= numWords, not guaranteed ==.
+		// 注意：现在 len(x) <= numWords，不保证 ==。
 	}
 	if len(x) < numWords {
 		rr := make(nat, numWords)
@@ -902,9 +896,9 @@ func (z nat) expNNMontgomery(stk *stack, x, y, m nat) nat {
 		x = rr
 	}
 
-	// Ideally the precomputations would be performed outside, and reused
-	// k0 = -m**-1 mod 2**_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
-	// Iteration for Multiplicative Inverses Modulo Prime Powers".
+	// 理想情况下预计算应在外部完成并复用
+	// k0 = -m**-1 mod 2**_W。算法来自：Dumas, J.G. "On Newton–Raphson
+	// Iteration for Multiplicative Inverses Modulo Prime Powers"。
 	k0 := 2 - m[0]
 	t := m[0] - 1
 	for i := 1; i < _W; i <<= 1 {
@@ -922,12 +916,12 @@ func (z nat) expNNMontgomery(stk *stack, x, y, m nat) nat {
 		copy(zz, RR)
 		RR = zz
 	}
-	// one = 1, with equal length to that of m
+	// one = 1，长度与 m 相同
 	one := make(nat, numWords)
 	one[0] = 1
 
 	const n = 4
-	// powers[i] contains x^i
+	// powers[i] 保存 x^i
 	var powers [1 << n]nat
 	powers[0] = powers[0].montgomery(one, RR, m, k0, numWords)
 	powers[1] = powers[1].montgomery(x, RR, m, k0, numWords)
@@ -935,13 +929,13 @@ func (z nat) expNNMontgomery(stk *stack, x, y, m nat) nat {
 		powers[i] = powers[i].montgomery(powers[i-1], powers[1], m, k0, numWords)
 	}
 
-	// initialize z = 1 (Montgomery 1)
+	// 初始化 z = 1（Montgomery 1）
 	z = z.make(numWords)
 	copy(z, powers[0])
 
 	zz = zz.make(numWords)
 
-	// same windowed exponent, but with Montgomery multiplications
+	// 相同的窗口化指数运算，但使用 Montgomery 乘法
 	for i := len(y) - 1; i >= 0; i-- {
 		yi := y[i]
 		for j := 0; j < _W; j += n {
@@ -956,19 +950,19 @@ func (z nat) expNNMontgomery(stk *stack, x, y, m nat) nat {
 			yi <<= n
 		}
 	}
-	// convert to regular number
+	// 转换为常规数
 	zz = zz.montgomery(z, one, m, k0, numWords)
 
-	// One last reduction, just in case.
-	// See golang.org/issue/13907.
+	// 最后一次化简，以防万一。
+	// 参见 golang.org/issue/13907。
 	if zz.cmp(m) >= 0 {
-		// Common case is m has high bit set; in that case,
-		// since zz is the same length as m, there can be just
-		// one multiple of m to remove. Just subtract.
-		// We think that the subtract should be sufficient in general,
-		// so do that unconditionally, but double-check,
-		// in case our beliefs are wrong.
-		// The div is not expected to be reached.
+		// 常见情况是 m 的最高位被置位；这种情况下，
+		// 由于 zz 与 m 长度相同，最多只需
+		// 移除一个 m 的倍数。直接做减法即可。
+		// 我们认为一般情况下减法就足够了，
+		// 所以无条件地做减法，但再核对一次，
+		// 以防我们的判断有误。
+		// 预计不会执行到这里的 div。
 		zz = zz.sub(zz, m)
 		if zz.cmp(m) >= 0 {
 			_, zz = nat(nil).div(stk, nil, zz, m)
@@ -978,14 +972,14 @@ func (z nat) expNNMontgomery(stk *stack, x, y, m nat) nat {
 	return zz.norm()
 }
 
-// bytes writes the value of z into buf using big-endian encoding.
-// The value of z is encoded in the slice buf[i:]. If the value of z
-// cannot be represented in buf, bytes panics. The number i of unused
-// bytes at the beginning of buf is returned as result.
+// bytes 使用大端编码将 z 的值写入 buf。
+// z 的值被编码在切片 buf[i:] 中。如果 z 的值
+// 无法用 buf 表示，bytes 会 panic。返回 buf 开头
+// 未使用字节数 i 作为结果。
 func (z nat) bytes(buf []byte) (i int) {
-	// This function is used in cryptographic operations. It must not leak
-	// anything but the Int's sign and bit size through side-channels. Any
-	// changes must be reviewed by a security expert.
+	// 此函数用于密码学操作。它不能通过边信道泄露
+	// 除 Int 的符号和位长之外的任何信息。任何
+	// 修改都必须由安全专家审查。
 	i = len(buf)
 	for _, d := range z {
 		for j := 0; j < _S; j++ {
@@ -1009,7 +1003,7 @@ func (z nat) bytes(buf []byte) (i int) {
 	return
 }
 
-// bigEndianWord returns the contents of buf interpreted as a big-endian encoded Word value.
+// bigEndianWord 将 buf 的内容按大端编码解释为一个 Word 值并返回。
 func bigEndianWord(buf []byte) Word {
 	if _W == 64 {
 		return Word(byteorder.BEUint64(buf))
@@ -1017,8 +1011,8 @@ func bigEndianWord(buf []byte) Word {
 	return Word(byteorder.BEUint32(buf))
 }
 
-// setBytes interprets buf as the bytes of a big-endian unsigned
-// integer, sets z to that value, and returns z.
+// setBytes 将 buf 解释为大端无符号整数的字节，
+// 将 z 置为该值并返回 z。
 func (z nat) setBytes(buf []byte) nat {
 	z = z.make((len(buf) + _S - 1) / _S)
 
@@ -1039,8 +1033,8 @@ func (z nat) setBytes(buf []byte) nat {
 	return z.norm()
 }
 
-// sqrt sets z = ⌊√x⌋
-// The caller may pass stk == nil to request that sqrt obtain and release one itself.
+// sqrt 设置 z = ⌊√x⌋
+// 调用者可以传入 stk == nil，以请求 sqrt 自行获取并释放一个。
 func (z nat) sqrt(stk *stack, x nat) nat {
 	if x.cmp(natOne) <= 0 {
 		return z.set(x)
@@ -1054,22 +1048,22 @@ func (z nat) sqrt(stk *stack, x nat) nat {
 		defer stk.free()
 	}
 
-	// Start with value known to be too large and repeat "z = ⌊(z + ⌊x/z⌋)/2⌋" until it stops getting smaller.
-	// See Brent and Zimmermann, Modern Computer Arithmetic, Algorithm 1.13 (SqrtInt).
+	// 从一个已知过大的值开始，重复 "z = ⌊(z + ⌊x/z⌋)/2⌋" 直到它不再变小。
+	// 参见 Brent and Zimmermann, Modern Computer Arithmetic, Algorithm 1.13 (SqrtInt)。
 	// https://members.loria.fr/PZimmermann/mca/pub226.html
-	// If x is one less than a perfect square, the sequence oscillates between the correct z and z+1;
-	// otherwise it converges to the correct z and stays there.
+	// 如果 x 比一个完全平方数小 1，该序列会在正确的 z 与 z+1 之间振荡；
+	// 否则它会收敛到正确的 z 并保持不变。
 	var z1, z2 nat
 	z1 = z
 	z1 = z1.setUint64(1)
-	z1 = z1.lsh(z1, uint(x.bitLen()+1)/2) // must be ≥ √x
+	z1 = z1.lsh(z1, uint(x.bitLen()+1)/2) // 必须 ≥ √x
 	for n := 0; ; n++ {
 		z2, _ = z2.div(stk, nil, x, z1)
 		z2 = z2.add(z2, z1)
 		z2 = z2.rsh(z2, 1)
 		if z2.cmp(z1) >= 0 {
-			// z1 is answer.
-			// Figure out whether z1 or z2 is currently aliased to z by looking at loop count.
+			// z1 是答案。
+			// 通过查看循环计数来判断当前是 z1 还是 z2 与 z 互为别名。
 			if n&1 == 0 {
 				return z1
 			}
@@ -1079,11 +1073,11 @@ func (z nat) sqrt(stk *stack, x nat) nat {
 	}
 }
 
-// subMod2N returns z = (x - y) mod 2ⁿ.
+// subMod2N 返回 z = (x - y) mod 2ⁿ。
 func (z nat) subMod2N(x, y nat, n uint) nat {
 	if uint(x.bitLen()) > n {
 		if alias(z, x) {
-			// ok to overwrite x in place
+			// 可以就地覆盖 x
 			x = x.trunc(x, n)
 		} else {
 			x = nat(nil).trunc(x, n)
@@ -1091,7 +1085,7 @@ func (z nat) subMod2N(x, y nat, n uint) nat {
 	}
 	if uint(y.bitLen()) > n {
 		if alias(z, y) {
-			// ok to overwrite y in place
+			// 可以就地覆盖 y
 			y = y.trunc(y, n)
 		} else {
 			y = nat(nil).trunc(y, n)

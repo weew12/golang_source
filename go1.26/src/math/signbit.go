@@ -4,7 +4,7 @@
 
 package math
 
-// Signbit reports whether x is negative or negative zero.
+// Signbit 报告 x 是否为负数或负零。
 func Signbit(x float64) bool {
 	return int64(Float64bits(x)) < 0
 }

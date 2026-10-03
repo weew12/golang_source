@@ -13,20 +13,20 @@ var Arch386 = &Arch{
 
 	regs: []string{
 		"BX", "SI", "DI", "BP",
-		"CX", "DX", "AX", // last, to leave available for hinted allocation
+		"CX", "DX", "AX", // 放在最后，以留作带提示的分配使用
 	},
 	op3:              x86Op3,
 	hint:             x86Hint,
 	memOK:            true,
 	subCarryIsBorrow: true,
-	maxColumns:       1, // not enough registers for more
+	maxColumns:       1, // 寄存器不足，无法再多
 
-	// Note: It would be nice to not set memIndex and then
-	// delete all the code in pipe.go that supports it.
-	// But a few routines, notably lshVU and mulAddVWW,
-	// benefit dramatically from the use of index registers.
-	// Perhaps some day we will decide 386 performance
-	// does not matter enough to keep this code.
+	// 注意：如果不设置 memIndex，然后删除 pipe.go 中
+	// 支持它的所有代码，那会是件好事。
+	// 但有几个例程，尤其是 lshVU 和 mulAddVWW，
+	// 从索引寄存器的使用中获益巨大。
+	// 也许某天我们会认定 386 的性能
+	// 已不重要，不值得保留这些代码。
 	memIndex: _386MemIndex,
 
 	mov:      "MOVL",

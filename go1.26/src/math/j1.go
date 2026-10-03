@@ -5,13 +5,13 @@
 package math
 
 /*
-	Bessel function of the first and second kinds of order one.
+	一阶第一类和第二类贝塞尔函数。
 */
 
-// The original C code and the long comment below are
-// from FreeBSD's /usr/src/lib/msun/src/e_j1.c and
-// came with this notice. The go code is a simplified
-// version of the original C.
+// 原始 C 代码及下面的长注释
+// 来自 FreeBSD 的 /usr/src/lib/msun/src/e_j1.c，
+// 并随附此声明。Go 代码是原始 C
+// 的简化版本。
 //
 // ====================================================
 // Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -23,52 +23,52 @@ package math
 // ====================================================
 //
 // __ieee754_j1(x), __ieee754_y1(x)
-// Bessel function of the first and second kinds of order one.
-// Method -- j1(x):
-//      1. For tiny x, we use j1(x) = x/2 - x**3/16 + x**5/384 - ...
-//      2. Reduce x to |x| since j1(x)=-j1(-x),  and
-//         for x in (0,2)
-//              j1(x) = x/2 + x*z*R0/S0,  where z = x*x;
-//         (precision:  |j1/x - 1/2 - R0/S0 |<2**-61.51 )
-//         for x in (2,inf)
+// 一阶第一类和第二类贝塞尔函数。
+// 方法 -- j1(x)：
+//      1. 对于极小的 x，使用 j1(x) = x/2 - x**3/16 + x**5/384 - ...
+//      2. 将 x 归约到 |x|，因为 j1(x)=-j1(-x)，并且
+//         对于 x 在 (0,2) 内
+//              j1(x) = x/2 + x*z*R0/S0,  其中 z = x*x;
+//         （精度： |j1/x - 1/2 - R0/S0 |<2**-61.51 ）
+//         对于 x 在 (2,inf) 内
 //              j1(x) = sqrt(2/(pi*x))*(p1(x)*cos(x1)-q1(x)*sin(x1))
 //              y1(x) = sqrt(2/(pi*x))*(p1(x)*sin(x1)+q1(x)*cos(x1))
-//         where x1 = x-3*pi/4. It is better to compute sin(x1),cos(x1)
-//         as follow:
+//         其中 x1 = x-3*pi/4。最好计算 sin(x1),cos(x1)
+//         如下：
 //              cos(x1) =  cos(x)cos(3pi/4)+sin(x)sin(3pi/4)
 //                      =  1/sqrt(2) * (sin(x) - cos(x))
 //              sin(x1) =  sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
 //                      = -1/sqrt(2) * (sin(x) + cos(x))
-//         (To avoid cancellation, use
+//         （为避免相消，使用
 //              sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
-//         to compute the worse one.)
+//         来计算较不利的那个。）
 //
-//      3 Special cases
+//      3 特殊情况
 //              j1(nan)= nan
 //              j1(0) = 0
 //              j1(inf) = 0
 //
-// Method -- y1(x):
-//      1. screen out x<=0 cases: y1(0)=-inf, y1(x<0)=NaN
-//      2. For x<2.
-//         Since
+// 方法 -- y1(x)：
+//      1. 排除 x<=0 的情况：y1(0)=-inf, y1(x<0)=NaN
+//      2. 对于 x<2。
+//         由于
 //              y1(x) = 2/pi*(j1(x)*(ln(x/2)+Euler)-1/x-x/2+5/64*x**3-...)
-//         therefore y1(x)-2/pi*j1(x)*ln(x)-1/x is an odd function.
-//         We use the following function to approximate y1,
+//         因此 y1(x)-2/pi*j1(x)*ln(x)-1/x 是奇函数。
+//         我们使用以下函数来逼近 y1，
 //              y1(x) = x*U(z)/V(z) + (2/pi)*(j1(x)*ln(x)-1/x), z= x**2
-//         where for x in [0,2] (abs err less than 2**-65.89)
+//         其中对于 x 在 [0,2] 内（绝对误差小于 2**-65.89）
 //              U(z) = U0[0] + U0[1]*z + ... + U0[4]*z**4
 //              V(z) = 1  + v0[0]*z + ... + v0[4]*z**5
-//         Note: For tiny x, 1/x dominate y1 and hence
-//              y1(tiny) = -2/pi/tiny, (choose tiny<2**-54)
-//      3. For x>=2.
+//         注意：对于极小的 x，1/x 在 y1 中占主导，因此
+//              y1(tiny) = -2/pi/tiny, （选择 tiny<2**-54）
+//      3. 对于 x>=2。
 //               y1(x) = sqrt(2/(pi*x))*(p1(x)*sin(x1)+q1(x)*cos(x1))
-//         where x1 = x-3*pi/4. It is better to compute sin(x1),cos(x1)
-//         by method mentioned above.
+//         其中 x1 = x-3*pi/4。最好计算 sin(x1),cos(x1)
+//         方法同上。
 
-// J1 returns the order-one Bessel function of the first kind.
+// J1 返回一阶第一类贝塞尔函数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	J1(±Inf) = 0
 //	J1(NaN) = NaN
@@ -76,7 +76,7 @@ func J1(x float64) float64 {
 	const (
 		TwoM27 = 1.0 / (1 << 27) // 2**-27 0x3e40000000000000
 		Two129 = 1 << 129        // 2**129 0x4800000000000000
-		// R0/S0 on [0, 2]
+		// [0, 2] 上的 R0/S0
 		R00 = -6.25000000000000000000e-02 // 0xBFB0000000000000
 		R01 = 1.40705666955189706048e-03  // 0x3F570D9F98472C61
 		R02 = -1.59955631084035597520e-05 // 0xBEF0C5C6BA169668
@@ -87,7 +87,7 @@ func J1(x float64) float64 {
 		S04 = 5.04636257076217042715e-09  // 0x3E35AC88C97DFF2C
 		S05 = 1.23542274426137913908e-11  // 0x3DAB2ACFCFB97ED8
 	)
-	// special cases
+	// 特殊情况
 	switch {
 	case IsNaN(x):
 		return x
@@ -105,7 +105,7 @@ func J1(x float64) float64 {
 		ss := -s - c
 		cc := s - c
 
-		// make sure x+x does not overflow
+		// 确保 x+x 不会溢出
 		if x < MaxFloat64/2 {
 			z := Cos(x + x)
 			if s*c > 0 {
@@ -132,7 +132,7 @@ func J1(x float64) float64 {
 		return z
 	}
 	if x < TwoM27 { // |x|<2**-27
-		return 0.5 * x // inexact if x!=0 necessary
+		return 0.5 * x // 若 x != 0，非精确是必要的
 	}
 	z := x * x
 	r := z * (R00 + z*(R01+z*(R02+z*R03)))
@@ -145,9 +145,9 @@ func J1(x float64) float64 {
 	return z
 }
 
-// Y1 returns the order-one Bessel function of the second kind.
+// Y1 返回一阶第二类贝塞尔函数。
 //
-// Special cases are:
+// 特殊情况为：
 //
 //	Y1(+Inf) = 0
 //	Y1(0) = -Inf
@@ -168,7 +168,7 @@ func Y1(x float64) float64 {
 		V03    = 6.22741452364621501295e-09  // 0x3E3ABF1D5BA69A86
 		V04    = 1.66559246207992079114e-11  // 0x3DB25039DACA772A
 	)
-	// special cases
+	// 特殊情况
 	switch {
 	case x < 0 || IsNaN(x):
 		return NaN()
@@ -183,7 +183,7 @@ func Y1(x float64) float64 {
 		ss := -s - c
 		cc := s - c
 
-		// make sure x+x does not overflow
+		// 确保 x+x 不会溢出
 		if x < MaxFloat64/2 {
 			z := Cos(x + x)
 			if s*c > 0 {
@@ -193,15 +193,15 @@ func Y1(x float64) float64 {
 			}
 		}
 		// y1(x) = sqrt(2/(pi*x))*(p1(x)*sin(x0)+q1(x)*cos(x0))
-		// where x0 = x-3pi/4
-		//     Better formula:
+		// 其中 x0 = x-3pi/4
+		//     更好的公式：
 		//         cos(x0) = cos(x)cos(3pi/4)+sin(x)sin(3pi/4)
 		//                 =  1/sqrt(2) * (sin(x) - cos(x))
 		//         sin(x0) = sin(x)cos(3pi/4)-cos(x)sin(3pi/4)
 		//                 = -1/sqrt(2) * (cos(x) + sin(x))
-		// To avoid cancellation, use
+		// 为避免相消，使用
 		//     sin(x) +- cos(x) = -cos(2x)/(sin(x) -+ cos(x))
-		// to compute the worse one.
+		// 来计算较不利的那个。
 
 		var z float64
 		if x > Two129 {
@@ -222,16 +222,16 @@ func Y1(x float64) float64 {
 	return x*(u/v) + (2/Pi)*(J1(x)*Log(x)-1/x)
 }
 
-// For x >= 8, the asymptotic expansions of pone is
-//      1 + 15/128 s**2 - 4725/2**15 s**4 - ..., where s = 1/x.
-// We approximate pone by
+// 对于 x >= 8，pone 的渐近展开为
+//      1 + 15/128 s**2 - 4725/2**15 s**4 - ..., 其中 s = 1/x。
+// 我们用以下式子逼近 pone：
 //      pone(x) = 1 + (R/S)
-// where R = pr0 + pr1*s**2 + pr2*s**4 + ... + pr5*s**10
+// 其中 R = pr0 + pr1*s**2 + pr2*s**4 + ... + pr5*s**10
 //       S = 1 + ps0*s**2 + ... + ps4*s**10
-// and
+// 并且
 //      | pone(x)-1-R/S | <= 2**(-60.06)
 
-// for x in [inf, 8]=1/[0,0.125]
+// 对于 x 在 [inf, 8]=1/[0,0.125] 内
 var p1R8 = [6]float64{
 	0.00000000000000000000e+00, // 0x0000000000000000
 	1.17187499999988647970e-01, // 0x3FBDFFFFFFFFFCCE
@@ -248,7 +248,7 @@ var p1S8 = [5]float64{
 	3.08042720627888811578e+04, // 0x40DE1511697A0B2D
 }
 
-// for x in [8,4.5454] = 1/[0.125,0.22001]
+// 对于 x 在 [8,4.5454] = 1/[0.125,0.22001] 内
 var p1R5 = [6]float64{
 	1.31990519556243522749e-11, // 0x3DAD0667DAE1CA7D
 	1.17187493190614097638e-01, // 0x3FBDFFFFE2C10043
@@ -265,7 +265,7 @@ var p1S5 = [5]float64{
 	1.50404688810361062679e+03, // 0x40978030036F5E51
 }
 
-// for x in[4.5453,2.8571] = 1/[0.2199,0.35001]
+// 对于 x 在[4.5453,2.8571] = 1/[0.2199,0.35001] 内
 var p1R3 = [6]float64{
 	3.02503916137373618024e-09, // 0x3E29FC21A7AD9EDD
 	1.17186865567253592491e-01, // 0x3FBDFFF55B21D17B
@@ -282,7 +282,7 @@ var p1S3 = [5]float64{
 	1.03787932439639277504e+02, // 0x4059F26D7C2EED53
 }
 
-// for x in [2.8570,2] = 1/[0.3499,0.5]
+// 对于 x 在 [2.8570,2] = 1/[0.3499,0.5] 内
 var p1R2 = [6]float64{
 	1.07710830106873743082e-07, // 0x3E7CE9D4F65544F4
 	1.17176219462683348094e-01, // 0x3FBDFF42BE760D83
@@ -321,16 +321,16 @@ func pone(x float64) float64 {
 	return 1 + r/s
 }
 
-// For x >= 8, the asymptotic expansions of qone is
-//      3/8 s - 105/1024 s**3 - ..., where s = 1/x.
-// We approximate qone by
+// 对于 x >= 8，qone 的渐近展开为
+//      3/8 s - 105/1024 s**3 - ..., 其中 s = 1/x。
+// 我们用以下式子逼近 qone：
 //      qone(x) = s*(0.375 + (R/S))
-// where R = qr1*s**2 + qr2*s**4 + ... + qr5*s**10
+// 其中 R = qr1*s**2 + qr2*s**4 + ... + qr5*s**10
 //       S = 1 + qs1*s**2 + ... + qs6*s**12
-// and
+// 并且
 //      | qone(x)/s -0.375-R/S | <= 2**(-61.13)
 
-// for x in [inf, 8] = 1/[0,0.125]
+// 对于 x 在 [inf, 8] = 1/[0,0.125] 内
 var q1R8 = [6]float64{
 	0.00000000000000000000e+00,  // 0x0000000000000000
 	-1.02539062499992714161e-01, // 0xBFBA3FFFFFFFFDF3
@@ -348,7 +348,7 @@ var q1S8 = [6]float64{
 	-2.94490264303834643215e+05, // 0xC111F9690EA5AA18
 }
 
-// for x in [8,4.5454] = 1/[0.125,0.22001]
+// 对于 x 在 [8,4.5454] = 1/[0.125,0.22001] 内
 var q1R5 = [6]float64{
 	-2.08979931141764104297e-11, // 0xBDB6FA431AA1A098
 	-1.02539050241375426231e-01, // 0xBFBA3FFFCB597FEF
@@ -366,7 +366,7 @@ var q1S5 = [6]float64{
 	-4.71918354795128470869e+03, // 0xC0B26F2EFCFFA004
 }
 
-// for x in [4.5454,2.8571] = 1/[0.2199,0.35001] ???
+// 对于 x 在 [4.5454,2.8571] = 1/[0.2199,0.35001] 内 ???
 var q1R3 = [6]float64{
 	-5.07831226461766561369e-09, // 0xBE35CFA9D38FC84F
 	-1.02537829820837089745e-01, // 0xBFBA3FEB51AEED54
@@ -384,7 +384,7 @@ var q1S3 = [6]float64{
 	-1.35201191444307340817e+02, // 0xC060E670290A311F
 }
 
-// for x in [2.8570,2] = 1/[0.3499,0.5]
+// 对于 x 在 [2.8570,2] = 1/[0.3499,0.5] 内
 var q1R2 = [6]float64{
 	-1.78381727510958865572e-07, // 0xBE87F12644C626D2
 	-1.02517042607985553460e-01, // 0xBFBA3E8E9148B010

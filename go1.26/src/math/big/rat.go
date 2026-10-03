@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file implements multi-precision rational numbers.
+// 本文件实现多精度有理数。
 
 package big
 
@@ -11,49 +11,46 @@ import (
 	"math"
 )
 
-// A Rat represents a quotient a/b of arbitrary precision.
-// The zero value for a Rat represents the value 0.
+// Rat 表示任意精度的商 a/b。
+// Rat 的零值表示数值 0。
 //
-// Operations always take pointer arguments (*Rat) rather
-// than Rat values, and each unique Rat value requires
-// its own unique *Rat pointer. To "copy" a Rat value,
-// an existing (or newly allocated) Rat must be set to
-// a new value using the [Rat.Set] method; shallow copies
-// of Rats are not supported and may lead to errors.
+// 所有操作都接受指针参数 (*Rat) 而不是 Rat 值，并且每个唯一的 Rat 值
+// 都需要其自身唯一的 *Rat 指针。要“复制”一个 Rat 值，必须使用
+// [Rat.Set] 方法将某个已存在（或新分配）的 Rat 设置为新值；
+// 不支持对 Rat 进行浅拷贝，否则可能导致错误。
 type Rat struct {
-	// To make zero values for Rat work w/o initialization,
-	// a zero value of b (len(b) == 0) acts like b == 1. At
-	// the earliest opportunity (when an assignment to the Rat
-	// is made), such uninitialized denominators are set to 1.
-	// a.neg determines the sign of the Rat, b.neg is ignored.
+	// 为了使 Rat 的零值无需初始化即可工作，
+	// b 的零值（len(b) == 0）表现得就像 b == 1。在最早的
+	// 时机（当对 Rat 进行赋值时），这样的未初始化分母会被设为 1。
+	// a.neg 决定 Rat 的符号，b.neg 会被忽略。
 	a, b Int
 }
 
-// NewRat creates a new [Rat] with numerator a and denominator b.
+// NewRat 创建一个新的 [Rat]，其分子为 a、分母为 b。
 func NewRat(a, b int64) *Rat {
 	return new(Rat).SetFrac64(a, b)
 }
 
-// SetFloat64 sets z to exactly f and returns z.
-// If f is not finite, SetFloat returns nil.
+// SetFloat64 将 z 精确设置为 f 并返回 z。
+// 如果 f 不是有限值，SetFloat 返回 nil。
 func (z *Rat) SetFloat64(f float64) *Rat {
 	const expMask = 1<<11 - 1
 	bits := math.Float64bits(f)
 	mantissa := bits & (1<<52 - 1)
 	exp := int((bits >> 52) & expMask)
 	switch exp {
-	case expMask: // non-finite
+	case expMask: // 非有限
 		return nil
-	case 0: // denormal
+	case 0: // 非规格化数
 		exp -= 1022
-	default: // normal
+	default: // 规格化数
 		mantissa |= 1 << 52
 		exp -= 1023
 	}
 
 	shift := 52 - exp
 
-	// Optimization (?): partially pre-normalise.
+	// 优化（？）：部分预规格化。
 	for mantissa&1 == 0 && shift > 0 {
 		mantissa >>= 1
 		shift--
@@ -70,28 +67,28 @@ func (z *Rat) SetFloat64(f float64) *Rat {
 	return z.norm()
 }
 
-// quotToFloat32 returns the non-negative float32 value
-// nearest to the quotient a/b, using round-to-even in
-// halfway cases. It does not mutate its arguments.
-// Preconditions: b is non-zero; a and b have no common factors.
+// quotToFloat32 返回最接近商 a/b 的非负 float32 值，
+// 在恰好一半的情况（halfway）下使用四舍六入五成双（round-to-even）。
+// 它不会修改其参数。
+// 前置条件：b 非零；a 和 b 没有公因子。
 func quotToFloat32(stk *stack, a, b nat) (f float32, exact bool) {
 	const (
-		// float size in bits
+		// 浮点数的位大小
 		Fsize = 32
 
-		// mantissa
+		// 尾数
 		Msize  = 23
-		Msize1 = Msize + 1 // incl. implicit 1
+		Msize1 = Msize + 1 // 包括隐式的 1
 		Msize2 = Msize1 + 1
 
-		// exponent
+		// 指数
 		Esize = Fsize - Msize1
 		Ebias = 1<<(Esize-1) - 1
 		Emin  = 1 - Ebias
 		Emax  = Ebias
 	)
 
-	// TODO(adonovan): specialize common degenerate cases: 1.0, integers.
+	// TODO(adonovan)：针对常见的退化情况做特化处理：1.0、整数。
 	alen := a.bitLen()
 	if alen == 0 {
 		return 0, true
@@ -101,12 +98,12 @@ func quotToFloat32(stk *stack, a, b nat) (f float32, exact bool) {
 		panic("division by zero")
 	}
 
-	// 1. Left-shift A or B such that quotient A/B is in [1<<Msize1, 1<<(Msize2+1)
-	// (Msize2 bits if A < B when they are left-aligned, Msize2+1 bits if A >= B).
-	// This is 2 or 3 more than the float32 mantissa field width of Msize:
-	// - the optional extra bit is shifted away in step 3 below.
-	// - the high-order 1 is omitted in "normal" representation;
-	// - the low-order 1 will be used during rounding then discarded.
+	// 1. 左移 A 或 B，使得商 A/B 落在 [1<<Msize1, 1<<(Msize2+1) 内
+	//（当左对齐时，若 A < B 则为 Msize2 位，若 A >= B 则为 Msize2+1 位）。
+	// 这比 float32 尾数字段宽度 Msize 多出 2 或 3 位：
+	// - 可选的多余位会在下面的步骤 3 中被移走。
+	// - 最高位 1 在“规格化”表示中被省略；
+	// - 最低位 1 会在舍入期间使用，然后被丢弃。
 	exp := alen - blen
 	var a2, b2 nat
 	a2 = a2.set(a)
@@ -117,16 +114,15 @@ func quotToFloat32(stk *stack, a, b nat) (f float32, exact bool) {
 		b2 = b2.lsh(b2, uint(-shift))
 	}
 
-	// 2. Compute quotient and remainder (q, r).  NB: due to the
-	// extra shift, the low-order bit of q is logically the
-	// high-order bit of r.
+	// 2. 计算商和余数 (q, r)。注意：由于额外的移位，
+	// q 的低位在逻辑上是 r 的高位。
 	var q nat
-	q, r := q.div(stk, a2, a2, b2) // (recycle a2)
+	q, r := q.div(stk, a2, a2, b2) // (回收 a2)
 	mantissa := low32(q)
 	haveRem := len(r) > 0 // mantissa&1 && !haveRem => remainder is exactly half
 
-	// 3. If quotient didn't fit in Msize2 bits, redo division by b2<<1
-	// (in effect---we accomplish this incrementally).
+	// 3. 如果商不能放进 Msize2 位，则用 b2<<1 重做除法
+	//（实际上是增量式完成的）。
 	if mantissa>>Msize2 == 1 {
 		if mantissa&1 == 1 {
 			haveRem = true
@@ -138,28 +134,28 @@ func quotToFloat32(stk *stack, a, b nat) (f float32, exact bool) {
 		panic(fmt.Sprintf("expected exactly %d bits of result", Msize2))
 	}
 
-	// 4. Rounding.
+	// 4. 舍入。
 	if Emin-Msize <= exp && exp <= Emin {
-		// Denormal case; lose 'shift' bits of precision.
+		// 非规格化数情况；损失 'shift' 位的精度。
 		shift := uint(Emin - (exp - 1)) // [1..Esize1)
 		lostbits := mantissa & (1<<shift - 1)
 		haveRem = haveRem || lostbits != 0
 		mantissa >>= shift
 		exp = 2 - Ebias // == exp + shift
 	}
-	// Round q using round-half-to-even.
+	// 使用 round-half-to-even 对 q 进行舍入。
 	exact = !haveRem
 	if mantissa&1 != 0 {
 		exact = false
 		if haveRem || mantissa&2 != 0 {
 			if mantissa++; mantissa >= 1<<Msize2 {
-				// Complete rollover 11...1 => 100...0, so shift is safe
+				// 完全进位 11...1 => 100...0，因此移位是安全的
 				mantissa >>= 1
 				exp++
 			}
 		}
 	}
-	mantissa >>= 1 // discard rounding bit.  Mantissa now scaled by 1<<Msize1.
+	mantissa >>= 1 // 丢弃舍入位。尾数现在按 1<<Msize1 缩放了。
 
 	f = float32(math.Ldexp(float64(mantissa), exp-Msize1))
 	if math.IsInf(float64(f), 0) {
@@ -168,28 +164,28 @@ func quotToFloat32(stk *stack, a, b nat) (f float32, exact bool) {
 	return
 }
 
-// quotToFloat64 returns the non-negative float64 value
-// nearest to the quotient a/b, using round-to-even in
-// halfway cases. It does not mutate its arguments.
-// Preconditions: b is non-zero; a and b have no common factors.
+// quotToFloat64 返回最接近商 a/b 的非负 float64 值，
+// 在恰好一半的情况（halfway）下使用四舍六入五成双（round-to-even）。
+// 它不会修改其参数。
+// 前置条件：b 非零；a 和 b 没有公因子。
 func quotToFloat64(stk *stack, a, b nat) (f float64, exact bool) {
 	const (
-		// float size in bits
+		// 浮点数的位大小
 		Fsize = 64
 
-		// mantissa
+		// 尾数
 		Msize  = 52
-		Msize1 = Msize + 1 // incl. implicit 1
+		Msize1 = Msize + 1 // 包括隐式的 1
 		Msize2 = Msize1 + 1
 
-		// exponent
+		// 指数
 		Esize = Fsize - Msize1
 		Ebias = 1<<(Esize-1) - 1
 		Emin  = 1 - Ebias
 		Emax  = Ebias
 	)
 
-	// TODO(adonovan): specialize common degenerate cases: 1.0, integers.
+	// TODO(adonovan)：针对常见的退化情况做特化处理：1.0、整数。
 	alen := a.bitLen()
 	if alen == 0 {
 		return 0, true
@@ -199,12 +195,12 @@ func quotToFloat64(stk *stack, a, b nat) (f float64, exact bool) {
 		panic("division by zero")
 	}
 
-	// 1. Left-shift A or B such that quotient A/B is in [1<<Msize1, 1<<(Msize2+1)
-	// (Msize2 bits if A < B when they are left-aligned, Msize2+1 bits if A >= B).
-	// This is 2 or 3 more than the float64 mantissa field width of Msize:
-	// - the optional extra bit is shifted away in step 3 below.
-	// - the high-order 1 is omitted in "normal" representation;
-	// - the low-order 1 will be used during rounding then discarded.
+	// 1. 左移 A 或 B，使得商 A/B 落在 [1<<Msize1, 1<<(Msize2+1) 内
+	//（当左对齐时，若 A < B 则为 Msize2 位，若 A >= B 则为 Msize2+1 位）。
+	// 这比 float64 尾数字段宽度 Msize 多出 2 或 3 位：
+	// - 可选的多余位会在下面的步骤 3 中被移走。
+	// - 最高位 1 在“规格化”表示中被省略；
+	// - 最低位 1 会在舍入期间使用，然后被丢弃。
 	exp := alen - blen
 	var a2, b2 nat
 	a2 = a2.set(a)
@@ -215,16 +211,15 @@ func quotToFloat64(stk *stack, a, b nat) (f float64, exact bool) {
 		b2 = b2.lsh(b2, uint(-shift))
 	}
 
-	// 2. Compute quotient and remainder (q, r).  NB: due to the
-	// extra shift, the low-order bit of q is logically the
-	// high-order bit of r.
+	// 2. 计算商和余数 (q, r)。注意：由于额外的移位，
+	// q 的低位在逻辑上是 r 的高位。
 	var q nat
-	q, r := q.div(stk, a2, a2, b2) // (recycle a2)
+	q, r := q.div(stk, a2, a2, b2) // (回收 a2)
 	mantissa := low64(q)
 	haveRem := len(r) > 0 // mantissa&1 && !haveRem => remainder is exactly half
 
-	// 3. If quotient didn't fit in Msize2 bits, redo division by b2<<1
-	// (in effect---we accomplish this incrementally).
+	// 3. 如果商不能放进 Msize2 位，则用 b2<<1 重做除法
+	//（实际上是增量式完成的）。
 	if mantissa>>Msize2 == 1 {
 		if mantissa&1 == 1 {
 			haveRem = true
@@ -236,28 +231,28 @@ func quotToFloat64(stk *stack, a, b nat) (f float64, exact bool) {
 		panic(fmt.Sprintf("expected exactly %d bits of result", Msize2))
 	}
 
-	// 4. Rounding.
+	// 4. 舍入。
 	if Emin-Msize <= exp && exp <= Emin {
-		// Denormal case; lose 'shift' bits of precision.
+		// 非规格化数情况；损失 'shift' 位的精度。
 		shift := uint(Emin - (exp - 1)) // [1..Esize1)
 		lostbits := mantissa & (1<<shift - 1)
 		haveRem = haveRem || lostbits != 0
 		mantissa >>= shift
 		exp = 2 - Ebias // == exp + shift
 	}
-	// Round q using round-half-to-even.
+	// 使用 round-half-to-even 对 q 进行舍入。
 	exact = !haveRem
 	if mantissa&1 != 0 {
 		exact = false
 		if haveRem || mantissa&2 != 0 {
 			if mantissa++; mantissa >= 1<<Msize2 {
-				// Complete rollover 11...1 => 100...0, so shift is safe
+				// 完全进位 11...1 => 100...0，因此移位是安全的
 				mantissa >>= 1
 				exp++
 			}
 		}
 	}
-	mantissa >>= 1 // discard rounding bit.  Mantissa now scaled by 1<<Msize1.
+	mantissa >>= 1 // 丢弃舍入位。尾数现在按 1<<Msize1 缩放了。
 
 	f = math.Ldexp(float64(mantissa), exp-Msize1)
 	if math.IsInf(f, 0) {
@@ -266,10 +261,9 @@ func quotToFloat64(stk *stack, a, b nat) (f float64, exact bool) {
 	return
 }
 
-// Float32 returns the nearest float32 value for x and a bool indicating
-// whether f represents x exactly. If the magnitude of x is too large to
-// be represented by a float32, f is an infinity and exact is false.
-// The sign of f always matches the sign of x, even if f == 0.
+// Float32 返回 x 最接近的 float32 值，以及一个布尔值，表示 f 是否
+// 精确地表示 x。如果 x 的绝对值太大而无法用 float32 表示，则 f 为
+// 无穷，exact 为 false。即使 f == 0，f 的符号也始终与 x 的符号一致。
 func (x *Rat) Float32() (f float32, exact bool) {
 	b := x.b.abs
 	if len(b) == 0 {
@@ -284,10 +278,9 @@ func (x *Rat) Float32() (f float32, exact bool) {
 	return
 }
 
-// Float64 returns the nearest float64 value for x and a bool indicating
-// whether f represents x exactly. If the magnitude of x is too large to
-// be represented by a float64, f is an infinity and exact is false.
-// The sign of f always matches the sign of x, even if f == 0.
+// Float64 返回 x 最接近的 float64 值，以及一个布尔值，表示 f 是否
+// 精确地表示 x。如果 x 的绝对值太大而无法用 float64 表示，则 f 为
+// 无穷，exact 为 false。即使 f == 0，f 的符号也始终与 x 的符号一致。
 func (x *Rat) Float64() (f float64, exact bool) {
 	b := x.b.abs
 	if len(b) == 0 {
@@ -302,8 +295,8 @@ func (x *Rat) Float64() (f float64, exact bool) {
 	return
 }
 
-// SetFrac sets z to a/b and returns z.
-// If b == 0, SetFrac panics.
+// SetFrac 将 z 设置为 a/b 并返回 z。
+// 如果 b == 0，SetFrac 会 panic。
 func (z *Rat) SetFrac(a, b *Int) *Rat {
 	z.a.neg = a.neg != b.neg
 	babs := b.abs
@@ -318,8 +311,8 @@ func (z *Rat) SetFrac(a, b *Int) *Rat {
 	return z.norm()
 }
 
-// SetFrac64 sets z to a/b and returns z.
-// If b == 0, SetFrac64 panics.
+// SetFrac64 将 z 设置为 a/b 并返回 z。
+// 如果 b == 0，SetFrac64 会 panic。
 func (z *Rat) SetFrac64(a, b int64) *Rat {
 	if b == 0 {
 		panic("division by zero")
@@ -333,28 +326,28 @@ func (z *Rat) SetFrac64(a, b int64) *Rat {
 	return z.norm()
 }
 
-// SetInt sets z to x (by making a copy of x) and returns z.
+// SetInt 将 z 设置为 x（通过复制 x）并返回 z。
 func (z *Rat) SetInt(x *Int) *Rat {
 	z.a.Set(x)
 	z.b.abs = z.b.abs.setWord(1)
 	return z
 }
 
-// SetInt64 sets z to x and returns z.
+// SetInt64 将 z 设置为 x 并返回 z。
 func (z *Rat) SetInt64(x int64) *Rat {
 	z.a.SetInt64(x)
 	z.b.abs = z.b.abs.setWord(1)
 	return z
 }
 
-// SetUint64 sets z to x and returns z.
+// SetUint64 将 z 设置为 x 并返回 z。
 func (z *Rat) SetUint64(x uint64) *Rat {
 	z.a.SetUint64(x)
 	z.b.abs = z.b.abs.setWord(1)
 	return z
 }
 
-// Set sets z to x (by making a copy of x) and returns z.
+// Set 将 z 设置为 x（通过复制 x）并返回 z。
 func (z *Rat) Set(x *Rat) *Rat {
 	if z != x {
 		z.a.Set(&x.a)
@@ -366,22 +359,22 @@ func (z *Rat) Set(x *Rat) *Rat {
 	return z
 }
 
-// Abs sets z to |x| (the absolute value of x) and returns z.
+// Abs 将 z 设置为 |x|（x 的绝对值）并返回 z。
 func (z *Rat) Abs(x *Rat) *Rat {
 	z.Set(x)
 	z.a.neg = false
 	return z
 }
 
-// Neg sets z to -x and returns z.
+// Neg 将 z 设置为 -x 并返回 z。
 func (z *Rat) Neg(x *Rat) *Rat {
 	z.Set(x)
-	z.a.neg = len(z.a.abs) > 0 && !z.a.neg // 0 has no sign
+	z.a.neg = len(z.a.abs) > 0 && !z.a.neg // 0 没有符号
 	return z
 }
 
-// Inv sets z to 1/x and returns z.
-// If x == 0, Inv panics.
+// Inv 将 z 设置为 1/x 并返回 z。
+// 如果 x == 0，Inv 会 panic。
 func (z *Rat) Inv(x *Rat) *Rat {
 	if len(x.a.abs) == 0 {
 		panic("division by zero")
@@ -391,40 +384,36 @@ func (z *Rat) Inv(x *Rat) *Rat {
 	return z
 }
 
-// Sign returns:
-//   - -1 if x < 0;
-//   - 0 if x == 0;
-//   - +1 if x > 0.
+// Sign 返回：
+//   - 如果 x < 0 则为 -1；
+//   - 如果 x == 0 则为 0；
+//   - 如果 x > 0 则为 +1。
 func (x *Rat) Sign() int {
 	return x.a.Sign()
 }
 
-// IsInt reports whether the denominator of x is 1.
+// IsInt 报告 x 的分母是否为 1。
 func (x *Rat) IsInt() bool {
 	return len(x.b.abs) == 0 || x.b.abs.cmp(natOne) == 0
 }
 
-// Num returns the numerator of x; it may be <= 0.
-// The result is a reference to x's numerator; it
-// may change if a new value is assigned to x, and vice versa.
-// The sign of the numerator corresponds to the sign of x.
+// Num 返回 x 的分子；它可能 <= 0。
+// 结果是对 x 分子的引用；如果给 x 赋了新值，它可能会改变，
+// 反之亦然。分子的符号与 x 的符号一致。
 func (x *Rat) Num() *Int {
 	return &x.a
 }
 
-// Denom returns the denominator of x; it is always > 0.
-// The result is a reference to x's denominator, unless
-// x is an uninitialized (zero value) [Rat], in which case
-// the result is a new [Int] of value 1. (To initialize x,
-// any operation that sets x will do, including x.Set(x).)
-// If the result is a reference to x's denominator it
-// may change if a new value is assigned to x, and vice versa.
+// Denom 返回 x 的分母；它总是 > 0。
+// 结果是对 x 分母的引用，除非 x 是未初始化（零值）的 [Rat]，
+// 此时结果是一个值为 1 的新 [Int]。（要初始化 x，任何会设置 x 的
+// 操作都可以，包括 x.Set(x)。）如果结果是对 x 分母的引用，
+// 那么当给 x 赋了新值时它可能会改变，反之亦然。
 func (x *Rat) Denom() *Int {
-	// Note that x.b.neg is guaranteed false.
+	// 注意 x.b.neg 保证为 false。
 	if len(x.b.abs) == 0 {
-		// Note: If this proves problematic, we could
-		//       panic instead and require the Rat to
-		//       be explicitly initialized.
+		// 注意：如果这被证明有问题，我们可以改为 panic
+		//       并要求显式初始化 Rat。
 		return &Int{abs: nat{1}}
 	}
 	return &x.b
@@ -433,14 +422,14 @@ func (x *Rat) Denom() *Int {
 func (z *Rat) norm() *Rat {
 	switch {
 	case len(z.a.abs) == 0:
-		// z == 0; normalize sign and denominator
+		// z == 0；规范化符号和分母
 		z.a.neg = false
 		fallthrough
 	case len(z.b.abs) == 0:
-		// z is integer; normalize denominator
+		// z 是整数；规范化分母
 		z.b.abs = z.b.abs.setWord(1)
 	default:
-		// z is fraction; normalize numerator and denominator
+		// z 是分数；规范化分子和分母
 		stk := getStack()
 		defer stk.free()
 		neg := z.a.neg
@@ -455,9 +444,8 @@ func (z *Rat) norm() *Rat {
 	return z
 }
 
-// mulDenom sets z to the denominator product x*y (by taking into
-// account that 0 values for x or y must be interpreted as 1) and
-// returns z.
+// mulDenom 将 z 设置为分母乘积 x*y（考虑到 x 或 y 的 0 值
+// 必须被解释为 1）并返回 z。
 func mulDenom(stk *stack, z, x, y nat) nat {
 	switch {
 	case len(x) == 0 && len(y) == 0:
@@ -470,8 +458,8 @@ func mulDenom(stk *stack, z, x, y nat) nat {
 	return z.mul(stk, x, y)
 }
 
-// scaleDenom sets z to the product x*f.
-// If f == 0 (zero value of denominator), z is set to (a copy of) x.
+// scaleDenom 将 z 设置为乘积 x*f。
+// 如果 f == 0（分母的零值），则 z 被设置为（一个 x 的副本）。
 func (z *Int) scaleDenom(stk *stack, x *Int, f nat) {
 	if len(f) == 0 {
 		z.Set(x)
@@ -481,10 +469,10 @@ func (z *Int) scaleDenom(stk *stack, x *Int, f nat) {
 	z.neg = x.neg
 }
 
-// Cmp compares x and y and returns:
-//   - -1 if x < y;
-//   - 0 if x == y;
-//   - +1 if x > y.
+// Cmp 比较 x 和 y 并返回：
+//   - 如果 x < y 则为 -1；
+//   - 如果 x == y 则为 0；
+//   - 如果 x > y 则为 +1。
 func (x *Rat) Cmp(y *Rat) int {
 	var a, b Int
 	stk := getStack()
@@ -494,7 +482,7 @@ func (x *Rat) Cmp(y *Rat) int {
 	return a.Cmp(&b)
 }
 
-// Add sets z to the sum x+y and returns z.
+// Add 将 z 设置为和 x+y 并返回 z。
 func (z *Rat) Add(x, y *Rat) *Rat {
 	stk := getStack()
 	defer stk.free()
@@ -507,7 +495,7 @@ func (z *Rat) Add(x, y *Rat) *Rat {
 	return z.norm()
 }
 
-// Sub sets z to the difference x-y and returns z.
+// Sub 将 z 设置为差 x-y 并返回 z。
 func (z *Rat) Sub(x, y *Rat) *Rat {
 	stk := getStack()
 	defer stk.free()
@@ -520,13 +508,13 @@ func (z *Rat) Sub(x, y *Rat) *Rat {
 	return z.norm()
 }
 
-// Mul sets z to the product x*y and returns z.
+// Mul 将 z 设置为乘积 x*y 并返回 z。
 func (z *Rat) Mul(x, y *Rat) *Rat {
 	stk := getStack()
 	defer stk.free()
 
 	if x == y {
-		// a squared Rat is positive and can't be reduced (no need to call norm())
+		// 平方后的 Rat 为正且不可约分（无需调用 norm()）
 		z.a.neg = false
 		z.a.abs = z.a.abs.sqr(stk, x.a.abs)
 		if len(x.b.abs) == 0 {
@@ -542,8 +530,8 @@ func (z *Rat) Mul(x, y *Rat) *Rat {
 	return z.norm()
 }
 
-// Quo sets z to the quotient x/y and returns z.
-// If y == 0, Quo panics.
+// Quo 将 z 设置为商 x/y 并返回 z。
+// 如果 y == 0，Quo 会 panic。
 func (z *Rat) Quo(x, y *Rat) *Rat {
 	stk := getStack()
 	defer stk.free()
