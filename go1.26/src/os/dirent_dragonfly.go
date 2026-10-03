@@ -28,7 +28,7 @@ func direntNamlen(buf []byte) (uint64, bool) {
 func direntType(buf []byte) FileMode {
 	off := unsafe.Offsetof(syscall.Dirent{}.Type)
 	if off >= uintptr(len(buf)) {
-		return ^FileMode(0) // unknown
+		return ^FileMode(0) // 未知
 	}
 	typ := buf[off]
 	switch typ {
@@ -37,8 +37,8 @@ func direntType(buf []byte) FileMode {
 	case syscall.DT_CHR:
 		return ModeDevice | ModeCharDevice
 	case syscall.DT_DBF:
-		// DT_DBF is "database record file".
-		// fillFileStatFromSys treats as regular file.
+		// DT_DBF 表示"database record file"（数据库记录文件）。
+		// fillFileStatFromSys 将其视为普通文件。
 		return 0
 	case syscall.DT_DIR:
 		return ModeDir
@@ -51,5 +51,5 @@ func direntType(buf []byte) FileMode {
 	case syscall.DT_SOCK:
 		return ModeSocket
 	}
-	return ^FileMode(0) // unknown
+	return ^FileMode(0) // 未知
 }

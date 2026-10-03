@@ -15,9 +15,9 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
 	return 0, false, nil
 }
 
-// readFrom is basically a refactor of net.sendFile, but adapted to work for the target of *File.
+// readFrom 基本上是 net.sendFile 的一次重构，但经过调整以适用于 *File 的目标。
 func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
-	var remain int64 = 0 // 0 indicates sending until EOF
+	var remain int64 = 0 // 0 表示一直发送直到 EOF
 	lr, ok := r.(*io.LimitedReader)
 	if ok {
 		remain, r = lr.N, lr.R
@@ -37,23 +37,23 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 	}
 
 	if src.checkValid("ReadFrom") != nil {
-		// Avoid returning the error as we report handled as false,
-		// leave further error handling as the responsibility of the caller.
+		// 避免返回该错误，因为我们报告 handled 为 false，
+		// 将后续的错误处理留给调用者负责。
 		return 0, false, nil
 	}
 
-	// If fd_in and fd_out refer to the same file and the source and target ranges overlap,
-	// sendfile(2) on SunOS will allow this kind of overlapping and work like a memmove,
-	// in this case the file content remains the same after copying, which is not what we want.
-	// Thus, we just bail out here and leave it to generic copy when it's a file copying itself.
+	// 如果 fd_in 和 fd_out 指向同一个文件，且源范围与目标范围重叠，
+	// SunOS 上的 sendfile(2) 会允许这种重叠，并像 memmove 一样工作，
+	// 这种情况下复制后文件内容保持不变，这不是我们想要的。
+	// 因此，当文件复制自身时，我们直接在此退出，交给通用复制处理。
 	if f.pfd.Sysfd == src.pfd.Sysfd {
 		return 0, false, nil
 	}
 
-	// sendfile() on illumos seems to incur intermittent failures when the
-	// target file is a standard stream (stdout/stderr), we hereby skip any
-	// anything other than regular files conservatively and leave them to generic copy.
-	// Check out https://go.dev/issue/68863 for more details.
+	// 在 illumos 上，当目标文件是标准流（stdout/stderr）时，
+	// sendfile() 似乎会出现间歇性失败，因此我们保守地跳过
+	// 除常规文件以外的任何内容，交给通用复制处理。
+	// 更多细节请查看 https://go.dev/issue/68863。
 	if runtime.GOOS == "illumos" {
 		fi, err := f.Stat()
 		if err != nil {
@@ -73,10 +73,10 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 		return
 	}
 
-	// System call sendfile()s on Solaris and illumos support file-to-file copying.
-	// Check out https://docs.oracle.com/cd/E86824_01/html/E54768/sendfile-3ext.html and
-	// https://docs.oracle.com/cd/E88353_01/html/E37843/sendfile-3c.html and
-	// https://illumos.org/man/3EXT/sendfile for more details.
+	// Solaris 和 illumos 上的 sendfile() 系统调用支持文件到文件的复制。
+	// 更多细节请查看 https://docs.oracle.com/cd/E86824_01/html/E54768/sendfile-3ext.html 和
+	// https://docs.oracle.com/cd/E88353_01/html/E37843/sendfile-3c.html 以及
+	// https://illumos.org/man/3EXT/sendfile。
 	rerr := sc.Read(func(fd uintptr) bool {
 		written, err, handled = poll.SendFile(&f.pfd, fd, remain)
 		return true

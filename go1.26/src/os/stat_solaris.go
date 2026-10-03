@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-// These constants aren't in the syscall package, which is frozen.
-// Values taken from golang.org/x/sys/unix.
+// 这些常量不在 syscall 包中，因为该包已冻结。
+// 取值来自 golang.org/x/sys/unix。
 const (
 	_S_IFNAM  = 0x5000
 	_S_IFDOOR = 0xd000
@@ -35,7 +35,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
 	case syscall.S_IFLNK:
 		fs.mode |= ModeSymlink
 	case syscall.S_IFREG:
-		// nothing to do
+		// 无需处理
 	case syscall.S_IFSOCK:
 		fs.mode |= ModeSocket
 	case _S_IFNAM, _S_IFDOOR, _S_IFPORT:
@@ -52,7 +52,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
 	}
 }
 
-// For testing.
+// 用于测试。
 func atime(fi FileInfo) time.Time {
 	return time.Unix(fi.Sys().(*syscall.Stat_t).Atim.Unix())
 }

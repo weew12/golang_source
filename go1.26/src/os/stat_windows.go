@@ -12,8 +12,8 @@ import (
 	"unsafe"
 )
 
-// Stat returns the [FileInfo] structure describing file.
-// If there is an error, it will be of type [*PathError].
+// Stat 返回描述文件的 [FileInfo] 结构。
+// 如果出错，错误的类型为 [*PathError]。
 func (file *File) Stat() (FileInfo, error) {
 	if file == nil {
 		return nil, ErrInvalid
@@ -21,7 +21,7 @@ func (file *File) Stat() (FileInfo, error) {
 	return statHandle(file.name, file.pfd.Sysfd)
 }
 
-// stat implements both Stat and Lstat of a file.
+// stat 同时实现文件的 Stat 和 Lstat。
 func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
 	if len(name) == 0 {
 		return nil, &PathError{Op: funcname, Path: name, Err: syscall.Errno(syscall.ERROR_PATH_NOT_FOUND)}
@@ -31,16 +31,16 @@ func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
 		return nil, &PathError{Op: funcname, Path: name, Err: err}
 	}
 
-	// Try GetFileAttributesEx first, because it is faster than CreateFile.
-	// See https://golang.org/issues/19922#issuecomment-300031421 for details.
+	// 首先尝试 GetFileAttributesEx，因为它比 CreateFile 更快。
+	// 详情参见 https://golang.org/issues/19922#issuecomment-300031421。
 	var fa syscall.Win32FileAttributeData
 	err = syscall.GetFileAttributesEx(namep, syscall.GetFileExInfoStandard, (*byte)(unsafe.Pointer(&fa)))
 	if errors.Is(err, ErrNotExist) {
 		return nil, &PathError{Op: "GetFileAttributesEx", Path: name, Err: err}
 	}
 	if err == nil && fa.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
-		// Not a surrogate for another named entity, because it isn't any kind of reparse point.
-		// The information we got from GetFileAttributesEx is good enough for now.
+		// 不是另一个命名实体的替代，因为它不是任何类型的重解析点。
+		// 目前从 GetFileAttributesEx 获得的信息已经足够。
 		fs := newFileStatFromWin32FileAttributeData(&fa)
 		if err := fs.saveInfoFromPath(name); err != nil {
 			return nil, err
@@ -48,8 +48,8 @@ func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
 		return fs, nil
 	}
 
-	// GetFileAttributesEx fails with ERROR_SHARING_VIOLATION error for
-	// files like c:\pagefile.sys. Use FindFirstFile for such files.
+	// GetFileAttributesEx 对于像 c:\pagefile.sys 这样的文件会失败并返回
+	// ERROR_SHARING_VIOLATION 错误。对于这类文件使用 FindFirstFile。
 	if err == windows.ERROR_SHARING_VIOLATION {
 		var fd syscall.Win32finddata
 		sh, err := syscall.FindFirstFile(namep, &fd)
@@ -58,7 +58,7 @@ func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
 		}
 		syscall.FindClose(sh)
 		if fd.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT == 0 {
-			// Not a surrogate for another named entity. FindFirstFile is good enough.
+			// 不是另一个命名实体的替代。FindFirstFile 已经足够。
 			fs := newFileStatFromWin32finddata(&fd)
 			if err := fs.saveInfoFromPath(name); err != nil {
 				return nil, err
@@ -67,36 +67,36 @@ func stat(funcname, name string, followSurrogates bool) (FileInfo, error) {
 		}
 	}
 
-	// Use CreateFile to determine whether the file is a name surrogate and, if so,
-	// save information about the link target.
-	// Set FILE_FLAG_BACKUP_SEMANTICS so that CreateFile will create the handle
-	// even if name refers to a directory.
+	// 使用 CreateFile 来判断该文件是否是一个名称替代，如果是，
+	// 则保存关于链接目标的信息。
+	// 设置 FILE_FLAG_BACKUP_SEMANTICS，以便即使 name 指向目录，
+	// CreateFile 也会创建句柄。
 	var flags uint32 = syscall.FILE_FLAG_BACKUP_SEMANTICS | syscall.FILE_FLAG_OPEN_REPARSE_POINT
 	h, err := syscall.CreateFile(namep, 0, 0, nil, syscall.OPEN_EXISTING, flags, 0)
 
 	if err == windows.ERROR_INVALID_PARAMETER {
-		// Console handles, like "\\.\con", require generic read access. See
-		// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew#consoles.
-		// We haven't set it previously because it is normally not required
-		// to read attributes and some files may not allow it.
+		// 像 "\\.\con" 这样的控制台句柄需要通用读取访问权限。参见
+		// https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew#consoles。
+		// 我们之前没有设置它，因为通常读取属性并不需要它，
+		// 而且某些文件可能不允许。
 		h, err = syscall.CreateFile(namep, syscall.GENERIC_READ, 0, nil, syscall.OPEN_EXISTING, flags, 0)
 	}
 	if err != nil {
-		// Since CreateFile failed, we can't determine whether name refers to a
-		// name surrogate, or some other kind of reparse point. Since we can't return a
-		// FileInfo with a known-accurate Mode, we must return an error.
+		// 由于 CreateFile 失败了，我们无法判断 name 是指向一个
+		// 名称替代，还是某种其他类型的重解析点。由于我们无法返回一个
+		// Mode 已知准确的 FileInfo，我们必须返回一个错误。
 		return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
 	}
 
 	fi, err := statHandle(name, h)
 	syscall.CloseHandle(h)
 	if err == nil && followSurrogates && fi.(*fileStat).isReparseTagNameSurrogate() {
-		// To obtain information about the link target, we reopen the file without
-		// FILE_FLAG_OPEN_REPARSE_POINT and examine the resulting handle.
-		// (See https://devblogs.microsoft.com/oldnewthing/20100212-00/?p=14963.)
+		// 为了获取关于链接目标的信息，我们重新打开该文件，这次不使用
+		// FILE_FLAG_OPEN_REPARSE_POINT，并检查得到的句柄。
+		// （参见 https://devblogs.microsoft.com/oldnewthing/20100212-00/?p=14963。）
 		h, err = syscall.CreateFile(namep, 0, 0, nil, syscall.OPEN_EXISTING, syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
 		if err != nil {
-			// name refers to a symlink, but we couldn't resolve the symlink target.
+			// name 指向一个符号链接，但我们无法解析该符号链接目标。
 			return nil, &PathError{Op: "CreateFile", Path: name, Err: err}
 		}
 		defer syscall.CloseHandle(h)
@@ -122,20 +122,20 @@ func statHandle(name string, h syscall.Handle) (FileInfo, error) {
 	return fs, nil
 }
 
-// statNolog implements Stat for Windows.
+// statNolog 为 Windows 实现 Stat。
 func statNolog(name string) (FileInfo, error) {
 	return stat("Stat", name, true)
 }
 
-// lstatNolog implements Lstat for Windows.
+// lstatNolog 为 Windows 实现 Lstat。
 func lstatNolog(name string) (FileInfo, error) {
 	followSurrogates := false
 	if name != "" && IsPathSeparator(name[len(name)-1]) {
-		// We try to implement POSIX semantics for Lstat path resolution
-		// (per https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12):
-		// symlinks before the last separator in the path must be resolved. Since
-		// the last separator in this case follows the last path element, we should
-		// follow symlinks in the last path element.
+		// 我们尝试为 Lstat 的路径解析实现 POSIX 语义
+		// （依据 https://pubs.opengroup.org/onlinepubs/9699919799.2013edition/basedefs/V1_chap04.html#tag_04_12）：
+		// 路径中最后一个分隔符之前的符号链接必须被解析。由于
+		// 这种情况下最后一个分隔符位于最后一个路径元素之后，我们应当
+		// 跟随最后一个路径元素中的符号链接。
 		followSurrogates = true
 	}
 	return stat("Lstat", name, followSurrogates)

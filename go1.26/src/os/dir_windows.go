@@ -14,33 +14,32 @@ import (
 	"unsafe"
 )
 
-// Auxiliary information if the File describes a directory
+// 如果 File 描述的是一个目录，则提供辅助信息
 type dirInfo struct {
 	mu sync.Mutex
-	// buf is a slice pointer so the slice header
-	// does not escape to the heap when returning
-	// buf to dirBufPool.
-	buf   *[]byte // buffer for directory I/O
-	bufp  int     // location of next record in buf
+	// buf 是切片指针，这样在将 buf 归还给 dirBufPool 时，
+	// 切片头不会逃逸到堆上。
+	buf   *[]byte // 用于目录 I/O 的缓冲区
+	bufp  int     // buf 中下一条记录的位置
 	h     syscall.Handle
 	vol   uint32
-	class uint32 // type of entries in buf
-	path  string // absolute directory path, empty if the file system supports FILE_ID_BOTH_DIR_INFO
+	class uint32 // buf 中条目的类型
+	path  string // 绝对目录路径，如果文件系统支持 FILE_ID_BOTH_DIR_INFO 则为空
 }
 
 const (
-	// dirBufSize is the size of the dirInfo buffer.
-	// The buffer must be big enough to hold at least a single entry.
-	// The filename alone can be 512 bytes (MAX_PATH*2), and the fixed part of
-	// the FILE_ID_BOTH_DIR_INFO structure is 105 bytes, so dirBufSize
-	// should not be set below 1024 bytes (512+105+safety buffer).
-	// Windows 8.1 and earlier only works with buffer sizes up to 64 kB.
+	// dirBufSize 是 dirInfo 缓冲区的大小。
+	// 缓冲区必须足够大，至少能容纳一个条目。
+	// 仅文件名就可能达到 512 字节（MAX_PATH*2），而
+	// FILE_ID_BOTH_DIR_INFO 结构的固定部分为 105 字节，
+	// 因此 dirBufSize 不应设置为低于 1024 字节（512+105+安全缓冲区）。
+	// Windows 8.1 及更早版本仅支持最大 64 kB 的缓冲区大小。
 	dirBufSize = 64 * 1024 // 64kB
 )
 
 var dirBufPool = sync.Pool{
 	New: func() any {
-		// The buffer must be at least a block long.
+		// 缓冲区长度必须至少为一个块。
 		buf := make([]byte, dirBufSize)
 		return &buf
 	},
@@ -54,47 +53,47 @@ func (d *dirInfo) close() {
 	}
 }
 
-// allowReadDirFileID indicates whether File.readdir should try to use FILE_ID_BOTH_DIR_INFO
-// if the underlying file system supports it.
-// Useful for testing purposes.
+// allowReadDirFileID 指示当底层文件系统支持时，
+// File.readdir 是否应尝试使用 FILE_ID_BOTH_DIR_INFO。
+// 对测试很有用。
 var allowReadDirFileID = true
 
 func (d *dirInfo) init(h syscall.Handle) {
 	d.h = h
 	d.class = windows.FileFullDirectoryRestartInfo
-	// The previous settings are enough to read the directory entries.
-	// The following code is only needed to support os.SameFile.
+	// 先前的设置已足以读取目录条目。
+	// 以下代码仅用于支持 os.SameFile。
 
-	// It is safe to query d.vol once and reuse the value.
-	// Hard links are not allowed to reference files in other volumes.
-	// Junctions and symbolic links can reference files and directories in other volumes,
-	// but the reparse point should still live in the parent volume.
+	// 查询一次 d.vol 并复用该值是安全的。
+	// 硬链接不允许引用其他卷中的文件。
+	// 联结（junction）和符号链接可以引用其他卷中的文件和目录，
+	// 但重解析点仍应位于父卷中。
 	var flags uint32
 	err := windows.GetVolumeInformationByHandle(h, nil, 0, &d.vol, nil, &flags, nil, 0)
 	if err != nil {
-		d.vol = 0 // Set to zero in case Windows writes garbage to it.
-		// If we can't get the volume information, we can't use os.SameFile,
-		// but we can still read the directory entries.
+		d.vol = 0 // 置零，以防 Windows 向其写入垃圾数据。
+		// 如果无法获取卷信息，就无法使用 os.SameFile，
+		// 但仍可以读取目录条目。
 		return
 	}
 	if flags&windows.FILE_SUPPORTS_OBJECT_IDS == 0 {
-		// The file system does not support object IDs, no need to continue.
+		// 文件系统不支持对象 ID，无需继续。
 		return
 	}
 	if allowReadDirFileID && flags&windows.FILE_SUPPORTS_OPEN_BY_FILE_ID != 0 {
-		// Use FileIdBothDirectoryRestartInfo if available as it returns the file ID
-		// without the need to open the file.
+		// 如果可用，使用 FileIdBothDirectoryRestartInfo，因为它返回文件 ID
+		// 而无需打开文件。
 		d.class = windows.FileIdBothDirectoryRestartInfo
 	} else {
-		// If FileIdBothDirectoryRestartInfo is not available but objects IDs are supported,
-		// get the directory path so that os.SameFile can use it to open the file
-		// and retrieve the file ID.
+		// 如果 FileIdBothDirectoryRestartInfo 不可用但支持对象 ID，
+		// 则获取目录路径，以便 os.SameFile 可以用它打开文件
+		// 并检索文件 ID。
 		d.path, _ = windows.FinalPath(h, windows.FILE_NAME_OPENED)
 	}
 }
 
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	// If this file has no dirInfo, create one.
+	// 如果此文件没有 dirInfo，则创建一个。
 	var d *dirInfo
 	for {
 		d = file.dirinfo.Load()
@@ -106,7 +105,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 		if file.dirinfo.CompareAndSwap(nil, d) {
 			break
 		}
-		// We lost the race: try again.
+		// 我们在竞争中失败了：重试。
 		d.close()
 	}
 	d.mu.Lock()
@@ -120,27 +119,27 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 		n = -1
 	}
 	for n != 0 {
-		// Refill the buffer if necessary
+		// 如有必要，重新填充缓冲区
 		if d.bufp == 0 {
 			err = windows.GetFileInformationByHandleEx(file.pfd.Sysfd, d.class, (*byte)(unsafe.Pointer(&(*d.buf)[0])), uint32(len(*d.buf)))
 			runtime.KeepAlive(file)
 			if err != nil {
 				if err == syscall.ERROR_NO_MORE_FILES {
-					// Optimization: we can return the buffer to the pool, there is nothing else to read.
+					// 优化：我们可以将缓冲区归还到池中，没有其他内容可读取。
 					dirBufPool.Put(d.buf)
 					d.buf = nil
 					break
 				}
 				if err == syscall.ERROR_FILE_NOT_FOUND &&
 					(d.class == windows.FileIdBothDirectoryRestartInfo || d.class == windows.FileFullDirectoryRestartInfo) {
-					// GetFileInformationByHandleEx doesn't document the return error codes when the info class is FileIdBothDirectoryRestartInfo,
-					// but MS-FSA 2.1.5.6.3 [1] specifies that the underlying file system driver should return STATUS_NO_SUCH_FILE when
-					// reading an empty root directory, which is mapped to ERROR_FILE_NOT_FOUND by Windows.
-					// Note that some file system drivers may never return this error code, as the spec allows to return the "." and ".."
-					// entries in such cases, making the directory appear non-empty.
-					// The chances of false positive are very low, as we know that the directory exists, else GetVolumeInformationByHandle
-					// would have failed, and that the handle is still valid, as we haven't closed it.
-					// See go.dev/issue/61159.
+					// 当 info class 为 FileIdBothDirectoryRestartInfo 时，GetFileInformationByHandleEx 未记录返回的错误码，
+					// 但 MS-FSA 2.1.5.6.3 [1] 规定，底层文件系统驱动在读取空根目录时应返回 STATUS_NO_SUCH_FILE，
+					// 而 Windows 会将其映射为 ERROR_FILE_NOT_FOUND。
+					// 注意，某些文件系统驱动可能永远不会返回此错误码，因为规范在这种情况下允许返回 "." 和 ".."
+					// 条目，从而使目录看起来非空。
+					// 误报的可能性非常低，因为我们知道该目录存在，否则 GetVolumeInformationByHandle
+					// 会失败，并且该句柄仍然有效，因为我们还没有关闭它。
+					// 参见 go.dev/issue/61159。
 					// [1] https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsa/fa8194e0-53ec-413b-8315-e8fa85396fd8
 					break
 				}
@@ -157,7 +156,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 				d.class = windows.FileFullDirectoryInfo
 			}
 		}
-		// Drain the buffer
+		// 排空缓冲区
 		var islast bool
 		for n != 0 && !islast {
 			var nextEntryOffset uint32
@@ -179,7 +178,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 			}
 			if (len(nameslice) == 1 && nameslice[0] == '.') ||
 				(len(nameslice) == 2 && nameslice[0] == '.' && nameslice[1] == '.') {
-				// Ignore "." and ".." and avoid allocating a string for them.
+				// 忽略 "." 和 ".." 并避免为它们分配字符串。
 				continue
 			}
 			name := syscall.UTF16ToString(nameslice)
@@ -192,9 +191,9 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 				} else {
 					f = newFileStatFromFileFullDirInfo((*windows.FILE_FULL_DIR_INFO)(entry))
 					if d.path != "" {
-						// Defer appending the entry name to the parent directory path until
-						// it is really needed, to avoid allocating a string that may not be used.
-						// It is currently only used in os.SameFile.
+						// 推迟将条目名追加到父目录路径，直到真正需要时，
+						// 以避免分配可能用不到的字符串。
+						// 它目前仅在 os.SameFile 中使用。
 						f.appendNameToPath = true
 						f.path = d.path
 					}

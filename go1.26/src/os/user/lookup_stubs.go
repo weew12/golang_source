@@ -14,16 +14,16 @@ import (
 )
 
 var (
-	// unused variables (in this implementation)
-	// modified during test to exercise code paths in the cgo implementation.
+	// 未使用的变量（在此实现中）
+	// 在测试期间被修改，以覆盖 cgo 实现中的代码路径。
 	userBuffer  = 0
 	groupBuffer = 0
 )
 
 func current() (*User, error) {
 	uid := currentUID()
-	// $USER and /etc/passwd may disagree; prefer the latter if we can get it.
-	// See issue 27524 for more information.
+	// $USER 和 /etc/passwd 可能不一致；如果能获取到后者，则优先使用它。
+	// 更多信息参见 issue 27524。
 	u, err := lookupUserId(uid)
 	if err == nil {
 		return u, nil
@@ -34,10 +34,10 @@ func current() (*User, error) {
 		Uid:      uid,
 		Gid:      currentGID(),
 		Username: os.Getenv("USER"),
-		Name:     "", // ignored
+		Name:     "", // 忽略
 		HomeDir:  homeDir,
 	}
-	// On Android, return a dummy user instead of failing.
+	// 在 Android 上，返回一个虚拟用户而不是失败。
 	switch runtime.GOOS {
 	case "android":
 		if u.Uid == "" {
@@ -47,8 +47,8 @@ func current() (*User, error) {
 			u.Username = "android"
 		}
 	}
-	// cgo isn't available, but if we found the minimum information
-	// without it, use it:
+	// cgo 不可用，但如果我们能在没有 cgo 的情况下获得最少的信息，
+	// 就使用它：
 	if u.Uid != "" && u.Username != "" && u.HomeDir != "" {
 		return u, nil
 	}
@@ -69,9 +69,8 @@ func currentUID() string {
 	if id := os.Getuid(); id >= 0 {
 		return strconv.Itoa(id)
 	}
-	// Note: Windows returns -1, but this file isn't used on
-	// Windows anyway, so this empty return path shouldn't be
-	// used.
+	// 注意：Windows 返回 -1，但此文件本来就不在 Windows 上使用，
+	// 因此不应走到这个空返回路径。
 	return ""
 }
 

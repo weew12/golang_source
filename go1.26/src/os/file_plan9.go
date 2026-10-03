@@ -16,24 +16,24 @@ import (
 	"time"
 )
 
-// fixLongPath is a noop on non-Windows platforms.
+// fixLongPath 在非 Windows 平台上为空操作。
 func fixLongPath(path string) string {
 	return path
 }
 
-// file is the real representation of *File.
-// The extra level of indirection ensures that no clients of os
-// can overwrite this data, which could cause the finalizer
-// to close the wrong file descriptor.
+// file 是 *File 的真实表示。
+// 额外的间接层确保 os 的任何客户端
+// 都无法覆盖这些数据，否则可能导致终结器
+// 关闭错误的文件描述符。
 type file struct {
 	fdmu       poll.FDMutex
 	sysfd      int
 	name       string
-	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
-	appendMode bool                    // whether file is opened for appending
+	dirinfo    atomic.Pointer[dirInfo] // 除非正在读取目录，否则为 nil
+	appendMode bool                    // 文件是否以追加方式打开
 }
 
-// fd is the Plan 9 implementation of Fd.
+// fd 是 Fd 的 Plan 9 实现。
 func (f *File) fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
@@ -41,7 +41,7 @@ func (f *File) fd() uintptr {
 	return uintptr(f.sysfd)
 }
 
-// newFileFromNewFile is called by [NewFile].
+// newFileFromNewFile 由 [NewFile] 调用。
 func newFileFromNewFile(fd uintptr, name string) *File {
 	fdi := int(fd)
 	if fdi < 0 {
@@ -52,22 +52,22 @@ func newFileFromNewFile(fd uintptr, name string) *File {
 	return f
 }
 
-// Auxiliary information if the File describes a directory
+// 如果 File 描述的是一个目录，则为辅助信息
 type dirInfo struct {
 	mu   sync.Mutex
-	buf  [syscall.STATMAX]byte // buffer for directory I/O
-	nbuf int                   // length of buf; return value from Read
-	bufp int                   // location of next record in buf.
+	buf  [syscall.STATMAX]byte // 用于目录 I/O 的缓冲区
+	nbuf int                   // buf 的长度；Read 的返回值
+	bufp int                   // buf 中下一条记录的位置。
 }
 
 func epipecheck(file *File, e error) {
 }
 
-// DevNull is the name of the operating system's “null device.”
-// On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+// DevNull 是操作系统 “空设备” 的名称。
+// 在类 Unix 系统上，它是 "/dev/null"；在 Windows 上，是 "NUL"。
 const DevNull = "/dev/null"
 
-// syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
+// syscallMode 从 Go 的可移植模式位返回特定于 syscall 的模式位。
 func syscallMode(i FileMode) (o uint32) {
 	o |= uint32(i.Perm())
 	if i&ModeAppend != 0 {
@@ -82,7 +82,7 @@ func syscallMode(i FileMode) (o uint32) {
 	return
 }
 
-// openFileNolog is the Plan 9 implementation of OpenFile.
+// openFileNolog 是 OpenFile 的 Plan 9 实现。
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	var (
 		fd     int
@@ -103,7 +103,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if flag&O_TRUNC == O_TRUNC {
 		trunc = true
 	}
-	// O_APPEND is emulated on Plan 9
+	// O_APPEND 在 Plan 9 上是模拟实现的
 	if flag&O_APPEND == O_APPEND {
 		flag = flag &^ O_APPEND
 		append = true
@@ -151,10 +151,10 @@ func openDirNolog(name string) (*File, error) {
 	return f, nil
 }
 
-// Close closes the File, rendering it unusable for I/O.
-// On files that support SetDeadline, any pending I/O operations will
-// be canceled and return immediately with an ErrClosed error.
-// Close will return an error if it has already been called.
+// Close 关闭 File，使其无法再用于 I/O。
+// 在支持 SetDeadline 的文件上，任何挂起的 I/O 操作
+// 都将被取消，并立即返回 ErrClosed 错误。
+// 如果已经调用过 Close，Close 会返回错误。
 func (f *File) Close() error {
 	if f == nil {
 		return ErrInvalid
@@ -167,19 +167,19 @@ func (file *file) close() error {
 		return &PathError{Op: "close", Path: file.name, Err: ErrClosed}
 	}
 
-	// At this point we should cancel any pending I/O.
-	// How do we do that on Plan 9?
+	// 此时我们应该取消任何挂起的 I/O。
+	// 在 Plan 9 上我们该怎么做？
 
 	err := file.decref()
 
-	// no need for a finalizer anymore
+	// 不再需要终结器了
 	runtime.SetFinalizer(file, nil)
 	return err
 }
 
-// destroy actually closes the descriptor. This is called when
-// there are no remaining references, by the decref, readUnlock,
-// and writeUnlock methods.
+// destroy 真正关闭该描述符。当没有剩余的引用时，
+// 由 decref、readUnlock
+// 和 writeUnlock 方法调用它。
 func (file *file) destroy() error {
 	var err error
 	if e := syscall.Close(file.sysfd); e != nil {
@@ -188,8 +188,8 @@ func (file *file) destroy() error {
 	return err
 }
 
-// Stat returns the FileInfo structure describing file.
-// If there is an error, it will be of type [*PathError].
+// Stat 返回描述该文件的 FileInfo 结构。
+// 如果出错，错误的类型为 [*PathError]。
 func (f *File) Stat() (FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
@@ -201,9 +201,9 @@ func (f *File) Stat() (FileInfo, error) {
 	return fileInfoFromStat(d), nil
 }
 
-// Truncate changes the size of the file.
-// It does not change the I/O offset.
-// If there is an error, it will be of type [*PathError].
+// Truncate 更改文件的大小。
+// 它不会改变 I/O 偏移量。
+// 如果出错，错误的类型为 [*PathError]。
 func (f *File) Truncate(size int64) error {
 	if f == nil {
 		return ErrInvalid
@@ -262,9 +262,9 @@ func (f *File) chmod(mode FileMode) error {
 	return nil
 }
 
-// Sync commits the current contents of the file to stable storage.
-// Typically, this means flushing the file system's in-memory copy
-// of recently written data to disk.
+// Sync 将文件的当前内容提交到稳定存储。
+// 通常，这意味着将文件系统对最近写入数据的内存副本
+// 刷新到磁盘。
 func (f *File) Sync() error {
 	if f == nil {
 		return ErrInvalid
@@ -289,8 +289,8 @@ func (f *File) Sync() error {
 	return nil
 }
 
-// read reads up to len(b) bytes from the File.
-// It returns the number of bytes read and an error, if any.
+// read 从 File 中读取最多 len(b) 个字节。
+// 它返回读取的字节数和错误（如果有）。
 func (f *File) read(b []byte) (n int, err error) {
 	if err := f.readLock(); err != nil {
 		return 0, err
@@ -303,9 +303,9 @@ func (f *File) read(b []byte) (n int, err error) {
 	return n, e
 }
 
-// pread reads len(b) bytes from the File starting at byte offset off.
-// It returns the number of bytes read and the error, if any.
-// EOF is signaled by a zero count with err set to nil.
+// pread 从 File 中从字节偏移量 off 开始读取 len(b) 个字节。
+// 它返回读取的字节数和错误（如果有）。
+// EOF 通过读取计数为零且 err 设置为 nil 来表示。
 func (f *File) pread(b []byte, off int64) (n int, err error) {
 	if err := f.readLock(); err != nil {
 		return 0, err
@@ -318,10 +318,10 @@ func (f *File) pread(b []byte, off int64) (n int, err error) {
 	return n, e
 }
 
-// write writes len(b) bytes to the File.
-// It returns the number of bytes written and an error, if any.
-// Since Plan 9 preserves message boundaries, never allow
-// a zero-byte write.
+// write 向 File 写入 len(b) 个字节。
+// 它返回写入的字节数和错误（如果有）。
+// 由于 Plan 9 保留消息边界，永远不允许
+// 零字节写入。
 func (f *File) write(b []byte) (n int, err error) {
 	if err := f.writeLock(); err != nil {
 		return 0, err
@@ -333,10 +333,10 @@ func (f *File) write(b []byte) (n int, err error) {
 	return fixCount(syscall.Write(f.sysfd, b))
 }
 
-// pwrite writes len(b) bytes to the File starting at byte offset off.
-// It returns the number of bytes written and an error, if any.
-// Since Plan 9 preserves message boundaries, never allow
-// a zero-byte write.
+// pwrite 从字节偏移量 off 开始向 File 写入 len(b) 个字节。
+// 它返回写入的字节数和错误（如果有）。
+// 由于 Plan 9 保留消息边界，永远不允许
+// 零字节写入。
 func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 	if err := f.writeLock(); err != nil {
 		return 0, err
@@ -348,24 +348,24 @@ func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 	return fixCount(syscall.Pwrite(f.sysfd, b, off))
 }
 
-// seek sets the offset for the next Read or Write on file to offset, interpreted
-// according to whence: 0 means relative to the origin of the file, 1 means
-// relative to the current offset, and 2 means relative to the end.
-// It returns the new offset and an error, if any.
+// seek 将文件上下一次 Read 或 Write 的偏移量设置为 offset，
+// 其解释取决于 whence：0 表示相对于文件起始位置，1 表示
+// 相对于当前偏移量，2 表示相对于末尾。
+// 它返回新的偏移量和错误（如果有）。
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 	if err := f.incref(""); err != nil {
 		return 0, err
 	}
 	defer f.decref()
-	// Free cached dirinfo, so we allocate a new one if we
-	// access this file as a directory again. See #35767 and #37161.
+	// 释放缓存的 dirinfo，这样如果我们再次将此文件作为目录
+	// 访问，就会分配一个新的。参见 #35767 和 #37161。
 	f.dirinfo.Store(nil)
 	return syscall.Seek(f.sysfd, offset, whence)
 }
 
-// Truncate changes the size of the named file.
-// If the file is a symbolic link, it changes the size of the link's target.
-// If there is an error, it will be of type [*PathError].
+// Truncate 更改指定文件的大小。
+// 如果文件是符号链接，它会更改链接目标的大小。
+// 如果出错，错误的类型为 [*PathError]。
 func Truncate(name string, size int64) error {
 	var d syscall.Dir
 
@@ -383,8 +383,8 @@ func Truncate(name string, size int64) error {
 	return nil
 }
 
-// Remove removes the named file or directory.
-// If there is an error, it will be of type [*PathError].
+// Remove 删除指定文件或目录。
+// 如果出错，错误的类型为 [*PathError]。
 func Remove(name string) error {
 	if e := syscall.Remove(name); e != nil {
 		return &PathError{Op: "remove", Path: name, Err: e}
@@ -400,8 +400,8 @@ func rename(oldname, newname string) error {
 		return &LinkError{"rename", oldname, newname, ErrInvalid}
 	}
 
-	// If newname still contains slashes after removing the oldname
-	// prefix, the rename is cross-directory and must be rejected.
+	// 如果去掉 oldname 前缀后 newname 仍包含斜杠，
+	// 则该重命名是跨目录的，必须被拒绝。
 	if bytealg.LastIndexByteString(newname, '/') >= 0 {
 		return &LinkError{"rename", oldname, newname, ErrInvalid}
 	}
@@ -417,7 +417,7 @@ func rename(oldname, newname string) error {
 		return &LinkError{"rename", oldname, newname, err}
 	}
 
-	// If newname already exists and is not a directory, rename replaces it.
+	// 如果 newname 已存在且不是目录，rename 会替换它。
 	f, err := Stat(dirname + newname)
 	if err == nil && !f.IsDir() {
 		Remove(dirname + newname)
@@ -429,7 +429,7 @@ func rename(oldname, newname string) error {
 	return nil
 }
 
-// See docs in file.go:Chmod.
+// 参见 file.go:Chmod 中的文档。
 func chmod(name string, mode FileMode) error {
 	var d syscall.Dir
 
@@ -451,13 +451,13 @@ func chmod(name string, mode FileMode) error {
 	return nil
 }
 
-// Chtimes changes the access and modification times of the named
-// file, similar to the Unix utime() or utimes() functions.
-// A zero time.Time value will leave the corresponding file time unchanged.
+// Chtimes 更改指定文件的访问时间和修改时间，
+// 类似于 Unix 的 utime() 或 utimes() 函数。
+// 零值 time.Time 将使对应的文件时间保持不变。
 //
-// The underlying filesystem may truncate or round the values to a
-// less precise time unit.
-// If there is an error, it will be of type [*PathError].
+// 底层文件系统可能会将值截断或舍入为
+// 精度更低的时间单位。
+// 如果出错，错误的类型为 [*PathError]。
 func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	var d syscall.Dir
 
@@ -482,8 +482,8 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	return nil
 }
 
-// Pipe returns a connected pair of Files; reads from r return bytes
-// written to w. It returns the files and an error, if any.
+// Pipe 返回一对相连的 File；从 r 读取会返回
+// 写入 w 的字节。它返回这两个文件和错误（如果有）。
 func Pipe() (r *File, w *File, err error) {
 	var p [2]int
 
@@ -494,18 +494,18 @@ func Pipe() (r *File, w *File, err error) {
 	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
 }
 
-// not supported on Plan 9
+// Plan 9 上不支持
 
-// Link creates newname as a hard link to the oldname file.
-// If there is an error, it will be of type *LinkError.
+// Link 将 newname 创建为指向 oldname 文件的硬链接。
+// 如果出错，错误的类型为 *LinkError。
 func Link(oldname, newname string) error {
 	return &LinkError{"link", oldname, newname, syscall.EPLAN9}
 }
 
-// Symlink creates newname as a symbolic link to oldname.
-// On Windows, a symlink to a non-existent oldname creates a file symlink;
-// if oldname is later created as a directory the symlink will not work.
-// If there is an error, it will be of type *LinkError.
+// Symlink 将 newname 创建为指向 oldname 的符号链接。
+// 在 Windows 上，指向不存在的 oldname 的符号链接会创建文件符号链接；
+// 如果 oldname 之后作为目录被创建，该符号链接将无法工作。
+// 如果出错，错误的类型为 *LinkError。
 func Symlink(oldname, newname string) error {
 	return &LinkError{"symlink", oldname, newname, syscall.EPLAN9}
 }
@@ -514,26 +514,26 @@ func readlink(name string) (string, error) {
 	return "", &PathError{Op: "readlink", Path: name, Err: syscall.EPLAN9}
 }
 
-// Chown changes the numeric uid and gid of the named file.
-// If the file is a symbolic link, it changes the uid and gid of the link's target.
-// A uid or gid of -1 means to not change that value.
-// If there is an error, it will be of type [*PathError].
+// Chown 更改指定文件的数字 uid 和 gid。
+// 如果文件是符号链接，它会更改链接目标的 uid 和 gid。
+// uid 或 gid 为 -1 表示不更改该值。
+// 如果出错，错误的类型为 [*PathError]。
 //
-// On Windows or Plan 9, Chown always returns the [syscall.EWINDOWS] or
-// [syscall.EPLAN9] error, wrapped in [*PathError].
+// 在 Windows 或 Plan 9 上，Chown 总是返回 [syscall.EWINDOWS] 或
+// [syscall.EPLAN9] 错误，并包装在 [*PathError] 中。
 func Chown(name string, uid, gid int) error {
 	return &PathError{Op: "chown", Path: name, Err: syscall.EPLAN9}
 }
 
-// Lchown changes the numeric uid and gid of the named file.
-// If the file is a symbolic link, it changes the uid and gid of the link itself.
-// If there is an error, it will be of type [*PathError].
+// Lchown 更改指定文件的数字 uid 和 gid。
+// 如果文件是符号链接，它会更改链接本身的 uid 和 gid。
+// 如果出错，错误的类型为 [*PathError]。
 func Lchown(name string, uid, gid int) error {
 	return &PathError{Op: "lchown", Path: name, Err: syscall.EPLAN9}
 }
 
-// Chown changes the numeric uid and gid of the named file.
-// If there is an error, it will be of type [*PathError].
+// Chown 更改指定文件的数字 uid 和 gid。
+// 如果出错，错误的类型为 [*PathError]。
 func (f *File) Chown(uid, gid int) error {
 	if f == nil {
 		return ErrInvalid
@@ -549,9 +549,9 @@ func tempDir() string {
 	return dir
 }
 
-// Chdir changes the current working directory to the file,
-// which must be a directory.
-// If there is an error, it will be of type [*PathError].
+// Chdir 将当前工作目录更改为该文件，
+// 该文件必须是目录。
+// 如果出错，错误的类型为 [*PathError]。
 func (f *File) Chdir() error {
 	if err := f.incref("chdir"); err != nil {
 		return err
@@ -563,7 +563,7 @@ func (f *File) Chdir() error {
 	return nil
 }
 
-// setDeadline sets the read and write deadline.
+// setDeadline 设置读取和写入截止时间。
 func (f *File) setDeadline(time.Time) error {
 	if err := f.checkValid("SetDeadline"); err != nil {
 		return err
@@ -571,7 +571,7 @@ func (f *File) setDeadline(time.Time) error {
 	return poll.ErrNoDeadline
 }
 
-// setReadDeadline sets the read deadline.
+// setReadDeadline 设置读取截止时间。
 func (f *File) setReadDeadline(time.Time) error {
 	if err := f.checkValid("SetReadDeadline"); err != nil {
 		return err
@@ -579,7 +579,7 @@ func (f *File) setReadDeadline(time.Time) error {
 	return poll.ErrNoDeadline
 }
 
-// setWriteDeadline sets the write deadline.
+// setWriteDeadline 设置写入截止时间。
 func (f *File) setWriteDeadline(time.Time) error {
 	if err := f.checkValid("SetWriteDeadline"); err != nil {
 		return err
@@ -587,9 +587,9 @@ func (f *File) setWriteDeadline(time.Time) error {
 	return poll.ErrNoDeadline
 }
 
-// checkValid checks whether f is valid for use, but does not prepare
-// to actually use it. If f is not ready checkValid returns an appropriate
-// error, perhaps incorporating the operation name op.
+// checkValid 检查 f 是否可用于使用，但并不准备
+// 实际使用它。如果 f 未就绪，checkValid 会返回合适的
+// 错误，可能包含操作名 op。
 func (f *File) checkValid(op string) error {
 	if f == nil {
 		return ErrInvalid

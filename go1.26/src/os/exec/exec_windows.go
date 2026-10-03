@@ -9,12 +9,12 @@ import (
 	"syscall"
 )
 
-// skipStdinCopyError optionally specifies a function which reports
-// whether the provided stdin copy error should be ignored.
+// skipStdinCopyError 可选地指定一个函数，用于报告所提供的 stdin 复制错误
+// 是否应被忽略。
 func skipStdinCopyError(err error) bool {
-	// Ignore ERROR_BROKEN_PIPE and ERROR_NO_DATA errors copying
-	// to stdin if the program completed successfully otherwise.
-	// See Issue 20445.
+	// 如果程序在其他方面成功完成，则忽略向 stdin 复制时出现的
+	// ERROR_BROKEN_PIPE 和 ERROR_NO_DATA 错误。
+	// 参见 Issue 20445。
 	const _ERROR_NO_DATA = syscall.Errno(0xe8)
 	pe, ok := err.(*fs.PathError)
 	return ok &&

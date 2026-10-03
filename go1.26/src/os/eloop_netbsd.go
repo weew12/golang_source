@@ -8,9 +8,9 @@ package os
 
 import "syscall"
 
-// isNoFollowErr reports whether err may result from O_NOFOLLOW blocking an open operation.
+// isNoFollowErr 报告 err 是否可能由 O_NOFOLLOW 阻止打开操作而导致。
 func isNoFollowErr(err error) bool {
-	// NetBSD returns EFTYPE, but check the other possibilities as well.
+	// NetBSD 返回 EFTYPE，但也检查其他可能性。
 	switch err {
 	case syscall.ELOOP, syscall.EMLINK, syscall.EFTYPE:
 		return true

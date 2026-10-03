@@ -11,7 +11,7 @@ import (
 	"syscall"
 )
 
-// Defined by the runtime package.
+// 由 runtime 包定义。
 func signal_disable(uint32)
 func signal_enable(uint32)
 func signal_ignore(uint32)
@@ -29,7 +29,7 @@ func init() {
 }
 
 const (
-	numSig = 65 // max across all systems
+	numSig = 65 // 所有系统中的最大值
 )
 
 func signum(sig os.Signal) int {

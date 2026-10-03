@@ -13,12 +13,12 @@ import (
 	"runtime"
 	"sync/atomic"
 	"syscall"
-	_ "unsafe" // for go:linkname
+	_ "unsafe" // 用于 go:linkname
 )
 
 const _UTIME_OMIT = unix.UTIME_OMIT
 
-// fixLongPath is a noop on non-Windows platforms.
+// fixLongPath 在非 Windows 平台上为空操作。
 func fixLongPath(path string) string {
 	return path
 }
@@ -26,14 +26,14 @@ func fixLongPath(path string) string {
 func rename(oldname, newname string) error {
 	fi, err := Lstat(newname)
 	if err == nil && fi.IsDir() {
-		// There are two independent errors this function can return:
-		// one for a bad oldname, and one for a bad newname.
-		// At this point we've determined the newname is bad.
-		// But just in case oldname is also bad, prioritize returning
-		// the oldname error because that's what we did historically.
-		// However, if the old name and new name are not the same, yet
-		// they refer to the same file, it implies a case-only
-		// rename on a case-insensitive filesystem, which is ok.
+		// 这个函数可能返回两种独立的错误：
+		// 一种是因为 oldname 有问题，另一种是因为 newname 有问题。
+		// 此时我们已经确定 newname 有问题。
+		// 但以防 oldname 也有问题，优先返回
+		// oldname 的错误，因为这是我们历史上的做法。
+		// 然而，如果旧名称和新名称不同，但它们
+		// 指向同一个文件，这意味着在不区分大小写的
+		// 文件系统上进行仅大小写不同的重命名，这是可以的。
 		if ofi, err := Lstat(oldname); err != nil {
 			if pe, ok := err.(*PathError); ok {
 				err = pe.Err
@@ -52,31 +52,31 @@ func rename(oldname, newname string) error {
 	return nil
 }
 
-// file is the real representation of *File.
-// The extra level of indirection ensures that no clients of os
-// can overwrite this data, which could cause the finalizer
-// to close the wrong file descriptor.
+// file 是 *File 的真实表示。
+// 额外的间接层确保 os 的任何客户端
+// 都无法覆盖这些数据，否则可能导致终结器
+// 关闭错误的文件描述符。
 type file struct {
 	pfd         poll.FD
 	name        string
-	dirinfo     atomic.Pointer[dirInfo] // nil unless directory being read
-	nonblock    bool                    // whether we set nonblocking mode
-	stdoutOrErr bool                    // whether this is stdout or stderr
-	appendMode  bool                    // whether file is opened for appending
-	inRoot      bool                    // whether file is opened in a Root
+	dirinfo     atomic.Pointer[dirInfo] // 除非正在读取目录，否则为 nil
+	nonblock    bool                    // 我们是否设置了非阻塞模式
+	stdoutOrErr bool                    // 这是否是 stdout 或 stderr
+	appendMode  bool                    // 文件是否以追加方式打开
+	inRoot      bool                    // 文件是否在 Root 中打开
 }
 
-// fd is the Unix implementation of Fd.
+// fd 是 Fd 的 Unix 实现。
 func (f *File) fd() uintptr {
 	if f == nil {
 		return ^(uintptr(0))
 	}
 
-	// If we put the file descriptor into nonblocking mode,
-	// then set it to blocking mode before we return it,
-	// because historically we have always returned a descriptor
-	// opened in blocking mode. The File will continue to work,
-	// but any blocking operation will tie up a thread.
+	// 如果我们将文件描述符置于非阻塞模式，
+	// 那么在返回它之前要将其设置为阻塞模式，
+	// 因为从历史上看，我们总是返回以阻塞模式
+	// 打开的描述符。File 会继续工作，
+	// 但任何阻塞操作都会占用一个线程。
 	if f.nonblock {
 		f.pfd.SetBlocking()
 	}
@@ -84,7 +84,7 @@ func (f *File) fd() uintptr {
 	return uintptr(f.pfd.Sysfd)
 }
 
-// newFileFromNewFile is called by [NewFile].
+// newFileFromNewFile 由 [NewFile] 调用。
 func newFileFromNewFile(fd uintptr, name string) *File {
 	fdi := int(fd)
 	if fdi < 0 {
@@ -100,14 +100,14 @@ func newFileFromNewFile(fd uintptr, name string) *File {
 	return f
 }
 
-// net_newUnixFile is a hidden entry point called by net.conn.File.
-// This is used so that a nonblocking network connection will become
-// blocking if code calls the Fd method. We don't want that for direct
-// calls to NewFile: passing a nonblocking descriptor to NewFile should
-// remain nonblocking if you get it back using Fd. But for net.conn.File
-// the call to NewFile is hidden from the user. Historically in that case
-// the Fd method has returned a blocking descriptor, and we want to
-// retain that behavior because existing code expects it and depends on it.
+// net_newUnixFile 是由 net.conn.File 调用的隐藏入口点。
+// 这样做是为了让非阻塞网络连接在代码调用 Fd 方法时
+// 变为阻塞。我们不希望对 NewFile 的直接调用有这种
+// 行为：将非阻塞描述符传给 NewFile 后，若你用 Fd 取回它，
+// 它应保持非阻塞。但对于 net.conn.File，
+// 对 NewFile 的调用对用户是隐藏的。从历史上看，在这种情况下
+// Fd 方法返回的是阻塞描述符，我们希望
+// 保留这一行为，因为现有代码期望并依赖它。
 //
 //go:linkname net_newUnixFile net.newUnixFile
 func net_newUnixFile(fd int, name string) *File {
@@ -118,29 +118,29 @@ func net_newUnixFile(fd int, name string) *File {
 	return newFile(fd, name, kindSock, true)
 }
 
-// newFileKind describes the kind of file to newFile.
+// newFileKind 描述传给 newFile 的文件种类。
 type newFileKind int
 
 const (
-	// kindNewFile means that the descriptor was passed to us via NewFile.
+	// kindNewFile 表示该描述符是通过 NewFile 传给我们的。
 	kindNewFile newFileKind = iota
-	// kindOpenFile means that the descriptor was opened using
-	// Open, Create, or OpenFile.
+	// kindOpenFile 表示该描述符是使用
+	// Open、Create 或 OpenFile 打开的。
 	kindOpenFile
-	// kindPipe means that the descriptor was opened using Pipe.
+	// kindPipe 表示该描述符是使用 Pipe 打开的。
 	kindPipe
-	// kindSock means that the descriptor is a network file descriptor
-	// that was created from net package and was opened using net_newUnixFile.
+	// kindSock 表示该描述符是一个网络文件描述符，
+	// 它由 net 包创建，并使用 net_newUnixFile 打开。
 	kindSock
-	// kindNoPoll means that we should not put the descriptor into
-	// non-blocking mode, because we know it is not a pipe or FIFO.
-	// Used by openDirAt and openDirNolog for directories.
+	// kindNoPoll 表示我们不应将该描述符置于
+	// 非阻塞模式，因为我们知道它不是管道或 FIFO。
+	// 由 openDirAt 和 openDirNolog 用于目录。
 	kindNoPoll
 )
 
-// newFile is like NewFile, but if called from OpenFile or Pipe
-// (as passed in the kind parameter) it tries to add the file to
-// the runtime poller.
+// newFile 类似于 NewFile，但如果是从 OpenFile 或 Pipe 调用
+// （如 kind 参数中所传），它会尝试将该文件添加到
+// 运行时轮询器。
 func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
 	f := &File{&file{
 		pfd: poll.FD{
@@ -154,14 +154,14 @@ func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
 
 	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindSock || nonBlocking
 
-	// Things like regular files and FIFOs in kqueue on *BSD/Darwin
-	// may not work properly (or accurately according to its manual).
-	// As a result, we should avoid adding those to the kqueue-based
-	// netpoller. Check out #19093, #24164, and #66239 for more contexts.
+	// 像 *BSD/Darwin 上 kqueue 中的普通文件和 FIFO
+	// 这类东西可能无法正常工作（或按其手册所述并不准确）。
+	// 因此，我们应避免将它们添加到基于 kqueue 的
+	// netpoller。更多上下文请查看 #19093、#24164 和 #66239。
 	//
-	// If the fd was passed to us via any path other than OpenFile,
-	// we assume those callers know what they were doing, so we won't
-	// perform this check and allow it to be added to the kqueue.
+	// 如果该 fd 是通过 OpenFile 之外的任何路径传给我们的，
+	// 我们假定那些调用方知道自己在做什么，因此不会
+	// 执行此检查，并允许将其添加到 kqueue。
 	if kind == kindOpenFile {
 		switch runtime.GOOS {
 		case "darwin", "ios", "dragonfly", "freebsd", "netbsd", "openbsd":
@@ -170,21 +170,21 @@ func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
 				return syscall.Fstat(fd, &st)
 			})
 			typ := st.Mode & syscall.S_IFMT
-			// Don't try to use kqueue with regular files on *BSDs.
-			// On FreeBSD a regular file is always
-			// reported as ready for writing.
-			// On Dragonfly, NetBSD and OpenBSD the fd is signaled
-			// only once as ready (both read and write).
-			// Issue 19093.
-			// Also don't add directories to the netpoller.
+			// 不要在 *BSD 上对普通文件尝试使用 kqueue。
+			// 在 FreeBSD 上，普通文件总是被
+			// 报告为可写就绪。
+			// 在 Dragonfly、NetBSD 和 OpenBSD 上，该 fd 只会
+			// 被通知一次就绪（读和写都如此）。
+			// Issue 19093。
+			// 也不要将目录添加到 netpoller。
 			if err == nil && (typ == syscall.S_IFREG || typ == syscall.S_IFDIR) {
 				pollable = false
 			}
 
-			// In addition to the behavior described above for regular files,
-			// on Darwin, kqueue does not work properly with fifos:
-			// closing the last writer does not cause a kqueue event
-			// for any readers. See issue #24164.
+			// 除了上述针对普通文件描述的行为之外，
+			// 在 Darwin 上，kqueue 无法正常处理 fifo：
+			// 关闭最后一个写端不会为任何读端触发
+			// kqueue 事件。参见 issue #24164。
 			if (runtime.GOOS == "darwin" || runtime.GOOS == "ios") && typ == syscall.S_IFIFO {
 				pollable = false
 			}
@@ -193,13 +193,13 @@ func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
 
 	clearNonBlock := false
 	if pollable {
-		// The descriptor is already in non-blocking mode.
-		// We only set f.nonblock if we put the file into
-		// non-blocking mode.
+		// 该描述符已经处于非阻塞模式。
+		// 只有在我们将该文件置于非阻塞模式时，
+		// 才会设置 f.nonblock。
 		if nonBlocking {
-			// See the comments on net_newUnixFile.
+			// 参见 net_newUnixFile 上的注释。
 			if kind == kindSock {
-				f.nonblock = true // tell Fd to return blocking descriptor
+				f.nonblock = true // 告知 Fd 返回阻塞描述符
 			}
 		} else if err := syscall.SetNonblock(fd, true); err == nil {
 			f.nonblock = true
@@ -209,13 +209,12 @@ func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
 		}
 	}
 
-	// An error here indicates a failure to register
-	// with the netpoll system. That can happen for
-	// a file descriptor that is not supported by
-	// epoll/kqueue; for example, disk files on
-	// Linux systems. We assume that any real error
-	// will show up in later I/O.
-	// We do restore the blocking behavior if it was set by us.
+	// 这里的错误表示向 netpoll 系统注册失败。
+	// 对于 epoll/kqueue 不支持的文件描述符，
+	// 例如 Linux 系统上的磁盘文件，可能会发生这种情况。
+	// 我们假定任何真正的错误都会在之后的 I/O 中
+	// 显现出来。
+	// 如果是我们设置的阻塞行为，我们确实会将其恢复。
 	if pollErr := f.pfd.Init("file", pollable); pollErr != nil && clearNonBlock {
 		if err := syscall.SetNonblock(fd, false); err == nil {
 			f.nonblock = false
@@ -226,23 +225,23 @@ func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
 	return f
 }
 
-func sigpipe() // implemented in package runtime
+func sigpipe() // 在 runtime 包中实现
 
-// epipecheck raises SIGPIPE if we get an EPIPE error on standard
-// output or standard error. See the SIGPIPE docs in os/signal, and
-// issue 11845.
+// epipecheck 如果我们在标准输出或标准错误上遇到 EPIPE 错误，
+// 则引发 SIGPIPE。参见 os/signal 中的 SIGPIPE 文档，
+// 以及 issue 11845。
 func epipecheck(file *File, e error) {
 	if e == syscall.EPIPE && file.stdoutOrErr {
 		sigpipe()
 	}
 }
 
-// DevNull is the name of the operating system's “null device.”
-// On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+// DevNull 是操作系统 “空设备” 的名称。
+// 在类 Unix 系统上，它是 "/dev/null"；在 Windows 上，是 "NUL"。
 const DevNull = "/dev/null"
 
-// openFileNolog is the Unix implementation of OpenFile.
-// Changes here should be reflected in openDirAt and openDirNolog, if relevant.
+// openFileNolog 是 OpenFile 的 Unix 实现。
+// 此处的改动如果相关，应同步反映到 openDirAt 和 openDirNolog。
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	setSticky := false
 	if !supportsCreateWithStickyBit && flag&O_CREATE != 0 && perm&ModeSticky != 0 {
@@ -256,7 +255,7 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		s poll.SysFile
 		e error
 	)
-	// We have to check EINTR here, per issues 11180 and 39237.
+	// 根据 issues 11180 和 39237，我们必须在这里检查 EINTR。
 	ignoringEINTR(func() error {
 		r, s, e = open(name, flag|syscall.O_CLOEXEC, syscallMode(perm))
 		return e
@@ -265,13 +264,13 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 		return nil, &PathError{Op: "open", Path: name, Err: e}
 	}
 
-	// open(2) itself won't handle the sticky bit on *BSD and Solaris
+	// open(2) 本身在 *BSD 和 Solaris 上不会处理粘滞位
 	if setSticky {
 		setStickyBit(name)
 	}
 
-	// There's a race here with fork/exec, which we are
-	// content to live with. See ../syscall/exec_unix.go.
+	// 这里与 fork/exec 存在竞态，我们只能
+	// 接受它。参见 ../syscall/exec_unix.go。
 	if !supportsCloseOnExec {
 		syscall.CloseOnExec(r)
 	}
@@ -319,19 +318,19 @@ func (file *file) close() error {
 		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 
-	// no need for a finalizer anymore
+	// 不再需要终结器了
 	runtime.SetFinalizer(file, nil)
 	return err
 }
 
-// seek sets the offset for the next Read or Write on file to offset, interpreted
-// according to whence: 0 means relative to the origin of the file, 1 means
-// relative to the current offset, and 2 means relative to the end.
-// It returns the new offset and an error, if any.
+// seek 将文件上下一次 Read 或 Write 的偏移量设置为 offset，
+// 其解释取决于 whence：0 表示相对于文件起始位置，1 表示
+// 相对于当前偏移量，2 表示相对于末尾。
+// 它返回新的偏移量和错误（如果有）。
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 	if info := f.dirinfo.Swap(nil); info != nil {
-		// Free cached dirinfo, so we allocate a new one if we
-		// access this file as a directory again. See #35767 and #37161.
+		// 释放缓存的 dirinfo，这样如果我们再次将此文件
+		// 作为目录访问，就会分配一个新的。参见 #35767 和 #37161。
 		info.close()
 	}
 	ret, err = f.pfd.Seek(offset, whence)
@@ -339,9 +338,9 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 	return ret, err
 }
 
-// Truncate changes the size of the named file.
-// If the file is a symbolic link, it changes the size of the link's target.
-// If there is an error, it will be of type [*PathError].
+// Truncate 更改指定文件的大小。
+// 如果文件是符号链接，它会更改链接目标的大小。
+// 如果出错，错误的类型为 [*PathError]。
 func Truncate(name string, size int64) error {
 	e := ignoringEINTR(func() error {
 		return syscall.Truncate(name, size)
@@ -352,13 +351,13 @@ func Truncate(name string, size int64) error {
 	return nil
 }
 
-// Remove removes the named file or (empty) directory.
-// If there is an error, it will be of type [*PathError].
+// Remove 删除指定文件或（空）目录。
+// 如果出错，错误的类型为 [*PathError]。
 func Remove(name string) error {
-	// System call interface forces us to know
-	// whether name is a file or directory.
-	// Try both: it is cheaper on average than
-	// doing a Stat plus the right one.
+	// 系统调用接口迫使我们知道
+	// name 是文件还是目录。
+	// 两种都尝试：平均而言这比
+	// 先 Stat 再用对应的方法更省。
 	e := ignoringEINTR(func() error {
 		return syscall.Unlink(name)
 	})
@@ -372,15 +371,15 @@ func Remove(name string) error {
 		return nil
 	}
 
-	// Both failed: figure out which error to return.
-	// OS X and Linux differ on whether unlink(dir)
-	// returns EISDIR, so can't use that. However,
-	// both agree that rmdir(file) returns ENOTDIR,
-	// so we can use that to decide which error is real.
-	// Rmdir might also return ENOTDIR if given a bad
-	// file path, like /etc/passwd/foo, but in that case,
-	// both errors will be ENOTDIR, so it's okay to
-	// use the error from unlink.
+	// 两者都失败了：弄清该返回哪个错误。
+	// OS X 和 Linux 在 unlink(dir) 是否
+	// 返回 EISDIR 上存在差异，因此不能用它。然而，
+	// 两者都一致认为 rmdir(file) 返回 ENOTDIR，
+	// 所以我们可以用它来决定哪个错误是真正的错误。
+	// 如果给定的是错误的文件路径，如 /etc/passwd/foo，
+	// Rmdir 也可能返回 ENOTDIR，但在那种情况下，
+	// 两个错误都会是 ENOTDIR，所以使用 unlink
+	// 返回的错误是没问题的。
 	if e1 != syscall.ENOTDIR {
 		e = e1
 	}
@@ -399,8 +398,8 @@ func tempDir() string {
 	return dir
 }
 
-// Link creates newname as a hard link to the oldname file.
-// If there is an error, it will be of type *LinkError.
+// Link 将 newname 创建为指向 oldname 文件的硬链接。
+// 如果出错，错误的类型为 *LinkError。
 func Link(oldname, newname string) error {
 	e := ignoringEINTR(func() error {
 		return syscall.Link(oldname, newname)
@@ -411,10 +410,10 @@ func Link(oldname, newname string) error {
 	return nil
 }
 
-// Symlink creates newname as a symbolic link to oldname.
-// On Windows, a symlink to a non-existent oldname creates a file symlink;
-// if oldname is later created as a directory the symlink will not work.
-// If there is an error, it will be of type *LinkError.
+// Symlink 将 newname 创建为指向 oldname 的符号链接。
+// 在 Windows 上，指向不存在的 oldname 的符号链接会创建文件符号链接；
+// 如果 oldname 之后作为目录被创建，该符号链接将无法工作。
+// 如果出错，错误的类型为 *LinkError。
 func Symlink(oldname, newname string) error {
 	e := ignoringEINTR(func() error {
 		return syscall.Symlink(oldname, newname)
@@ -431,7 +430,7 @@ func readlink(name string) (string, error) {
 		n, err := ignoringEINTR2(func() (int, error) {
 			return fixCount(syscall.Readlink(name, b))
 		})
-		// buffer too small
+		// 缓冲区太小
 		if (runtime.GOOS == "aix" || runtime.GOOS == "wasip1") && err == syscall.ERANGE {
 			continue
 		}
@@ -472,9 +471,9 @@ func newUnixDirent(parent *File, name string, typ FileMode) (DirEntry, error) {
 		name:   name,
 		typ:    typ,
 	}
-	// When the parent file was opened in a Root,
-	// we cannot use a lazy lstat to load the FileInfo.
-	// Use lstatat here.
+	// 当父文件是在 Root 中打开时，
+	// 我们不能使用惰性 lstat 来加载 FileInfo。
+	// 这里使用 lstatat。
 	if typ != ^FileMode(0) && !parent.inRoot {
 		return ude, nil
 	}

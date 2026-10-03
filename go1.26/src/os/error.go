@@ -9,13 +9,12 @@ import (
 	"io/fs"
 )
 
-// Portable analogs of some common system call errors.
+// 一些常见系统调用错误的可移植对应物。
 //
-// Errors returned from this package may be tested against these errors
-// with [errors.Is].
+// 从此包返回的错误可以用 [errors.Is] 针对这些错误进行测试。
 var (
-	// ErrInvalid indicates an invalid argument.
-	// Methods on File will return this error when the receiver is nil.
+	// ErrInvalid 表示参数无效。
+	// 当接收者为 nil 时，File 上的方法将返回此错误。
 	ErrInvalid = fs.ErrInvalid // "invalid argument"
 
 	ErrPermission = fs.ErrPermission // "permission denied"
@@ -29,23 +28,21 @@ var (
 
 func errNoDeadline() error { return poll.ErrNoDeadline }
 
-// errDeadlineExceeded returns the value for os.ErrDeadlineExceeded.
-// This error comes from the internal/poll package, which is also
-// used by package net. Doing it this way ensures that the net
-// package will return os.ErrDeadlineExceeded for an exceeded deadline,
-// as documented by net.Conn.SetDeadline, without requiring any extra
-// work in the net package and without requiring the internal/poll
-// package to import os (which it can't, because that would be circular).
+// errDeadlineExceeded 返回 os.ErrDeadlineExceeded 的值。
+// 此错误来自 internal/poll 包，该包也被 net 包使用。
+// 这样做可以确保 net 包在超过截止时间时返回 os.ErrDeadlineExceeded，
+// 正如 net.Conn.SetDeadline 所记录的那样，而无需在 net 包中做任何额外工作，
+// 也无需让 internal/poll 包导入 os（它无法这样做，因为那会造成循环依赖）。
 func errDeadlineExceeded() error { return poll.ErrDeadlineExceeded }
 
 type timeout interface {
 	Timeout() bool
 }
 
-// PathError records an error and the operation and file path that caused it.
+// PathError 记录一个错误以及导致它的操作和文件路径。
 type PathError = fs.PathError
 
-// SyscallError records an error from a specific system call.
+// SyscallError 记录来自特定系统调用的错误。
 type SyscallError struct {
 	Syscall string
 	Err     error
@@ -55,15 +52,15 @@ func (e *SyscallError) Error() string { return e.Syscall + ": " + e.Err.Error() 
 
 func (e *SyscallError) Unwrap() error { return e.Err }
 
-// Timeout reports whether this error represents a timeout.
+// Timeout 报告此错误是否表示超时。
 func (e *SyscallError) Timeout() bool {
 	t, ok := e.Err.(timeout)
 	return ok && t.Timeout()
 }
 
-// NewSyscallError returns, as an error, a new [SyscallError]
-// with the given system call name and error details.
-// As a convenience, if err is nil, NewSyscallError returns nil.
+// NewSyscallError 返回一个新的 [SyscallError] 作为错误，
+// 其中包含给定的系统调用名称和错误详情。
+// 为方便起见，如果 err 为 nil，NewSyscallError 返回 nil。
 func NewSyscallError(syscall string, err error) error {
 	if err == nil {
 		return nil
@@ -71,63 +68,63 @@ func NewSyscallError(syscall string, err error) error {
 	return &SyscallError{syscall, err}
 }
 
-// IsExist returns a boolean indicating whether its argument is known to report
-// that a file or directory already exists. It is satisfied by [ErrExist] as
-// well as some syscall errors.
+// IsExist 返回一个布尔值，指示其参数是否已知报告
+// 文件或目录已存在。它可由 [ErrExist] 以及
+// 某些系统调用错误满足。
 //
-// This function predates [errors.Is]. It only supports errors returned by
-// the os package. New code should use errors.Is(err, fs.ErrExist).
+// 此函数早于 [errors.Is]。它仅支持由 os 包返回的错误。
+// 新代码应使用 errors.Is(err, fs.ErrExist)。
 func IsExist(err error) bool {
 	return underlyingErrorIs(err, ErrExist)
 }
 
-// IsNotExist returns a boolean indicating whether its argument is known to
-// report that a file or directory does not exist. It is satisfied by
-// [ErrNotExist] as well as some syscall errors.
+// IsNotExist 返回一个布尔值，指示其参数是否已知
+// 报告文件或目录不存在。它可由
+// [ErrNotExist] 以及某些系统调用错误满足。
 //
-// This function predates [errors.Is]. It only supports errors returned by
-// the os package. New code should use errors.Is(err, fs.ErrNotExist).
+// 此函数早于 [errors.Is]。它仅支持由 os 包返回的错误。
+// 新代码应使用 errors.Is(err, fs.ErrNotExist)。
 func IsNotExist(err error) bool {
 	return underlyingErrorIs(err, ErrNotExist)
 }
 
-// IsPermission returns a boolean indicating whether its argument is known to
-// report that permission is denied. It is satisfied by [ErrPermission] as well
-// as some syscall errors.
+// IsPermission 返回一个布尔值，指示其参数是否已知
+// 报告权限被拒绝。它可由 [ErrPermission] 以及
+// 某些系统调用错误满足。
 //
-// This function predates [errors.Is]. It only supports errors returned by
-// the os package. New code should use errors.Is(err, fs.ErrPermission).
+// 此函数早于 [errors.Is]。它仅支持由 os 包返回的错误。
+// 新代码应使用 errors.Is(err, fs.ErrPermission)。
 func IsPermission(err error) bool {
 	return underlyingErrorIs(err, ErrPermission)
 }
 
-// IsTimeout returns a boolean indicating whether its argument is known
-// to report that a timeout occurred.
+// IsTimeout 返回一个布尔值，指示其参数是否已知
+// 报告发生了超时。
 //
-// This function predates [errors.Is], and the notion of whether an
-// error indicates a timeout can be ambiguous. For example, the Unix
-// error EWOULDBLOCK sometimes indicates a timeout and sometimes does not.
-// New code should use errors.Is with a value appropriate to the call
-// returning the error, such as [os.ErrDeadlineExceeded].
+// 此函数早于 [errors.Is]，并且错误是否表示超时的概念
+// 可能含糊不清。例如，Unix 错误 EWOULDBLOCK
+// 有时表示超时，有时不表示。
+// 新代码应使用 errors.Is，并传入适合返回该错误的调用
+// 的值，例如 [os.ErrDeadlineExceeded]。
 func IsTimeout(err error) bool {
 	terr, ok := underlyingError(err).(timeout)
 	return ok && terr.Timeout()
 }
 
 func underlyingErrorIs(err, target error) bool {
-	// Note that this function is not errors.Is:
-	// underlyingError only unwraps the specific error-wrapping types
-	// that it historically did, not all errors implementing Unwrap().
+	// 注意，此函数不是 errors.Is：
+	// underlyingError 只解包它历来处理的特定错误包装类型，
+	// 而不是所有实现了 Unwrap() 的错误。
 	err = underlyingError(err)
 	if err == target {
 		return true
 	}
-	// To preserve prior behavior, only examine syscall errors.
+	// 为保持先前的行为，只检查系统调用错误。
 	e, ok := err.(syscallErrorType)
 	return ok && e.Is(target)
 }
 
-// underlyingError returns the underlying error for known os error types.
+// underlyingError 返回已知 os 错误类型的底层错误。
 func underlyingError(err error) error {
 	switch err := err.(type) {
 	case *PathError:

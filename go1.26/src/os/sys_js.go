@@ -6,6 +6,6 @@
 
 package os
 
-// supportsCloseOnExec reports whether the platform supports the
-// O_CLOEXEC flag.
+// supportsCloseOnExec 报告该平台是否支持
+// O_CLOEXEC 标志。
 const supportsCloseOnExec = false

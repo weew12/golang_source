@@ -32,9 +32,9 @@ func fillFileStatFromSys(fs *fileStat, name string) {
 		fs.mode |= ModeSymlink
 	}
 
-	// WASI does not support unix-like permissions, but Go programs are likely
-	// to expect the permission bits to not be zero so we set defaults to help
-	// avoid breaking applications that are migrating to WASM.
+	// WASI 不支持类 Unix 权限，但 Go 程序很可能
+	// 期望权限位不为零，因此我们设置默认值以帮助
+	// 避免破坏正在迁移到 WASM 的应用程序。
 	if fs.sys.Filetype == syscall.FILETYPE_DIRECTORY {
 		fs.mode |= 0700
 	} else {
@@ -42,7 +42,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
 	}
 }
 
-// For testing.
+// 用于测试。
 func atime(fi FileInfo) time.Time {
 	st := fi.Sys().(*syscall.Stat_t)
 	return time.Unix(0, int64(st.Atime))

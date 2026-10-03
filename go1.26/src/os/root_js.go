@@ -12,19 +12,19 @@ import (
 	"syscall"
 )
 
-// checkPathEscapes reports whether name escapes the root.
+// checkPathEscapes 报告 name 是否逃逸出根。
 //
-// Due to the lack of openat, checkPathEscapes is subject to TOCTOU races
-// when symlinks change during the resolution process.
+// 由于缺少 openat，当符号链接在解析过程中发生变化时，
+// checkPathEscapes 容易受到 TOCTOU 竞态影响。
 func checkPathEscapes(r *Root, name string) error {
 	return checkPathEscapesInternal(r, name, false)
 }
 
-// checkPathEscapesLstat reports whether name escapes the root.
-// It does not resolve symlinks in the final path component.
+// checkPathEscapesLstat 报告 name 是否逃逸出根。
+// 它不会解析最后一个路径组件中的符号链接。
 //
-// Due to the lack of openat, checkPathEscapes is subject to TOCTOU races
-// when symlinks change during the resolution process.
+// 由于缺少 openat，当符号链接在解析过程中发生变化时，
+// checkPathEscapes 容易受到 TOCTOU 竞态影响。
 func checkPathEscapesLstat(r *Root, name string) error {
 	return checkPathEscapesInternal(r, name, true)
 }
@@ -43,7 +43,7 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
 	base := r.root.name
 	for i < len(parts) {
 		if parts[i] == ".." {
-			// Resolve one or more parent ("..") path components.
+			// 解析一个或多个父级（".."）路径组件。
 			end := i + 1
 			for end < len(parts) && parts[end] == ".." {
 				end++
@@ -91,12 +91,12 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
 				return err
 			}
 			if i == len(parts) {
-				// suffixSep contains any trailing path separator characters
-				// in the link target.
-				// If we are replacing the remainder of the path, retain these.
-				// If we're replacing some intermediate component of the path,
-				// ignore them, since intermediate components must always be
-				// directories.
+				// suffixSep 包含链接目标中的任何尾随路径分隔符
+				// 字符。
+				// 如果我们要替换路径的剩余部分，则保留这些字符。
+				// 如果我们要替换路径的某个中间组件，
+				// 则忽略它们，因为中间组件必须始终
+				// 是目录。
 				suffixSep = newSuffixSep
 			}
 			parts = newparts

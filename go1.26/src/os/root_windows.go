@@ -17,27 +17,26 @@ import (
 	"unsafe"
 )
 
-// rootCleanPath uses GetFullPathName to perform lexical path cleaning.
+// rootCleanPath 使用 GetFullPathName 执行词法路径清理。
 //
-// On Windows, file names are lexically cleaned at the start of a file operation.
-// For example, on Windows the path `a\..\b` is exactly equivalent to `b` alone,
-// even if `a` does not exist or is not a directory.
+// 在 Windows 上，文件名会在文件操作开始时进行词法清理。
+// 例如，在 Windows 上路径 `a\..\b` 完全等价于单独的 `b`，
+// 即使 `a` 不存在或不是目录。
 //
-// We use the Windows API function GetFullPathName to perform this cleaning.
-// We could do this ourselves, but there are a number of subtle behaviors here,
-// and deferring to the OS maintains consistency.
-// (For example, `a\.\` cleans to `a\`.)
+// 我们使用 Windows API 函数 GetFullPathName 来执行此清理。
+// 我们也可以自己实现，但这里有许多微妙的行为，
+// 交给操作系统处理可以保持一致。
+// （例如，`a\.\` 会被清理为 `a\`。）
 //
-// GetFullPathName operates on absolute paths, and our input path is relative.
-// We make the path absolute by prepending a fixed prefix of \\?\?\.
+// GetFullPathName 处理的是绝对路径，而我们的输入路径是相对的。
+// 我们通过在路径前添加固定前缀 \\?\? 使其变为绝对路径。
 //
-// We want to detect paths which use .. components to escape the root.
-// We do this by ensuring the cleaned path still begins with \\?\?\.
-// We catch the corner case of a path which includes a ..\?\. component
-// by rejecting any input paths which contain a ?, which is not a valid character
-// in a Windows filename.
+// 我们想要检测使用 .. 组件逃逸出根的路径。
+// 我们通过确保清理后的路径仍以 \\?\? 开头来实现这一点。
+// 我们通过拒绝任何包含 ? 的输入路径（? 在 Windows 文件名中
+// 不是合法字符）来捕获包含 ..\?\. 组件的边界情况。
 func rootCleanPath(s string, prefix, suffix []string) (string, error) {
-	// Reject paths which include a ? component (see above).
+	// 拒绝包含 ? 组件的路径（见上文）。
 	if stringslite.IndexByte(s, '?') >= 0 {
 		return "", windows.ERROR_INVALID_NAME
 	}
@@ -77,12 +76,12 @@ func rootCleanPath(s string, prefix, suffix []string) (string, error) {
 	return s, nil
 }
 
-// sysfdType is the native type of a file handle
-// (int on Unix, syscall.Handle on Windows),
-// permitting helper functions to be written portably.
+// sysfdType 是文件句柄的原生类型
+// （在 Unix 上为 int，在 Windows 上为 syscall.Handle），
+// 以便编写可移植的辅助函数。
 type sysfdType = syscall.Handle
 
-// openRootNolog is OpenRoot.
+// openRootNolog 即 OpenRoot。
 func openRootNolog(name string) (*Root, error) {
 	if name == "" {
 		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOENT}
@@ -95,13 +94,13 @@ func openRootNolog(name string) (*Root, error) {
 	return newRoot(fd, name)
 }
 
-// newRoot returns a new Root.
-// If fd is not a directory, it closes it and returns an error.
+// newRoot 返回一个新的 Root。
+// 如果 fd 不是目录，它会关闭 fd 并返回错误。
 func newRoot(fd syscall.Handle, name string) (*Root, error) {
-	// Check that this is a directory.
+	// 检查这是一个目录。
 	//
-	// If we get any errors here, ignore them; worst case we create a Root
-	// which returns errors when you try to use it.
+	// 如果这里出现任何错误，忽略它们；最坏的情况是我们创建了一个
+	// 在你尝试使用它时会返回错误的 Root。
 	var fi syscall.ByHandleFileInformation
 	err := syscall.GetFileInformationByHandle(fd, &fi)
 	if err == nil && fi.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY == 0 {
@@ -117,7 +116,7 @@ func newRoot(fd syscall.Handle, name string) (*Root, error) {
 	return r, nil
 }
 
-// openRootInRoot is Root.OpenRoot.
+// openRootInRoot 即 Root.OpenRoot。
 func openRootInRoot(r *Root, name string) (*Root, error) {
 	fd, err := doInRoot(r, name, nil, rootOpenDir)
 	if err != nil {
@@ -126,7 +125,7 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
 	return newRoot(fd, joinPath(r.Name(), name))
 }
 
-// rootOpenFileNolog is Root.OpenFile.
+// rootOpenFileNolog 即 Root.OpenFile。
 func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File, error) {
 	fd, err := doInRoot(root, name, nil, func(parent syscall.Handle, name string) (syscall.Handle, error) {
 		return openat(parent, name, uint64(flag), perm)
@@ -184,20 +183,20 @@ func readReparseLinkAt(dirfd syscall.Handle, name string) (string, error) {
 func rootOpenDir(parent syscall.Handle, name string) (syscall.Handle, error) {
 	h, err := openat(parent, name, syscall.O_RDONLY|syscall.O_CLOEXEC|windows.O_DIRECTORY, 0)
 	if err == syscall.ERROR_FILE_NOT_FOUND {
-		// Windows returns:
-		//   - ERROR_PATH_NOT_FOUND if any path compoenent before the leaf
-		//     does not exist or is not a directory.
-		//   - ERROR_FILE_NOT_FOUND if the leaf does not exist.
+		// Windows 会返回：
+		//   - 如果叶子之前的任何路径组件不存在或不是目录，
+		//     则返回 ERROR_PATH_NOT_FOUND。
+		//   - 如果叶子不存在，则返回 ERROR_FILE_NOT_FOUND。
 		//
-		// This differs from Unix behavior, which is:
-		//   - ENOENT if any path component does not exist, including the leaf.
-		//   - ENOTDIR if any path component before the leaf is not a directory.
+		// 这与 Unix 行为不同，Unix 的行为是：
+		//   - 如果任何路径组件（包括叶子）不存在，则返回 ENOENT。
+		//   - 如果叶子之前的任何路径组件不是目录，则返回 ENOTDIR。
 		//
-		// We map syscall.ENOENT to ERROR_FILE_NOT_FOUND and syscall.ENOTDIR
-		// to ERROR_PATH_NOT_FOUND, but the Windows errors don't quite match.
+		// 我们将 syscall.ENOENT 映射为 ERROR_FILE_NOT_FOUND，将 syscall.ENOTDIR
+		// 映射为 ERROR_PATH_NOT_FOUND，但 Windows 的错误并不完全对应。
 		//
-		// For consistency with os.Open, convert ERROR_FILE_NOT_FOUND here into
-		// ERROR_PATH_NOT_FOUND, since we're opening a non-leaf path component.
+		// 为了与 os.Open 保持一致，这里将 ERROR_FILE_NOT_FOUND 转换为
+		// ERROR_PATH_NOT_FOUND，因为我们打开的是一个非叶子路径组件。
 		err = syscall.ERROR_PATH_NOT_FOUND
 	}
 	return h, err
@@ -205,11 +204,11 @@ func rootOpenDir(parent syscall.Handle, name string) (syscall.Handle, error) {
 
 func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 	if len(name) > 0 && IsPathSeparator(name[len(name)-1]) {
-		// When a filename ends with a path separator,
-		// Lstat behaves like Stat.
+		// 当文件名以路径分隔符结尾时，
+		// Lstat 的行为类似于 Stat。
 		//
-		// This behavior is not based on a principled decision here,
-		// merely the empirical evidence that Lstat behaves this way.
+		// 此行为并非基于此处有原则的决定，
+		// 而仅仅是基于 Lstat 确实如此表现的经验证据。
 		lstat = false
 	}
 	fi, err := doInRoot(r, name, nil, func(parent syscall.Handle, n string) (FileInfo, error) {
@@ -242,8 +241,8 @@ func rootSymlink(r *Root, oldname, newname string) error {
 		return syscall.EINVAL
 	}
 
-	// CreateSymbolicLinkW converts volume-relative paths into absolute ones.
-	// Do the same.
+	// CreateSymbolicLinkW 会将卷相对路径转换为绝对路径。
+	// 我们也这样做。
 	if filepathlite.VolumeNameLen(oldname) > 0 && !filepathlite.IsAbs(oldname) {
 		p, err := syscall.FullPath(oldname)
 		if err == nil {
@@ -251,13 +250,13 @@ func rootSymlink(r *Root, oldname, newname string) error {
 		}
 	}
 
-	// If oldname can be resolved to a directory in the root, create a directory link.
-	// Otherwise, create a file link.
+	// 如果 oldname 能解析为根中的目录，则创建目录链接。
+	// 否则，创建文件链接。
 	var flags windows.SymlinkatFlags
 	if filepathlite.VolumeNameLen(oldname) == 0 && !IsPathSeparator(oldname[0]) {
-		// oldname is a path relative to the directory containing newname.
-		// Prepend newname's directory to it to make a path relative to the root.
-		// For example, if oldname=old and newname=a\new, destPath=a\old.
+		// oldname 是相对于包含 newname 的目录的路径。
+		// 将 newname 的目录前置到它前面，使其成为相对于根的路径。
+		// 例如，如果 oldname=old 且 newname=a\new，则 destPath=a\old。
 		destPath := oldname
 		if dir := dirname(newname); dir != "." {
 			destPath = dir + `\` + oldname
@@ -268,8 +267,8 @@ func rootSymlink(r *Root, oldname, newname string) error {
 		}
 	}
 
-	// Empirically, CreateSymbolicLinkW appears to set the relative flag iff
-	// the target does not contain a volume name.
+	// 经验表明，CreateSymbolicLinkW 似乎仅当目标不包含卷名时
+	// 才设置 relative 标志。
 	if filepathlite.VolumeNameLen(oldname) == 0 {
 		flags |= windows.SYMLINKAT_RELATIVE
 	}
@@ -284,17 +283,17 @@ func rootSymlink(r *Root, oldname, newname string) error {
 }
 
 func chmodat(parent syscall.Handle, name string, mode FileMode) error {
-	// Currently, on Windows os.Chmod("symlink") will act on "symlink",
-	// not on any file it points to.
+	// 目前，在 Windows 上 os.Chmod("symlink") 会作用于 "symlink"，
+	// 而不是它指向的任何文件。
 	//
-	// This may or may not be the desired behavior: https://go.dev/issue/71492
+	// 这是否是期望的行为尚不确定：https://go.dev/issue/71492
 	//
-	// For now, be consistent with os.Symlink.
-	// Passing O_FILE_FLAG_OPEN_REPARSE_POINT causes us to open the named file itself,
-	// not any file that it links to.
+	// 目前，与 os.Symlink 保持一致。
+	// 传入 O_FILE_FLAG_OPEN_REPARSE_POINT 会让我们打开指定的文件本身，
+	// 而不是它链接到的任何文件。
 	//
-	// If we want to change this in the future, pass O_NOFOLLOW_ANY instead
-	// and return errSymlink when encountering a symlink:
+	// 如果我们将来想改变这一点，可以改为传入 O_NOFOLLOW_ANY，
+	// 并在遇到符号链接时返回 errSymlink：
 	//
 	//     if err == syscall.ELOOP || err == syscall.ENOTDIR {
 	//         if link, err := readReparseLinkAt(parent, name); err == nil {
@@ -328,11 +327,11 @@ func chmodat(parent syscall.Handle, name string, mode FileMode) error {
 }
 
 func chownat(parent syscall.Handle, name string, uid, gid int) error {
-	return syscall.EWINDOWS // matches syscall.Chown
+	return syscall.EWINDOWS // 与 syscall.Chown 保持一致
 }
 
 func lchownat(parent syscall.Handle, name string, uid, gid int) error {
-	return syscall.EWINDOWS // matches syscall.Lchown
+	return syscall.EWINDOWS // 与 syscall.Lchown 保持一致
 }
 
 func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {

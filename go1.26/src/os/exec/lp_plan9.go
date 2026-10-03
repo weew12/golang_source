@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// ErrNotFound is the error resulting if a path search failed to find an executable file.
+// ErrNotFound 是路径搜索未能找到可执行文件时产生的错误。
 var ErrNotFound = errors.New("executable file not found in $path")
 
 func findExecutable(file string) error {
@@ -31,7 +31,7 @@ func lookPath(file string) (string, error) {
 		return "", &Error{file, err}
 	}
 
-	// skip the path lookup for these prefixes
+	// 对这些前缀跳过路径查找
 	skip := []string{"/", "#", "./", "../"}
 
 	for _, p := range skip {
@@ -60,8 +60,8 @@ func lookPath(file string) (string, error) {
 	return "", &Error{file, ErrNotFound}
 }
 
-// lookExtensions is a no-op on non-Windows platforms, since
-// they do not restrict executables to specific extensions.
+// lookExtensions 在非 Windows 平台上是一个空操作，
+// 因为这些平台不将可执行文件限制为特定的扩展名。
 func lookExtensions(path, dir string) (string, error) {
 	return path, nil
 }

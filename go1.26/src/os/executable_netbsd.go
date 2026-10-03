@@ -4,7 +4,7 @@
 
 package os
 
-// From NetBSD's <sys/sysctl.h>
+// 来自 NetBSD 的 <sys/sysctl.h>
 const (
 	_CTL_KERN           = 1
 	_KERN_PROC_ARGS     = 48

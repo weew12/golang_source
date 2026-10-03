@@ -10,9 +10,9 @@ import (
 	"syscall"
 )
 
-// Partial os/user support on Plan 9.
-// Supports Current(), but not Lookup()/LookupId().
-// The latter two would require parsing /adm/users.
+// Plan 9 上的部分 os/user 支持。
+// 支持 Current()，但不支持 Lookup()/LookupId()。
+// 后两者需要解析 /adm/users。
 
 func init() {
 	userImplemented = false
@@ -21,8 +21,8 @@ func init() {
 }
 
 var (
-	// unused variables (in this implementation)
-	// modified during test to exercise code paths in the cgo implementation.
+	// 未使用的变量（在此实现中）
+	// 在测试期间被修改，以覆盖 cgo 实现中的代码路径。
 	userBuffer  = 0
 	groupBuffer = 0
 )

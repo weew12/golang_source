@@ -17,54 +17,51 @@ import (
 	"unsafe"
 )
 
-// This matches the value in syscall/syscall_windows.go.
-const _UTIME_OMIT = -1
-
-// file is the real representation of *File.
-// The extra level of indirection ensures that no clients of os
-// can overwrite this data, which could cause the finalizer
-// to close the wrong file descriptor.
+// file 是 *File 的真实表示。
+// 额外的间接层确保 os 的任何客户端
+// 都无法覆盖这些数据，否则可能导致终结器
+// 关闭错误的文件描述符。
 type file struct {
 	pfd        poll.FD
 	name       string
-	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
-	appendMode bool                    // whether file is opened for appending
+	dirinfo    atomic.Pointer[dirInfo] // 除非正在读取目录，否则为 nil
+	appendMode bool                    // 文件是否以追加方式打开
 }
 
-// fd is the Windows implementation of Fd.
+// fd 是 Fd 的 Windows 实现。
 func (file *File) fd() uintptr {
 	if file == nil {
 		return uintptr(syscall.InvalidHandle)
 	}
-	// Try to disassociate the file from the runtime poller.
-	// File.Fd doesn't return an error, so we don't have a way to
-	// report it. We just ignore it. It's up to the caller to call
-	// it when there are no concurrent IO operations.
+	// 尝试将文件与运行时轮询器解除关联。
+	// File.Fd 不返回错误，因此我们没有办法
+	// 报告它。我们就忽略它。何时调用它由调用方
+	// 在没有并发 IO 操作时决定。
 	_ = file.pfd.DisassociateIOCP()
 	return uintptr(file.pfd.Sysfd)
 }
 
-// newFileKind describes the kind of file to newFile.
+// newFileKind 描述传给 newFile 的文件种类。
 type newFileKind int
 
 const (
-	// kindNewFile means that the descriptor was passed to us via NewFile.
+	// kindNewFile 表示该描述符是通过 NewFile 传给我们的。
 	kindNewFile newFileKind = iota
-	// kindOpenFile means that the descriptor was opened using
-	// Open, Create, or OpenFile.
+	// kindOpenFile 表示该描述符是使用
+	// Open、Create 或 OpenFile 打开的。
 	kindOpenFile
-	// kindPipe means that the descriptor was opened using Pipe.
+	// kindPipe 表示该描述符是使用 Pipe 打开的。
 	kindPipe
-	// kindSock means that the descriptor is a network file descriptor
-	// that was created from net package and was opened using net_newUnixFile.
+	// kindSock 表示该描述符是一个网络文件描述符，
+	// 它由 net 包创建，并使用 net_newUnixFile 打开。
 	kindSock
-	// kindConsole means that the descriptor is a console handle.
+	// kindConsole 表示该描述符是一个控制台句柄。
 	kindConsole
 )
 
-// newFile returns a new File with the given file handle and name.
-// Unlike NewFile, it does not check that h is syscall.InvalidHandle.
-// If nonBlocking is true, it tries to add the file to the runtime poller.
+// newFile 使用给定的文件句柄和名称返回一个新的 File。
+// 与 NewFile 不同，它不检查 h 是否为 syscall.InvalidHandle。
+// 如果 nonBlocking 为 true，它会尝试将该文件添加到运行时轮询器。
 func newFile(h syscall.Handle, name string, kind newFileKind, nonBlocking bool) *File {
 	typ := "file"
 	switch kind {
@@ -74,19 +71,19 @@ func newFile(h syscall.Handle, name string, kind newFileKind, nonBlocking bool) 
 			var m uint32
 			if syscall.GetConsoleMode(h, &m) == nil {
 				typ = "console"
-				// Console handles are always blocking.
+				// 控制台句柄始终是阻塞的。
 				break
 			}
 		} else if t == syscall.FILE_TYPE_PIPE {
 			typ = "pipe"
 		}
-		// NewFile doesn't know if a handle is blocking or non-blocking,
-		// so we try to detect that here. This call may block/ if the handle
-		// is blocking and there is an outstanding I/O operation.
+		// NewFile 不知道句柄是阻塞还是非阻塞，
+		// 因此我们在这里尝试检测。如果句柄
+		// 是阻塞的且有未完成的 I/O 操作，这个调用可能会阻塞。
 		//
-		// Avoid doing this for Stdin, which is almost always blocking and might
-		// be in use by other process when the "os" package is initializing.
-		// See go.dev/issue/75949 and go.dev/issue/76391.
+		// 对 Stdin 避免这样做，它几乎总是阻塞的，并且在 "os" 包
+		// 初始化时可能正被其他进程使用。
+		// 参见 go.dev/issue/75949 和 go.dev/issue/76391。
 		if kind == kindNewFile && h != syscall.Stdin {
 			nonBlocking, _ = windows.IsNonblock(h)
 		}
@@ -110,18 +107,18 @@ func newFile(h syscall.Handle, name string, kind newFileKind, nonBlocking bool) 
 	}}
 	runtime.SetFinalizer(f.file, (*file).close)
 
-	// Ignore initialization errors.
-	// Assume any problems will show up in later I/O.
+	// 忽略初始化错误。
+	// 假定任何问题都会在之后的 I/O 中显现。
 	f.pfd.Init(typ, nonBlocking)
 	return f
 }
 
-// newConsoleFile creates new File that will be used as console.
+// newConsoleFile 创建一个将用作控制台的 File。
 func newConsoleFile(h syscall.Handle, name string) *File {
 	return newFile(h, name, kindConsole, false)
 }
 
-// newFileFromNewFile is called by [NewFile].
+// newFileFromNewFile 由 [NewFile] 调用。
 func newFileFromNewFile(fd uintptr, name string) *File {
 	h := syscall.Handle(fd)
 	if h == syscall.InvalidHandle {
@@ -130,9 +127,9 @@ func newFileFromNewFile(fd uintptr, name string) *File {
 	return newFile(h, name, kindNewFile, false)
 }
 
-// net_newWindowsFile is a hidden entry point called by net.conn.File.
-// This is used so that the File.pfd.close method calls [syscall.Closesocket]
-// instead of [syscall.CloseHandle].
+// net_newWindowsFile 是由 net.conn.File 调用的隐藏入口点。
+// 这样做是为了让 File.pfd.close 方法调用 [syscall.Closesocket]
+// 而不是 [syscall.CloseHandle]。
 //
 //go:linkname net_newWindowsFile net.newWindowsFile
 func net_newWindowsFile(h syscall.Handle, name string) *File {
@@ -145,11 +142,11 @@ func net_newWindowsFile(h syscall.Handle, name string) *File {
 func epipecheck(file *File, e error) {
 }
 
-// DevNull is the name of the operating system's “null device.”
-// On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+// DevNull 是操作系统 “空设备” 的名称。
+// 在类 Unix 系统上，它是 "/dev/null"；在 Windows 上，是 "NUL"。
 const DevNull = "NUL"
 
-// openFileNolog is the Windows implementation of OpenFile.
+// openFileNolog 是 OpenFile 的 Windows 实现。
 func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
 	if name == "" {
 		return nil, &PathError{Op: "open", Path: name, Err: syscall.ENOENT}
@@ -182,19 +179,19 @@ func (file *file) close() error {
 		err = &PathError{Op: "close", Path: file.name, Err: e}
 	}
 
-	// no need for a finalizer anymore
+	// 不再需要终结器了
 	runtime.SetFinalizer(file, nil)
 	return err
 }
 
-// seek sets the offset for the next Read or Write on file to offset, interpreted
-// according to whence: 0 means relative to the origin of the file, 1 means
-// relative to the current offset, and 2 means relative to the end.
-// It returns the new offset and an error, if any.
+// seek 将文件上下一次 Read 或 Write 的偏移量设置为 offset，
+// 其解释取决于 whence：0 表示相对于文件起始位置，1 表示
+// 相对于当前偏移量，2 表示相对于末尾。
+// 它返回新的偏移量和错误（如果有）。
 func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 	if info := f.dirinfo.Swap(nil); info != nil {
-		// Free cached dirinfo, so we allocate a new one if we
-		// access this file as a directory again. See #35767 and #37161.
+		// 释放缓存的 dirinfo，这样如果我们再次将此文件
+		// 作为目录访问，就会分配一个新的。参见 #35767 和 #37161。
 		info.close()
 	}
 	ret, err = f.pfd.Seek(offset, whence)
@@ -202,8 +199,8 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 	return ret, err
 }
 
-// Truncate changes the size of the named file.
-// If the file is a symbolic link, it changes the size of the link's target.
+// Truncate 更改指定文件的大小。
+// 如果文件是符号链接，它会更改链接目标的大小。
 func Truncate(name string, size int64) error {
 	f, e := OpenFile(name, O_WRONLY, 0666)
 	if e != nil {
@@ -217,16 +214,16 @@ func Truncate(name string, size int64) error {
 	return nil
 }
 
-// Remove removes the named file or directory.
-// If there is an error, it will be of type [*PathError].
+// Remove 删除指定文件或目录。
+// 如果出错，错误的类型为 [*PathError]。
 func Remove(name string) error {
 	p, e := syscall.UTF16PtrFromString(fixLongPath(name))
 	if e != nil {
 		return &PathError{Op: "remove", Path: name, Err: e}
 	}
 
-	// Go file interface forces us to know whether
-	// name is a file or directory. Try both.
+	// Go 文件接口迫使我们知道
+	// name 是文件还是目录。两种都尝试。
 	e = syscall.DeleteFile(p)
 	if e == nil {
 		return nil
@@ -236,7 +233,7 @@ func Remove(name string) error {
 		return nil
 	}
 
-	// Both failed: figure out which error to return.
+	// 两者都失败了：弄清该返回哪个错误。
 	if e1 != e {
 		a, e2 := syscall.GetFileAttributes(p)
 		if e2 != nil {
@@ -264,16 +261,16 @@ func rename(oldname, newname string) error {
 	return nil
 }
 
-// Pipe returns a connected pair of Files; reads from r return bytes written to w.
-// It returns the files and an error, if any. The Windows handles underlying
-// the returned files are marked as inheritable by child processes.
+// Pipe 返回一对相连的 File；从 r 读取会返回写入 w 的字节。
+// 它返回这两个文件和错误（如果有）。返回文件底层的
+// Windows 句柄被标记为可由子进程继承。
 func Pipe() (r *File, w *File, err error) {
 	var p [2]syscall.Handle
 	e := syscall.Pipe(p[:])
 	if e != nil {
 		return nil, nil, NewSyscallError("pipe", e)
 	}
-	// syscall.Pipe always returns a non-blocking handle.
+	// syscall.Pipe 总是返回一个非阻塞句柄。
 	return newFile(p[0], "|0", kindPipe, false), newFile(p[1], "|1", kindPipe, false), nil
 }
 
@@ -294,17 +291,17 @@ func tempDir() string {
 			continue
 		}
 		if n == 3 && b[1] == ':' && b[2] == '\\' {
-			// Do nothing for path, like C:\.
+			// 对于像 C:\ 这样的路径，什么都不做。
 		} else if n > 0 && b[n-1] == '\\' {
-			// Otherwise remove terminating \.
+			// 否则移除结尾的 \。
 			n--
 		}
 		return syscall.UTF16ToString(b[:n])
 	}
 }
 
-// Link creates newname as a hard link to the oldname file.
-// If there is an error, it will be of type *LinkError.
+// Link 将 newname 创建为指向 oldname 文件的硬链接。
+// 如果出错，错误的类型为 *LinkError。
 func Link(oldname, newname string) error {
 	n, err := syscall.UTF16PtrFromString(fixLongPath(newname))
 	if err != nil {
@@ -321,26 +318,26 @@ func Link(oldname, newname string) error {
 	return nil
 }
 
-// Symlink creates newname as a symbolic link to oldname.
-// On Windows, a symlink to a non-existent oldname creates a file symlink;
-// if oldname is later created as a directory the symlink will not work.
-// If there is an error, it will be of type *LinkError.
+// Symlink 将 newname 创建为指向 oldname 的符号链接。
+// 在 Windows 上，指向不存在的 oldname 的符号链接会创建文件符号链接；
+// 如果 oldname 之后作为目录被创建，该符号链接将无法工作。
+// 如果出错，错误的类型为 *LinkError。
 func Symlink(oldname, newname string) error {
-	// '/' does not work in link's content
+	// '/' 在链接内容中不起作用
 	oldname = filepathlite.FromSlash(oldname)
 
-	// need the exact location of the oldname when it's relative to determine if it's a directory
+	// 当 oldname 是相对路径时，需要它的确切位置来判断它是否是目录
 	destpath := oldname
 	if v := filepathlite.VolumeName(oldname); v == "" {
 		if len(oldname) > 0 && IsPathSeparator(oldname[0]) {
-			// oldname is relative to the volume containing newname.
+			// oldname 相对于包含 newname 的卷。
 			if v = filepathlite.VolumeName(newname); v != "" {
-				// Prepend the volume explicitly, because it may be different from the
-				// volume of the current working directory.
+				// 显式添加卷前缀，因为它可能与当前工作
+				// 目录的卷不同。
 				destpath = v + oldname
 			}
 		} else {
-			// oldname is relative to newname.
+			// oldname 相对于 newname。
 			destpath = dirname(newname) + `\` + oldname
 		}
 	}
@@ -356,12 +353,12 @@ func Symlink(oldname, newname string) error {
 	if filepathlite.IsAbs(oldname) {
 		o, err = syscall.UTF16PtrFromString(fixLongPath(oldname))
 	} else {
-		// Do not use fixLongPath on oldname for relative symlinks,
-		// as it would turn the name into an absolute path thus making
-		// an absolute symlink instead.
-		// Notice that CreateSymbolicLinkW does not fail for relative
-		// symlinks beyond MAX_PATH, so this does not prevent the
-		// creation of an arbitrary long path name.
+		// 对于相对符号链接，不要在 oldname 上使用 fixLongPath，
+		// 因为它会把名称变成绝对路径，从而创建
+		// 一个绝对符号链接而不是相对符号链接。
+		// 请注意，对于超过 MAX_PATH 的相对符号链接，CreateSymbolicLinkW
+		// 不会失败，因此这并不能阻止
+		// 创建任意长的路径名。
 		o, err = syscall.UTF16PtrFromString(oldname)
 	}
 	if err != nil {
@@ -374,8 +371,8 @@ func Symlink(oldname, newname string) error {
 	}
 	err = syscall.CreateSymbolicLink(n, o, flags)
 	if err != nil {
-		// the unprivileged create flag is unsupported
-		// below Windows 10 (1703, v10.0.14972). retry without it.
+		// 非特权创建标志在 Windows 10
+		//（1703，v10.0.14972）以下不受支持。不带它重试。
 		flags &^= windows.SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE
 		err = syscall.CreateSymbolicLink(n, o, flags)
 		if err != nil {
@@ -385,17 +382,18 @@ func Symlink(oldname, newname string) error {
 	return nil
 }
 
-// openSymlink calls CreateFile Windows API with FILE_FLAG_OPEN_REPARSE_POINT
-// parameter, so that Windows does not follow symlink, if path is a symlink.
-// openSymlink returns opened file handle.
+// openSymlink 使用带 FILE_FLAG_OPEN_REPARSE_POINT 参数的
+// CreateFile Windows API 进行调用，这样如果 path 是符号链接，
+// Windows 就不会跟随它。
+// openSymlink 返回已打开的文件句柄。
 func openSymlink(path string) (syscall.Handle, error) {
 	p, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
 		return 0, err
 	}
 	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS)
-	// Use FILE_FLAG_OPEN_REPARSE_POINT, otherwise CreateFile will follow symlink.
-	// See https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
+	// 使用 FILE_FLAG_OPEN_REPARSE_POINT，否则 CreateFile 会跟随符号链接。
+	// 参见 https://docs.microsoft.com/en-us/windows/desktop/FileIO/symbolic-link-effects-on-file-systems-functions#createfile-and-createfiletransacted
 	attrs |= syscall.FILE_FLAG_OPEN_REPARSE_POINT
 	h, err := syscall.CreateFile(p, 0, 0, nil, syscall.OPEN_EXISTING, attrs, 0)
 	if err != nil {
@@ -406,20 +404,20 @@ func openSymlink(path string) (syscall.Handle, error) {
 
 var winreadlinkvolume = godebug.New("winreadlinkvolume")
 
-// normaliseLinkPath converts absolute paths returned by
-// DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, ...)
-// into paths acceptable by all Windows APIs.
-// For example, it converts
+// normaliseLinkPath 将由
+// DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, ...) 返回的绝对路径
+// 转换为所有 Windows API 都能接受的路径。
+// 例如，它会转换
 //
-//	\??\C:\foo\bar into C:\foo\bar
-//	\??\UNC\foo\bar into \\foo\bar
-//	\??\Volume{abc}\ into \\?\Volume{abc}\
+//	\??\C:\foo\bar 为 C:\foo\bar
+//	\??\UNC\foo\bar 为 \\foo\bar
+//	\??\Volume{abc}\ 为 \\?\Volume{abc}\
 func normaliseLinkPath(path string) (string, error) {
 	if len(path) < 4 || path[:4] != `\??\` {
-		// unexpected path, return it as is
+		// 意外的路径，原样返回
 		return path, nil
 	}
-	// we have path that start with \??\
+	// 我们有一个以 \??\ 开头的路径
 	s := path[4:]
 	switch {
 	case len(s) >= 2 && s[1] == ':': // \??\C:\foo\bar
@@ -455,7 +453,7 @@ func normaliseLinkPath(path string) (string, error) {
 	if len(s) > 4 && s[:4] == `\\?\` {
 		s = s[4:]
 		if len(s) > 3 && s[:3] == `UNC` {
-			// return path like \\server\share\...
+			// 返回类似 \\server\share\... 的路径
 			return `\` + s[3:], nil
 		}
 		return s, nil
@@ -492,8 +490,8 @@ func readReparseLinkHandle(h syscall.Handle) (string, error) {
 	case windows.IO_REPARSE_TAG_MOUNT_POINT:
 		return normaliseLinkPath((*windows.MountPointReparseBuffer)(unsafe.Pointer(&rdb.DUMMYUNIONNAME)).Path())
 	default:
-		// the path is not a symlink or junction but another type of reparse
-		// point
+		// 该路径不是符号链接或 junction，而是另一种类型的
+		// 重解析点
 		return "", syscall.ENOENT
 	}
 }

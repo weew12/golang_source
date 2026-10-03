@@ -14,12 +14,12 @@ import (
 	"time"
 )
 
-// sysfdType is the native type of a file handle
-// (int on Unix, syscall.Handle on Windows),
-// permitting helper functions to be written portably.
+// sysfdType 是文件句柄的原生类型
+// （在 Unix 上为 int，在 Windows 上为 syscall.Handle），
+// 以便编写可移植的辅助函数。
 type sysfdType = int
 
-// openRootNolog is OpenRoot.
+// openRootNolog 即 OpenRoot。
 func openRootNolog(name string) (*Root, error) {
 	var fd int
 	err := ignoringEINTR(func() error {
@@ -33,8 +33,8 @@ func openRootNolog(name string) (*Root, error) {
 	return newRoot(fd, name)
 }
 
-// newRoot returns a new Root.
-// If fd is not a directory, it closes it and returns an error.
+// newRoot 返回一个新的 Root。
+// 如果 fd 不是目录，它会关闭 fd 并返回错误。
 func newRoot(fd int, name string) (*Root, error) {
 	var fs fileStat
 	err := ignoringEINTR(func() error {
@@ -46,8 +46,8 @@ func newRoot(fd int, name string) (*Root, error) {
 		return nil, &PathError{Op: "open", Path: name, Err: errors.New("not a directory")}
 	}
 
-	// There's a race here with fork/exec, which we are
-	// content to live with. See ../syscall/exec_unix.go.
+	// 这里与 fork/exec 存在竞态，我们
+	// 愿意接受它。参见 ../syscall/exec_unix.go。
 	if !supportsCloseOnExec {
 		syscall.CloseOnExec(fd)
 	}
@@ -60,7 +60,7 @@ func newRoot(fd int, name string) (*Root, error) {
 	return r, nil
 }
 
-// openRootInRoot is Root.OpenRoot.
+// openRootInRoot 即 Root.OpenRoot。
 func openRootInRoot(r *Root, name string) (*Root, error) {
 	fd, err := doInRoot(r, name, nil, func(parent int, name string) (fd int, err error) {
 		ignoringEINTR(func() error {
@@ -78,20 +78,20 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
 	return newRoot(fd, joinPath(r.Name(), name))
 }
 
-// rootOpenFileNolog is Root.OpenFile.
+// rootOpenFileNolog 即 Root.OpenFile。
 func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File, error) {
 	fd, err := doInRoot(root, name, nil, func(parent int, name string) (fd int, err error) {
 		ignoringEINTR(func() error {
 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|flag, uint32(perm))
 			if err != nil {
-				// Never follow symlinks when O_CREATE|O_EXCL, no matter
-				// what error the OS returns.
+				// 在使用 O_CREATE|O_EXCL 时绝不跟随符号链接，无论
+				// 操作系统返回什么错误。
 				isCreateExcl := flag&(O_CREATE|O_EXCL) == (O_CREATE | O_EXCL)
 				if !isCreateExcl && (isNoFollowErr(err) || err == syscall.ENOTDIR) {
 					err = checkSymlink(parent, name, err)
 				}
-				// AIX returns ELOOP instead of EEXIST for a dangling symlink.
-				// Convert this to EEXIST so it matches ErrExists.
+				// 对于悬空符号链接，AIX 返回 ELOOP 而不是 EEXIST。
+				// 将其转换为 EEXIST，以匹配 ErrExists。
 				if isCreateExcl && err == syscall.ELOOP {
 					err = syscall.EEXIST
 				}
@@ -118,9 +118,9 @@ func rootOpenDir(parent int, name string) (int, error) {
 		if isNoFollowErr(err) || err == syscall.ENOTDIR {
 			err = checkSymlink(parent, name, err)
 		} else if err == syscall.ENOTSUP || err == syscall.EOPNOTSUPP {
-			// ENOTSUP and EOPNOTSUPP are often, but not always, the same errno.
-			// Translate both to ENOTDIR, since this indicates a non-terminal
-			// path component was not a directory.
+			// ENOTSUP 和 EOPNOTSUPP 通常（但并非总是）是相同的 errno。
+			// 将两者都转换为 ENOTDIR，因为这表明某个非末尾
+			// 路径组件不是目录。
 			err = syscall.ENOTDIR
 		}
 		return err
@@ -156,17 +156,17 @@ func rootSymlink(r *Root, oldname, newname string) error {
 	return nil
 }
 
-// On systems which use fchmodat, fchownat, etc., we have a race condition:
-// When "name" is a symlink, Root.Chmod("name") should act on the target of that link.
-// However, fchmodat doesn't allow us to chmod a file only if it is not a symlink;
-// the AT_SYMLINK_NOFOLLOW parameter causes the operation to act on the symlink itself.
+// 在使用 fchmodat、fchownat 等的系统上，我们存在竞态条件：
+// 当 "name" 是符号链接时，Root.Chmod("name") 应作用于该链接的目标。
+// 然而，fchmodat 不允许我们仅在文件不是符号链接时才对其进行 chmod；
+// AT_SYMLINK_NOFOLLOW 参数会使命名操作作用于符号链接本身。
 //
-// We do the best we can by first checking to see if the target of the operation is a symlink,
-// and only attempting the fchmodat if it is not. If the target is replaced between the check
-// and the fchmodat, we will chmod the symlink rather than following it.
+// 我们尽力而为：首先检查操作目标是否为符号链接，
+// 只有当它不是符号链接时才尝试 fchmodat。如果目标在检查
+// 与 fchmodat 之间被替换，我们将对符号链接进行 chmod 而不是跟随它。
 //
-// This race condition is unfortunate, but does not permit escaping a root:
-// We may act on the wrong file, but that file will be contained within the root.
+// 这个竞态条件令人遗憾，但不会导致逃逸出根：
+// 我们可能作用于错误的文件，但该文件将包含在根内。
 func afterResolvingSymlink(parent int, name string, f func() error) error {
 	if err := checkSymlink(parent, name, nil); err != nil {
 		return err
@@ -212,8 +212,8 @@ func mkdirat(fd int, name string, perm FileMode) error {
 }
 
 func removeat(fd int, name string) error {
-	// The system call interface forces us to know whether
-	// we are removing a file or directory. Try both.
+	// 系统调用接口迫使我们知道
+	// 我们删除的是文件还是目录。两者都尝试一下。
 	e := ignoringEINTR(func() error {
 		return unix.Unlinkat(fd, name, 0)
 	})
@@ -226,7 +226,7 @@ func removeat(fd int, name string) error {
 	if e1 == nil {
 		return nil
 	}
-	// Both failed. See comment in Remove for how we decide which error to return.
+	// 两者都失败了。关于我们如何决定返回哪个错误，参见 Remove 中的注释。
 	if e1 != syscall.ENOTDIR {
 		return e1
 	}
@@ -266,10 +266,10 @@ func modeAt(parent int, name string) (FileMode, error) {
 	return fs.mode, nil
 }
 
-// checkSymlink resolves the symlink name in parent,
-// and returns errSymlink with the link contents.
+// checkSymlink 解析 parent 中的符号链接 name，
+// 并返回带有链接内容的 errSymlink。
 //
-// If name is not a symlink, return origError.
+// 如果 name 不是符号链接，则返回 origError。
 func checkSymlink(parent int, name string, origError error) error {
 	link, err := readlinkat(parent, name)
 	if err != nil {

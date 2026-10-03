@@ -15,14 +15,14 @@ import (
 	"time"
 )
 
-// root implementation for platforms with no openat.
-// Currently plan9 and js.
+// 针对没有 openat 的平台的 root 实现。
+// 目前为 plan9 和 js。
 type root struct {
 	name   string
 	closed atomic.Bool
 }
 
-// openRootNolog is OpenRoot.
+// openRootNolog 即 OpenRoot。
 func openRootNolog(name string) (*Root, error) {
 	r, err := newRoot(name)
 	if err != nil {
@@ -31,7 +31,7 @@ func openRootNolog(name string) (*Root, error) {
 	return r, nil
 }
 
-// openRootInRoot is Root.OpenRoot.
+// openRootInRoot 即 Root.OpenRoot。
 func openRootInRoot(r *Root, name string) (*Root, error) {
 	if err := checkPathEscapes(r, name); err != nil {
 		return nil, &PathError{Op: "openat", Path: name, Err: err}
@@ -43,8 +43,8 @@ func openRootInRoot(r *Root, name string) (*Root, error) {
 	return r, nil
 }
 
-// newRoot returns a new Root.
-// If fd is not a directory, it closes it and returns an error.
+// newRoot 返回一个新的 Root。
+// 如果 fd 不是目录，它会关闭 fd 并返回错误。
 func newRoot(name string) (*Root, error) {
 	fi, err := Stat(name)
 	if err != nil {
@@ -57,8 +57,8 @@ func newRoot(name string) (*Root, error) {
 }
 
 func (r *root) Close() error {
-	// For consistency with platforms where Root.Close closes a handle,
-	// mark the Root as closed and return errors from future calls.
+	// 为了与那些 Root.Close 会关闭句柄的平台保持一致，
+	// 将该 Root 标记为已关闭，并让后续调用返回错误。
 	r.closed.Store(true)
 	return nil
 }
@@ -67,7 +67,7 @@ func (r *root) Name() string {
 	return r.name
 }
 
-// rootOpenFileNolog is Root.OpenFile.
+// rootOpenFileNolog 即 Root.OpenFile。
 func rootOpenFileNolog(r *Root, name string, flag int, perm FileMode) (*File, error) {
 	if err := checkPathEscapes(r, name); err != nil {
 		return nil, &PathError{Op: "openat", Path: name, Err: err}
@@ -150,11 +150,11 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 }
 
 func rootMkdirAll(r *Root, name string, perm FileMode) error {
-	// We only check for errPathEscapes here.
-	// For errors such as ENOTDIR (a non-directory file appeared somewhere along the path),
-	// we let MkdirAll generate the error.
-	// MkdirAll will return a PathError referencing the exact location of the error,
-	// and we want to preserve that property.
+	// 这里我们只检查 errPathEscapes。
+	// 对于诸如 ENOTDIR 之类的错误（路径上某处出现了非目录文件），
+	// 我们让 MkdirAll 生成错误。
+	// MkdirAll 会返回一个引用错误确切位置的 PathError，
+	// 我们希望保留这一特性。
 	if err := checkPathEscapes(r, name); err == errPathEscapes {
 		return &PathError{Op: "mkdirat", Path: name, Err: err}
 	}
@@ -175,7 +175,7 @@ func rootRemove(r *Root, name string) error {
 		return &PathError{Op: "removeat", Path: name, Err: err}
 	}
 	if endsWithDot(name) {
-		// We don't want to permit removing the root itself, so check for that.
+		// 我们不想允许删除根本身，因此对此进行检查。
 		if filepathlite.Clean(name) == "." {
 			return &PathError{Op: "removeat", Path: name, Err: errPathEscapes}
 		}
@@ -188,13 +188,13 @@ func rootRemove(r *Root, name string) error {
 
 func rootRemoveAll(r *Root, name string) error {
 	if endsWithDot(name) {
-		// Consistency with os.RemoveAll: Return EINVAL when trying to remove .
+		// 与 os.RemoveAll 保持一致：尝试删除 . 时返回 EINVAL
 		return &PathError{Op: "RemoveAll", Path: name, Err: syscall.EINVAL}
 	}
 	if err := checkPathEscapesLstat(r, name); err != nil {
 		if err == syscall.ENOTDIR {
-			// Some intermediate path component is not a directory.
-			// RemoveAll treats this as success (since the target doesn't exist).
+			// 某个中间路径组件不是目录。
+			// RemoveAll 将此视为成功（因为目标不存在）。
 			return nil
 		}
 		return &PathError{Op: "RemoveAll", Path: name, Err: err}

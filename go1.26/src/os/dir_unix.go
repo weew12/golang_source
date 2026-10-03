@@ -16,22 +16,22 @@ import (
 	"unsafe"
 )
 
-// Auxiliary information if the File describes a directory
+// 如果 File 描述的是一个目录，则提供辅助信息
 type dirInfo struct {
 	mu   sync.Mutex
-	buf  *[]byte // buffer for directory I/O
-	nbuf int     // length of buf; return value from Getdirentries
-	bufp int     // location of next record in buf.
+	buf  *[]byte // 用于目录 I/O 的缓冲区
+	nbuf int     // buf 的长度；Getdirentries 的返回值
+	bufp int     // buf 中下一条记录的位置。
 }
 
 const (
-	// More than 5760 to work around https://golang.org/issue/24015.
+	// 大于 5760，以规避 https://golang.org/issue/24015。
 	blockSize = 8192
 )
 
 var dirBufPool = sync.Pool{
 	New: func() any {
-		// The buffer must be at least a block long.
+		// 缓冲区长度必须至少为一个块。
 		buf := make([]byte, blockSize)
 		return &buf
 	},
@@ -45,7 +45,7 @@ func (d *dirInfo) close() {
 }
 
 func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	// If this file has no dirInfo, create one.
+	// 如果此文件没有 dirInfo，则创建一个。
 	var d *dirInfo
 	for {
 		d = f.dirinfo.Load()
@@ -65,21 +65,19 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		d.buf = dirBufPool.Get().(*[]byte)
 	}
 
-	// Change the meaning of n for the implementation below.
+	// 为下面的实现改变 n 的含义。
 	//
-	// The n above was for the public interface of "if n <= 0,
-	// Readdir returns all the FileInfo from the directory in a
-	// single slice".
+	// 上面的 n 是针对公开接口的语义："如果 n <= 0，
+	// Readdir 在单个切片中返回目录中的所有 FileInfo"。
 	//
-	// But below, we use only negative to mean looping until the
-	// end and positive to mean bounded, with positive
-	// terminating at 0.
+	// 但在下面，我们只用负数表示循环直到末尾，
+	// 用正数表示有界，正数在到达 0 时终止。
 	if n == 0 {
 		n = -1
 	}
 
 	for n != 0 {
-		// Refill the buffer if necessary
+		// 如有必要，重新填充缓冲区
 		if d.bufp >= d.nbuf {
 			d.bufp = 0
 			var errno error
@@ -89,14 +87,14 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 				return names, dirents, infos, &PathError{Op: "readdirent", Path: f.name, Err: errno}
 			}
 			if d.nbuf <= 0 {
-				// Optimization: we can return the buffer to the pool, there is nothing else to read.
+				// 优化：我们可以将缓冲区归还到池中，没有其他内容可读取。
 				dirBufPool.Put(d.buf)
 				d.buf = nil
-				break // EOF
+				break // 文件末尾
 			}
 		}
 
-		// Drain the buffer
+		// 排空缓冲区
 		buf := (*d.buf)[d.bufp:d.nbuf]
 		reclen, ok := direntReclen(buf)
 		if !ok || reclen > uint64(len(buf)) {
@@ -108,11 +106,10 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		if !ok {
 			break
 		}
-		// When building to wasip1, the host runtime might be running on Windows
-		// or might expose a remote file system which does not have the concept
-		// of inodes. Therefore, we cannot make the assumption that it is safe
-		// to skip entries with zero inodes.
-		// Some Linux filesystems (old XFS, FUSE) can return valid files with zero inodes.
+		// 面向 wasip1 构建时，宿主运行时可能运行在 Windows 上，
+		// 或者可能暴露一个没有 inode 概念的远程文件系统。
+		// 因此，我们不能假设跳过零 inode 的条目是安全的。
+		// 某些 Linux 文件系统（旧的 XFS、FUSE）可能返回零 inode 的有效文件。
 		if ino == 0 && runtime.GOOS != "linux" && runtime.GOOS != "wasip1" {
 			continue
 		}
@@ -128,11 +125,11 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 				break
 			}
 		}
-		// Check for useless names before allocating a string.
+		// 在分配字符串之前先检查无用的名称。
 		if string(name) == "." || string(name) == ".." {
 			continue
 		}
-		if n > 0 { // see 'n == 0' comment above
+		if n > 0 { // 参见上面关于 'n == 0' 的注释
 			n--
 		}
 		if mode == readdirName {
@@ -140,8 +137,8 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		} else if mode == readdirDirEntry {
 			de, err := newUnixDirent(f, string(name), direntType(rec))
 			if IsNotExist(err) {
-				// File disappeared between readdir and stat.
-				// Treat as if it didn't exist.
+				// 文件在 readdir 与 stat 之间消失了。
+				// 将其视为不存在。
 				continue
 			}
 			if err != nil {
@@ -151,8 +148,8 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		} else {
 			info, err := f.lstatat(string(name))
 			if IsNotExist(err) {
-				// File disappeared between readdir + stat.
-				// Treat as if it didn't exist.
+				// 文件在 readdir + stat 之间消失了。
+				// 将其视为不存在。
 				continue
 			}
 			if err != nil {
@@ -168,7 +165,7 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 	return names, dirents, infos, nil
 }
 
-// readInt returns the size-bytes unsigned integer in native byte order at offset off.
+// readInt 以本机字节序返回偏移 off 处的 size 字节无符号整数。
 func readInt(b []byte, off, size uintptr) (u uint64, ok bool) {
 	if len(b) < int(off+size) {
 		return 0, false

@@ -7,6 +7,6 @@
 package os
 
 func (f *File) lstatatNolog(name string) (FileInfo, error) {
-	// These platforms don't have fstatat, so use stat instead.
+	// 这些平台没有 fstatat，因此改用 stat。
 	return Lstat(f.name + "/" + name)
 }

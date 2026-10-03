@@ -4,12 +4,11 @@
 
 //go:build ignore
 
-// This is a test program that verifies that it can read from
-// descriptor 3 and that no other descriptors are open.
-// This is not done via TestHelperProcess and GO_EXEC_TEST_PID
-// because we want to ensure that this program does not use cgo,
-// because C libraries can open file descriptors behind our backs
-// and confuse the test. See issue 25628.
+// 这是一个测试程序，用于验证它可以从描述符 3 读取，
+// 并且没有打开其他描述符。这不是通过 TestHelperProcess 和
+// GO_EXEC_TEST_PID 完成的，因为我们想确保该程序不使用 cgo，
+// 因为 C 库可能会在我们背后打开文件描述符，从而干扰测试。
+// 参见 issue 25628。
 package main
 
 import (
@@ -32,13 +31,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Now verify that there are no other open fds.
+	// 现在验证没有其他打开的 fd。
 	// stdin == 0
 	// stdout == 1
 	// stderr == 2
-	// descriptor from parent == 3
-	// All descriptors 4 and up should be available,
-	// except for any used by the network poller.
+	// 来自父进程的描述符 == 3
+	// 4 及以上的所有描述符都应该是可用的，
+	// 除非被网络轮询器使用了。
 	for fd := uintptr(4); fd <= 100; fd++ {
 		if poll.IsPollDescriptor(fd) {
 			continue
@@ -64,7 +63,7 @@ func main() {
 			args = []string{"-p", fmt.Sprint(os.Getpid())}
 		}
 
-		// Determine which command to use to display open files.
+		// 确定使用哪个命令来显示打开的文件。
 		ofcmd := "lsof"
 		switch runtime.GOOS {
 		case "dragonfly", "freebsd", "netbsd", "openbsd":

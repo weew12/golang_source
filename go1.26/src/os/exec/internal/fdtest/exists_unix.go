@@ -4,14 +4,14 @@
 
 //go:build unix || wasm
 
-// Package fdtest provides test helpers for working with file descriptors across exec.
+// Package fdtest 提供了用于处理跨 exec 的文件描述符的测试辅助工具。
 package fdtest
 
 import (
 	"syscall"
 )
 
-// Exists returns true if fd is a valid file descriptor.
+// Exists 如果 fd 是有效的文件描述符则返回 true。
 func Exists(fd uintptr) bool {
 	var s syscall.Stat_t
 	err := syscall.Fstat(int(fd), &s)

@@ -13,15 +13,15 @@ import (
 
 var handlers struct {
 	sync.Mutex
-	// Map a channel to the signals that should be sent to it.
+	// 将通道映射到应发送给它的信号。
 	m map[chan<- os.Signal]*handler
-	// Map a signal to the number of channels receiving it.
+	// 将信号映射到接收它的通道数量。
 	ref [numSig]int64
-	// Map channels to signals while the channel is being stopped.
-	// Not a map because entries live here only very briefly.
-	// We need a separate container because we need m to correspond to ref
-	// at all times, and we also need to keep track of the *handler
-	// value for a channel being stopped. See the Stop function.
+	// 在通道正在被停止时，将通道映射到信号。
+	// 这不是一个 map，因为条目在这里存在的时间非常短暂。
+	// 我们需要一个单独的容器，因为我们必须让 m 始终与 ref 对应，
+	// 而且我们还需要跟踪正在被停止的通道的 *handler 值。
+	// 参见 Stop 函数。
 	stopping []stopping
 }
 
@@ -46,9 +46,9 @@ func (h *handler) clear(sig int) {
 	h.mask[sig/32] &^= 1 << uint(sig&31)
 }
 
-// Stop relaying the signals, sigs, to any channels previously registered to
-// receive them and either reset the signal handlers to their original values
-// (action=disableSignal) or ignore the signals (action=ignoreSignal).
+// 停止将信号 sigs 中继到任何先前注册以接收它们的通道，并将信号处理程序
+// 重置为其原始值（action=disableSignal）或忽略这些信号
+// （action=ignoreSignal）。
 func cancel(sigs []os.Signal, action func(int)) {
 	handlers.Lock()
 	defer handlers.Unlock()
@@ -80,45 +80,40 @@ func cancel(sigs []os.Signal, action func(int)) {
 	}
 }
 
-// Ignore causes the provided signals to be ignored. If they are received by
-// the program, nothing will happen. Ignore undoes the effect of any prior
-// calls to [Notify] for the provided signals.
-// If no signals are provided, all incoming signals will be ignored.
+// Ignore 使所提供的信号被忽略。如果程序收到它们，不会发生任何事情。
+// Ignore 会撤销先前对所提供的信号调用 [Notify] 的效果。
+// 如果未提供信号，则所有传入信号都会被忽略。
 func Ignore(sig ...os.Signal) {
 	cancel(sig, ignoreSignal)
 }
 
-// Ignored reports whether sig is currently ignored.
+// Ignored 报告 sig 当前是否被忽略。
 func Ignored(sig os.Signal) bool {
 	sn := signum(sig)
 	return sn >= 0 && signalIgnored(sn)
 }
 
 var (
-	// watchSignalLoopOnce guards calling the conditionally
-	// initialized watchSignalLoop. If watchSignalLoop is non-nil,
-	// it will be run in a goroutine lazily once Notify is invoked.
-	// See Issue 21576.
+	// watchSignalLoopOnce 保护对有条件初始化的 watchSignalLoop 的调用。
+	// 如果 watchSignalLoop 非 nil，它将在 Notify 被调用后延迟地在
+	// 一个 goroutine 中运行一次。参见 Issue 21576。
 	watchSignalLoopOnce sync.Once
 	watchSignalLoop     func()
 )
 
-// Notify causes package signal to relay incoming signals to c.
-// If no signals are provided, all incoming signals will be relayed to c.
-// Otherwise, just the provided signals will.
+// Notify 使包 signal 将传入信号中继到 c。
+// 如果未提供信号，则所有传入信号都会被中继到 c。
+// 否则，只有所提供的信号会被中继。
 //
-// Package signal will not block sending to c: the caller must ensure
-// that c has sufficient buffer space to keep up with the expected
-// signal rate. For a channel used for notification of just one signal value,
-// a buffer of size 1 is sufficient.
+// 包 signal 不会阻塞向 c 的发送：调用者必须确保 c 具有足够的缓冲空间，
+// 以跟上预期的信号速率。对于仅用于通知一个信号值的通道，大小为 1 的
+// 缓冲区就足够了。
 //
-// It is allowed to call Notify multiple times with the same channel:
-// each call expands the set of signals sent to that channel.
-// The only way to remove signals from the set is to call [Stop].
+// 允许使用同一个通道多次调用 Notify：每次调用都会扩展发送到该通道的
+// 信号集合。从该集合中移除信号的唯一方法是调用 [Stop]。
 //
-// It is allowed to call Notify multiple times with different channels
-// and the same signals: each channel receives copies of incoming
-// signals independently.
+// 允许使用不同的通道和相同的信号多次调用 Notify：每个通道会独立地
+// 接收传入信号的副本。
 func Notify(c chan<- os.Signal, sig ...os.Signal) {
 	if c == nil {
 		panic("os/signal: Notify using nil channel")
@@ -145,8 +140,7 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 			if handlers.ref[n] == 0 {
 				enableSignal(n)
 
-				// The runtime requires that we enable a
-				// signal before starting the watcher.
+				// 运行时要求我们在启动监视器之前先启用信号。
 				watchSignalLoopOnce.Do(func() {
 					if watchSignalLoop != nil {
 						go watchSignalLoop()
@@ -168,16 +162,15 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
 	}
 }
 
-// Reset undoes the effect of any prior calls to [Notify] for the provided
-// signals.
-// If no signals are provided, all signal handlers will be reset.
+// Reset 会撤销先前对所提供的信号调用 [Notify] 的效果。
+// 如果未提供信号，则所有信号处理程序都会被重置。
 func Reset(sig ...os.Signal) {
 	cancel(sig, disableSignal)
 }
 
-// Stop causes package signal to stop relaying incoming signals to c.
-// It undoes the effect of all prior calls to [Notify] using c.
-// When Stop returns, it is guaranteed that c will receive no more signals.
+// Stop 使包 signal 停止将传入信号中继到 c。
+// 它会撤销先前使用 c 调用 [Notify] 的所有效果。
+// 当 Stop 返回时，可以保证 c 不会再收到任何信号。
 func Stop(c chan<- os.Signal) {
 	handlers.Lock()
 
@@ -197,16 +190,13 @@ func Stop(c chan<- os.Signal) {
 		}
 	}
 
-	// Signals will no longer be delivered to the channel.
-	// We want to avoid a race for a signal such as SIGINT:
-	// it should be either delivered to the channel,
-	// or the program should take the default action (that is, exit).
-	// To avoid the possibility that the signal is delivered,
-	// and the signal handler invoked, and then Stop deregisters
-	// the channel before the process function below has a chance
-	// to send it on the channel, put the channel on a list of
-	// channels being stopped and wait for signal delivery to
-	// quiesce before fully removing it.
+	// 信号将不再被传递到该通道。
+	// 我们希望避免对诸如 SIGINT 之类的信号产生竞态：
+	// 它要么应被传递到该通道，要么程序应采取默认动作（也就是退出）。
+	// 为了避免出现这样的可能性 —— 信号被传递、信号处理程序被调用，
+	// 然后 Stop 在下面的 process 函数有机会将其发送到通道之前就注销了
+	// 该通道 —— 将该通道放入一个正在被停止的通道列表中，并在完全移除它
+	// 之前等待信号传递归于静止。
 
 	handlers.stopping = append(handlers.stopping, stopping{c, h})
 
@@ -226,8 +216,8 @@ func Stop(c chan<- os.Signal) {
 	handlers.Unlock()
 }
 
-// Wait until there are no more signals waiting to be delivered.
-// Defined by the runtime package.
+// 等待直到不再有等待传递的信号。
+// 由 runtime 包定义。
 func signalWaitUntilIdle()
 
 func process(sig os.Signal) {
@@ -241,7 +231,7 @@ func process(sig os.Signal) {
 
 	for c, h := range handlers.m {
 		if h.want(n) {
-			// send but do not block for it
+			// 发送但不为它阻塞
 			select {
 			case c <- sig:
 			default:
@@ -249,7 +239,7 @@ func process(sig os.Signal) {
 		}
 	}
 
-	// Avoid the race mentioned in Stop.
+	// 避免 Stop 中提到的竞态。
 	for _, d := range handlers.stopping {
 		if d.h.want(n) {
 			select {
@@ -260,24 +250,20 @@ func process(sig os.Signal) {
 	}
 }
 
-// NotifyContext returns a copy of the parent context that is marked done
-// (its Done channel is closed) when one of the listed signals arrives,
-// when the returned stop function is called, or when the parent context's
-// Done channel is closed, whichever happens first.
+// NotifyContext 返回 parent context 的一个副本，当所列信号之一到达时、
+// 当返回的 stop 函数被调用时，或者当 parent context 的 Done 通道被关闭时
+// （以先发生者为准），该副本会被标记为已完成（其 Done 通道被关闭）。
 //
-// The stop function unregisters the signal behavior, which, like [signal.Reset],
-// may restore the default behavior for a given signal. For example, the default
-// behavior of a Go program receiving [os.Interrupt] is to exit. Calling
-// NotifyContext(parent, os.Interrupt) will change the behavior to cancel
-// the returned context. Future interrupts received will not trigger the default
-// (exit) behavior until the returned stop function is called.
+// stop 函数会注销信号行为，与 [signal.Reset] 一样，这可能会恢复给定信号的
+// 默认行为。例如，Go 程序收到 [os.Interrupt] 时的默认行为是退出。
+// 调用 NotifyContext(parent, os.Interrupt) 会将行为改为取消返回的 context。
+// 在调用返回的 stop 函数之前，后续收到的中断不会触发默认（退出）行为。
 //
-// If a signal causes the returned context to be canceled, calling
-// [context.Cause] on it will return an error describing the signal.
+// 如果某个信号导致返回的 context 被取消，对它调用 [context.Cause]
+// 会返回一个描述该信号的错误。
 //
-// The stop function releases resources associated with it, so code should
-// call stop as soon as the operations running in this Context complete and
-// signals no longer need to be diverted to the context.
+// stop 函数会释放与其关联的资源，因此代码应在此 Context 中运行的操作完成
+// 且不再需要将信号转移到该 context 时，尽快调用 stop。
 func NotifyContext(parent context.Context, signals ...os.Signal) (ctx context.Context, stop context.CancelFunc) {
 	ctx, cancel := context.WithCancelCause(parent)
 	c := &signalCtx{
@@ -318,8 +304,8 @@ type stringer interface {
 
 func (c *signalCtx) String() string {
 	var buf []byte
-	// We know that the type of c.Context is context.cancelCtx, and we know that the
-	// String method of cancelCtx returns a string that ends with ".WithCancel".
+	// 我们知道 c.Context 的类型是 context.cancelCtx，也知道 cancelCtx
+	// 的 String 方法返回的字符串以 ".WithCancel" 结尾。
 	name := c.Context.(stringer).String()
 	name = name[:len(name)-len(".WithCancel")]
 	buf = append(buf, "signal.NotifyContext("+name...)

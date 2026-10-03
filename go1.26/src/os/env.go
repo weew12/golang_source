@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// General environment variables.
+// 通用环境变量。
 
 package os
 
@@ -11,11 +11,11 @@ import (
 	"syscall"
 )
 
-// Expand replaces ${var} or $var in the string based on the mapping function.
-// For example, [os.ExpandEnv](s) is equivalent to [os.Expand](s, [os.Getenv]).
+// Expand 根据映射函数替换字符串中的 ${var} 或 $var。
+// 例如，[os.ExpandEnv](s) 等价于 [os.Expand](s, [os.Getenv])。
 func Expand(s string, mapping func(string) string) string {
 	var buf []byte
-	// ${} is all ASCII, so bytes are fine for this operation.
+	// ${} 全部是 ASCII，因此在此操作中使用字节没有问题。
 	i := 0
 	for j := 0; j < len(s); j++ {
 		if s[j] == '$' && j+1 < len(s) {
@@ -25,11 +25,10 @@ func Expand(s string, mapping func(string) string) string {
 			buf = append(buf, s[i:j]...)
 			name, w := getShellName(s[j+1:])
 			if name == "" && w > 0 {
-				// Encountered invalid syntax; eat the
-				// characters.
+				// 遇到无效语法；吞掉这些字符。
 			} else if name == "" {
-				// Valid syntax, but $ was not followed by a
-				// name. Leave the dollar character untouched.
+				// 语法有效，但 $ 后面没有名称。
+				// 保持美元符号不变。
 				buf = append(buf, s[j])
 			} else {
 				buf = append(buf, mapping(name)...)
@@ -44,15 +43,14 @@ func Expand(s string, mapping func(string) string) string {
 	return string(buf) + s[i:]
 }
 
-// ExpandEnv replaces ${var} or $var in the string according to the values
-// of the current environment variables. References to undefined
-// variables are replaced by the empty string.
+// ExpandEnv 根据当前环境变量的值替换字符串中的 ${var} 或 $var。
+// 对未定义变量的引用会被替换为空字符串。
 func ExpandEnv(s string) string {
 	return Expand(s, Getenv)
 }
 
-// isShellSpecialVar reports whether the character identifies a special
-// shell variable such as $*.
+// isShellSpecialVar 报告该字符是否标识一个特殊的
+// shell 变量，例如 $*。
 func isShellSpecialVar(c uint8) bool {
 	switch c {
 	case '*', '#', '$', '@', '!', '?', '-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
@@ -61,61 +59,59 @@ func isShellSpecialVar(c uint8) bool {
 	return false
 }
 
-// isAlphaNum reports whether the byte is an ASCII letter, number, or underscore.
+// isAlphaNum 报告该字节是否为 ASCII 字母、数字或下划线。
 func isAlphaNum(c uint8) bool {
 	return c == '_' || '0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
-// getShellName returns the name that begins the string and the number of bytes
-// consumed to extract it. If the name is enclosed in {}, it's part of a ${}
-// expansion and two more bytes are needed than the length of the name.
+// getShellName 返回字符串开头的名称以及提取它消耗的字节数。
+// 如果名称被 {} 包围，则它是 ${} 展开的一部分，
+// 所需的字节数比名称长度多两个。
 func getShellName(s string) (string, int) {
 	switch {
 	case s[0] == '{':
 		if len(s) > 2 && isShellSpecialVar(s[1]) && s[2] == '}' {
 			return s[1:2], 3
 		}
-		// Scan to closing brace
+		// 扫描到右花括号
 		for i := 1; i < len(s); i++ {
 			if s[i] == '}' {
 				if i == 1 {
-					return "", 2 // Bad syntax; eat "${}"
+					return "", 2 // 语法错误；吞掉 "${}"
 				}
 				return s[1:i], i + 1
 			}
 		}
-		return "", 1 // Bad syntax; eat "${"
+		return "", 1 // 语法错误；吞掉 "${"
 	case isShellSpecialVar(s[0]):
 		return s[0:1], 1
 	}
-	// Scan alphanumerics.
+	// 扫描字母数字字符。
 	var i int
 	for i = 0; i < len(s) && isAlphaNum(s[i]); i++ {
 	}
 	return s[:i], i
 }
 
-// Getenv retrieves the value of the environment variable named by the key.
-// It returns the value, which will be empty if the variable is not present.
-// To distinguish between an empty value and an unset value, use [LookupEnv].
+// Getenv 检索由 key 命名的环境变量的值。
+// 它返回该值，如果变量不存在则为空。
+// 要区分空值和未设置的值，请使用 [LookupEnv]。
 func Getenv(key string) string {
 	testlog.Getenv(key)
 	v, _ := syscall.Getenv(key)
 	return v
 }
 
-// LookupEnv retrieves the value of the environment variable named
-// by the key. If the variable is present in the environment the
-// value (which may be empty) is returned and the boolean is true.
-// Otherwise the returned value will be empty and the boolean will
-// be false.
+// LookupEnv 检索由 key 命名的环境变量的值。
+// 如果变量存在于环境中，则返回值（可能为空）且布尔值为 true。
+// 否则，返回值将为空且布尔值为 false。
 func LookupEnv(key string) (string, bool) {
 	testlog.Getenv(key)
 	return syscall.Getenv(key)
 }
 
-// Setenv sets the value of the environment variable named by the key.
-// It returns an error, if any.
+// Setenv 设置由 key 命名的环境变量的值。
+// 如果有错误，则返回该错误。
 func Setenv(key, value string) error {
 	err := syscall.Setenv(key, value)
 	if err != nil {
@@ -124,18 +120,18 @@ func Setenv(key, value string) error {
 	return nil
 }
 
-// Unsetenv unsets a single environment variable.
+// Unsetenv 取消设置单个环境变量。
 func Unsetenv(key string) error {
 	return syscall.Unsetenv(key)
 }
 
-// Clearenv deletes all environment variables.
+// Clearenv 删除所有环境变量。
 func Clearenv() {
 	syscall.Clearenv()
 }
 
-// Environ returns a copy of strings representing the environment,
-// in the form "key=value".
+// Environ 返回表示环境的字符串副本，
+// 形式为 "key=value"。
 func Environ() []string {
 	return syscall.Environ()
 }

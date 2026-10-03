@@ -9,63 +9,63 @@ import (
 	"syscall"
 )
 
-// Getpagesize returns the underlying system's memory page size.
+// Getpagesize 返回底层系统的内存页大小。
 func Getpagesize() int { return syscall.Getpagesize() }
 
-// File represents an open file descriptor.
+// File 表示一个打开的文件描述符。
 //
-// The methods of File are safe for concurrent use.
+// File 的方法可安全地并发使用。
 type File struct {
-	*file // os specific
+	*file // 特定于操作系统
 }
 
-// A FileInfo describes a file and is returned by [Stat] and [Lstat].
+// FileInfo 描述一个文件，由 [Stat] 和 [Lstat] 返回。
 type FileInfo = fs.FileInfo
 
-// A FileMode represents a file's mode and permission bits.
-// The bits have the same definition on all systems, so that
-// information about files can be moved from one system
-// to another portably. Not all bits apply to all systems.
-// The only required bit is [ModeDir] for directories.
+// FileMode 表示一个文件的模式和权限位。
+// 这些位在所有系统上具有相同的定义，因此
+// 关于文件的信息可以可移植地从一个系统
+// 移动到另一个系统。并非所有位都适用于所有系统。
+// 对于目录，唯一必需的位是 [ModeDir]。
 type FileMode = fs.FileMode
 
-// The defined file mode bits are the most significant bits of the [FileMode].
-// The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
-// The values of these bits should be considered part of the public API and
-// may be used in wire protocols or disk representations: they must not be
-// changed, although new bits might be added.
+// 定义的文件模式位是 [FileMode] 的最高有效位。
+// 九个最低有效位是标准的 Unix rwxrwxrwx 权限。
+// 这些位的值应被视为公共 API 的一部分，
+// 可能会用于线协议或磁盘表示：它们不得
+// 被更改，尽管可能会新增一些位。
 const (
-	// The single letters are the abbreviations
-	// used by the String method's formatting.
-	ModeDir        = fs.ModeDir        // d: is a directory
-	ModeAppend     = fs.ModeAppend     // a: append-only
-	ModeExclusive  = fs.ModeExclusive  // l: exclusive use
-	ModeTemporary  = fs.ModeTemporary  // T: temporary file; Plan 9 only
-	ModeSymlink    = fs.ModeSymlink    // L: symbolic link
-	ModeDevice     = fs.ModeDevice     // D: device file
-	ModeNamedPipe  = fs.ModeNamedPipe  // p: named pipe (FIFO)
-	ModeSocket     = fs.ModeSocket     // S: Unix domain socket
+	// 单个字母是 String 方法格式化时
+	// 使用的缩写。
+	ModeDir        = fs.ModeDir        // d: 是一个目录
+	ModeAppend     = fs.ModeAppend     // a: 仅追加
+	ModeExclusive  = fs.ModeExclusive  // l: 独占使用
+	ModeTemporary  = fs.ModeTemporary  // T: 临时文件；仅 Plan 9
+	ModeSymlink    = fs.ModeSymlink    // L: 符号链接
+	ModeDevice     = fs.ModeDevice     // D: 设备文件
+	ModeNamedPipe  = fs.ModeNamedPipe  // p: 命名管道（FIFO）
+	ModeSocket     = fs.ModeSocket     // S: Unix 域套接字
 	ModeSetuid     = fs.ModeSetuid     // u: setuid
 	ModeSetgid     = fs.ModeSetgid     // g: setgid
-	ModeCharDevice = fs.ModeCharDevice // c: Unix character device, when ModeDevice is set
+	ModeCharDevice = fs.ModeCharDevice // c: Unix 字符设备，当设置了 ModeDevice 时
 	ModeSticky     = fs.ModeSticky     // t: sticky
-	ModeIrregular  = fs.ModeIrregular  // ?: non-regular file; nothing else is known about this file
+	ModeIrregular  = fs.ModeIrregular  // ?: 非常规文件；关于此文件没有其他已知信息
 
-	// Mask for the type bits. For regular files, none will be set.
+	// 类型位的掩码。对于常规文件，不会设置任何位。
 	ModeType = fs.ModeType
 
-	ModePerm = fs.ModePerm // Unix permission bits, 0o777
+	ModePerm = fs.ModePerm // Unix 权限位，0o777
 )
 
 func (fs *fileStat) Name() string { return fs.name }
 func (fs *fileStat) IsDir() bool  { return fs.Mode().IsDir() }
 
-// SameFile reports whether fi1 and fi2 describe the same file.
-// For example, on Unix this means that the device and inode fields
-// of the two underlying structures are identical; on other systems
-// the decision may be based on the path names.
-// SameFile only applies to results returned by this package's [Stat].
-// It returns false in other cases.
+// SameFile 报告 fi1 和 fi2 是否描述同一个文件。
+// 例如，在 Unix 上这意味着两个底层结构的设备
+// 和 inode 字段完全相同；在其他系统上，
+// 判断可能基于路径名。
+// SameFile 仅适用于由本包的 [Stat] 返回的结果。
+// 在其他情况下它返回 false。
 func SameFile(fi1, fi2 FileInfo) bool {
 	fs1, ok1 := fi1.(*fileStat)
 	fs2, ok2 := fi2.(*fileStat)

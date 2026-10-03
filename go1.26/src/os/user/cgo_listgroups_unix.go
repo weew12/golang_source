@@ -27,8 +27,8 @@ func listGroups(u *User) ([]string, error) {
 	gidsC := make([]_C_gid_t, n)
 	rv := getGroupList((*_C_char)(unsafe.Pointer(&nameC[0])), userGID, &gidsC[0], &n)
 	if rv == -1 {
-		// Mac is the only Unix that does not set n properly when rv == -1, so
-		// we need to use different logic for Mac vs. the other OS's.
+		// Mac 是唯一一个在 rv == -1 时不正确设置 n 的 Unix，
+		// 因此我们需要对 Mac 和其他操作系统使用不同的逻辑。
 		if err := groupRetry(u.Username, nameC, userGID, &gidsC, &n); err != nil {
 			return nil, err
 		}
@@ -41,10 +41,9 @@ func listGroups(u *User) ([]string, error) {
 	return gids, nil
 }
 
-// groupRetry retries getGroupList with much larger size for n. The result is
-// stored in gids.
+// groupRetry 以远大于 n 的尺寸重试 getGroupList。结果存储在 gids 中。
 func groupRetry(username string, name []byte, userGID _C_gid_t, gids *[]_C_gid_t, n *_C_int) error {
-	// More than initial buffer, but now n contains the correct size.
+	// 大于初始缓冲区，但现在 n 包含了正确的尺寸。
 	if *n > maxGroups {
 		return fmt.Errorf("user: %q is a member of more than %d groups", username, maxGroups)
 	}

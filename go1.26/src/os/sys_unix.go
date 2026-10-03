@@ -6,9 +6,9 @@
 
 package os
 
-// supportsCloseOnExec reports whether the platform supports the
-// O_CLOEXEC flag.
-// On Darwin, the O_CLOEXEC flag was introduced in OS X 10.7 (Darwin 11.0.0).
-// See https://support.apple.com/kb/HT1633.
-// On FreeBSD, the O_CLOEXEC flag was introduced in version 8.3.
+// supportsCloseOnExec 报告该平台是否支持
+// O_CLOEXEC 标志。
+// 在 Darwin 上，O_CLOEXEC 标志是在 OS X 10.7（Darwin 11.0.0）中引入的。
+// 参见 https://support.apple.com/kb/HT1633。
+// 在 FreeBSD 上，O_CLOEXEC 标志是在 8.3 版本中引入的。
 const supportsCloseOnExec = true

@@ -9,7 +9,7 @@ import (
 	"unsafe"
 )
 
-const _P_PID = 1 // not 0 as on FreeBSD and Dragonfly!
+const _P_PID = 1 // 不是像 FreeBSD 和 Dragonfly 上那样的 0！
 
 func wait6(idtype, id, options int) (status int, errno syscall.Errno) {
 	var status32 int32 // C.int

@@ -4,7 +4,7 @@
 
 package os
 
-// Hostname returns the host name reported by the kernel.
+// Hostname 返回内核报告的主机名。
 func Hostname() (name string, err error) {
 	return hostname()
 }

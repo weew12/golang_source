@@ -11,7 +11,7 @@ import (
 
 var sigtab = make(map[os.Signal]int)
 
-// Defined by the runtime package.
+// 由 runtime 包定义。
 func signal_disable(uint32)
 func signal_enable(uint32)
 func signal_ignore(uint32)

@@ -26,5 +26,5 @@ func direntNamlen(buf []byte) (uint64, bool) {
 }
 
 func direntType(buf []byte) FileMode {
-	return ^FileMode(0) // unknown
+	return ^FileMode(0) // 未知
 }

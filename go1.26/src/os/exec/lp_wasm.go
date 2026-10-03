@@ -10,20 +10,19 @@ import (
 	"errors"
 )
 
-// ErrNotFound is the error resulting if a path search failed to find an executable file.
+// ErrNotFound 是路径搜索未能找到可执行文件时产生的错误。
 var ErrNotFound = errors.New("executable file not found in $PATH")
 
-// LookPath searches for an executable named file in the
-// directories named by the PATH environment variable.
-// If file contains a slash, it is tried directly and the PATH is not consulted.
-// The result may be an absolute path or a path relative to the current directory.
+// LookPath 在 PATH 环境变量所指定的目录中搜索名为 file 的可执行文件。
+// 如果 file 包含斜杠，则直接尝试它，不查询 PATH。
+// 结果可以是绝对路径，也可以是相对于当前目录的路径。
 func lookPath(file string) (string, error) {
-	// Wasm can not execute processes, so act as if there are no executables at all.
+	// Wasm 无法执行进程，因此表现得好像完全没有可执行文件一样。
 	return "", &Error{file, ErrNotFound}
 }
 
-// lookExtensions is a no-op on non-Windows platforms, since
-// they do not restrict executables to specific extensions.
+// lookExtensions 在非 Windows 平台上是一个空操作，
+// 因为这些平台不将可执行文件限制为特定的扩展名。
 func lookExtensions(path, dir string) (string, error) {
 	return path, nil
 }

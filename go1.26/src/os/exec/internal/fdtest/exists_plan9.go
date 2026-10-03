@@ -12,7 +12,7 @@ import (
 
 const errBadFd = syscall.ErrorString("fd out of range or not open")
 
-// Exists returns true if fd is a valid file descriptor.
+// Exists 如果 fd 是有效的文件描述符则返回 true。
 func Exists(fd uintptr) bool {
 	var buf [1]byte
 	_, err := syscall.Fstat(int(fd), buf[:])

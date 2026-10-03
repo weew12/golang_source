@@ -10,10 +10,9 @@ import (
 	"time"
 )
 
-// The only signal values guaranteed to be present in the os package
-// on all systems are Interrupt (send the process an interrupt) and
-// Kill (force the process to exit). Interrupt is not implemented on
-// Windows; using it with [os.Process.Signal] will return an error.
+// 在所有系统上，os 包中保证存在的唯一信号值是 Interrupt（向进程发送中断）
+// 和 Kill（强制进程退出）。Interrupt 未在 Windows 上实现；
+// 将其与 [os.Process.Signal] 一起使用会返回错误。
 var (
 	Interrupt Signal = syscall.Note("interrupt")
 	Kill      Signal = syscall.Note("kill")
@@ -93,17 +92,17 @@ func (p *Process) withHandle(_ func(handle uintptr)) error {
 }
 
 func findProcess(pid int) (p *Process, err error) {
-	// NOOP for Plan 9.
+	// Plan 9 上的空操作。
 	return newPIDProcess(pid), nil
 }
 
-// ProcessState stores information about a process, as reported by Wait.
+// ProcessState 存储由 Wait 报告的有关进程的信息。
 type ProcessState struct {
-	pid    int              // The process's id.
-	status *syscall.Waitmsg // System-dependent status info.
+	pid    int              // 进程的 id。
+	status *syscall.Waitmsg // 系统相关的状态信息。
 }
 
-// Pid returns the process id of the exited process.
+// Pid 返回已退出进程的进程 id。
 func (p *ProcessState) Pid() int {
 	return p.pid
 }
@@ -139,10 +138,9 @@ func (p *ProcessState) String() string {
 	return "exit status: " + p.status.Msg
 }
 
-// ExitCode returns the exit code of the exited process, or -1
-// if the process hasn't exited or was terminated by a signal.
+// ExitCode 返回已退出进程的退出码，如果进程尚未退出或被信号终止，则返回 -1。
 func (p *ProcessState) ExitCode() int {
-	// return -1 if the process hasn't started.
+	// 如果进程尚未启动，则返回 -1。
 	if p == nil {
 		return -1
 	}

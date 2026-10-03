@@ -30,7 +30,7 @@ func direntNamlen(buf []byte) (uint64, bool) {
 func direntType(buf []byte) FileMode {
 	off := unsafe.Offsetof(syscall.Dirent{}.Type)
 	if off >= uintptr(len(buf)) {
-		return ^FileMode(0) // unknown
+		return ^FileMode(0) // 未知
 	}
 	switch syscall.Filetype(buf[off]) {
 	case syscall.FILETYPE_BLOCK_DEVICE:
@@ -48,5 +48,5 @@ func direntType(buf []byte) FileMode {
 	case syscall.FILETYPE_SYMBOLIC_LINK:
 		return ModeSymlink
 	}
-	return ^FileMode(0) // unknown
+	return ^FileMode(0) // 未知
 }

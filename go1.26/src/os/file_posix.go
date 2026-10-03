@@ -12,10 +12,10 @@ import (
 	"time"
 )
 
-// Close closes the [File], rendering it unusable for I/O.
-// On files that support [File.SetDeadline], any pending I/O operations will
-// be canceled and return immediately with an [ErrClosed] error.
-// Close will return an error if it has already been called.
+// Close 关闭 [File]，使其无法再用于 I/O。
+// 在支持 [File.SetDeadline] 的文件上，任何挂起的 I/O 操作
+// 都将被取消，并立即返回 [ErrClosed] 错误。
+// 如果已经调用过 Close，Close 会返回错误。
 func (f *File) Close() error {
 	if f == nil {
 		return ErrInvalid
@@ -23,40 +23,40 @@ func (f *File) Close() error {
 	return f.file.close()
 }
 
-// read reads up to len(b) bytes from the File.
-// It returns the number of bytes read and an error, if any.
+// read 从 File 中读取最多 len(b) 个字节。
+// 它返回读取的字节数和错误（如果有）。
 func (f *File) read(b []byte) (n int, err error) {
 	n, err = f.pfd.Read(b)
 	runtime.KeepAlive(f)
 	return n, err
 }
 
-// pread reads len(b) bytes from the File starting at byte offset off.
-// It returns the number of bytes read and the error, if any.
-// EOF is signaled by a zero count with err set to nil.
+// pread 从 File 中从字节偏移量 off 开始读取 len(b) 个字节。
+// 它返回读取的字节数和错误（如果有）。
+// EOF 通过读取计数为零且 err 设置为 nil 来表示。
 func (f *File) pread(b []byte, off int64) (n int, err error) {
 	n, err = f.pfd.Pread(b, off)
 	runtime.KeepAlive(f)
 	return n, err
 }
 
-// write writes len(b) bytes to the File.
-// It returns the number of bytes written and an error, if any.
+// write 向 File 写入 len(b) 个字节。
+// 它返回写入的字节数和错误（如果有）。
 func (f *File) write(b []byte) (n int, err error) {
 	n, err = f.pfd.Write(b)
 	runtime.KeepAlive(f)
 	return n, err
 }
 
-// pwrite writes len(b) bytes to the File starting at byte offset off.
-// It returns the number of bytes written and an error, if any.
+// pwrite 从字节偏移量 off 开始向 File 写入 len(b) 个字节。
+// 它返回写入的字节数和错误（如果有）。
 func (f *File) pwrite(b []byte, off int64) (n int, err error) {
 	n, err = f.pfd.Pwrite(b, off)
 	runtime.KeepAlive(f)
 	return n, err
 }
 
-// syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
+// syscallMode 从 Go 的可移植模式位返回特定于 syscall 的模式位。
 func syscallMode(i FileMode) (o uint32) {
 	o |= uint32(i.Perm())
 	if i&ModeSetuid != 0 {
@@ -68,11 +68,11 @@ func syscallMode(i FileMode) (o uint32) {
 	if i&ModeSticky != 0 {
 		o |= syscall.S_ISVTX
 	}
-	// No mapping for Go's ModeTemporary (plan9 only).
+	// Go 的 ModeTemporary 没有映射（仅 Plan 9）。
 	return
 }
 
-// See docs in file.go:Chmod.
+// 参见 file.go:Chmod 中的文档。
 func chmod(name string, mode FileMode) error {
 	longName := fixLongPath(name)
 	e := ignoringEINTR(func() error {
@@ -84,7 +84,7 @@ func chmod(name string, mode FileMode) error {
 	return nil
 }
 
-// See docs in file.go:(*File).Chmod.
+// 参见 file.go:(*File).Chmod 中的文档。
 func (f *File) chmod(mode FileMode) error {
 	if err := f.checkValid("chmod"); err != nil {
 		return err
@@ -95,13 +95,13 @@ func (f *File) chmod(mode FileMode) error {
 	return nil
 }
 
-// Chown changes the numeric uid and gid of the named file.
-// If the file is a symbolic link, it changes the uid and gid of the link's target.
-// A uid or gid of -1 means to not change that value.
-// If there is an error, it will be of type [*PathError].
+// Chown 更改指定文件的数字 uid 和 gid。
+// 如果文件是符号链接，它会更改链接目标的 uid 和 gid。
+// uid 或 gid 为 -1 表示不更改该值。
+// 如果出错，错误的类型为 [*PathError]。
 //
-// On Windows or Plan 9, Chown always returns the [syscall.EWINDOWS] or
-// [syscall.EPLAN9] error, wrapped in [*PathError].
+// 在 Windows 或 Plan 9 上，Chown 总是返回 [syscall.EWINDOWS] 或
+// [syscall.EPLAN9] 错误，并包装在 [*PathError] 中。
 func Chown(name string, uid, gid int) error {
 	e := ignoringEINTR(func() error {
 		return syscall.Chown(name, uid, gid)
@@ -112,12 +112,12 @@ func Chown(name string, uid, gid int) error {
 	return nil
 }
 
-// Lchown changes the numeric uid and gid of the named file.
-// If the file is a symbolic link, it changes the uid and gid of the link itself.
-// If there is an error, it will be of type [*PathError].
+// Lchown 更改指定文件的数字 uid 和 gid。
+// 如果文件是符号链接，它会更改链接本身的 uid 和 gid。
+// 如果出错，错误的类型为 [*PathError]。
 //
-// On Windows, it always returns the [syscall.EWINDOWS] error, wrapped
-// in [*PathError].
+// 在 Windows 上，它总是返回 [syscall.EWINDOWS] 错误，
+// 并包装在 [*PathError] 中。
 func Lchown(name string, uid, gid int) error {
 	e := ignoringEINTR(func() error {
 		return syscall.Lchown(name, uid, gid)
@@ -128,11 +128,11 @@ func Lchown(name string, uid, gid int) error {
 	return nil
 }
 
-// Chown changes the numeric uid and gid of the named file.
-// If there is an error, it will be of type [*PathError].
+// Chown 更改指定文件的数字 uid 和 gid。
+// 如果出错，错误的类型为 [*PathError]。
 //
-// On Windows, it always returns the [syscall.EWINDOWS] error, wrapped
-// in [*PathError].
+// 在 Windows 上，它总是返回 [syscall.EWINDOWS] 错误，
+// 并包装在 [*PathError] 中。
 func (f *File) Chown(uid, gid int) error {
 	if err := f.checkValid("chown"); err != nil {
 		return err
@@ -143,9 +143,9 @@ func (f *File) Chown(uid, gid int) error {
 	return nil
 }
 
-// Truncate changes the size of the file.
-// It does not change the I/O offset.
-// If there is an error, it will be of type [*PathError].
+// Truncate 更改文件的大小。
+// 它不会改变 I/O 偏移量。
+// 如果出错，错误的类型为 [*PathError]。
 func (f *File) Truncate(size int64) error {
 	if err := f.checkValid("truncate"); err != nil {
 		return err
@@ -156,9 +156,9 @@ func (f *File) Truncate(size int64) error {
 	return nil
 }
 
-// Sync commits the current contents of the file to stable storage.
-// Typically, this means flushing the file system's in-memory copy
-// of recently written data to disk.
+// Sync 将文件的当前内容提交到稳定存储。
+// 通常，这意味着将文件系统对最近写入数据的内存副本
+// 刷新到磁盘。
 func (f *File) Sync() error {
 	if err := f.checkValid("sync"); err != nil {
 		return err
@@ -169,13 +169,13 @@ func (f *File) Sync() error {
 	return nil
 }
 
-// Chtimes changes the access and modification times of the named
-// file, similar to the Unix utime() or utimes() functions.
-// A zero [time.Time] value will leave the corresponding file time unchanged.
+// Chtimes 更改指定文件的访问时间和修改时间，
+// 类似于 Unix 的 utime() 或 utimes() 函数。
+// 零值 [time.Time] 将使对应的文件时间保持不变。
 //
-// The underlying filesystem may truncate or round the values to a
-// less precise time unit.
-// If there is an error, it will be of type [*PathError].
+// 底层文件系统可能会将值截断或舍入为
+// 精度更低的时间单位。
+// 如果出错，错误的类型为 [*PathError]。
 func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	utimes := chtimesUtimes(atime, mtime)
 	if e := syscall.UtimesNano(fixLongPath(name), utimes[0:]); e != nil {
@@ -198,9 +198,9 @@ func chtimesUtimes(atime, mtime time.Time) [2]syscall.Timespec {
 	return utimes
 }
 
-// Chdir changes the current working directory to the file,
-// which must be a directory.
-// If there is an error, it will be of type [*PathError].
+// Chdir 将当前工作目录更改为该文件，
+// 该文件必须是目录。
+// 如果出错，错误的类型为 [*PathError]。
 func (f *File) Chdir() error {
 	if err := f.checkValid("chdir"); err != nil {
 		return err
@@ -211,7 +211,7 @@ func (f *File) Chdir() error {
 	return nil
 }
 
-// setDeadline sets the read and write deadline.
+// setDeadline 设置读取和写入截止时间。
 func (f *File) setDeadline(t time.Time) error {
 	if err := f.checkValid("SetDeadline"); err != nil {
 		return err
@@ -219,7 +219,7 @@ func (f *File) setDeadline(t time.Time) error {
 	return f.pfd.SetDeadline(t)
 }
 
-// setReadDeadline sets the read deadline.
+// setReadDeadline 设置读取截止时间。
 func (f *File) setReadDeadline(t time.Time) error {
 	if err := f.checkValid("SetReadDeadline"); err != nil {
 		return err
@@ -227,7 +227,7 @@ func (f *File) setReadDeadline(t time.Time) error {
 	return f.pfd.SetReadDeadline(t)
 }
 
-// setWriteDeadline sets the write deadline.
+// setWriteDeadline 设置写入截止时间。
 func (f *File) setWriteDeadline(t time.Time) error {
 	if err := f.checkValid("SetWriteDeadline"); err != nil {
 		return err
@@ -235,8 +235,8 @@ func (f *File) setWriteDeadline(t time.Time) error {
 	return f.pfd.SetWriteDeadline(t)
 }
 
-// checkValid checks whether f is valid for use.
-// If not, it returns an appropriate error, perhaps incorporating the operation name op.
+// checkValid 检查 f 是否可用于使用。
+// 如果不可用，则返回合适的错误，可能包含操作名 op。
 func (f *File) checkValid(op string) error {
 	if f == nil {
 		return ErrInvalid
@@ -244,13 +244,13 @@ func (f *File) checkValid(op string) error {
 	return nil
 }
 
-// ignoringEINTR makes a function call and repeats it if it returns an
-// EINTR error. This appears to be required even though we install all
-// signal handlers with SA_RESTART: see #22838, #38033, #38836, #40846.
-// Also #20400 and #36644 are issues in which a signal handler is
-// installed without setting SA_RESTART. None of these are the common case,
-// but there are enough of them that it seems that we can't avoid
-// an EINTR loop.
+// ignoringEINTR 进行函数调用，并在返回
+// EINTR 错误时重复调用。尽管我们用 SA_RESTART 安装了所有
+// 信号处理器，但似乎仍需要这样做：参见 #22838、#38033、#38836、#40846。
+// 此外 #20400 和 #36644 是未设置 SA_RESTART 就
+// 安装信号处理器的问题。这些都不是常见情况，
+// 但数量足够多，以致我们似乎无法避免
+// 一个 EINTR 循环。
 func ignoringEINTR(fn func() error) error {
 	for {
 		err := fn()
@@ -260,7 +260,7 @@ func ignoringEINTR(fn func() error) error {
 	}
 }
 
-// ignoringEINTR2 is ignoringEINTR, but returning an additional value.
+// ignoringEINTR2 与 ignoringEINTR 相同，但返回一个额外的值。
 func ignoringEINTR2[T any](fn func() (T, error)) (T, error) {
 	for {
 		v, err := fn()

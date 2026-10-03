@@ -5,11 +5,11 @@
 package os
 
 const (
-	PathSeparator     = '/'    // OS-specific path separator
-	PathListSeparator = '\000' // OS-specific path list separator
+	PathSeparator     = '/'    // 特定于操作系统的路径分隔符
+	PathListSeparator = '\000' // 特定于操作系统的路径列表分隔符
 )
 
-// IsPathSeparator reports whether c is a directory separator character.
+// IsPathSeparator 报告 c 是否为目录分隔符字符。
 func IsPathSeparator(c uint8) bool {
 	return PathSeparator == c
 }

@@ -8,9 +8,9 @@ package os
 
 import "syscall"
 
-// Pipe returns a connected pair of Files; reads from r return bytes written to w.
-// It returns the files and an error, if any.
+// Pipe 返回一对相连的 File；从 r 读取到的内容正是写入 w 的字节。
+// 如果发生错误，它会返回这些文件和该错误。
 func Pipe() (r *File, w *File, err error) {
-	// Neither GOOS=js nor GOOS=wasip1 have pipes.
+	// GOOS=js 和 GOOS=wasip1 都没有管道。
 	return nil, nil, NewSyscallError("pipe", syscall.ENOSYS)
 }

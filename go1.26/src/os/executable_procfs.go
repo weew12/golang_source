@@ -22,7 +22,7 @@ func executable() (string, error) {
 	}
 	path, err := Readlink(procfn)
 
-	// When the executable has been deleted then Readlink returns a
-	// path appended with " (deleted)".
+	// 当可执行文件已被删除时，Readlink 返回的
+	// 路径会附加 " (deleted)"。
 	return stringslite.TrimSuffix(path, " (deleted)"), err
 }

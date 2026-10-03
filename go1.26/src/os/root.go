@@ -15,13 +15,13 @@ import (
 	"time"
 )
 
-// OpenInRoot opens the file name in the directory dir.
-// It is equivalent to OpenRoot(dir) followed by opening the file in the root.
+// OpenInRoot 在目录 dir 中打开文件 name。
+// 它等价于先执行 OpenRoot(dir)，然后在根中打开该文件。
 //
-// OpenInRoot returns an error if any component of the name
-// references a location outside of dir.
+// 如果 name 的任何一个组件引用了 dir 之外的位置，
+// OpenInRoot 会返回错误。
 //
-// See [Root] for details and limitations.
+// 详情和限制参见 [Root]。
 func OpenInRoot(dir, name string) (*File, error) {
 	r, err := OpenRoot(dir)
 	if err != nil {
@@ -31,89 +31,87 @@ func OpenInRoot(dir, name string) (*File, error) {
 	return r.Open(name)
 }
 
-// Root may be used to only access files within a single directory tree.
+// Root 可用于仅访问单个目录树内的文件。
 //
-// Methods on Root can only access files and directories beneath a root directory.
-// If any component of a file name passed to a method of Root references a location
-// outside the root, the method returns an error.
-// File names may reference the directory itself (.).
+// Root 上的方法只能访问根目录之下的文件和目录。
+// 如果传给 Root 方法的文件名的任何一个组件引用了
+// 根之外的位置，该方法会返回错误。
+// 文件名可以引用目录本身（.）。
 //
-// Methods on Root will follow symbolic links, but symbolic links may not
-// reference a location outside the root.
-// Symbolic links must not be absolute.
+// Root 上的方法会跟随符号链接，但符号链接不得
+// 引用根之外的位置。
+// 符号链接不得是绝对路径。
 //
-// Methods on Root do not prohibit traversal of filesystem boundaries,
-// Linux bind mounts, /proc special files, or access to Unix device files.
+// Root 上的方法不禁止跨越文件系统边界、Linux 绑定挂载、
+// /proc 特殊文件，或访问 Unix 设备文件。
 //
-// Methods on Root are safe to be used from multiple goroutines simultaneously.
+// Root 上的方法可以安全地同时从多个 goroutine 使用。
 //
-// On most platforms, creating a Root opens a file descriptor or handle referencing
-// the directory. If the directory is moved, methods on Root reference the original
-// directory in its new location.
+// 在大多数平台上，创建 Root 会打开一个引用该目录的
+// 文件描述符或句柄。如果该目录被移动，Root 上的方法
+// 引用的是其新位置处的原目录。
 //
-// Root's behavior differs on some platforms:
+// Root 的行为在某些平台上有所不同：
 //
-//   - When GOOS=windows, file names may not reference Windows reserved device names
-//     such as NUL and COM1.
-//   - On Unix, [Root.Chmod], [Root.Chown], and [Root.Chtimes] are vulnerable to a race condition.
-//     If the target of the operation is changed from a regular file to a symlink
-//     while the operation is in progress, the operation may be performed on the link
-//     rather than the link target.
-//   - When GOOS=js, Root is vulnerable to TOCTOU (time-of-check-time-of-use)
-//     attacks in symlink validation, and cannot ensure that operations will not
-//     escape the root.
-//   - When GOOS=plan9 or GOOS=js, Root does not track directories across renames.
-//     On these platforms, a Root references a directory name, not a file descriptor.
-//   - WASI preview 1 (GOOS=wasip1) does not support [Root.Chmod].
+//   - 当 GOOS=windows 时，文件名不得引用 Windows 保留的设备名，
+//     例如 NUL 和 COM1。
+//   - 在 Unix 上，[Root.Chmod]、[Root.Chown] 和 [Root.Chtimes] 容易受到竞态条件影响。
+//     如果操作的目标在操作进行期间从普通文件变为符号链接，
+//     该操作可能会作用于链接本身而非链接目标。
+//   - 当 GOOS=js 时，Root 在符号链接验证中容易受到 TOCTOU
+//     （检查时-使用时）攻击，且无法保证操作不会逃逸出根。
+//   - 当 GOOS=plan9 或 GOOS=js 时，Root 不会跨重命名跟踪目录。
+//     在这些平台上，Root 引用的是目录名，而不是文件描述符。
+//   - WASI preview 1（GOOS=wasip1）不支持 [Root.Chmod]。
 type Root struct {
 	root *root
 }
 
 const (
-	// Maximum number of symbolic links we will follow when resolving a file in a root.
-	// 8 is __POSIX_SYMLOOP_MAX (the minimum allowed value for SYMLOOP_MAX),
-	// and a common limit.
+	// 在根中解析文件时我们会跟随的符号链接的最大数量。
+	// 8 是 __POSIX_SYMLOOP_MAX（SYMLOOP_MAX 允许的最小值），
+	// 也是一个常见的限制。
 	rootMaxSymlinks = 8
 )
 
-// OpenRoot opens the named directory.
-// It follows symbolic links in the directory name.
-// If there is an error, it will be of type [*PathError].
+// OpenRoot 打开指定的目录。
+// 它会跟随目录名中的符号链接。
+// 如果出错，错误的类型为 [*PathError]。
 func OpenRoot(name string) (*Root, error) {
 	testlog.Open(name)
 	return openRootNolog(name)
 }
 
-// Name returns the name of the directory presented to OpenRoot.
+// Name 返回传给 OpenRoot 的目录名。
 //
-// It is safe to call Name after [Close].
+// 在 [Close] 之后调用 Name 是安全的。
 func (r *Root) Name() string {
 	return r.root.Name()
 }
 
-// Close closes the Root.
-// After Close is called, methods on Root return errors.
+// Close 关闭该 Root。
+// 调用 Close 之后，Root 上的方法会返回错误。
 func (r *Root) Close() error {
 	return r.root.Close()
 }
 
-// Open opens the named file in the root for reading.
-// See [Open] for more details.
+// Open 以只读方式打开根中指定的文件。
+// 更多详情参见 [Open]。
 func (r *Root) Open(name string) (*File, error) {
 	return r.OpenFile(name, O_RDONLY, 0)
 }
 
-// Create creates or truncates the named file in the root.
-// See [Create] for more details.
+// Create 在根中创建或截断指定的文件。
+// 更多详情参见 [Create]。
 func (r *Root) Create(name string) (*File, error) {
 	return r.OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
 }
 
-// OpenFile opens the named file in the root.
-// See [OpenFile] for more details.
+// OpenFile 打开根中指定的文件。
+// 更多详情参见 [OpenFile]。
 //
-// If perm contains bits other than the nine least-significant bits (0o777),
-// OpenFile returns an error.
+// 如果 perm 包含除九个最低有效位（0o777）之外的位，
+// OpenFile 会返回错误。
 func (r *Root) OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	if perm&0o777 != perm {
 		return nil, &PathError{Op: "openat", Path: name, Err: errors.New("unsupported file mode")}
@@ -127,25 +125,25 @@ func (r *Root) OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	return rf, nil
 }
 
-// OpenRoot opens the named directory in the root.
-// If there is an error, it will be of type [*PathError].
+// OpenRoot 打开根中指定的目录。
+// 如果出错，错误的类型为 [*PathError]。
 func (r *Root) OpenRoot(name string) (*Root, error) {
 	r.logOpen(name)
 	return openRootInRoot(r, name)
 }
 
-// Chmod changes the mode of the named file in the root to mode.
-// See [Chmod] for more details.
+// Chmod 将根中指定文件的模式更改为 mode。
+// 更多详情参见 [Chmod]。
 func (r *Root) Chmod(name string, mode FileMode) error {
 	return rootChmod(r, name, mode)
 }
 
-// Mkdir creates a new directory in the root
-// with the specified name and permission bits (before umask).
-// See [Mkdir] for more details.
+// Mkdir 在根中创建一个新目录，
+// 使用指定的名称和权限位（在 umask 之前）。
+// 更多详情参见 [Mkdir]。
 //
-// If perm contains bits other than the nine least-significant bits (0o777),
-// Mkdir returns an error.
+// 如果 perm 包含除九个最低有效位（0o777）之外的位，
+// Mkdir 会返回错误。
 func (r *Root) Mkdir(name string, perm FileMode) error {
 	if perm&0o777 != perm {
 		return &PathError{Op: "mkdirat", Path: name, Err: errors.New("unsupported file mode")}
@@ -153,11 +151,11 @@ func (r *Root) Mkdir(name string, perm FileMode) error {
 	return rootMkdir(r, name, perm)
 }
 
-// MkdirAll creates a new directory in the root, along with any necessary parents.
-// See [MkdirAll] for more details.
+// MkdirAll 在根中创建一个新目录，以及任何必要的父目录。
+// 更多详情参见 [MkdirAll]。
 //
-// If perm contains bits other than the nine least-significant bits (0o777),
-// MkdirAll returns an error.
+// 如果 perm 包含除九个最低有效位（0o777）之外的位，
+// MkdirAll 会返回错误。
 func (r *Root) MkdirAll(name string, perm FileMode) error {
 	if perm&0o777 != perm {
 		return &PathError{Op: "mkdirat", Path: name, Err: errors.New("unsupported file mode")}
@@ -165,91 +163,91 @@ func (r *Root) MkdirAll(name string, perm FileMode) error {
 	return rootMkdirAll(r, name, perm)
 }
 
-// Chown changes the numeric uid and gid of the named file in the root.
-// See [Chown] for more details.
+// Chown 更改根中指定文件的数字 uid 和 gid。
+// 更多详情参见 [Chown]。
 func (r *Root) Chown(name string, uid, gid int) error {
 	return rootChown(r, name, uid, gid)
 }
 
-// Lchown changes the numeric uid and gid of the named file in the root.
-// See [Lchown] for more details.
+// Lchown 更改根中指定文件的数字 uid 和 gid。
+// 更多详情参见 [Lchown]。
 func (r *Root) Lchown(name string, uid, gid int) error {
 	return rootLchown(r, name, uid, gid)
 }
 
-// Chtimes changes the access and modification times of the named file in the root.
-// See [Chtimes] for more details.
+// Chtimes 更改根中指定文件的访问时间和修改时间。
+// 更多详情参见 [Chtimes]。
 func (r *Root) Chtimes(name string, atime time.Time, mtime time.Time) error {
 	return rootChtimes(r, name, atime, mtime)
 }
 
-// Remove removes the named file or (empty) directory in the root.
-// See [Remove] for more details.
+// Remove 删除根中指定的文件或（空）目录。
+// 更多详情参见 [Remove]。
 func (r *Root) Remove(name string) error {
 	return rootRemove(r, name)
 }
 
-// RemoveAll removes the named file or directory and any children that it contains.
-// See [RemoveAll] for more details.
+// RemoveAll 删除根中指定的文件或目录及其包含的所有子项。
+// 更多详情参见 [RemoveAll]。
 func (r *Root) RemoveAll(name string) error {
 	return rootRemoveAll(r, name)
 }
 
-// Stat returns a [FileInfo] describing the named file in the root.
-// See [Stat] for more details.
+// Stat 返回描述根中指定文件的 [FileInfo]。
+// 更多详情参见 [Stat]。
 func (r *Root) Stat(name string) (FileInfo, error) {
 	r.logStat(name)
 	return rootStat(r, name, false)
 }
 
-// Lstat returns a [FileInfo] describing the named file in the root.
-// If the file is a symbolic link, the returned FileInfo
-// describes the symbolic link.
-// See [Lstat] for more details.
+// Lstat 返回描述根中指定文件的 [FileInfo]。
+// 如果该文件是符号链接，返回的 FileInfo
+// 描述的是该符号链接。
+// 更多详情参见 [Lstat]。
 func (r *Root) Lstat(name string) (FileInfo, error) {
 	r.logStat(name)
 	return rootStat(r, name, true)
 }
 
-// Readlink returns the destination of the named symbolic link in the root.
-// See [Readlink] for more details.
+// Readlink 返回根中指定符号链接的目标。
+// 更多详情参见 [Readlink]。
 func (r *Root) Readlink(name string) (string, error) {
 	return rootReadlink(r, name)
 }
 
-// Rename renames (moves) oldname to newname.
-// Both paths are relative to the root.
-// See [Rename] for more details.
+// Rename 将 oldname 重命名（移动）为 newname。
+// 两个路径都相对于根。
+// 更多详情参见 [Rename]。
 func (r *Root) Rename(oldname, newname string) error {
 	return rootRename(r, oldname, newname)
 }
 
-// Link creates newname as a hard link to the oldname file.
-// Both paths are relative to the root.
-// See [Link] for more details.
+// Link 将 newname 创建为指向 oldname 文件的硬链接。
+// 两个路径都相对于根。
+// 更多详情参见 [Link]。
 //
-// If oldname is a symbolic link, Link creates new link to oldname and not its target.
-// This behavior may differ from that of [Link] on some platforms.
+// 如果 oldname 是符号链接，Link 创建的是指向 oldname 而非其目标的新链接。
+// 此行为在某些平台上可能与 [Link] 的行为不同。
 //
-// When GOOS=js, Link returns an error if oldname is a symbolic link.
+// 当 GOOS=js 时，如果 oldname 是符号链接，Link 会返回错误。
 func (r *Root) Link(oldname, newname string) error {
 	return rootLink(r, oldname, newname)
 }
 
-// Symlink creates newname as a symbolic link to oldname.
-// See [Symlink] for more details.
+// Symlink 将 newname 创建为指向 oldname 的符号链接。
+// 更多详情参见 [Symlink]。
 //
-// Symlink does not validate oldname,
-// which may reference a location outside the root.
+// Symlink 不校验 oldname，
+// 它可能引用根之外的位置。
 //
-// On Windows, a directory link is created if oldname references
-// a directory within the root. Otherwise a file link is created.
+// 在 Windows 上，如果 oldname 引用了根内的目录，
+// 则创建目录链接。否则创建文件链接。
 func (r *Root) Symlink(oldname, newname string) error {
 	return rootSymlink(r, oldname, newname)
 }
 
-// ReadFile reads the named file in the root and returns its contents.
-// See [ReadFile] for more details.
+// ReadFile 读取根中指定的文件并返回其内容。
+// 更多详情参见 [ReadFile]。
 func (r *Root) ReadFile(name string) ([]byte, error) {
 	f, err := r.Open(name)
 	if err != nil {
@@ -259,8 +257,8 @@ func (r *Root) ReadFile(name string) ([]byte, error) {
 	return readFileContents(statOrZero(f), f.Read)
 }
 
-// WriteFile writes data to the named file in the root, creating it if necessary.
-// See [WriteFile] for more details.
+// WriteFile 将 data 写入根中指定的文件，必要时创建它。
+// 更多详情参见 [WriteFile]。
 func (r *Root) WriteFile(name string, data []byte, perm FileMode) error {
 	f, err := r.OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, perm)
 	if err != nil {
@@ -275,29 +273,29 @@ func (r *Root) WriteFile(name string, data []byte, perm FileMode) error {
 
 func (r *Root) logOpen(name string) {
 	if log := testlog.Logger(); log != nil {
-		// This won't be right if r's name has changed since it was opened,
-		// but it's the best we can do.
+		// 如果 r 的名称自打开以来发生了变化，这就不准确，
+		// 但这是我们能做到的最好结果。
 		log.Open(joinPath(r.Name(), name))
 	}
 }
 
 func (r *Root) logStat(name string) {
 	if log := testlog.Logger(); log != nil {
-		// This won't be right if r's name has changed since it was opened,
-		// but it's the best we can do.
+		// 如果 r 的名称自打开以来发生了变化，这就不准确，
+		// 但这是我们能做到的最好结果。
 		log.Stat(joinPath(r.Name(), name))
 	}
 }
 
-// splitPathInRoot splits a path into components
-// and joins it with the given prefix and suffix.
+// splitPathInRoot 将路径拆分为各个组件，
+// 并将其与给定的 prefix 和 suffix 连接。
 //
-// The path is relative to a Root, and must not be
-// absolute, volume-relative, or "".
+// 该路径相对于一个 Root，不得为绝对路径、
+// 卷相对路径或 ""。
 //
-// "." components are removed, except in the last component.
+// "." 组件会被移除，但最后一个组件除外。
 //
-// Path separators following the last component are returned in suffixSep.
+// 最后一个组件之后的路径分隔符会在 suffixSep 中返回。
 func splitPathInRoot(s string, prefix, suffix []string) (_ []string, suffixSep string, err error) {
 	if len(s) == 0 {
 		return nil, "", errors.New("empty path")
@@ -307,7 +305,7 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, suffixSep s
 	}
 
 	if runtime.GOOS == "windows" {
-		// Windows cleans paths before opening them.
+		// Windows 会在打开路径之前对其进行清理。
 		s, err = rootCleanPath(s, prefix, suffix)
 		if err != nil {
 			return nil, "", err
@@ -320,40 +318,40 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, suffixSep s
 	i, j := 0, 1
 	for {
 		if j < len(s) && !IsPathSeparator(s[j]) {
-			// Keep looking for the end of this component.
+			// 继续寻找该组件的结尾。
 			j++
 			continue
 		}
 		parts = append(parts, s[i:j])
-		// Advance to the next component, or end of the path.
+		// 前进到下一个组件，或路径末尾。
 		partEnd := j
 		for j < len(s) && IsPathSeparator(s[j]) {
 			j++
 		}
 		if j == len(s) {
-			// If this is the last path component,
-			// preserve any trailing path separators.
+			// 如果这是最后一个路径组件，
+			// 保留任何尾部的路径分隔符。
 			suffixSep = s[partEnd:]
 			break
 		}
 		if parts[len(parts)-1] == "." {
-			// Remove "." components, except at the end.
+			// 移除 "." 组件，但末尾的除外。
 			parts = parts[:len(parts)-1]
 		}
 		i = j
 	}
 	if len(suffix) > 0 && len(parts) > 0 && parts[len(parts)-1] == "." {
-		// Remove a trailing "." component if we're joining to a suffix.
+		// 如果我们要连接到后缀，则移除末尾的 "." 组件。
 		parts = parts[:len(parts)-1]
 	}
 	parts = append(parts, suffix...)
 	return parts, suffixSep, nil
 }
 
-// FS returns a file system (an fs.FS) for the tree of files in the root.
+// FS 返回一个用于根中文件树的文件系统（一个 fs.FS）。
 //
-// The result implements [io/fs.StatFS], [io/fs.ReadFileFS],
-// [io/fs.ReadDirFS], and [io/fs.ReadLinkFS].
+// 结果实现了 [io/fs.StatFS]、[io/fs.ReadFileFS]、
+// [io/fs.ReadDirFS] 和 [io/fs.ReadLinkFS]。
 func (r *Root) FS() fs.FS {
 	return (*rootFS)(r)
 }
@@ -378,12 +376,12 @@ func (rfs *rootFS) ReadDir(name string) ([]DirEntry, error) {
 		return nil, &PathError{Op: "readdir", Path: name, Err: ErrInvalid}
 	}
 
-	// This isn't efficient: We just open a regular file and ReadDir it.
-	// Ideally, we would skip creating a *File entirely and operate directly
-	// on the file descriptor, but that will require some extensive reworking
-	// of directory reading in general.
+	// 这并不高效：我们只是打开一个普通文件并对其执行 ReadDir。
+	// 理想情况下，我们会完全跳过创建 *File 而直接
+	// 在文件描述符上操作，但这需要对目录读取进行
+	// 一些大规模的改造。
 	//
-	// This suffices for the moment.
+	// 目前这样就足够了。
 	f, err := r.Open(name)
 	if err != nil {
 		return nil, err
@@ -433,16 +431,16 @@ func (rfs *rootFS) Lstat(name string) (FileInfo, error) {
 	return r.Lstat(name)
 }
 
-// isValidRootFSPath reports whether name is a valid filename to pass a Root.FS method.
+// isValidRootFSPath 报告 name 是否是传给 Root.FS 方法的有效文件名。
 func isValidRootFSPath(name string) bool {
 	if !fs.ValidPath(name) {
 		return false
 	}
 	if runtime.GOOS == "windows" {
-		// fs.FS paths are /-separated.
-		// On Windows, reject the path if it contains any \ separators.
-		// Other forms of invalid path (for example, "NUL") are handled by
-		// Root's usual file lookup mechanisms.
+		// fs.FS 路径以 / 分隔。
+		// 在 Windows 上，如果路径包含任何 \ 分隔符就拒绝它。
+		// 其他形式的无效路径（例如 "NUL"）由
+		// Root 通常的文件查找机制处理。
 		if stringslite.IndexByte(name, '\\') >= 0 {
 			return false
 		}

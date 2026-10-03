@@ -6,6 +6,6 @@
 
 package os
 
-// According to sticky(8), neither open(2) nor mkdir(2) will create
-// a file with the sticky bit set.
+// 根据 sticky(8)，open(2) 和 mkdir(2) 都不会创建
+// 设置了 sticky 位的文件。
 const supportsCreateWithStickyBit = false

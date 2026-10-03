@@ -14,18 +14,18 @@ import (
 	"time"
 )
 
-// root implementation for platforms with a function to open a file
-// relative to a directory.
+// 针对具有相对于目录打开文件的函数的平台
+// 的 root 实现。
 type root struct {
 	name string
 
-	// refs is incremented while an operation is using fd.
-	// closed is set when Close is called.
-	// fd is closed when closed is true and refs is 0.
+	// 当有操作正在使用 fd 时，refs 会递增。
+	// 调用 Close 时会设置 closed。
+	// 当 closed 为 true 且 refs 为 0 时，fd 会被关闭。
 	mu     sync.Mutex
 	fd     sysfdType
-	refs   int  // number of active operations
-	closed bool // set when closed
+	refs   int  // 活跃操作的数量
+	closed bool // 关闭时设置
 }
 
 func (r *root) Close() error {
@@ -35,7 +35,7 @@ func (r *root) Close() error {
 		syscall.Close(r.fd)
 	}
 	r.closed = true
-	runtime.SetFinalizer(r, nil) // no need for a finalizer any more
+	runtime.SetFinalizer(r, nil) // 不再需要 finalizer
 	return nil
 }
 
@@ -116,11 +116,11 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
 }
 
 func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
-	// doInRoot opens each path element in turn.
+	// doInRoot 依次打开每个路径元素。
 	//
-	// openDirFunc opens all but the last path component.
-	// The usual default openDirFunc just opens directories with O_DIRECTORY.
-	// We replace it here with one that creates missing directories along the way.
+	// openDirFunc 打开除最后一个路径组件之外的所有组件。
+	// 通常默认的 openDirFunc 只是用 O_DIRECTORY 打开目录。
+	// 这里我们将其替换为一个会沿途创建缺失目录的函数。
 	openDirFunc := func(parent sysfdType, name string) (sysfdType, error) {
 		for try := range 2 {
 			fd, err := rootOpenDir(parent, name)
@@ -131,29 +131,29 @@ func rootMkdirAll(r *Root, fullname string, perm FileMode) error {
 			if try > 0 || !IsNotExist(err) {
 				return 0, &PathError{Op: "openat", Err: err}
 			}
-			// Try again on EEXIST, because the directory may have been created
-			// by another process or thread between the rootOpenDir and mkdirat calls.
+			// 在 EEXIST 时重试，因为目录可能已经在 rootOpenDir 和
+			// mkdirat 调用之间被另一个进程或线程创建了。
 			if err := mkdirat(parent, name, perm); err != nil && err != syscall.EEXIST {
 				return 0, &PathError{Op: "mkdirat", Err: err}
 			}
 		}
 		panic("unreachable")
 	}
-	// openLastComponentFunc opens the last path component.
+	// openLastComponentFunc 打开最后一个路径组件。
 	openLastComponentFunc := func(parent sysfdType, name string) (struct{}, error) {
 		err := mkdirat(parent, name, perm)
 		if err == syscall.EEXIST {
 			mode, e := modeAt(parent, name)
 			if e == nil {
 				if mode.IsDir() {
-					// The target of MkdirAll is an existing directory.
+					// MkdirAll 的目标是一个已存在的目录。
 					err = nil
 				} else if mode&ModeSymlink != 0 {
-					// The target of MkdirAll is a symlink.
-					// For consistency with os.MkdirAll,
-					// succeed if the link resolves to a directory.
-					// We don't return errSymlink here, because we don't
-					// want to create the link target if it doesn't exist.
+					// MkdirAll 的目标是一个符号链接。
+					// 为了与 os.MkdirAll 保持一致，
+					// 如果该链接解析为目录则视为成功。
+					// 我们在这里不返回 errSymlink，因为我们
+					// 不想在链接目标不存在时创建它。
 					fi, e := r.Stat(fullname)
 					if e == nil && fi.Mode().IsDir() {
 						err = nil
@@ -197,13 +197,13 @@ func rootRemove(r *Root, name string) error {
 }
 
 func rootRemoveAll(r *Root, name string) error {
-	// Consistency with os.RemoveAll: Strip trailing /s from the name,
-	// so RemoveAll("not_a_directory/") succeeds.
+	// 与 os.RemoveAll 保持一致：从名称中去除末尾的 /，
+	// 以便 RemoveAll("not_a_directory/") 成功。
 	for len(name) > 0 && IsPathSeparator(name[len(name)-1]) {
 		name = name[:len(name)-1]
 	}
 	if endsWithDot(name) {
-		// Consistency with os.RemoveAll: Return EINVAL when trying to remove .
+		// 与 os.RemoveAll 保持一致：尝试删除 . 时返回 EINVAL
 		return &PathError{Op: "RemoveAll", Path: name, Err: syscall.EINVAL}
 	}
 	_, err := doInRoot(r, name, nil, func(parent sysfdType, name string) (struct{}, error) {
@@ -244,24 +244,24 @@ func rootLink(r *Root, oldname, newname string) error {
 	return err
 }
 
-// doInRoot performs an operation on a path in a Root.
+// doInRoot 对 Root 中的某个路径执行操作。
 //
-// It calls f with the FD or handle for the directory containing the last
-// path element, and the name of the last path element.
+// 它会以包含最后一个路径元素的目录的 FD 或句柄，
+// 以及最后一个路径元素的名称来调用 f。
 //
-// For example, given the path a/b/c it calls f with the FD for a/b and the name "c".
+// 例如，给定路径 a/b/c，它会以 a/b 的 FD 和名称 "c" 调用 f。
 //
-// If openDirFunc is non-nil, it is called to open intermediate path elements.
-// For example, given the path a/b/c openDirFunc will be called to open a and a/b in turn.
+// 如果 openDirFunc 非 nil，则会调用它来打开中间路径元素。
+// 例如，给定路径 a/b/c，openDirFunc 将依次被调用来打开 a 和 a/b。
 //
-// f or openDirFunc may return errSymlink to indicate that the path element is a symlink
-// which should be followed. Note that this can result in f being called multiple times
-// with different names. For example, give the path "link" which is a symlink to "target",
-// f is called with the path "link", returns errSymlink("target"), and is called again with
-// the path "target".
+// f 或 openDirFunc 可以返回 errSymlink，以表示该路径元素是一个
+// 应当被跟随的符号链接。注意这可能导致 f 以不同的名称被多次调用。
+// 例如，给定指向 "target" 的符号链接路径 "link"，
+// f 会以路径 "link" 被调用，返回 errSymlink("target")，然后再次以
+// 路径 "target" 被调用。
 //
-// If f or openDirFunc return a *PathError, doInRoot will set PathError.Path to the
-// full path which caused the error.
+// 如果 f 或 openDirFunc 返回一个 *PathError，doInRoot 会将 PathError.Path 设置为
+// 导致该错误的完整路径。
 func doInRoot[T any](r *Root, name string, openDirFunc func(parent sysfdType, name string) (sysfdType, error), f func(parent sysfdType, name string) (T, error)) (ret T, err error) {
 	if err := r.root.incref(); err != nil {
 		return ret, err
@@ -284,12 +284,12 @@ func doInRoot[T any](r *Root, name string, openDirFunc func(parent sysfdType, na
 		}
 	}()
 
-	// When resolving .. path components, we restart path resolution from the root.
-	// (We can't openat(dir, "..") to move up to the parent directory,
-	// because dir may have moved since we opened it.)
-	// To limit how many opens a malicious path can cause us to perform, we set
-	// a limit on the total number of path steps and the total number of restarts
-	// caused by .. components. If *both* limits are exceeded, we halt the operation.
+	// 在解析 .. 路径组件时，我们从根重新开始路径解析。
+	// （我们无法通过 openat(dir, "..") 向上移动到父目录，
+	// 因为 dir 可能自我们打开它以来已被移动。）
+	// 为了限制恶意路径可能导致我们执行的打开次数，我们设置了
+	// 路径步骤总数以及由 .. 组件引起的重启总数的上限。
+	// 如果*两个*上限都被超出，我们就中止该操作。
 	const maxSteps = 255
 	const maxRestarts = 8
 
@@ -305,11 +305,11 @@ Loop:
 		}
 
 		if parts[i] == ".." {
-			// Resolve one or more parent ("..") path components.
+			// 解析一个或多个父级（".."）路径组件。
 			//
-			// Rewrite the original path,
-			// removing the elements eliminated by ".." components,
-			// and start over from the beginning.
+			// 重写原始路径，
+			// 移除被 ".." 组件抵消的元素，
+			// 然后从头开始。
 			restarts++
 			end := i + 1
 			for end < len(parts) && parts[end] == ".." {
@@ -332,12 +332,12 @@ Loop:
 		}
 
 		if i == len(parts)-1 {
-			// This is the last path element.
-			// Call f to decide what to do with it.
-			// If f returns errSymlink, this element is a symlink
-			// which should be followed.
-			// suffixSep contains any trailing separator characters
-			// which we rejoin to the final part at this time.
+			// 这是最后一个路径元素。
+			// 调用 f 来决定如何处理它。
+			// 如果 f 返回 errSymlink，则该元素是一个
+			// 应当被跟随的符号链接。
+			// suffixSep 包含任何尾随的分隔符字符，
+			// 此时我们将它们重新连接到最后一部分。
 			ret, err = f(dirfd, parts[i]+suffixSep)
 			if err == nil {
 				return
@@ -365,17 +365,17 @@ Loop:
 				return ret, err
 			}
 			if i == len(parts)-1 {
-				// suffixSep contains any trailing path separator characters
-				// in the link target.
-				// If we are replacing the remainder of the path, retain these.
-				// If we're replacing some intermediate component of the path,
-				// ignore them, since intermediate components must always be
-				// directories.
+				// suffixSep 包含链接目标中的任何尾随路径分隔符
+				// 字符。
+				// 如果我们要替换路径的剩余部分，则保留这些字符。
+				// 如果我们要替换路径的某个中间组件，
+				// 则忽略它们，因为中间组件必须始终
+				// 是目录。
 				suffixSep = newSuffixSep
 			}
 			if len(newparts) < i || !slices.Equal(parts[:i], newparts[:i]) {
-				// Some component in the path which we have already traversed
-				// has changed. We need to restart parsing from the root.
+				// 我们已经遍历过的路径中的某个组件
+				// 发生了变化。我们需要从根重新开始解析。
 				i = 0
 				if dirfd != rootfd {
 					syscall.Close(dirfd)
@@ -385,7 +385,7 @@ Loop:
 			parts = newparts
 			continue Loop
 		case *PathError:
-			// This is strings.Join(parts[:i+1], PathSeparator).
+			// 这相当于 strings.Join(parts[:i+1], PathSeparator)。
 			e.Path = parts[0]
 			for _, part := range parts[1 : i+1] {
 				e.Path += string(PathSeparator) + part
@@ -399,8 +399,8 @@ Loop:
 	}
 }
 
-// errSymlink reports that a file being operated on is actually a symlink,
-// and the target of that symlink.
+// errSymlink 报告正在操作的文件实际上是一个符号链接，
+// 以及该符号链接的目标。
 type errSymlink string
 
 func (errSymlink) Error() string { panic("errSymlink is not user-visible") }

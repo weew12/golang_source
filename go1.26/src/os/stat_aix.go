@@ -27,7 +27,7 @@ func fillFileStatFromSys(fs *fileStat, name string) {
 	case syscall.S_IFLNK:
 		fs.mode |= ModeSymlink
 	case syscall.S_IFREG:
-		// nothing to do
+		// 无需处理
 	case syscall.S_IFSOCK:
 		fs.mode |= ModeSocket
 	}
@@ -46,7 +46,7 @@ func stTimespecToTime(ts syscall.StTimespec_t) time.Time {
 	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
 }
 
-// For testing.
+// 用于测试。
 func atime(fi FileInfo) time.Time {
 	return stTimespecToTime(fi.Sys().(*syscall.Stat_t).Atim)
 }

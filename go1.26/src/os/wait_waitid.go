@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// We used to use this code for Darwin, but according to issue #19314
-// waitid returns if the process is stopped, even when using WEXITED.
+// 我们曾经对 Darwin 使用这段代码，但根据 issue #19314，
+// 即使使用 WEXITED，当进程被停止时 waitid 也会返回。
 
 //go:build linux
 
@@ -15,9 +15,9 @@ import (
 	"syscall"
 )
 
-// blockUntilWaitable attempts to block until a call to p.Wait will
-// succeed immediately, and reports whether it has done so.
-// It does not actually call p.Wait.
+// blockUntilWaitable 尝试阻塞，直到对 p.Wait 的调用
+// 能够立即成功，并报告是否已做到这一点。
+// 它实际上并不调用 p.Wait。
 func (p *Process) blockUntilWaitable() (bool, error) {
 	var info unix.SiginfoChild
 	err := ignoringEINTR(func() error {
@@ -25,9 +25,9 @@ func (p *Process) blockUntilWaitable() (bool, error) {
 	})
 	runtime.KeepAlive(p)
 	if err != nil {
-		// waitid has been available since Linux 2.6.9, but
-		// reportedly is not available in Ubuntu on Windows.
-		// See issue 16610.
+		// waitid 自 Linux 2.6.9 起就已可用，但
+		// 据报道在 Windows 上的 Ubuntu 中不可用。
+		// 参见 issue 16610。
 		if err == syscall.ENOSYS {
 			return false, nil
 		}

@@ -11,14 +11,14 @@ import (
 	"syscall"
 )
 
-// isNoFollowErr reports whether err may result from O_NOFOLLOW blocking an open operation.
+// isNoFollowErr 报告 err 是否可能由 O_NOFOLLOW 阻止打开操作而导致。
 func isNoFollowErr(err error) bool {
 	switch err {
 	case syscall.ELOOP, syscall.EMLINK:
 		return true
 	}
 	if runtime.GOOS == "dragonfly" {
-		// Dragonfly appears to return EINVAL from openat in this case.
+		// 在这种情况下，Dragonfly 似乎会从 openat 返回 EINVAL。
 		if err == syscall.EINVAL {
 			return true
 		}

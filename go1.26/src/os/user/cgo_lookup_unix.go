@@ -75,10 +75,9 @@ func buildUser(pwd *_C_struct_passwd) *User {
 		Name:     _C_GoString(_C_pw_gecos(pwd)),
 		HomeDir:  _C_GoString(_C_pw_dir(pwd)),
 	}
-	// The pw_gecos field isn't quite standardized. Some docs
-	// say: "It is expected to be a comma separated list of
-	// personal data where the first item is the full name of the
-	// user."
+	// pw_gecos 字段标准化程度不太高。一些文档说：
+	// “它预期是一个以逗号分隔的个人数据列表，
+	// 其中第一项是用户的全名。”
 	u.Name, _, _ = strings.Cut(u.Name, ",")
 	return u
 }
@@ -150,21 +149,19 @@ var (
 func (k bufferKind) initialSize() _C_size_t {
 	sz := _C_sysconf(_C_int(k))
 	if sz == -1 {
-		// DragonFly and FreeBSD do not have _SC_GETPW_R_SIZE_MAX.
-		// Additionally, not all Linux systems have it, either. For
-		// example, the musl libc returns -1.
+		// DragonFly 和 FreeBSD 没有 _SC_GETPW_R_SIZE_MAX。
+		// 此外，并非所有 Linux 系统都有它。例如，musl libc 返回 -1。
 		return 1024
 	}
 	if !isSizeReasonable(int64(sz)) {
-		// Truncate.  If this truly isn't enough, retryWithBuffer will error on the first run.
+		// 截断。如果这真的不够，retryWithBuffer 会在第一次运行时出错。
 		return maxBufferSize
 	}
 	return _C_size_t(sz)
 }
 
-// retryWithBuffer repeatedly calls f(), increasing the size of the
-// buffer each time, until f succeeds, fails with a non-ERANGE error,
-// or the buffer exceeds a reasonable limit.
+// retryWithBuffer 反复调用 f()，每次增大缓冲区的大小，
+// 直到 f 成功、以非 ERANGE 错误失败，或缓冲区超过合理的限制。
 func retryWithBuffer(kind bufferKind, f func([]byte) syscall.Errno) error {
 	buf := make([]byte, kind.initialSize())
 	for {
@@ -172,8 +169,8 @@ func retryWithBuffer(kind bufferKind, f func([]byte) syscall.Errno) error {
 		if errno == 0 {
 			return nil
 		} else if runtime.GOOS == "aix" && errno+1 == 0 {
-			// On AIX getpwuid_r appears to return -1,
-			// not ERANGE, on buffer overflow.
+			// 在 AIX 上，getpwuid_r 在缓冲区溢出时似乎返回 -1，
+			// 而不是 ERANGE。
 		} else if errno != syscall.ERANGE {
 			return errno
 		}
@@ -191,7 +188,7 @@ func isSizeReasonable(sz int64) bool {
 	return sz > 0 && sz <= maxBufferSize
 }
 
-// Because we can't use cgo in tests:
+// 因为我们不能在测试中使用 cgo：
 func structPasswdForNegativeTest() _C_struct_passwd {
 	sp := _C_struct_passwd{}
 	*_C_pw_uidp(&sp) = 1<<32 - 2

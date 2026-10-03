@@ -13,29 +13,28 @@ const (
 
 var colon = []byte{':'}
 
-// Current returns the current user.
+// Current 返回当前用户。
 //
-// The first call will cache the current user information.
-// Subsequent calls will return the cached value and will not reflect
-// changes to the current user.
+// 首次调用会缓存当前用户信息。
+// 后续调用会返回缓存的值，不会反映当前用户的更改。
 func Current() (*User, error) {
 	cache.Do(func() { cache.u, cache.err = current() })
 	if cache.err != nil {
 		return nil, cache.err
 	}
-	u := *cache.u // copy
+	u := *cache.u // 复制
 	return &u, nil
 }
 
-// cache of the current user
+// 当前用户的缓存
 var cache struct {
 	sync.Once
 	u   *User
 	err error
 }
 
-// Lookup looks up a user by username. If the user cannot be found, the
-// returned error is of type [UnknownUserError].
+// Lookup 按用户名查找用户。如果找不到该用户，
+// 返回的错误类型为 [UnknownUserError]。
 func Lookup(username string) (*User, error) {
 	if u, err := Current(); err == nil && u.Username == username {
 		return u, err
@@ -43,8 +42,8 @@ func Lookup(username string) (*User, error) {
 	return lookupUser(username)
 }
 
-// LookupId looks up a user by userid. If the user cannot be found, the
-// returned error is of type [UnknownUserIdError].
+// LookupId 按 userid 查找用户。如果找不到该用户，
+// 返回的错误类型为 [UnknownUserIdError]。
 func LookupId(uid string) (*User, error) {
 	if u, err := Current(); err == nil && u.Uid == uid {
 		return u, err
@@ -52,19 +51,19 @@ func LookupId(uid string) (*User, error) {
 	return lookupUserId(uid)
 }
 
-// LookupGroup looks up a group by name. If the group cannot be found, the
-// returned error is of type [UnknownGroupError].
+// LookupGroup 按名称查找组。如果找不到该组，
+// 返回的错误类型为 [UnknownGroupError]。
 func LookupGroup(name string) (*Group, error) {
 	return lookupGroup(name)
 }
 
-// LookupGroupId looks up a group by groupid. If the group cannot be found, the
-// returned error is of type [UnknownGroupIdError].
+// LookupGroupId 按 groupid 查找组。如果找不到该组，
+// 返回的错误类型为 [UnknownGroupIdError]。
 func LookupGroupId(gid string) (*Group, error) {
 	return lookupGroupId(gid)
 }
 
-// GroupIds returns the list of group IDs that the user is a member of.
+// GroupIds 返回该用户所属的组 ID 列表。
 func (u *User) GroupIds() ([]string, error) {
 	return listGroups(u)
 }

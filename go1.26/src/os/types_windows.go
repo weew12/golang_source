@@ -14,11 +14,11 @@ import (
 	"unsafe"
 )
 
-// A fileStat is the implementation of FileInfo returned by Stat and Lstat.
+// fileStat 是 Stat 和 Lstat 返回的 FileInfo 的实现。
 type fileStat struct {
 	name string
 
-	// from ByHandleFileInformation, Win32FileAttributeData, Win32finddata, and GetFileInformationByHandleEx
+	// 来自 ByHandleFileInformation、Win32FileAttributeData、Win32finddata 和 GetFileInformationByHandleEx
 	FileAttributes uint32
 	CreationTime   syscall.Filetime
 	LastAccessTime syscall.Filetime
@@ -26,13 +26,13 @@ type fileStat struct {
 	FileSizeHigh   uint32
 	FileSizeLow    uint32
 
-	// from Win32finddata and GetFileInformationByHandleEx
+	// 来自 Win32finddata 和 GetFileInformationByHandleEx
 	ReparseTag uint32
 
-	// what syscall.GetFileType returns
+	// syscall.GetFileType 返回的值
 	filetype uint32
 
-	// used to implement SameFile
+	// 用于实现 SameFile
 	sync.Mutex
 	path             string
 	vol              uint32
@@ -41,8 +41,8 @@ type fileStat struct {
 	appendNameToPath bool
 }
 
-// newFileStatFromGetFileInformationByHandle calls GetFileInformationByHandle
-// to gather all required information about the file handle h.
+// newFileStatFromGetFileInformationByHandle 调用 GetFileInformationByHandle
+// 来收集关于文件句柄 h 的所有必需信息。
 func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (fs *fileStat, err error) {
 	var d syscall.ByHandleFileInformation
 	err = syscall.GetFileInformationByHandle(h, &d)
@@ -72,14 +72,14 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 		idxhi:          d.FileIndexHigh,
 		idxlo:          d.FileIndexLow,
 		ReparseTag:     reparseTag,
-		// fileStat.path is used by os.SameFile to decide if it needs
-		// to fetch vol, idxhi and idxlo. But these are already set,
-		// so set fileStat.path to "" to prevent os.SameFile doing it again.
+		// fileStat.path 被 os.SameFile 用来判断是否需要
+		// 获取 vol、idxhi 和 idxlo。但这些已经被设置，
+		// 因此将 fileStat.path 设为 "" 以防止 os.SameFile 再次执行该操作。
 	}, nil
 }
 
-// newFileStatFromWin32FileAttributeData copies all required information
-// from syscall.Win32FileAttributeData d into the newly created fileStat.
+// newFileStatFromWin32FileAttributeData 将所有必需信息
+// 从 syscall.Win32FileAttributeData d 复制到新创建的 fileStat 中。
 func newFileStatFromWin32FileAttributeData(d *syscall.Win32FileAttributeData) *fileStat {
 	return &fileStat{
 		FileAttributes: d.FileAttributes,
@@ -91,13 +91,13 @@ func newFileStatFromWin32FileAttributeData(d *syscall.Win32FileAttributeData) *f
 	}
 }
 
-// newFileStatFromFileIDBothDirInfo copies all required information
-// from windows.FILE_ID_BOTH_DIR_INFO d into the newly created fileStat.
+// newFileStatFromFileIDBothDirInfo 将所有必需信息
+// 从 windows.FILE_ID_BOTH_DIR_INFO d 复制到新创建的 fileStat 中。
 func newFileStatFromFileIDBothDirInfo(d *windows.FILE_ID_BOTH_DIR_INFO) *fileStat {
-	// The FILE_ID_BOTH_DIR_INFO MSDN documentations isn't completely correct.
-	// FileAttributes can contain any file attributes that is currently set on the file,
-	// not just the ones documented.
-	// EaSize contains the reparse tag if the file is a reparse point.
+	// FILE_ID_BOTH_DIR_INFO 的 MSDN 文档并不完全正确。
+	// FileAttributes 可以包含文件当前设置的任何文件属性，
+	// 而不仅仅是文档中列出的那些。
+	// 如果文件是重解析点，EaSize 包含重解析标签。
 	return &fileStat{
 		FileAttributes: d.FileAttributes,
 		CreationTime:   d.CreationTime,
@@ -111,8 +111,8 @@ func newFileStatFromFileIDBothDirInfo(d *windows.FILE_ID_BOTH_DIR_INFO) *fileSta
 	}
 }
 
-// newFileStatFromFileFullDirInfo copies all required information
-// from windows.FILE_FULL_DIR_INFO d into the newly created fileStat.
+// newFileStatFromFileFullDirInfo 将所有必需信息
+// 从 windows.FILE_FULL_DIR_INFO d 复制到新创建的 fileStat 中。
 func newFileStatFromFileFullDirInfo(d *windows.FILE_FULL_DIR_INFO) *fileStat {
 	return &fileStat{
 		FileAttributes: d.FileAttributes,
@@ -125,8 +125,8 @@ func newFileStatFromFileFullDirInfo(d *windows.FILE_FULL_DIR_INFO) *fileStat {
 	}
 }
 
-// newFileStatFromWin32finddata copies all required information
-// from syscall.Win32finddata d into the newly created fileStat.
+// newFileStatFromWin32finddata 将所有必需信息
+// 从 syscall.Win32finddata d 复制到新创建的 fileStat 中。
 func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
 	fs := &fileStat{
 		FileAttributes: d.FileAttributes,
@@ -137,22 +137,22 @@ func newFileStatFromWin32finddata(d *syscall.Win32finddata) *fileStat {
 		FileSizeLow:    d.FileSizeLow,
 	}
 	if d.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 {
-		// Per https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-win32_find_dataw:
-		// “If the dwFileAttributes member includes the FILE_ATTRIBUTE_REPARSE_POINT
-		// attribute, this member specifies the reparse point tag. Otherwise, this
-		// value is undefined and should not be used.”
+		// 根据 https://learn.microsoft.com/en-us/windows/win32/api/minwinbase/ns-minwinbase-win32_find_dataw：
+		// “如果 dwFileAttributes 成员包含 FILE_ATTRIBUTE_REPARSE_POINT
+		// 属性，则该成员指定重解析点标签。否则，该
+		// 值未定义，不应使用。”
 		fs.ReparseTag = d.Reserved0
 	}
 	return fs
 }
 
-// isReparseTagNameSurrogate determines whether a tag's associated
-// reparse point is a surrogate for another named entity (for example, a mounted folder).
+// isReparseTagNameSurrogate 判断某个标签关联的
+// 重解析点是否是另一个命名实体（例如已挂载的文件夹）的替代物。
 //
-// See https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-isreparsetagnamesurrogate
-// and https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags.
+// 参见 https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-isreparsetagnamesurrogate
+// 和 https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-point-tags。
 func (fs *fileStat) isReparseTagNameSurrogate() bool {
-	// True for IO_REPARSE_TAG_SYMLINK and IO_REPARSE_TAG_MOUNT_POINT.
+	// 对于 IO_REPARSE_TAG_SYMLINK 和 IO_REPARSE_TAG_MOUNT_POINT 为 true。
 	return fs.FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0 && fs.ReparseTag&0x20000000 != 0
 }
 
@@ -181,15 +181,15 @@ func (fs *fileStat) mode() (m FileMode) {
 		m |= 0666
 	}
 
-	// Windows reports the FILE_ATTRIBUTE_DIRECTORY bit for reparse points
-	// that refer to directories, such as symlinks and mount points.
-	// However, we follow symlink POSIX semantics and do not set the mode bits.
-	// This allows users to walk directories without following links
-	// by just calling "fi, err := os.Lstat(name); err == nil && fi.IsDir()".
-	// Note that POSIX only defines the semantics for symlinks, not for
-	// mount points or other surrogate reparse points, but we treat them
-	// the same way for consistency. Also, mount points can contain infinite
-	// loops, so it is not safe to walk them without special handling.
+	// Windows 会为指向目录的重解析点（例如符号链接和挂载点）
+	// 报告 FILE_ATTRIBUTE_DIRECTORY 位。
+	// 然而，我们遵循符号链接的 POSIX 语义，不设置模式位。
+	// 这样用户就可以不跟随链接地遍历目录，
+	// 只需调用 "fi, err := os.Lstat(name); err == nil && fi.IsDir()"。
+	// 请注意，POSIX 只定义了符号链接的语义，并未定义
+	// 挂载点或其他替代重解析点的语义，但为了一致性
+	// 我们以相同方式对待它们。此外，挂载点可能包含无限
+	// 循环，因此不做特殊处理地遍历它们是不安全的。
 	if !fs.isReparseTagNameSurrogate() {
 		if fs.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0 {
 			m |= ModeDir | 0111
@@ -210,19 +210,18 @@ func (fs *fileStat) mode() (m FileMode) {
 		case windows.IO_REPARSE_TAG_AF_UNIX:
 			m |= ModeSocket
 		case windows.IO_REPARSE_TAG_DEDUP:
-			// If the Data Deduplication service is enabled on Windows Server, its
-			// Optimization job may convert regular files to IO_REPARSE_TAG_DEDUP
-			// whenever that job runs.
+			// 如果在 Windows Server 上启用了数据去重（Data Deduplication）服务，其
+			// 优化作业在运行时可能会将常规文件转换为 IO_REPARSE_TAG_DEDUP。
 			//
-			// However, DEDUP reparse points remain similar in most respects to
-			// regular files: they continue to support random-access reads and writes
-			// of persistent data, and they shouldn't add unexpected latency or
-			// unavailability in the way that a network filesystem might.
+			// 然而，DEDUP 重解析点在大多数方面与
+			// 常规文件相似：它们仍然支持对持久化数据的
+			// 随机访问读写，并且不应像网络文件系统那样
+			// 引入意外的延迟或不可用性。
 			//
-			// Go programs may use ModeIrregular to filter out unusual files (such as
-			// raw device files on Linux, POSIX FIFO special files, and so on), so
-			// to avoid files changing unpredictably from regular to irregular we will
-			// consider DEDUP files to be close enough to regular to treat as such.
+			// Go 程序可能会使用 ModeIrregular 来过滤掉不寻常的文件（例如
+			// Linux 上的原始设备文件、POSIX FIFO 特殊文件等），因此
+			// 为了避免文件在常规与非常规之间不可预测地变化，我们将
+			// DEDUP 文件视为足够接近常规文件，从而按常规文件处理。
 		default:
 			m |= ModeIrregular
 		}
@@ -230,10 +229,10 @@ func (fs *fileStat) mode() (m FileMode) {
 	return
 }
 
-// modePreGo1_23 returns the FileMode for the fileStat, using the pre-Go 1.23
-// logic for determining the file mode.
-// The logic is subtle and not well-documented, so it is better to keep it
-// separate from the new logic.
+// modePreGo1_23 返回该 fileStat 的 FileMode，使用 Go 1.23 之前
+// 确定文件模式的逻辑。
+// 该逻辑很微妙且文档不足，因此最好将其
+// 与新的逻辑分开。
 func (fs *fileStat) modePreGo1_23() (m FileMode) {
 	if fs.FileAttributes&syscall.FILE_ATTRIBUTE_READONLY != 0 {
 		m |= 0444
@@ -259,7 +258,7 @@ func (fs *fileStat) modePreGo1_23() (m FileMode) {
 		}
 		if m&ModeType == 0 {
 			if fs.ReparseTag == windows.IO_REPARSE_TAG_DEDUP {
-				// See comment in fs.Mode.
+				// 参见 fs.Mode 中的注释。
 			} else {
 				m |= ModeIrregular
 			}
@@ -272,7 +271,7 @@ func (fs *fileStat) ModTime() time.Time {
 	return time.Unix(0, fs.LastWriteTime.Nanoseconds())
 }
 
-// Sys returns syscall.Win32FileAttributeData for file fs.
+// Sys 返回文件 fs 的 syscall.Win32FileAttributeData。
 func (fs *fileStat) Sys() any {
 	return &syscall.Win32FileAttributeData{
 		FileAttributes: fs.FileAttributes,
@@ -288,7 +287,7 @@ func (fs *fileStat) loadFileId() error {
 	fs.Lock()
 	defer fs.Unlock()
 	if fs.path == "" {
-		// already done
+		// 已经完成
 		return nil
 	}
 	var path string
@@ -302,20 +301,18 @@ func (fs *fileStat) loadFileId() error {
 		return err
 	}
 
-	// Per https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-points-and-file-operations,
-	// “Applications that use the CreateFile function should specify the
-	// FILE_FLAG_OPEN_REPARSE_POINT flag when opening the file if it is a reparse
-	// point.”
+	// 根据 https://learn.microsoft.com/en-us/windows/win32/fileio/reparse-points-and-file-operations，
+	// “使用 CreateFile 函数的应用程序在打开文件时，如果该文件是重解析
+	// 点，则应指定 FILE_FLAG_OPEN_REPARSE_POINT 标志。”
 	//
-	// And per https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew,
-	// “If the file is not a reparse point, then this flag is ignored.”
+	// 并且根据 https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew，
+	// “如果文件不是重解析点，则该标志会被忽略。”
 	//
-	// So we set FILE_FLAG_OPEN_REPARSE_POINT unconditionally, since we want
-	// information about the reparse point itself.
+	// 因此我们无条件地设置 FILE_FLAG_OPEN_REPARSE_POINT，因为我们想要
+	// 关于重解析点本身的信息。
 	//
-	// If the file is a symlink, the symlink target should have already been
-	// resolved when the fileStat was created, so we don't need to worry about
-	// resolving symlink reparse points again here.
+	// 如果文件是符号链接，则在创建 fileStat 时符号链接目标应该已经被
+	// 解析，因此我们无需担心在这里再次解析符号链接重解析点。
 	attrs := uint32(syscall.FILE_FLAG_BACKUP_SEMANTICS | syscall.FILE_FLAG_OPEN_REPARSE_POINT)
 
 	h, err := syscall.CreateFile(pathp, 0, 0, nil, syscall.OPEN_EXISTING, attrs, 0)
@@ -335,8 +332,8 @@ func (fs *fileStat) loadFileId() error {
 	return nil
 }
 
-// saveInfoFromPath saves full path of the file to be used by os.SameFile later,
-// and set name from path.
+// saveInfoFromPath 保存文件的完整路径，供 os.SameFile 稍后使用，
+// 并根据 path 设置 name。
 func (fs *fileStat) saveInfoFromPath(path string) error {
 	fs.path = path
 	if !filepathlite.IsAbs(fs.path) {
@@ -362,7 +359,7 @@ func sameFile(fs1, fs2 *fileStat) bool {
 	return fs1.vol == fs2.vol && fs1.idxhi == fs2.idxhi && fs1.idxlo == fs2.idxlo
 }
 
-// For testing.
+// 用于测试。
 func atime(fi FileInfo) time.Time {
 	return time.Unix(0, fi.Sys().(*syscall.Win32FileAttributeData).LastAccessTime.Nanoseconds())
 }

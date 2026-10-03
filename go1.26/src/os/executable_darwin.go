@@ -6,11 +6,11 @@ package os
 
 import (
 	"errors"
-	_ "unsafe" // for linkname
+	_ "unsafe" // 用于 linkname
 )
 
 //go:linkname executablePath
-var executablePath string // set by ../runtime/os_darwin.go
+var executablePath string // 由 ../runtime/os_darwin.go 设置
 
 var initCwd, initCwdErr = Getwd()
 
@@ -24,7 +24,7 @@ func executable() (string, error) {
 			return ep, initCwdErr
 		}
 		if len(ep) > 2 && ep[0:2] == "./" {
-			// skip "./"
+			// 跳过 "./"
 			ep = ep[2:]
 		}
 		ep = initCwd + "/" + ep

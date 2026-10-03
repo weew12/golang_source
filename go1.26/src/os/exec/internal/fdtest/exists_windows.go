@@ -6,7 +6,7 @@
 
 package fdtest
 
-// Exists is not implemented on windows and panics.
+// Exists 在 windows 上未实现，会引发 panic。
 func Exists(fd uintptr) bool {
 	panic("unimplemented")
 }

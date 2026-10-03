@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// Note that Process.handle is never nil because Windows always requires
-// a handle. A manually-created Process literal is not valid.
+// 注意，Process.handle 永远不会为 nil，因为 Windows 总是需要一个句柄。
+// 手动创建的 Process 字面量是无效的。
 
 func (p *Process) wait() (ps *ProcessState, err error) {
 	handle, status := p.handleTransientAcquire()
@@ -45,8 +45,8 @@ func (p *Process) wait() (ps *ProcessState, err error) {
 		return nil, NewSyscallError("GetProcessTimes", e)
 	}
 
-	// For compatibility we use statusReleased here rather
-	// than statusDone.
+	// 为了兼容性，我们在这里使用 statusReleased
+	// 而不是 statusDone。
 	p.doRelease(statusReleased)
 
 	return &ProcessState{p.Pid, syscall.WaitStatus{ExitCode: ec}, &u}, nil
@@ -73,7 +73,7 @@ func (p *Process) signal(sig Signal) error {
 		e = syscall.TerminateProcess(syscall.Handle(terminationHandle), 1)
 		return NewSyscallError("TerminateProcess", e)
 	}
-	// TODO(rsc): Handle Interrupt too?
+	// TODO(rsc)：也要处理 Interrupt 吗？
 	return syscall.Errno(syscall.EWINDOWS)
 }
 
@@ -101,7 +101,7 @@ func init() {
 	}
 }
 
-// appendBSBytes appends n '\\' bytes to b and returns the resulting slice.
+// appendBSBytes 将 n 个 '\\' 字节追加到 b，并返回得到的切片。
 func appendBSBytes(b []byte, n int) []byte {
 	for ; n > 0; n-- {
 		b = append(b, '\\')
@@ -109,8 +109,8 @@ func appendBSBytes(b []byte, n int) []byte {
 	return b
 }
 
-// readNextArg splits command line string cmd into next
-// argument and command line remainder.
+// readNextArg 将命令行字符串 cmd 拆分为下一个
+// 参数和命令行剩余部分。
 func readNextArg(cmd string) (arg []byte, rest string) {
 	var b []byte
 	var inquote bool
@@ -125,9 +125,9 @@ func readNextArg(cmd string) (arg []byte, rest string) {
 		case '"':
 			b = appendBSBytes(b, nslash/2)
 			if nslash%2 == 0 {
-				// use "Prior to 2008" rule from
-				// http://daviddeley.com/autohotkey/parameters/parameters.htm
-				// section 5.2 to deal with double double quotes
+				// 使用 http://daviddeley.com/autohotkey/parameters/parameters.htm
+				// 5.2 节中 “Prior to 2008” 规则
+				// 来处理双引号引号
 				if inquote && len(cmd) > 1 && cmd[1] == '"' {
 					b = append(b, c)
 					cmd = cmd[1:]
@@ -149,9 +149,9 @@ func readNextArg(cmd string) (arg []byte, rest string) {
 	return appendBSBytes(b, nslash), ""
 }
 
-// commandLineToArgv splits a command line into individual argument
-// strings, following the Windows conventions documented
-// at http://daviddeley.com/autohotkey/parameters/parameters.htm#WINARGV
+// commandLineToArgv 将命令行拆分为单独的参数
+// 字符串，遵循记录在
+// http://daviddeley.com/autohotkey/parameters/parameters.htm#WINARGV 的 Windows 约定。
 func commandLineToArgv(cmd string) []string {
 	var args []string
 	for len(cmd) > 0 {
@@ -167,7 +167,7 @@ func commandLineToArgv(cmd string) []string {
 }
 
 func ftToDuration(ft *syscall.Filetime) time.Duration {
-	n := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime) // in 100-nanosecond intervals
+	n := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime) // 以 100 纳秒为单位
 	return time.Duration(n*100) * time.Nanosecond
 }
 

@@ -16,9 +16,9 @@ func open(filePath string, flag int, perm uint32) (int, poll.SysFile, error) {
 		return -1, poll.SysFile{}, syscall.EINVAL
 	}
 	absPath := filePath
-	// os.(*File).Chdir is emulated by setting the working directory to the
-	// absolute path that this file was opened at, which is why we have to
-	// resolve and capture it here.
+	// os.(*File).Chdir 通过将工作目录设置为该文件被打开时的
+	// 绝对路径来模拟，这就是我们必须在
+	// 这里解析并捕获它的原因。
 	if filePath[0] != '/' {
 		wd, err := syscall.Getwd()
 		if err != nil {

@@ -28,7 +28,7 @@ func direntNamlen(buf []byte) (uint64, bool) {
 func direntType(buf []byte) FileMode {
 	off := unsafe.Offsetof(syscall.Dirent{}.Type)
 	if off >= uintptr(len(buf)) {
-		return ^FileMode(0) // unknown
+		return ^FileMode(0) // 未知
 	}
 	typ := buf[off]
 	switch typ {
@@ -47,5 +47,5 @@ func direntType(buf []byte) FileMode {
 	case syscall.DT_SOCK:
 		return ModeSocket
 	}
-	return ^FileMode(0) // unknown
+	return ^FileMode(0) // 未知
 }

@@ -31,18 +31,18 @@ func fileInfoFromStat(d *syscall.Dir) *fileStat {
 	if d.Mode&syscall.DMTMP != 0 {
 		fs.mode |= ModeTemporary
 	}
-	// Consider all files not served by #M as device files.
+	// 将所有不由 #M 提供的文件视为设备文件。
 	if d.Type != 'M' {
 		fs.mode |= ModeDevice
 	}
-	// Consider all files served by #c as character device files.
+	// 将所有由 #c 提供的文件视为字符设备文件。
 	if d.Type == 'c' {
 		fs.mode |= ModeCharDevice
 	}
 	return fs
 }
 
-// arg is an open *File or a path string.
+// arg 是一个打开的 *File 或路径字符串。
 func dirstat(arg any) (*syscall.Dir, error) {
 	var name string
 	var err error
@@ -72,11 +72,11 @@ func dirstat(arg any) (*syscall.Dir, error) {
 			return nil, &PathError{Op: "stat", Path: name, Err: err}
 		}
 
-		// Pull the real size out of the stat message.
+		// 从 stat 消息中取出真实大小。
 		size = int(uint16(buf[0]) | uint16(buf[1])<<8)
 
-		// If the stat message is larger than our buffer we will
-		// go around the loop and allocate one that is big enough.
+		// 如果 stat 消息大于我们的缓冲区，我们将
+		// 循环一遍并分配一个足够大的缓冲区。
 		if size <= n {
 			d, err := syscall.UnmarshalDir(buf[:n])
 			if err != nil {
@@ -94,7 +94,7 @@ func dirstat(arg any) (*syscall.Dir, error) {
 	return nil, &PathError{Op: "stat", Path: name, Err: err}
 }
 
-// statNolog implements Stat for Plan 9.
+// statNolog 为 Plan 9 实现 Stat。
 func statNolog(name string) (FileInfo, error) {
 	d, err := dirstat(name)
 	if err != nil {
@@ -103,12 +103,12 @@ func statNolog(name string) (FileInfo, error) {
 	return fileInfoFromStat(d), nil
 }
 
-// lstatNolog implements Lstat for Plan 9.
+// lstatNolog 为 Plan 9 实现 Lstat。
 func lstatNolog(name string) (FileInfo, error) {
 	return statNolog(name)
 }
 
-// For testing.
+// 用于测试。
 func atime(fi FileInfo) time.Time {
 	return time.Unix(int64(fi.Sys().(*syscall.Dir).Atime), 0)
 }

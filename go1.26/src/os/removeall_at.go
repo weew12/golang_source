@@ -14,38 +14,37 @@ import (
 
 func removeAll(path string) error {
 	if path == "" {
-		// fail silently to retain compatibility with previous behavior
-		// of RemoveAll. See issue 28830.
+		// 静默失败以保持与 RemoveAll 先前行为的兼容性。
+		// 参见 issue 28830。
 		return nil
 	}
 
-	// The rmdir system call does not permit removing ".",
-	// so we don't permit it either.
+	// rmdir 系统调用不允许删除 "."，
+	// 因此我们也不允许这样做。
 	if endsWithDot(path) {
 		return &PathError{Op: "RemoveAll", Path: path, Err: syscall.EINVAL}
 	}
 
-	// Simple case: if Remove works, we're done.
+	// 简单情形：如果 Remove 成功，就完成了。
 	err := Remove(path)
 	if err == nil || IsNotExist(err) {
 		return nil
 	}
 
-	// RemoveAll recurses by deleting the path base from
-	// its parent directory
+	// RemoveAll 通过从父目录中删除路径的基础部分来进行递归
 	parentDir, base := splitPath(path)
 
 	flag := O_RDONLY
 	if runtime.GOOS == "windows" {
-		// On Windows, the process might not have read permission on the parent directory,
-		// but still can delete files in it. See https://go.dev/issue/74134.
-		// We can open a file even if we don't have read permission by passing the
-		// O_WRONLY | O_RDWR flag, which is mapped to FILE_READ_ATTRIBUTES.
+		// 在 Windows 上，进程可能没有父目录的读取权限，
+		// 但仍然可以删除其中的文件。参见 https://go.dev/issue/74134。
+		// 即使没有读取权限，我们也可以通过传入
+		// O_WRONLY | O_RDWR 标志来打开文件，该标志会映射为 FILE_READ_ATTRIBUTES。
 		flag = O_WRONLY | O_RDWR
 	}
 	parent, err := OpenFile(parentDir, flag, 0)
 	if IsNotExist(err) {
-		// If parent does not exist, base cannot exist. Fail silently
+		// 如果父目录不存在，base 也不可能存在。静默失败
 		return nil
 	}
 	if err != nil {
@@ -64,37 +63,35 @@ func removeAll(path string) error {
 }
 
 func removeAllFrom(parentFd sysfdType, base string) error {
-	// Simple case: if Unlink (aka remove) works, we're done.
+	// 简单情形：如果 Unlink（即 remove）成功，就完成了。
 	err := removefileat(parentFd, base)
 	if err == nil || IsNotExist(err) {
 		return nil
 	}
 
-	// EISDIR means that we have a directory, and we need to
-	// remove its contents.
-	// EPERM or EACCES means that we don't have write permission on
-	// the parent directory, but this entry might still be a directory
-	// whose contents need to be removed.
-	// Otherwise just return the error.
+	// EISDIR 表示这是一个目录，我们需要删除其内容。
+	// EPERM 或 EACCES 表示我们没有父目录的写权限，
+	// 但该条目仍可能是一个需要删除其内容的目录。
+	// 否则直接返回该错误。
 	if err != syscall.EISDIR && err != syscall.EPERM && err != syscall.EACCES {
 		return &PathError{Op: "unlinkat", Path: base, Err: err}
 	}
 	uErr := err
 
-	// Remove the directory's entries.
+	// 删除目录的各项条目。
 	var recurseErr error
 	for {
 		const reqSize = 1024
 		var respSize int
 
-		// Open the directory to recurse into.
+		// 打开要递归进入的目录。
 		file, err := openDirAt(parentFd, base)
 		if err != nil {
 			if IsNotExist(err) {
 				return nil
 			}
 			if err == syscall.ENOTDIR || isErrNoFollow(err) {
-				// Not a directory; return the error from the unix.Unlinkat.
+				// 不是目录；返回来自 unix.Unlinkat 的错误。
 				return &PathError{Op: "unlinkat", Path: base, Err: uErr}
 			}
 			recurseErr = &PathError{Op: "openfdat", Path: base, Err: err}
@@ -105,7 +102,7 @@ func removeAllFrom(parentFd sysfdType, base string) error {
 			numErr := 0
 
 			names, readErr := file.Readdirnames(reqSize)
-			// Errors other than EOF should stop us from continuing.
+			// 除 EOF 之外的错误都应阻止我们继续。
 			if readErr != nil && readErr != io.EOF {
 				file.Close()
 				if IsNotExist(readErr) {
@@ -128,27 +125,26 @@ func removeAllFrom(parentFd sysfdType, base string) error {
 				}
 			}
 
-			// If we can delete any entry, break to start new iteration.
-			// Otherwise, we discard current names, get next entries and try deleting them.
+			// 如果我们能删除任意一个条目，就跳出以开始新的迭代。
+			// 否则，丢弃当前名称，获取下一批条目并尝试删除它们。
 			if numErr != reqSize {
 				break
 			}
 		}
 
-		// Removing files from the directory may have caused
-		// the OS to reshuffle it. Simply calling Readdirnames
-		// again may skip some entries. The only reliable way
-		// to avoid this is to close and re-open the
-		// directory. See issue 20841.
+		// 从目录中删除文件可能导致操作系统重新排列它。
+		// 简单地再次调用 Readdirnames 可能会跳过某些条目。
+		// 避免这种情况的唯一可靠方法是关闭并重新打开
+		// 目录。参见 issue 20841。
 		file.Close()
 
-		// Finish when the end of the directory is reached
+		// 当到达目录末尾时结束
 		if respSize < reqSize {
 			break
 		}
 	}
 
-	// Remove the directory itself.
+	// 删除目录本身。
 	unlinkError := removedirat(parentFd, base)
 	if unlinkError == nil || IsNotExist(unlinkError) {
 		return nil
@@ -160,14 +156,13 @@ func removeAllFrom(parentFd sysfdType, base string) error {
 	return &PathError{Op: "unlinkat", Path: base, Err: unlinkError}
 }
 
-// openDirAt opens a directory name relative to the directory referred to by
-// the file descriptor dirfd. If name is anything but a directory (this
-// includes a symlink to one), it should return an error. Other than that this
-// should act like openFileNolog.
+// openDirAt 打开相对于文件描述符 dirfd 所引用目录的目录名。
+// 如果 name 不是目录（这包括指向目录的符号链接），它应返回错误。
+// 除此之外，它的行为应与 openFileNolog 相同。
 //
-// This acts like openFileNolog rather than OpenFile because
-// we are going to (try to) remove the file.
-// The contents of this file are not relevant for test caching.
+// 它的行为像 openFileNolog 而不是 OpenFile，因为
+// 我们将要（尝试）删除该文件。
+// 该文件的内容与测试缓存无关。
 func openDirAt(dirfd sysfdType, name string) (*File, error) {
 	fd, err := rootOpenDir(dirfd, name)
 	if err != nil {

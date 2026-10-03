@@ -33,11 +33,11 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 		n = -1
 	}
 	for n != 0 {
-		// Refill the buffer if necessary.
+		// 如有必要，重新填充缓冲区。
 		if d.bufp >= d.nbuf {
 			nb, err := file.Read(d.buf[:])
 
-			// Update the buffer state before checking for errors.
+			// 在检查错误之前更新缓冲区状态。
 			d.bufp, d.nbuf = 0, nb
 
 			if err != nil {
@@ -51,7 +51,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 			}
 		}
 
-		// Get a record from the buffer.
+		// 从缓冲区中获取一条记录。
 		b := d.buf[d.bufp:]
 		m := int(uint16(b[0])|uint16(b[1])<<8) + 2
 		if m < syscall.STATFIXLEN {

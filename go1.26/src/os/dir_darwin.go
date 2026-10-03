@@ -11,9 +11,9 @@ import (
 	"unsafe"
 )
 
-// Auxiliary information if the File describes a directory
+// 如果 File 描述的是一个目录，则提供辅助信息
 type dirInfo struct {
-	dir uintptr // Pointer to DIR structure from dirent.h
+	dir uintptr // 指向 dirent.h 中 DIR 结构的指针
 }
 
 func (d *dirInfo) close() {
@@ -25,7 +25,7 @@ func (d *dirInfo) close() {
 }
 
 func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
-	// If this file has no dirinfo, create one.
+	// 如果此文件没有 dirinfo，则创建一个。
 	var d *dirInfo
 	for {
 		d = f.dirinfo.Load()
@@ -40,7 +40,7 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		if f.dirinfo.CompareAndSwap(nil, d) {
 			break
 		}
-		// We lost the race: try again.
+		// 我们在竞争中失败了：重试。
 		d.close()
 	}
 
@@ -59,17 +59,15 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 			}
 			return names, dirents, infos, &PathError{Op: "readdir", Path: f.name, Err: errno}
 		}
-		if entptr == nil { // EOF
+		if entptr == nil { // 文件末尾
 			break
 		}
-		// Darwin may return a zero inode when a directory entry has been
-		// deleted but not yet removed from the directory. The man page for
-		// getdirentries(2) states that programs are responsible for skipping
-		// those entries:
+		// 当目录条目已被删除但尚未从目录中移除时，
+		// Darwin 可能返回零 inode。getdirentries(2) 的手册页指出，
+		// 程序有责任跳过这些条目：
 		//
-		//   Users of getdirentries() should skip entries with d_fileno = 0,
-		//   as such entries represent files which have been deleted but not
-		//   yet removed from the directory entry.
+		//   getdirentries() 的使用者应跳过 d_fileno = 0 的条目，
+		//   因为此类条目表示文件已被删除但尚未从目录条目中移除。
 		//
 		if dirent.Ino == 0 {
 			continue
@@ -81,7 +79,7 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 				break
 			}
 		}
-		// Check for useless names before allocating a string.
+		// 在分配字符串之前先检查无用的名称。
 		if string(name) == "." || string(name) == ".." {
 			continue
 		}
@@ -90,8 +88,8 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		} else if mode == readdirDirEntry {
 			de, err := newUnixDirent(f, string(name), dtToType(dirent.Type))
 			if IsNotExist(err) {
-				// File disappeared between readdir and stat.
-				// Treat as if it didn't exist.
+				// 文件在 readdir 与 stat 之间消失了。
+				// 将其视为不存在。
 				continue
 			}
 			if err != nil {
@@ -101,8 +99,8 @@ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEn
 		} else {
 			info, err := f.lstatat(string(name))
 			if IsNotExist(err) {
-				// File disappeared between readdir + stat.
-				// Treat as if it didn't exist.
+				// 文件在 readdir + stat 之间消失了。
+				// 将其视为不存在。
 				continue
 			}
 			if err != nil {
@@ -139,7 +137,7 @@ func dtToType(typ uint8) FileMode {
 	return ^FileMode(0)
 }
 
-// Implemented in syscall/syscall_darwin.go.
+// 在 syscall/syscall_darwin.go 中实现。
 
 //go:linkname closedir syscall.closedir
 func closedir(dir uintptr) (err error)

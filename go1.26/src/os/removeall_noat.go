@@ -14,25 +14,25 @@ import (
 
 func removeAll(path string) error {
 	if path == "" {
-		// fail silently to retain compatibility with previous behavior
-		// of RemoveAll. See issue 28830.
+		// 静默失败以保持与 RemoveAll 先前行为的兼容性。
+		// 参见 issue 28830。
 		return nil
 	}
 
-	// The rmdir system call permits removing "." on Plan 9,
-	// so we don't permit it to remain consistent with the
-	// "at" implementation of RemoveAll.
+	// rmdir 系统调用在 Plan 9 上允许删除 "."，
+	// 因此我们不允许这样做，以保持与 RemoveAll 的
+	// "at" 实现一致。
 	if endsWithDot(path) {
 		return &PathError{Op: "RemoveAll", Path: path, Err: syscall.EINVAL}
 	}
 
-	// Simple case: if Remove works, we're done.
+	// 简单情形：如果 Remove 成功，就完成了。
 	err := Remove(path)
 	if err == nil || IsNotExist(err) {
 		return nil
 	}
 
-	// Otherwise, is this a directory we need to recurse into?
+	// 否则，这是否是一个需要我们递归进入的目录？
 	dir, serr := Lstat(path)
 	if serr != nil {
 		if serr, ok := serr.(*PathError); ok && (IsNotExist(serr.Err) || serr.Err == syscall.ENOTDIR) {
@@ -41,17 +41,17 @@ func removeAll(path string) error {
 		return serr
 	}
 	if !dir.IsDir() {
-		// Not a directory; return the error from Remove.
+		// 不是目录；返回来自 Remove 的错误。
 		return err
 	}
 
-	// Remove contents & return first error.
+	// 删除内容并返回第一个错误。
 	err = nil
 	for {
 		fd, err := Open(path)
 		if err != nil {
 			if IsNotExist(err) {
-				// Already deleted by someone else.
+				// 已被其他人删除。
 				return nil
 			}
 			return err
@@ -75,24 +75,23 @@ func removeAll(path string) error {
 				}
 			}
 
-			// If we can delete any entry, break to start new iteration.
-			// Otherwise, we discard current names, get next entries and try deleting them.
+			// 如果我们能删除任意一个条目，就跳出以开始新的迭代。
+			// 否则，丢弃当前名称，获取下一批条目并尝试删除它们。
 			if numErr != reqSize {
 				break
 			}
 		}
 
-		// Removing files from the directory may have caused
-		// the OS to reshuffle it. Simply calling Readdirnames
-		// again may skip some entries. The only reliable way
-		// to avoid this is to close and re-open the
-		// directory. See issue 20841.
+		// 从目录中删除文件可能导致操作系统重新排列它。
+		// 简单地再次调用 Readdirnames 可能会跳过某些条目。
+		// 避免这种情况的唯一可靠方法是关闭并重新打开
+		// 目录。参见 issue 20841。
 		fd.Close()
 
 		if readErr == io.EOF {
 			break
 		}
-		// If Readdirnames returned an error, use it.
+		// 如果 Readdirnames 返回了错误，就使用它。
 		if err == nil {
 			err = readErr
 		}
@@ -100,10 +99,9 @@ func removeAll(path string) error {
 			break
 		}
 
-		// We don't want to re-open unnecessarily, so if we
-		// got fewer than request names from Readdirnames, try
-		// simply removing the directory now. If that
-		// succeeds, we are done.
+		// 我们不想不必要地重新打开目录，所以如果从 Readdirnames
+		// 获得的名称少于请求的数量，就尝试现在直接删除该目录。
+		// 如果成功，我们就完成了。
 		if len(names) < reqSize {
 			err1 := Remove(path)
 			if err1 == nil || IsNotExist(err1) {
@@ -111,19 +109,16 @@ func removeAll(path string) error {
 			}
 
 			if err != nil {
-				// We got some error removing the
-				// directory contents, and since we
-				// read fewer names than we requested
-				// there probably aren't more files to
-				// remove. Don't loop around to read
-				// the directory again. We'll probably
-				// just get the same error.
+				// 我们在删除目录内容时遇到了一些错误，且由于
+				// 读取到的名称少于请求的数量，很可能没有更多
+				// 文件需要删除了。不要再循环回来再次读取目录。
+				// 我们很可能会得到相同的错误。
 				return err
 			}
 		}
 	}
 
-	// Remove directory.
+	// 删除目录。
 	err1 := Remove(path)
 	if err1 == nil || IsNotExist(err1) {
 		return nil

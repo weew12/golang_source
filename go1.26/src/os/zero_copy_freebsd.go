@@ -16,10 +16,10 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
 }
 
 func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
-	// copy_file_range(2) doesn't support destinations opened with
-	// O_APPEND, so don't bother to try zero-copy with these system calls.
+	// copy_file_range(2) 不支持以 O_APPEND 打开的
+	// 目标，因此不必费心尝试用这些系统调用做零拷贝。
 	//
-	// Visit https://man.freebsd.org/cgi/man.cgi?copy_file_range(2)#ERRORS for details.
+	// 详情请访问 https://man.freebsd.org/cgi/man.cgi?copy_file_range(2)#ERRORS。
 	if f.appendMode {
 		return 0, false, nil
 	}
@@ -43,8 +43,8 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
 	}
 
 	if src.checkValid("ReadFrom") != nil {
-		// Avoid returning the error as we report handled as false,
-		// leave further error handling as the responsibility of the caller.
+		// 避免返回该错误，因为我们报告 handled 为 false，
+		// 将后续的错误处理留给调用者负责。
 		return 0, false, nil
 	}
 

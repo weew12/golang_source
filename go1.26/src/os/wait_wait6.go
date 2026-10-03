@@ -11,9 +11,9 @@ import (
 	"syscall"
 )
 
-// blockUntilWaitable attempts to block until a call to p.Wait will
-// succeed immediately, and reports whether it has done so.
-// It does not actually call p.Wait.
+// blockUntilWaitable 尝试阻塞，直到对 p.Wait 的调用
+// 能够立即成功，并报告是否已做到这一点。
+// 它实际上并不调用 p.Wait。
 func (p *Process) blockUntilWaitable() (bool, error) {
 	err := ignoringEINTR(func() error {
 		_, errno := wait6(_P_PID, p.Pid, syscall.WEXITED|syscall.WNOWAIT)

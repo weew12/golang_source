@@ -7,36 +7,36 @@
 package os
 
 const (
-	PathSeparator     = '/' // OS-specific path separator
-	PathListSeparator = ':' // OS-specific path list separator
+	PathSeparator     = '/' // 特定于操作系统的路径分隔符
+	PathListSeparator = ':' // 特定于操作系统的路径列表分隔符
 )
 
-// IsPathSeparator reports whether c is a directory separator character.
+// IsPathSeparator 报告 c 是否为目录分隔符字符。
 func IsPathSeparator(c uint8) bool {
 	return PathSeparator == c
 }
 
-// splitPath returns the base name and parent directory.
+// splitPath 返回基本名称和父目录。
 func splitPath(path string) (string, string) {
-	// if no better parent is found, the path is relative from "here"
+	// 如果找不到更好的父目录，则该路径相对于 "here"
 	dirname := "."
 
-	// Remove all but one leading slash.
+	// 移除除一个前导斜杠之外的所有斜杠。
 	for len(path) > 1 && path[0] == '/' && path[1] == '/' {
 		path = path[1:]
 	}
 
 	i := len(path) - 1
 
-	// Remove trailing slashes.
+	// 移除结尾的斜杠。
 	for ; i > 0 && path[i] == '/'; i-- {
 		path = path[:i]
 	}
 
-	// if no slashes in path, base is path
+	// 如果路径中没有斜杠，base 就是 path
 	basename := path
 
-	// Remove leading directory path
+	// 移除前导的目录路径
 	for i--; i >= 0; i-- {
 		if path[i] == '/' {
 			if i == 0 {

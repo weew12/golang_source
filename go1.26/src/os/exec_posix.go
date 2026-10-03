@@ -13,20 +13,18 @@ import (
 	"syscall"
 )
 
-// The only signal values guaranteed to be present in the os package on all
-// systems are os.Interrupt (send the process an interrupt) and os.Kill (force
-// the process to exit). On Windows, sending os.Interrupt to a process with
-// os.Process.Signal is not implemented; it will return an error instead of
-// sending a signal.
+// 在所有系统上，os 包中保证存在的唯一信号值是 os.Interrupt（向进程发送中断）
+// 和 os.Kill（强制进程退出）。在 Windows 上，使用 os.Process.Signal
+// 向进程发送 os.Interrupt 未实现；它会返回错误而不是发送信号。
 var (
 	Interrupt Signal = syscall.SIGINT
 	Kill      Signal = syscall.SIGKILL
 )
 
 func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err error) {
-	// If there is no SysProcAttr (ie. no Chroot or changed
-	// UID/GID), double-check existence of the directory we want
-	// to chdir into. We can make the error clearer this way.
+	// 如果没有 SysProcAttr（即没有 Chroot 或改变 UID/GID），
+	// 则再次检查我们想要 chdir 进入的目录是否存在。
+	// 这样可以让我们把错误表达得更清晰。
 	if attr != nil && attr.Sys == nil && attr.Dir != "" {
 		if _, err := Stat(attr.Dir); err != nil {
 			pe := err.(*PathError)
@@ -54,14 +52,14 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
 
 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
 
-	// Make sure we don't run the finalizers of attr.Files.
+	// 确保我们不会运行 attr.Files 的终结器。
 	runtime.KeepAlive(attr)
 
 	if e != nil {
 		return nil, &PathError{Op: "fork/exec", Path: name, Err: e}
 	}
 
-	// For Windows, syscall.StartProcess above already returned a process handle.
+	// 对于 Windows，上面的 syscall.StartProcess 已经返回了一个进程句柄。
 	if runtime.GOOS != "windows" {
 		var ok bool
 		h, ok = getPidfd(sysattr.Sys, shouldDupPidfd)
@@ -94,14 +92,14 @@ func (p *Process) withHandle(f func(handle uintptr)) error {
 	return nil
 }
 
-// ProcessState stores information about a process, as reported by Wait.
+// ProcessState 存储由 Wait 报告的有关进程的信息。
 type ProcessState struct {
-	pid    int                // The process's id.
-	status syscall.WaitStatus // System-dependent status info.
+	pid    int                // 进程的 id。
+	status syscall.WaitStatus // 系统相关的状态信息。
 	rusage *syscall.Rusage
 }
 
-// Pid returns the process id of the exited process.
+// Pid 返回已退出进程的进程 id。
 func (p *ProcessState) Pid() int {
 	return p.pid
 }
@@ -131,9 +129,9 @@ func (p *ProcessState) String() string {
 	switch {
 	case status.Exited():
 		code := status.ExitStatus()
-		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
+		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows 使用大的十六进制数
 			res = "exit status 0x" + strconv.FormatUint(uint64(code), 16)
-		} else { // unix systems use small decimal integers
+		} else { // Unix 系统使用小的十进制整数
 			res = "exit status " + strconv.Itoa(code) // unix
 		}
 	case status.Signaled():
@@ -152,10 +150,9 @@ func (p *ProcessState) String() string {
 	return res
 }
 
-// ExitCode returns the exit code of the exited process, or -1
-// if the process hasn't exited or was terminated by a signal.
+// ExitCode 返回已退出进程的退出码，如果进程尚未退出或被信号终止，则返回 -1。
 func (p *ProcessState) ExitCode() int {
-	// return -1 if the process hasn't started.
+	// 如果进程尚未启动，则返回 -1。
 	if p == nil {
 		return -1
 	}

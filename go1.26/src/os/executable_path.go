@@ -6,9 +6,9 @@
 
 package os
 
-// We query the working directory at init, to use it later to search for the
-// executable file
-// errWd will be checked later, if we need to use initWd
+// 我们在 init 时查询工作目录，以便稍后用它来搜索
+// 可执行文件
+// 如果我们需要使用 initWd，稍后将检查 errWd
 var initWd, errWd = Getwd()
 
 func executable() (string, error) {
@@ -17,14 +17,14 @@ func executable() (string, error) {
 		return "", ErrNotExist
 	}
 	if IsPathSeparator(Args[0][0]) {
-		// Args[0] is an absolute path, so it is the executable.
-		// Note that we only need to worry about Unix paths here.
+		// Args[0] 是绝对路径，因此它就是可执行文件。
+		// 注意，这里我们只需考虑 Unix 路径。
 		exePath = Args[0]
 	} else {
 		for i := 1; i < len(Args[0]); i++ {
 			if IsPathSeparator(Args[0][i]) {
-				// Args[0] is a relative path: prepend the
-				// initial working directory.
+				// Args[0] 是相对路径：前置
+				// 初始工作目录。
 				if errWd != nil {
 					return "", errWd
 				}
@@ -39,7 +39,7 @@ func executable() (string, error) {
 		}
 		return exePath, nil
 	}
-	// Search for executable in $PATH.
+	// 在 $PATH 中搜索可执行文件。
 	for _, dir := range splitPathList(Getenv("PATH")) {
 		if len(dir) == 0 {
 			dir = "."
@@ -61,7 +61,7 @@ func executable() (string, error) {
 	return "", ErrNotExist
 }
 
-// isExecutable returns an error if a given file is not an executable.
+// isExecutable 在给定文件不是可执行文件时返回错误。
 func isExecutable(path string) error {
 	stat, err := Stat(path)
 	if err != nil {
@@ -77,8 +77,8 @@ func isExecutable(path string) error {
 	return nil
 }
 
-// splitPathList splits a path list.
-// This is based on genSplit from strings/strings.go
+// splitPathList 分割路径列表。
+// 它基于 strings/strings.go 中的 genSplit
 func splitPathList(pathList string) []string {
 	if pathList == "" {
 		return nil

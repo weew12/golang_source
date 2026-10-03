@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Support for pidfd was added during the course of a few Linux releases:
-//  v5.1: pidfd_send_signal syscall;
-//  v5.2: CLONE_PIDFD flag for clone syscall;
-//  v5.3: pidfd_open syscall, clone3 syscall;
-//  v5.4: P_PIDFD idtype support for waitid syscall;
-//  v5.6: pidfd_getfd syscall.
+// 对 pidfd 的支持是在若干个 Linux 版本中逐步加入的：
+//  v5.1：pidfd_send_signal 系统调用；
+//  v5.2：clone 系统调用的 CLONE_PIDFD 标志；
+//  v5.3：pidfd_open 系统调用、clone3 系统调用；
+//  v5.4：waitid 系统调用对 P_PIDFD idtype 的支持；
+//  v5.6：pidfd_getfd 系统调用。
 //
-// N.B. Alternative Linux implementations may not follow this ordering. e.g.,
-// QEMU user mode 7.2 added pidfd_open, but CLONE_PIDFD was not added until
-// 8.0.
+// 注意：其他 Linux 实现可能不遵循此顺序。例如，
+// QEMU 用户模式 7.2 添加了 pidfd_open，但直到 8.0
+// 才添加 CLONE_PIDFD。
 
 package os
 
@@ -20,12 +20,12 @@ import (
 	"runtime"
 	"sync"
 	"syscall"
-	_ "unsafe" // for linkname
+	_ "unsafe" // 用于 linkname
 )
 
-// ensurePidfd initializes the PidFD field in sysAttr if it is not already set.
-// It returns the original or modified SysProcAttr struct and a flag indicating
-// whether the PidFD should be duplicated before using.
+// ensurePidfd 初始化 sysAttr 中的 PidFD 字段（如果尚未设置）。
+// 它返回原始或修改后的 SysProcAttr 结构体，以及一个标志，
+// 指示使用前是否应复制 PidFD。
 func ensurePidfd(sysAttr *syscall.SysProcAttr) (*syscall.SysProcAttr, bool) {
 	if !pidfdWorks() {
 		return sysAttr, false
@@ -39,7 +39,7 @@ func ensurePidfd(sysAttr *syscall.SysProcAttr) (*syscall.SysProcAttr, bool) {
 		}, false
 	}
 	if sysAttr.PidFD == nil {
-		newSys := *sysAttr // copy
+		newSys := *sysAttr // 复制
 		newSys.PidFD = &pidfd
 		return &newSys, false
 	}
@@ -47,8 +47,8 @@ func ensurePidfd(sysAttr *syscall.SysProcAttr) (*syscall.SysProcAttr, bool) {
 	return sysAttr, true
 }
 
-// getPidfd returns the value of sysAttr.PidFD (or its duplicate if needDup is
-// set) and a flag indicating whether the value can be used.
+// getPidfd 返回 sysAttr.PidFD 的值（如果设置了 needDup，则返回其副本），
+// 以及一个标志，指示该值是否可以使用。
 func getPidfd(sysAttr *syscall.SysProcAttr, needDup bool) (uintptr, bool) {
 	if !pidfdWorks() {
 		return 0, false
@@ -65,7 +65,7 @@ func getPidfd(sysAttr *syscall.SysProcAttr, needDup bool) (uintptr, bool) {
 	return uintptr(h), true
 }
 
-// pidfdFind returns the process handle for pid.
+// pidfdFind 返回 pid 的进程句柄。
 func pidfdFind(pid int) (uintptr, error) {
 	if !pidfdWorks() {
 		return 0, syscall.ENOSYS
@@ -78,22 +78,22 @@ func pidfdFind(pid int) (uintptr, error) {
 	return h, nil
 }
 
-// pidfdWait waits for the process to complete,
-// and updates the process status to done.
+// pidfdWait 等待进程完成，
+// 并将进程状态更新为 done。
 func (p *Process) pidfdWait() (*ProcessState, error) {
-	// When pidfd is used, there is no wait/kill race (described in CL 23967)
-	// because the PID recycle issue doesn't exist (IOW, pidfd, unlike PID,
-	// is guaranteed to refer to one particular process). Thus, there is no
-	// need for the workaround (blockUntilWaitable + sigMu) from pidWait.
+	// 使用 pidfd 时，不存在 wait/kill 竞态（在 CL 23967 中描述），
+	// 因为不存在 PID 回收问题（换句话说，与 PID 不同，
+	// pidfd 保证指向某一个特定进程）。因此，不需要
+	// pidWait 中的变通方案（blockUntilWaitable + sigMu）。
 	//
-	// We _do_ need to be careful about reuse of the pidfd FD number when
-	// closing the pidfd. See handle for more details.
+	// 当关闭 pidfd 时，我们_确实_需要小心 pidfd 的 FD 编号被重用。
+	// 详见 handle。
 	handle, status := p.handleTransientAcquire()
 	switch status {
 	case statusDone:
-		// Process already completed Wait, or was not found by
-		// pidfdFind. Return ECHILD for consistency with what the wait
-		// syscall would return.
+		// 进程已经完成了 Wait，或者未被
+		// pidfdFind 找到。返回 ECHILD 以与 wait
+		// 系统调用会返回的结果保持一致。
 		return nil, NewSyscallError("wait", syscall.ECHILD)
 	case statusReleased:
 		return nil, syscall.EINVAL
@@ -111,8 +111,8 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
 		return nil, NewSyscallError("waitid", err)
 	}
 
-	// Update the Process status to statusDone.
-	// This also releases a reference to the handle.
+	// 将 Process 状态更新为 statusDone。
+	// 这也会释放对句柄的一个引用。
 	p.doRelease(statusDone)
 
 	return &ProcessState{
@@ -122,7 +122,7 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
 	}, nil
 }
 
-// pidfdSendSignal sends a signal to the process.
+// pidfdSendSignal 向进程发送信号。
 func (p *Process) pidfdSendSignal(s syscall.Signal) error {
 	handle, status := p.handleTransientAcquire()
 	switch status {
@@ -136,59 +136,58 @@ func (p *Process) pidfdSendSignal(s syscall.Signal) error {
 	return convertESRCH(unix.PidFDSendSignal(handle, s))
 }
 
-// pidfdWorks returns whether we can use pidfd on this system.
+// pidfdWorks 返回我们能否在此系统上使用 pidfd。
 func pidfdWorks() bool {
 	return checkPidfdOnce() == nil
 }
 
-// checkPidfdOnce is used to only check whether pidfd works once.
+// checkPidfdOnce 用于仅检查一次 pidfd 是否可用。
 var checkPidfdOnce = sync.OnceValue(checkPidfd)
 
-// checkPidfd checks whether all required pidfd-related syscalls work. This
-// consists of pidfd_open and pidfd_send_signal syscalls, waitid syscall with
-// idtype of P_PIDFD, and clone(CLONE_PIDFD).
+// checkPidfd 检查所有必需的 pidfd 相关系统调用是否可用。这
+// 包括 pidfd_open 和 pidfd_send_signal 系统调用、idtype 为 P_PIDFD 的
+// waitid 系统调用，以及 clone(CLONE_PIDFD)。
 //
-// Reasons for non-working pidfd syscalls include an older kernel and an
-// execution environment in which the above system calls are restricted by
-// seccomp or a similar technology.
+// pidfd 系统调用不可用的原因包括内核较旧，以及
+// 执行环境中的上述系统调用受到 seccomp 或类似技术的限制。
 func checkPidfd() error {
-	// In Android version < 12, pidfd-related system calls are not allowed
-	// by seccomp and trigger the SIGSYS signal. See issue #69065.
+	// 在 Android 版本 < 12 中，seccomp 不允许 pidfd 相关的系统调用，
+	// 并会触发 SIGSYS 信号。参见 issue #69065。
 	if runtime.GOOS == "android" {
 		ignoreSIGSYS()
 		defer restoreSIGSYS()
 	}
 
-	// Get a pidfd of the current process (opening of "/proc/self" won't
-	// work for waitid).
+	// 获取当前进程的 pidfd（打开 "/proc/self" 对
+	// waitid 不起作用）。
 	fd, err := unix.PidFDOpen(syscall.Getpid(), 0)
 	if err != nil {
 		return NewSyscallError("pidfd_open", err)
 	}
 	defer syscall.Close(int(fd))
 
-	// Check waitid(P_PIDFD) works.
+	// 检查 waitid(P_PIDFD) 是否可用。
 	err = ignoringEINTR(func() error {
 		var info unix.SiginfoChild
-		// We don't actually care about the info, but passing a nil pointer
-		// makes valgrind complain because 0x0 is unaddressable.
+		// 我们实际上并不关心 info，但传递 nil 指针
+		// 会让 valgrind 报错，因为 0x0 不可寻址。
 		return unix.Waitid(unix.P_PIDFD, int(fd), &info, syscall.WEXITED, nil)
 	})
-	// Expect ECHILD from waitid since we're not our own parent.
+	// 预期 waitid 返回 ECHILD，因为我们不是自己的父进程。
 	if err != syscall.ECHILD {
 		return NewSyscallError("pidfd_wait", err)
 	}
 
-	// Check pidfd_send_signal works (should be able to send 0 to itself).
+	// 检查 pidfd_send_signal 是否可用（应能向自身发送 0）。
 	if err := unix.PidFDSendSignal(fd, 0); err != nil {
 		return NewSyscallError("pidfd_send_signal", err)
 	}
 
-	// Verify that clone(CLONE_PIDFD) works.
+	// 验证 clone(CLONE_PIDFD) 是否可用。
 	//
-	// This shouldn't be necessary since pidfd_open was added in Linux 5.3,
-	// after CLONE_PIDFD in Linux 5.2, but some alternative Linux
-	// implementations may not adhere to this ordering.
+	// 这本不必要，因为 pidfd_open 是在 Linux 5.3 中添加的，
+	// 晚于 Linux 5.2 中的 CLONE_PIDFD，但某些替代的 Linux
+	// 实现可能不遵循此顺序。
 	if err := checkClonePidfd(); err != nil {
 		return err
 	}
@@ -196,12 +195,12 @@ func checkPidfd() error {
 	return nil
 }
 
-// Provided by syscall.
+// 由 syscall 提供。
 //
 //go:linkname checkClonePidfd
 func checkClonePidfd() error
 
-// Provided by runtime.
+// 由 runtime 提供。
 //
 //go:linkname ignoreSIGSYS
 func ignoreSIGSYS()

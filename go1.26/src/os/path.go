@@ -9,15 +9,15 @@ import (
 	"syscall"
 )
 
-// MkdirAll creates a directory named path,
-// along with any necessary parents, and returns nil,
-// or else returns an error.
-// The permission bits perm (before umask) are used for all
-// directories that MkdirAll creates.
-// If path is already a directory, MkdirAll does nothing
-// and returns nil.
+// MkdirAll 创建一个名为 path 的目录，
+// 以及任何必要的父目录，并返回 nil，
+// 否则返回错误。
+// 权限位 perm（在 umask 之前）用于 MkdirAll
+// 创建的所有目录。
+// 如果 path 已经是一个目录，MkdirAll 什么都不做
+// 并返回 nil。
 func MkdirAll(path string, perm FileMode) error {
-	// Fast path: if we can tell whether path is a directory or file, stop with success or error.
+	// 快速路径：如果我们能判断 path 是目录还是文件，就以成功或错误结束。
 	dir, err := Stat(path)
 	if err == nil {
 		if dir.IsDir() {
@@ -26,11 +26,11 @@ func MkdirAll(path string, perm FileMode) error {
 		return &PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
 	}
 
-	// Slow path: make sure parent exists and then call Mkdir for path.
+	// 慢速路径：确保父目录存在，然后对 path 调用 Mkdir。
 
-	// Extract the parent folder from path by first removing any trailing
-	// path separator and then scanning backward until finding a path
-	// separator or reaching the beginning of the string.
+	// 通过先移除任何结尾的路径分隔符，然后向后扫描
+	// 直到找到路径分隔符或到达字符串开头，
+	// 从 path 中提取父文件夹。
 	i := len(path) - 1
 	for i >= 0 && IsPathSeparator(path[i]) {
 		i--
@@ -42,8 +42,8 @@ func MkdirAll(path string, perm FileMode) error {
 		i = 0
 	}
 
-	// If there is a parent directory, and it is not the volume name,
-	// recurse to ensure parent directory exists.
+	// 如果存在父目录，且它不是卷名，
+	// 则递归以确保父目录存在。
 	if parent := path[:i]; len(parent) > len(filepathlite.VolumeName(path)) {
 		err = MkdirAll(parent, perm)
 		if err != nil {
@@ -51,11 +51,11 @@ func MkdirAll(path string, perm FileMode) error {
 		}
 	}
 
-	// Parent now exists; invoke Mkdir and use its result.
+	// 父目录现在存在；调用 Mkdir 并使用其结果。
 	err = Mkdir(path, perm)
 	if err != nil {
-		// Handle arguments like "foo/." by
-		// double-checking that directory doesn't exist.
+		// 通过再次检查目录不存在来处理
+		// 类似 "foo/." 的参数。
 		dir, err1 := Lstat(path)
 		if err1 == nil && dir.IsDir() {
 			return nil
@@ -65,16 +65,16 @@ func MkdirAll(path string, perm FileMode) error {
 	return nil
 }
 
-// RemoveAll removes path and any children it contains.
-// It removes everything it can but returns the first error
-// it encounters. If the path does not exist, RemoveAll
-// returns nil (no error).
-// If there is an error, it will be of type [*PathError].
+// RemoveAll 移除 path 及其包含的任何子项。
+// 它会尽力移除所有内容，但会返回它遇到的
+// 第一个错误。如果 path 不存在，RemoveAll
+// 返回 nil（无错误）。
+// 如果出错，错误的类型为 [*PathError]。
 func RemoveAll(path string) error {
 	return removeAll(path)
 }
 
-// endsWithDot reports whether the final component of path is ".".
+// endsWithDot 报告 path 的最后一个组成部分是否为 "."。
 func endsWithDot(path string) bool {
 	if path == "." {
 		return true

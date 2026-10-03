@@ -30,7 +30,7 @@ func listGroupsFromReader(u *User, r io.Reader) ([]string, error) {
 	userLast := userCommas[:len(userCommas)-1]    // ,john
 	userOnly := userCommas[1 : len(userCommas)-1] // john
 
-	// Add primary Gid first.
+	// 首先添加主 Gid。
 	groups := []string{u.Gid}
 
 	rd := bufio.NewReader(r)
@@ -45,37 +45,35 @@ func listGroupsFromReader(u *User, r io.Reader) ([]string, error) {
 			}
 		}
 
-		// Look for username in the list of users. If user is found,
-		// append the GID to the groups slice.
+		// 在用户列表中查找用户名。如果找到该用户，
+		// 则将该 GID 追加到 groups 切片中。
 
-		// There's no spec for /etc/passwd or /etc/group, but we try to follow
-		// the same rules as the glibc parser, which allows comments and blank
-		// space at the beginning of a line.
+		// /etc/passwd 或 /etc/group 没有规范，但我们尝试遵循
+		// 与 glibc 解析器相同的规则，它允许行首有注释和空白字符。
 		line = bytes.TrimSpace(line)
 		if len(line) == 0 || line[0] == '#' ||
-			// If you search for a gid in a row where the group
-			// name (the first field) starts with "+" or "-",
-			// glibc fails to find the record, and so should we.
+			// 如果你在某一行中查找 gid，而该行的组名（第一个字段）
+			// 以 "+" 或 "-" 开头，glibc 会找不到该记录，我们也应如此。
 			line[0] == '+' || line[0] == '-' {
 			continue
 		}
 
-		// Format of /etc/group is
+		// /etc/group 的格式为
 		// 	groupname:password:GID:user_list
-		// for example
+		// 例如
 		// 	wheel:x:10:john,paul,jack
 		//	tcpdump:x:72:
 		listIdx := bytes.LastIndexByte(line, ':')
 		if listIdx == -1 || listIdx == len(line)-1 {
-			// No commas, or empty group list.
+			// 没有逗号，或组列表为空。
 			continue
 		}
 		if bytes.Count(line[:listIdx], colon) != 2 {
-			// Incorrect number of colons.
+			// 冒号数量不正确。
 			continue
 		}
 		list := line[listIdx+1:]
-		// Check the list for user without splitting or copying.
+		// 在列表中检查用户，不做拆分或复制。
 		if !(bytes.Equal(list, userOnly) || bytes.HasPrefix(list, userFirst) || bytes.HasSuffix(list, userLast) || bytes.Contains(list, userCommas)) {
 			continue
 		}
@@ -86,7 +84,7 @@ func listGroupsFromReader(u *User, r io.Reader) ([]string, error) {
 			continue
 		}
 		gid := string(parts[2])
-		// Make sure it's numeric and not the same as primary GID.
+		// 确保它是数字，并且与主 GID 不同。
 		numGid, err := strconv.Atoi(gid)
 		if err != nil || numGid == primaryGid {
 			continue

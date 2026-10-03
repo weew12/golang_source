@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// ErrNotFound is the error resulting if a path search failed to find an executable file.
+// ErrNotFound 是路径搜索未能找到可执行文件时产生的错误。
 var ErrNotFound = errors.New("executable file not found in %PATH%")
 
 func chkStat(file string) error {
@@ -42,8 +42,8 @@ func findExecutable(file string, exts []string) (string, error) {
 		if chkStat(file) == nil {
 			return file, nil
 		}
-		// Keep checking exts below, so that programs with weird names
-		// like "foo.bat.exe" will resolve instead of failing.
+		// 继续检查下面的 exts，这样像 "foo.bat.exe" 这样名称奇怪的
+		// 程序也能被解析，而不是失败。
 	}
 	for _, e := range exts {
 		if f := file + e; chkStat(f) == nil {
@@ -64,15 +64,14 @@ func lookPath(file string) (string, error) {
 	return lookPathExts(file, pathExt())
 }
 
-// lookExtensions finds windows executable by its dir and path.
-// It uses LookPath to try appropriate extensions.
-// lookExtensions does not search PATH, instead it converts `prog` into `.\prog`.
+// lookExtensions 根据其 dir 和 path 查找 Windows 可执行文件。
+// 它使用 LookPath 尝试适当的扩展名。
+// lookExtensions 不搜索 PATH，而是将 `prog` 转换为 `.\prog`。
 //
-// If the path already has an extension found in PATHEXT,
-// lookExtensions returns it directly without searching
-// for additional extensions. For example,
-// "C:\foo\example.com" would be returned as-is even if the
-// program is actually "C:\foo\example.com.exe".
+// 如果路径已经具有 PATHEXT 中找到的扩展名，
+// lookExtensions 会直接返回它，而不再搜索其他扩展名。
+// 例如，即使程序实际上是 "C:\foo\example.com.exe"，
+// "C:\foo\example.com" 也会被原样返回。
 func lookExtensions(path, dir string) (string, error) {
 	if err := validateLookPath(path); err != nil {
 		return "", &Error{path, err}
@@ -85,7 +84,7 @@ func lookExtensions(path, dir string) (string, error) {
 	if ext := filepath.Ext(path); ext != "" {
 		for _, e := range exts {
 			if strings.EqualFold(ext, e) {
-				// Assume that path has already been resolved.
+				// 假定 path 已经被解析过了。
 				return path, nil
 			}
 		}
@@ -100,7 +99,7 @@ func lookExtensions(path, dir string) (string, error) {
 		return lookPathExts(path, exts)
 	}
 	dirandpath := filepath.Join(dir, path)
-	// We assume that LookPath will only add file extension.
+	// 我们假定 LookPath 只会添加文件扩展名。
 	lp, err := lookPathExts(dirandpath, exts)
 	if err != nil {
 		return "", err
@@ -128,7 +127,7 @@ func pathExt() []string {
 	return exts
 }
 
-// lookPathExts implements LookPath for the given PATHEXT list.
+// lookPathExts 为给定的 PATHEXT 列表实现 LookPath。
 func lookPathExts(file string, exts []string) (string, error) {
 	if strings.ContainsAny(file, `:\/`) {
 		f, err := findExecutable(file, exts)
@@ -138,15 +137,13 @@ func lookPathExts(file string, exts []string) (string, error) {
 		return "", &Error{file, err}
 	}
 
-	// On Windows, creating the NoDefaultCurrentDirectoryInExePath
-	// environment variable (with any value or no value!) signals that
-	// path lookups should skip the current directory.
-	// In theory we are supposed to call NeedCurrentDirectoryForExePathW
-	// "as the registry location of this environment variable can change"
-	// but that seems exceedingly unlikely: it would break all users who
-	// have configured their environment this way!
+	// 在 Windows 上，创建 NoDefaultCurrentDirectoryInExePath
+	// 环境变量（任意值或没有值都可以！）表示路径查找应跳过当前目录。
+	// 理论上我们应该调用 NeedCurrentDirectoryForExePathW，
+	// “因为这个环境变量的注册表位置可能会变化”，
+	// 但这似乎极不可能：那样会破坏所有以这种方式配置环境的用户！
 	// https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw
-	// See also go.dev/issue/43947.
+	// 另见 go.dev/issue/43947。
 	var (
 		dotf   string
 		dotErr error
@@ -164,20 +161,19 @@ func lookPathExts(file string, exts []string) (string, error) {
 	path := os.Getenv("path")
 	for _, dir := range filepath.SplitList(path) {
 		if dir == "" {
-			// Skip empty entries, consistent with what PowerShell does.
-			// (See https://go.dev/issue/61493#issuecomment-1649724826.)
+			// 跳过空条目，与 PowerShell 的行为保持一致。
+			// （参见 https://go.dev/issue/61493#issuecomment-1649724826。）
 			continue
 		}
 
 		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
 			if dotErr != nil {
-				// https://go.dev/issue/53536: if we resolved a relative path implicitly,
-				// and it is the same executable that would be resolved from the explicit %PATH%,
-				// prefer the explicit name for the executable (and, likely, no error) instead
-				// of the equivalent implicit name with ErrDot.
+				// https://go.dev/issue/53536：如果我们隐式解析出了一个相对路径，
+				// 并且它与从显式 %PATH% 中解析出的可执行文件相同，
+				// 则优先使用可执行文件的显式名称（很可能不会报错），
+				// 而不是使用带 ErrDot 的等价隐式名称。
 				//
-				// Otherwise, return the ErrDot for the implicit path as soon as we find
-				// out that the explicit one doesn't match.
+				// 否则，一旦我们发现显式路径不匹配，就立即返回隐式路径的 ErrDot。
 				dotfi, dotfiErr := os.Lstat(dotf)
 				fi, fiErr := os.Lstat(f)
 				if dotfiErr != nil || fiErr != nil || !os.SameFile(dotfi, fi) {
@@ -187,10 +183,10 @@ func lookPathExts(file string, exts []string) (string, error) {
 
 			if !filepath.IsAbs(f) {
 				if execerrdot.Value() != "0" {
-					// If this is the same relative path that we already found,
-					// dotErr is non-nil and we already checked it above.
-					// Otherwise, record this path as the one to which we must resolve,
-					// with or without a dotErr.
+					// 如果这就是我们已经找到的同一个相对路径，
+					// 那么 dotErr 非 nil，且我们已在上文检查过它。
+					// 否则，将此路径记录为我们必须解析到的路径，
+					// 无论是否带有 dotErr。
 					if dotErr == nil {
 						dotf, dotErr = f, &Error{file, ErrDot}
 					}

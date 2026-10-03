@@ -4,7 +4,7 @@
 
 package os
 
-// From FreeBSD's <sys/sysctl.h>
+// 来自 FreeBSD 的 <sys/sysctl.h>
 const (
 	_CTL_KERN           = 1
 	_KERN_PROC          = 14

@@ -8,12 +8,12 @@ package os
 
 import "syscall"
 
-// Pipe returns a connected pair of Files; reads from r return bytes written to w.
-// It returns the files and an error, if any.
+// Pipe 返回一对相连的 File；从 r 读取到的内容正是写入 w 的字节。
+// 如果发生错误，它会返回这些文件和该错误。
 func Pipe() (r *File, w *File, err error) {
 	var p [2]int
 
-	// See ../syscall/exec.go for description of lock.
+	// 有关锁的说明，参见 ../syscall/exec.go。
 	syscall.ForkLock.RLock()
 	e := syscall.Pipe(p[0:])
 	if e != nil {

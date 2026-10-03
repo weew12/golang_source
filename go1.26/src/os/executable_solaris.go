@@ -6,11 +6,11 @@ package os
 
 import (
 	"syscall"
-	_ "unsafe" // for linkname
+	_ "unsafe" // 用于 linkname
 )
 
 //go:linkname executablePath
-var executablePath string // set by sysauxv in ../runtime/os3_solaris.go
+var executablePath string // 由 ../runtime/os3_solaris.go 中的 sysauxv 设置
 
 var initCwd, initCwdErr = Getwd()
 
@@ -27,7 +27,7 @@ func executable() (string, error) {
 			return path, initCwdErr
 		}
 		if len(path) > 2 && path[0:2] == "./" {
-			// skip "./"
+			// 跳过 "./"
 			path = path[2:]
 		}
 		return initCwd + "/" + path, nil

@@ -21,7 +21,7 @@ func getModuleFileName(handle syscall.Handle) (string, error) {
 		if r < n {
 			break
 		}
-		// r == n means n not big enough
+		// r == n 表示 n 不够大
 		n += 1024
 	}
 	return syscall.UTF16ToString(buf), nil

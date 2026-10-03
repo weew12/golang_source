@@ -13,12 +13,12 @@ import (
 
 func executable() (string, error) {
 	n := uintptr(0)
-	// get length
+	// 获取长度
 	_, _, err := syscall.Syscall6(syscall.SYS___SYSCTL, uintptr(unsafe.Pointer(&executableMIB[0])), 4, 0, uintptr(unsafe.Pointer(&n)), 0, 0)
 	if err != 0 {
 		return "", err
 	}
-	if n == 0 { // shouldn't happen
+	if n == 0 { // 不应发生
 		return "", nil
 	}
 	buf := make([]byte, n)
@@ -26,7 +26,7 @@ func executable() (string, error) {
 	if err != 0 {
 		return "", err
 	}
-	if n == 0 { // shouldn't happen
+	if n == 0 { // 不应发生
 		return "", nil
 	}
 	return string(buf[:n-1]), nil

@@ -10,7 +10,7 @@ import (
 )
 
 func hostname() (name string, err error) {
-	// Use PhysicalDnsHostname to uniquely identify host in a cluster
+	// 使用 PhysicalDnsHostname 以在集群中唯一标识主机
 	const format = windows.ComputerNamePhysicalDnsHostname
 
 	n := uint32(64)
@@ -24,8 +24,8 @@ func hostname() (name string, err error) {
 			return "", NewSyscallError("ComputerNameEx", err)
 		}
 
-		// If we received an ERROR_MORE_DATA, but n doesn't get larger,
-		// something has gone wrong and we may be in an infinite loop
+		// 如果我们收到了 ERROR_MORE_DATA，但 n 没有变大，
+		// 说明出了问题，我们可能陷入了无限循环
 		if n <= uint32(len(b)) {
 			return "", NewSyscallError("ComputerNameEx", err)
 		}

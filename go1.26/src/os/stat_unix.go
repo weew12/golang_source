@@ -10,8 +10,8 @@ import (
 	"syscall"
 )
 
-// Stat returns the [FileInfo] structure describing file.
-// If there is an error, it will be of type [*PathError].
+// Stat 返回描述文件的 [FileInfo] 结构。
+// 如果出错，错误的类型为 [*PathError]。
 func (f *File) Stat() (FileInfo, error) {
 	if f == nil {
 		return nil, ErrInvalid
@@ -25,7 +25,7 @@ func (f *File) Stat() (FileInfo, error) {
 	return &fs, nil
 }
 
-// statNolog stats a file with no test logging.
+// statNolog 对文件执行 stat，不进行测试日志记录。
 func statNolog(name string) (FileInfo, error) {
 	var fs fileStat
 	err := ignoringEINTR(func() error {
@@ -38,7 +38,7 @@ func statNolog(name string) (FileInfo, error) {
 	return &fs, nil
 }
 
-// lstatNolog lstats a file with no test logging.
+// lstatNolog 对文件执行 lstat，不进行测试日志记录。
 func lstatNolog(name string) (FileInfo, error) {
 	var fs fileStat
 	err := ignoringEINTR(func() error {

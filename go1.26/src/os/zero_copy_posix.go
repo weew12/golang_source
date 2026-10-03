@@ -11,8 +11,8 @@ import (
 	"syscall"
 )
 
-// wrapSyscallError takes an error and a syscall name. If the error is
-// a syscall.Errno, it wraps it in an os.SyscallError using the syscall name.
+// wrapSyscallError 接收一个错误和一个系统调用名。如果该错误
+// 是 syscall.Errno，则使用该系统调用名将其包装为 os.SyscallError。
 func wrapSyscallError(name string, err error) error {
 	if _, ok := err.(syscall.Errno); ok {
 		err = NewSyscallError(name, err)
@@ -20,11 +20,11 @@ func wrapSyscallError(name string, err error) error {
 	return err
 }
 
-// tryLimitedReader tries to assert the io.Reader to io.LimitedReader, it returns the io.LimitedReader,
-// the underlying io.Reader and the remaining amount of bytes if the assertion succeeds,
-// otherwise it just returns the original io.Reader and the theoretical unlimited remaining amount of bytes.
+// tryLimitedReader 尝试将 io.Reader 断言为 io.LimitedReader，如果断言成功，
+// 它返回该 io.LimitedReader、底层的 io.Reader 以及剩余的字节数，
+// 否则只返回原始的 io.Reader 和理论上无限的剩余字节数。
 func tryLimitedReader(r io.Reader) (*io.LimitedReader, io.Reader, int64) {
-	var remain int64 = 1<<63 - 1 // by default, copy until EOF
+	var remain int64 = 1<<63 - 1 // 默认情况下，复制直到 EOF
 
 	lr, ok := r.(*io.LimitedReader)
 	if !ok {

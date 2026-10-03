@@ -10,7 +10,7 @@ import (
 	"runtime"
 )
 
-// rawConn implements syscall.RawConn.
+// rawConn 实现 syscall.RawConn。
 type rawConn struct {
 	file *File
 }

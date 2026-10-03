@@ -6,8 +6,8 @@ package os
 
 import "syscall"
 
-// gethostname syscall cannot be used because it also returns the domain.
-// Therefore, hostname is retrieve with uname syscall and the Nodename field.
+// 不能使用 gethostname 系统调用，因为它还会返回域名。
+// 因此，改用 uname 系统调用和 Nodename 字段来获取主机名。
 
 func hostname() (name string, err error) {
 	var u syscall.Utsname

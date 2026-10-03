@@ -11,46 +11,46 @@ import (
 )
 
 const (
-	PathSeparator     = '\\' // OS-specific path separator
-	PathListSeparator = ';'  // OS-specific path list separator
+	PathSeparator     = '\\' // 特定于操作系统的路径分隔符
+	PathListSeparator = ';'  // 特定于操作系统的路径列表分隔符
 )
 
-// IsPathSeparator reports whether c is a directory separator character.
+// IsPathSeparator 报告 c 是否为目录分隔符字符。
 func IsPathSeparator(c uint8) bool {
-	// NOTE: Windows accepts / as path separator.
+	// 注意：Windows 接受 / 作为路径分隔符。
 	return c == '\\' || c == '/'
 }
 
-// splitPath returns the base name and parent directory.
+// splitPath 返回基本名称和父目录。
 func splitPath(path string) (string, string) {
 	if path == "" {
 		return ".", "."
 	}
 
-	// The first prefixlen bytes are part of the parent directory.
-	// The prefix consists of the volume name (if any) and the first \ (if significant).
+	// 前 prefixlen 个字节是父目录的一部分。
+	// 前缀由卷名（如果有）和第一个 \（如果有意义）组成。
 	prefixlen := filepathlite.VolumeNameLen(path)
 	if len(path) > prefixlen && IsPathSeparator(path[prefixlen]) {
 		if prefixlen == 0 {
-			// This is a path relative to the current volume, like \foo.
-			// Include the initial \ in the prefix.
+			// 这是相对于当前卷的路径，例如 \foo。
+			// 将开头的 \ 包含在前缀中。
 			prefixlen = 1
 		} else if path[prefixlen-1] == ':' {
-			// This is an absolute path on a named drive, like c:\foo.
-			// Include the initial \ in the prefix.
+			// 这是命名驱动器上的绝对路径，例如 c:\foo。
+			// 将开头的 \ 包含在前缀中。
 			prefixlen++
 		}
 	}
 
 	i := len(path) - 1
 
-	// Remove trailing slashes.
+	// 移除结尾的斜杠。
 	for i >= prefixlen && IsPathSeparator(path[i]) {
 		i--
 	}
 	path = path[:i+1]
 
-	// Find the last path separator. The basename is what follows.
+	// 找到最后一个路径分隔符。其后面的内容就是基本名称。
 	for i >= prefixlen && !IsPathSeparator(path[i]) {
 		i--
 	}
@@ -59,7 +59,7 @@ func splitPath(path string) (string, string) {
 		basename = "."
 	}
 
-	// Remove trailing slashes. The remainder is dirname.
+	// 移除结尾的斜杠。剩余部分就是 dirname。
 	for i >= prefixlen && IsPathSeparator(path[i]) {
 		i--
 	}
@@ -88,15 +88,14 @@ func dirname(path string) string {
 	return vol + dir
 }
 
-// fixLongPath returns the extended-length (\\?\-prefixed) form of
-// path when needed, in order to avoid the default 260 character file
-// path limit imposed by Windows. If the path is short enough or already
-// has the extended-length prefix, fixLongPath returns path unmodified.
-// If the path is relative and joining it with the current working
-// directory results in a path that is too long, fixLongPath returns
-// the absolute path with the extended-length prefix.
+// fixLongPath 在需要时返回路径的扩展长度（以 \\?\ 为前缀）形式，
+// 以避免 Windows 施加的默认 260 字符文件路径限制。
+// 如果路径足够短，或已经带有扩展长度前缀，
+// fixLongPath 会原样返回 path。如果路径是相对路径，
+// 且将其与当前工作目录连接后得到的路径太长，
+// fixLongPath 会返回带扩展长度前缀的绝对路径。
 //
-// See https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
+// 参见 https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file#maximum-path-length-limitation
 func fixLongPath(path string) string {
 	if windows.CanUseLongPaths {
 		return path
@@ -104,42 +103,41 @@ func fixLongPath(path string) string {
 	return addExtendedPrefix(path)
 }
 
-// addExtendedPrefix adds the extended path prefix (\\?\) to path.
+// addExtendedPrefix 将扩展路径前缀（\\?\）添加到 path。
 func addExtendedPrefix(path string) string {
 	if len(path) >= 4 {
 		if path[:4] == `\??\` {
-			// Already extended with \??\
+			// 已经使用 \??\ 扩展过了
 			return path
 		}
 		if IsPathSeparator(path[0]) && IsPathSeparator(path[1]) && path[2] == '?' && IsPathSeparator(path[3]) {
-			// Already extended with \\?\ or any combination of directory separators.
+			// 已经使用 \\?\ 或任意组合的目录分隔符扩展过了。
 			return path
 		}
 	}
 
-	// Do nothing (and don't allocate) if the path is "short".
-	// Empirically (at least on the Windows Server 2013 builder),
-	// the kernel is arbitrarily okay with < 248 bytes. That
-	// matches what the docs above say:
-	// "When using an API to create a directory, the specified
-	// path cannot be so long that you cannot append an 8.3 file
-	// name (that is, the directory name cannot exceed MAX_PATH
-	// minus 12)." Since MAX_PATH is 260, 260 - 12 = 248.
+	// 如果路径“很短”，则什么都不做（也不分配内存）。
+	// 根据经验（至少在 Windows Server 2013 构建器上），
+	// 内核可以任意接受小于 248 字节的路径。这与
+	// 上面文档所述一致：
+	// “当使用 API 创建目录时，指定的路径不能长到
+	// 无法追加 8.3 文件名（也就是说，目录名不能超过
+	// MAX_PATH 减 12）。”由于 MAX_PATH 为 260，260 - 12 = 248。
 	//
-	// The MSDN docs appear to say that a normal path that is 248 bytes long
-	// will work; empirically the path must be less then 248 bytes long.
+	// MSDN 文档似乎表明长度为 248 字节的普通路径
+	// 可以工作；但根据经验，路径必须小于 248 字节。
 	pathLength := len(path)
 	if !filepathlite.IsAbs(path) {
-		// If the path is relative, we need to prepend the working directory
-		// plus a separator to the path before we can determine if it's too long.
-		// We don't want to call syscall.Getwd here, as that call is expensive to do
-		// every time fixLongPath is called with a relative path, so we use a cache.
-		// Note that getwdCache might be outdated if the working directory has been
-		// changed without using os.Chdir, i.e. using syscall.Chdir directly or cgo.
-		// This is fine, as the worst that can happen is that we fail to fix the path.
+		// 如果路径是相对路径，我们需要在判断它是否太长之前，
+		// 将工作目录加一个分隔符前置到该路径。
+		// 我们不想在这里调用 syscall.Getwd，因为每次以相对路径
+		// 调用 fixLongPath 时该调用开销都很大，所以我们使用缓存。
+		// 请注意，如果在未使用 os.Chdir 的情况下更改了工作目录，
+		// 即直接使用 syscall.Chdir 或 cgo，getwdCache 可能已过时。
+		// 这没关系，因为最坏的情况只是我们未能修复该路径。
 		getwdCache.Lock()
 		if getwdCache.dir == "" {
-			// Init the working directory cache.
+			// 初始化工作目录缓存。
 			getwdCache.dir, _ = syscall.Getwd()
 		}
 		pathLength += len(getwdCache.dir) + 1
@@ -147,28 +145,28 @@ func addExtendedPrefix(path string) string {
 	}
 
 	if pathLength < 248 {
-		// Don't fix. (This is how Go 1.7 and earlier worked,
-		// not automatically generating the \\?\ form)
+		// 不修复。（这就是 Go 1.7 及更早版本的行为，
+		// 不会自动生成 \\?\ 形式）
 		return path
 	}
 
 	var isUNC, isDevice bool
 	if len(path) >= 2 && IsPathSeparator(path[0]) && IsPathSeparator(path[1]) {
 		if len(path) >= 4 && path[2] == '.' && IsPathSeparator(path[3]) {
-			// Starts with //./
+			// 以 //./ 开头
 			isDevice = true
 		} else {
-			// Starts with //
+			// 以 // 开头
 			isUNC = true
 		}
 	}
 	var prefix []uint16
 	if isUNC {
-		// UNC path, prepend the \\?\UNC\ prefix.
+		// UNC 路径，前置 \\?\UNC\ 前缀。
 		prefix = []uint16{'\\', '\\', '?', '\\', 'U', 'N', 'C', '\\'}
 	} else if isDevice {
-		// Don't add the extended prefix to device paths, as it would
-		// change its meaning.
+		// 不要给设备路径添加扩展前缀，因为那会
+		// 改变其含义。
 	} else {
 		prefix = []uint16{'\\', '\\', '?', '\\'}
 	}
@@ -177,9 +175,9 @@ func addExtendedPrefix(path string) string {
 	if err != nil {
 		return path
 	}
-	// Estimate the required buffer size using the path length plus the null terminator.
-	// pathLength includes the working directory. This should be accurate unless
-	// the working directory has changed without using os.Chdir.
+	// 使用路径长度加上空终止符来估算所需的缓冲区大小。
+	// pathLength 包含工作目录。这应当是准确的，
+	// 除非工作目录在未使用 os.Chdir 的情况下发生了更改。
 	n := uint32(pathLength) + 1
 	var buf []uint16
 	for {
@@ -194,7 +192,7 @@ func addExtendedPrefix(path string) string {
 		}
 	}
 	if isUNC {
-		// Remove leading \\.
+		// 移除开头的 \\。
 		buf = buf[2:]
 	}
 	copy(buf, prefix)

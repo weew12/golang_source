@@ -8,15 +8,15 @@ package os
 
 import "internal/poll"
 
-// PollFD returns the poll.FD of the file.
+// PollFD 返回该文件的 poll.FD。
 //
-// Other packages in std that also import internal/poll (such as net)
-// can use a type assertion to access this extension method so that
-// they can pass the *poll.FD to functions like poll.Splice.
+// 标准库中其他也导入 internal/poll 的包（如 net）
+// 可以使用类型断言来访问这个扩展方法，
+// 从而将 *poll.FD 传给 poll.Splice 之类的函数。
 //
-// There is an equivalent function in net.rawConn.
+// 在 net.rawConn 中有一个等价的函数。
 //
-// PollFD is not intended for use outside the standard library.
+// PollFD 不打算在标准库之外使用。
 func (f *file) PollFD() *poll.FD {
 	return &f.pfd
 }

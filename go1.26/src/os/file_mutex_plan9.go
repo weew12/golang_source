@@ -4,12 +4,12 @@
 
 package os
 
-// File locking support for Plan 9. This uses fdMutex from the
-// internal/poll package.
+// Plan 9 的文件锁支持。它使用
+// internal/poll 包的 fdMutex。
 
-// incref adds a reference to the file. It returns an error if the file
-// is already closed. This method is on File so that we can incorporate
-// a nil test.
+// incref 为文件添加一个引用。如果文件
+// 已经关闭，则返回错误。此方法定义在 File 上，
+// 以便我们可以进行 nil 检查。
 func (f *File) incref(op string) (err error) {
 	if f == nil {
 		return ErrInvalid
@@ -23,9 +23,9 @@ func (f *File) incref(op string) (err error) {
 	return err
 }
 
-// decref removes a reference to the file. If this is the last
-// remaining reference, and the file has been marked to be closed,
-// then actually close it.
+// decref 移除对文件的一个引用。如果这是最后一个
+// 剩余的引用，并且文件已被标记为关闭，
+// 则真正关闭它。
 func (file *file) decref() error {
 	if file.fdmu.Decref() {
 		return file.destroy()
@@ -33,8 +33,8 @@ func (file *file) decref() error {
 	return nil
 }
 
-// readLock adds a reference to the file and locks it for reading.
-// It returns an error if the file is already closed.
+// readLock 为文件添加一个引用并为其加读锁。
+// 如果文件已经关闭，则返回错误。
 func (file *file) readLock() error {
 	if !file.fdmu.ReadLock() {
 		return ErrClosed
@@ -42,17 +42,17 @@ func (file *file) readLock() error {
 	return nil
 }
 
-// readUnlock removes a reference from the file and unlocks it for reading.
-// It also closes the file if it marked as closed and there is no remaining
-// reference.
+// readUnlock 移除对文件的一个引用并解除其读锁。
+// 如果文件被标记为已关闭且没有剩余的
+// 引用，它还会关闭该文件。
 func (file *file) readUnlock() {
 	if file.fdmu.ReadUnlock() {
 		file.destroy()
 	}
 }
 
-// writeLock adds a reference to the file and locks it for writing.
-// It returns an error if the file is already closed.
+// writeLock 为文件添加一个引用并为其加写锁。
+// 如果文件已经关闭，则返回错误。
 func (file *file) writeLock() error {
 	if !file.fdmu.WriteLock() {
 		return ErrClosed
@@ -60,9 +60,9 @@ func (file *file) writeLock() error {
 	return nil
 }
 
-// writeUnlock removes a reference from the file and unlocks it for writing.
-// It also closes the file if it is marked as closed and there is no remaining
-// reference.
+// writeUnlock 移除对文件的一个引用并解除其写锁。
+// 如果文件被标记为已关闭且没有剩余的
+// 引用，它还会关闭该文件。
 func (file *file) writeUnlock() {
 	if file.fdmu.WriteUnlock() {
 		file.destroy()

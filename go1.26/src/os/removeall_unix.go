@@ -15,6 +15,6 @@ func isErrNoFollow(err error) bool {
 }
 
 func newDirFile(fd int, name string) (*File, error) {
-	// We use kindNoPoll because we know that this is a directory.
+	// 我们使用 kindNoPoll，因为我们知道这是一个目录。
 	return newFile(fd, name, kindNoPoll, false), nil
 }
