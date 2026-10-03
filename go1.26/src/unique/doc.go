@@ -3,7 +3,6 @@
 // license that can be found in the LICENSE file.
 
 /*
-The unique package provides facilities for canonicalizing ("interning")
-comparable values.
+unique 包提供对可比较值进行规范化（"interning"）的工具。
 */
 package unique

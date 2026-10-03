@@ -12,26 +12,26 @@ import (
 
 var zero uintptr
 
-// Handle is a globally unique identity for some value of type T.
+// Handle 是类型 T 的某个值的全局唯一标识。
 //
-// Two handles compare equal exactly if the two values used to create the handles
-// would have also compared equal. The comparison of two handles is trivial and
-// typically much more efficient than comparing the values used to create them.
+// 两个 Handle 比较相等，当且仅当用于创建这两个 Handle 的两个值
+// 也会比较相等。两个 Handle 的比较是平凡的，
+// 通常比比较用于创建它们的值高效得多。
 type Handle[T comparable] struct {
 	value *T
 }
 
-// Value returns a shallow copy of the T value that produced the Handle.
-// Value is safe for concurrent use by multiple goroutines.
+// Value 返回产生该 Handle 的 T 值的浅拷贝。
+// Value 可安全地被多个 goroutine 并发使用。
 func (h Handle[T]) Value() T {
 	return *h.value
 }
 
-// Make returns a globally unique handle for a value of type T. Handles
-// are equal if and only if the values used to produce them are equal.
-// Make is safe for concurrent use by multiple goroutines.
+// Make 返回类型 T 的某个值的全局唯一 handle。两个 Handle
+// 相等当且仅当用于产生它们的值相等。
+// Make 可安全地被多个 goroutine 并发使用。
 func Make[T comparable](value T) Handle[T] {
-	// Find the map for type T.
+	// 查找类型 T 对应的 map。
 	typ := abi.TypeFor[T]()
 	if typ.Size() == 0 {
 		return Handle[T]{(*T)(unsafe.Pointer(&zero))}
@@ -43,25 +43,25 @@ func Make[T comparable](value T) Handle[T] {
 	}
 	m := ma.(*uniqueMap[T])
 
-	// Find the value in the map.
+	// 在 map 中查找该值。
 	ptr := m.Load(value)
 	if ptr == nil {
-		// Insert a new value into the map.
+		// 向 map 中插入一个新值。
 		ptr = m.LoadOrStore(clone(value, &m.cloneSeq))
 	}
 	return Handle[T]{ptr}
 }
 
-// uniqueMaps is an index of type-specific concurrent maps used for unique.Make.
+// uniqueMaps 是供 unique.Make 使用的、按类型区分的并发 map 的索引。
 //
-// The two-level map might seem odd at first since the HashTrieMap could have "any"
-// as its key type, but the issue is escape analysis. We do not want to force lookups
-// to escape the argument, and using a type-specific map allows us to avoid that where
-// possible (for example, for strings and plain-ol'-data structs). We also get the
-// benefit of not cramming every different type into a single map, but that's certainly
-// not enough to outweigh the cost of two map lookups. What is worth it though, is saving
-// on those allocations.
-var uniqueMaps isync.HashTrieMap[*abi.Type, any] // any is always a *uniqueMap[T].
+// 这种两级 map 乍看可能有些奇怪，因为 HashTrieMap 本可以用 "any"
+// 作为键类型，但问题在于逃逸分析。我们不想强制查找操作
+// 使参数逃逸，而使用按类型区分的 map 让我们能够在可能的情况下
+// 避免这一点（例如，对于字符串和纯数据结构体）。我们还获得了
+// 不把所有不同类型都塞进单个 map 的好处，但这当然
+// 不足以抵消两次 map 查找的开销。真正值得的是
+// 节省那些分配。
+var uniqueMaps isync.HashTrieMap[*abi.Type, any] // any 始终是 *uniqueMap[T]。
 
 type uniqueMap[T comparable] struct {
 	*canonMap[T]
