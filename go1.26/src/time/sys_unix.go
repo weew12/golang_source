@@ -12,13 +12,13 @@ import (
 	"syscall"
 )
 
-// for testing: whatever interrupts a sleep
+// 用于测试：任何会中断 sleep 的行为
 func interrupt() {
-	// There is no mechanism in wasi to interrupt the call to poll_oneoff
-	// used to implement runtime.usleep so this function does nothing, which
-	// somewhat defeats the purpose of TestSleep but we are still better off
-	// validating that time elapses when the process calls time.Sleep than
-	// skipping the test altogether.
+	// wasi 中没有机制可以中断用于实现 runtime.usleep 的
+	// poll_oneoff 调用，因此此函数什么都不做，这
+	// 在某种程度上削弱了 TestSleep 的意义，但验证进程
+	// 调用 time.Sleep 时时间会流逝，总比
+	// 完全跳过该测试要好。
 	if runtime.GOOS != "wasip1" {
 		syscall.Kill(syscall.Getpid(), syscall.SIGCHLD)
 	}

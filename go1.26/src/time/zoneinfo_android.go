@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Parse the "tzdata" packed timezone file used on Android.
-// The format is lifted from ZoneInfoDB.java and ZoneInfo.java in
-// java/libcore/util in the AOSP.
+// 解析 Android 上使用的 "tzdata" 打包时区文件。
+// 该格式取自 AOSP 中
+// java/libcore/util 里的 ZoneInfoDB.java 和 ZoneInfo.java。
 
 package time
 
@@ -19,7 +19,7 @@ var platformZoneSources = []string{
 }
 
 func initLocal() {
-	// TODO(elias.naur): getprop persist.sys.timezone
+	// TODO(elias.naur): 获取 persist.sys.timezone
 	localLoc = *UTC
 }
 
@@ -70,7 +70,7 @@ func androidLoadTzinfoFromTzdata(file, name string) ([]byte, error) {
 	}
 	for i := 0; i < int(entrycount); i++ {
 		entry := buf[i*entrysize : (i+1)*entrysize]
-		// len(name) <= namesize is checked at function entry
+		// len(name) <= namesize 在函数入口处已检查
 		if string(entry[:len(name)]) != name {
 			continue
 		}

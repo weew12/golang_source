@@ -9,14 +9,14 @@ import (
 	"syscall"
 )
 
-// for testing: whatever interrupts a sleep
+// 用于测试：任何会中断 sleep 的行为
 func interrupt() {
 }
 
 func open(name string) (uintptr, error) {
 	fd, err := syscall.Open(name, syscall.O_RDONLY, 0)
 	if err != nil {
-		// This condition solves issue https://go.dev/issue/50248
+		// 此条件解决了 issue https://go.dev/issue/50248
 		if err == syscall.ERROR_PATH_NOT_FOUND {
 			err = syscall.ENOENT
 		}

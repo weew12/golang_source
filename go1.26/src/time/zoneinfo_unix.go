@@ -4,10 +4,10 @@
 
 //go:build unix && !ios && !android
 
-// Parse "zoneinfo" time zone file.
-// This is a fairly standard file format used on OS X, Linux, BSD, Sun, and others.
-// See tzfile(5), https://en.wikipedia.org/wiki/Zoneinfo,
-// and ftp://munnari.oz.au/pub/oldtz/
+// 解析 "zoneinfo" 时区文件。
+// 这是 OS X、Linux、BSD、Sun 及其他系统上使用的一种相当标准的文件格式。
+// 参见 tzfile(5)、https://en.wikipedia.org/wiki/Zoneinfo，
+// 以及 ftp://munnari.oz.au/pub/oldtz/
 
 package time
 
@@ -15,9 +15,9 @@ import (
 	"syscall"
 )
 
-// Many systems use /usr/share/zoneinfo, Solaris 2 has
-// /usr/share/lib/zoneinfo, IRIX 6 has /usr/lib/locale/TZ,
-// NixOS has /etc/zoneinfo.
+// 许多系统使用 /usr/share/zoneinfo，Solaris 2 使用
+// /usr/share/lib/zoneinfo，IRIX 6 使用 /usr/lib/locale/TZ，
+// NixOS 使用 /etc/zoneinfo。
 var platformZoneSources = []string{
 	"/usr/share/zoneinfo/",
 	"/usr/share/lib/zoneinfo/",
@@ -26,12 +26,12 @@ var platformZoneSources = []string{
 }
 
 func initLocal() {
-	// consult $TZ to find the time zone to use.
-	// no $TZ means use the system default /etc/localtime.
-	// $TZ="" means use UTC.
-	// $TZ="foo" or $TZ=":foo" if foo is an absolute path, then the file pointed
-	// by foo will be used to initialize timezone; otherwise, file
-	// /usr/share/zoneinfo/foo will be used.
+	// 查询 $TZ 以找到要使用的时区。
+	// 无 $TZ 表示使用系统默认的 /etc/localtime。
+	// $TZ="" 表示使用 UTC。
+	// $TZ="foo" 或 $TZ=":foo"：如果 foo 是绝对路径，那么将使用 foo
+	// 指向的文件来初始化时区；否则将使用文件
+	// /usr/share/zoneinfo/foo。
 
 	tz, ok := syscall.Getenv("TZ")
 	switch {
@@ -64,6 +64,6 @@ func initLocal() {
 		}
 	}
 
-	// Fall back to UTC.
+	// 回退到 UTC。
 	localLoc.name = "UTC"
 }

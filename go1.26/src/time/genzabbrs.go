@@ -5,7 +5,7 @@
 //go:build ignore
 
 //
-// usage:
+// 用法：
 //
 // go run genzabbrs.go -output zoneinfo_abbrs_windows.go
 //
@@ -29,8 +29,7 @@ import (
 
 var filename = flag.String("output", "zoneinfo_abbrs_windows.go", "output file name")
 
-// getAbbrs finds timezone abbreviations (standard and daylight saving time)
-// for location l.
+// getAbbrs 查找位置 l 的时区缩写（标准时间和夏令时）。
 func getAbbrs(l *time.Location) (st, dt string) {
 	t := time.Date(time.Now().Year(), 0, 1, 0, 0, 0, 0, l)
 	abbr1, off1 := t.Zone()
@@ -38,7 +37,7 @@ func getAbbrs(l *time.Location) (st, dt string) {
 		t = t.AddDate(0, 1, 0)
 		abbr2, off2 := t.Zone()
 		if abbr1 != abbr2 {
-			if off2-off1 < 0 { // southern hemisphere
+			if off2-off1 < 0 { // 南半球
 				abbr1, abbr2 = abbr2, abbr1
 			}
 			return abbr1, abbr2
@@ -86,7 +85,7 @@ func readWindowsZones() ([]*zone, error) {
 	zs := make([]*zone, 0)
 	for _, z := range sd.Zones {
 		if z.Territory != "001" {
-			// to avoid dups. I don't know why.
+			// 以避免重复。我不知道为什么。
 			continue
 		}
 		l, err := time.LoadLocation(z.Type)

@@ -7,70 +7,60 @@ package time
 import (
 	"errors"
 	"internal/stringslite"
-	_ "unsafe" // for linkname
+	_ "unsafe" // 用于 linkname
 )
 
-// These are predefined layouts for use in [Time.Format] and [time.Parse].
-// The reference time used in these layouts is the specific time stamp:
+// 这些是预定义的布局，供 [Time.Format] 和 [time.Parse] 使用。
+// 这些布局中使用的参考时间是如下特定的时间戳：
 //
 //	01/02 03:04:05PM '06 -0700
 //
-// (January 2, 15:04:05, 2006, in time zone seven hours west of GMT).
-// That value is recorded as the constant named [Layout], listed below. As a Unix
-// time, this is 1136239445. Since MST is GMT-0700, the reference would be
-// printed by the Unix date command as:
+// （2006 年 1 月 2 日 15:04:05，位于 GMT 以西七小时的时区）。
+// 该值记录为下面列出的名为 [Layout] 的常量。作为 Unix 时间，它是 1136239445。
+// 由于 MST 是 GMT-0700，Unix date 命令打印该参考时间会显示为：
 //
 //	Mon Jan 2 15:04:05 MST 2006
 //
-// It is a regrettable historic error that the date uses the American convention
-// of putting the numerical month before the day.
+// 日期采用了将数字月份放在日期之前的美国惯例，这是一个令人遗憾的历史错误。
 //
-// The example for Time.Format demonstrates the working of the layout string
-// in detail and is a good reference.
+// Time.Format 的示例详细演示了布局字符串的工作方式，是一个很好的参考。
 //
-// Note that the [RFC822], [RFC850], and [RFC1123] formats should be applied
-// only to local times. Applying them to UTC times will use "UTC" as the
-// time zone abbreviation, while strictly speaking those RFCs require the
-// use of "GMT" in that case.
-// When using the [RFC1123] or [RFC1123Z] formats for parsing, note that these
-// formats define a leading zero for the day-in-month portion, which is not
-// strictly allowed by RFC 1123. This will result in an error when parsing
-// date strings that occur in the first 9 days of a given month.
-// In general [RFC1123Z] should be used instead of [RFC1123] for servers
-// that insist on that format, and [RFC3339] should be preferred for new protocols.
-// [RFC3339], [RFC822], [RFC822Z], [RFC1123], and [RFC1123Z] are useful for formatting;
-// when used with time.Parse they do not accept all the time formats
-// permitted by the RFCs and they do accept time formats not formally defined.
-// The [RFC3339Nano] format removes trailing zeros from the seconds field
-// and thus may not sort correctly once formatted.
+// 注意 [RFC822]、[RFC850] 和 [RFC1123] 格式只应应用于本地时间。
+// 将它们应用于 UTC 时间会使用 "UTC" 作为时区缩写，而严格来说这些 RFC
+// 要求在这种情况下使用 "GMT"。
+// 在解析时使用 [RFC1123] 或 [RFC1123Z] 格式时，请注意这些格式为月中的日期部分
+// 定义了前导零，这并不被 RFC 1123 严格允许。这在解析某个月前 9 天出现的
+// 日期字符串时会导致错误。
+// 通常，对于坚持该格式的服务器，应使用 [RFC1123Z] 而不是 [RFC1123]，
+// 而对于新协议应优先使用 [RFC3339]。
+// [RFC3339]、[RFC822]、[RFC822Z]、[RFC1123] 和 [RFC1123Z] 在格式化时很有用；
+// 当与 time.Parse 一起使用时，它们并不接受 RFC 允许的所有时间格式，
+// 并且会接受未正式定义的时间格式。
+// [RFC3339Nano] 格式会从秒字段中移除末尾的零，因此格式化后可能无法正确排序。
 //
-// Most programs can use one of the defined constants as the layout passed to
-// Format or Parse. The rest of this comment can be ignored unless you are
-// creating a custom layout string.
+// 大多数程序可以使用已定义的常量之一作为传给 Format 或 Parse 的布局。
+// 除非你要创建自定义布局字符串，否则可以忽略本注释的其余部分。
 //
-// To define your own format, write down what the reference time would look like
-// formatted your way; see the values of constants like [ANSIC], [StampMicro] or
-// [Kitchen] for examples. The model is to demonstrate what the reference time
-// looks like so that the Format and Parse methods can apply the same
-// transformation to a general time value.
+// 要定义自己的格式，请写下参考时间按你的方式格式化后看起来是什么样的；
+// 有关示例，请参见 [ANSIC]、[StampMicro] 或 [Kitchen] 等常量的值。
+// 这种模式旨在展示参考时间的样子，以便 Format 和 Parse 方法可以将相同的
+// 变换应用于一般的时间值。
 //
-// Here is a summary of the components of a layout string. Each element shows by
-// example the formatting of an element of the reference time. Only these values
-// are recognized. Text in the layout string that is not recognized as part of
-// the reference time is echoed verbatim during Format and expected to appear
-// verbatim in the input to Parse.
+// 以下是布局字符串各组成部分的摘要。每个元素通过示例展示参考时间某个元素的
+// 格式化方式。只有这些值会被识别。布局字符串中未被识别为参考时间一部分的文本
+// 会在 Format 期间原样输出，并期望在 Parse 的输入中原样出现。
 //
-//	Year: "2006" "06"
-//	Month: "Jan" "January" "01" "1"
-//	Day of the week: "Mon" "Monday"
-//	Day of the month: "2" "_2" "02"
-//	Day of the year: "__2" "002"
-//	Hour: "15" "3" "03" (PM or AM)
-//	Minute: "4" "04"
-//	Second: "5" "05"
-//	AM/PM mark: "PM"
+//	年: "2006" "06"
+//	月: "Jan" "January" "01" "1"
+//	星期: "Mon" "Monday"
+//	月中的日: "2" "_2" "02"
+//	年中的日: "__2" "002"
+//	小时: "15" "3" "03"（下午或上午）
+//	分钟: "4" "04"
+//	秒: "5" "05"
+//	AM/PM 标记: "PM"
 //
-// Numeric time zone offsets format as follows:
+// 数字时区偏移的格式如下：
 //
 //	"-0700"     ±hhmm
 //	"-07:00"    ±hh:mm
@@ -78,9 +68,8 @@ import (
 //	"-070000"   ±hhmmss
 //	"-07:00:00" ±hh:mm:ss
 //
-// Replacing the sign in the format with a Z triggers
-// the ISO 8601 behavior of printing Z instead of an
-// offset for the UTC zone. Thus:
+// 将格式中的符号替换为 Z 会触发 ISO 8601 行为，
+// 即对于 UTC 时区打印 Z 而不是偏移量。因此：
 //
 //	"Z0700"      Z or ±hhmm
 //	"Z07:00"     Z or ±hh:mm
@@ -88,38 +77,34 @@ import (
 //	"Z070000"    Z or ±hhmmss
 //	"Z07:00:00"  Z or ±hh:mm:ss
 //
-// Within the format string, the underscores in "_2" and "__2" represent spaces
-// that may be replaced by digits if the following number has multiple digits,
-// for compatibility with fixed-width Unix time formats. A leading zero represents
-// a zero-padded value.
+// 在格式字符串中，"_2" 和 "__2" 中的下划线表示空格，如果后面的数字有多个
+// 数字，这些空格可能会被数字替换，以兼容固定宽度的 Unix 时间格式。
+// 前导零表示补零的值。
 //
-// The formats __2 and 002 are space-padded and zero-padded
-// three-character day of year; there is no unpadded day of year format.
+// __2 和 002 格式是空格填充和零填充的三字符年中的日；
+// 没有不填充的年中的日格式。
 //
-// A comma or decimal point followed by one or more zeros represents
-// a fractional second, printed to the given number of decimal places.
-// A comma or decimal point followed by one or more nines represents
-// a fractional second, printed to the given number of decimal places, with
-// trailing zeros removed.
-// For example "15:04:05,000" or "15:04:05.000" formats or parses with
-// millisecond precision.
+// 逗号或小数点后跟一个或多个零表示小数秒，会打印到给定的小数位数。
+// 逗号或小数点后跟一个或多个九表示小数秒，会打印到给定的小数位数并移除
+// 末尾的零。
+// 例如 "15:04:05,000" 或 "15:04:05.000" 以毫秒精度格式化或解析。
 //
-// Some valid layouts are invalid time values for time.Parse, due to formats
-// such as _ for space padding and Z for zone information.
+// 由于诸如用于空格填充的 _ 和用于时区信息的 Z 等格式，一些有效的布局
+// 对于 time.Parse 是无效的时间值。
 const (
-	Layout      = "01/02 03:04:05PM '06 -0700" // The reference time, in numerical order.
+	Layout      = "01/02 03:04:05PM '06 -0700" // 按数字顺序排列的参考时间。
 	ANSIC       = "Mon Jan _2 15:04:05 2006"
 	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"
 	RubyDate    = "Mon Jan 02 15:04:05 -0700 2006"
 	RFC822      = "02 Jan 06 15:04 MST"
-	RFC822Z     = "02 Jan 06 15:04 -0700" // RFC822 with numeric zone
+	RFC822Z     = "02 Jan 06 15:04 -0700" // 带数字时区的 RFC822
 	RFC850      = "Monday, 02-Jan-06 15:04:05 MST"
 	RFC1123     = "Mon, 02 Jan 2006 15:04:05 MST"
-	RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
+	RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // 带数字时区的 RFC1123
 	RFC3339     = "2006-01-02T15:04:05Z07:00"
 	RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
 	Kitchen     = "3:04PM"
-	// Handy time stamps.
+	// 便捷时间戳。
 	Stamp      = "Jan _2 15:04:05"
 	StampMilli = "Jan _2 15:04:05.000"
 	StampMicro = "Jan _2 15:04:05.000000"
@@ -154,32 +139,32 @@ const (
 	stdPM                    = iota + stdNeedClock // "PM"
 	stdpm                                          // "pm"
 	stdTZ                    = iota                // "MST"
-	stdISO8601TZ                                   // "Z0700"  // prints Z for UTC
+	stdISO8601TZ                                   // "Z0700"  // 对 UTC 打印 Z
 	stdISO8601SecondsTZ                            // "Z070000"
 	stdISO8601ShortTZ                              // "Z07"
-	stdISO8601ColonTZ                              // "Z07:00" // prints Z for UTC
+	stdISO8601ColonTZ                              // "Z07:00" // 对 UTC 打印 Z
 	stdISO8601ColonSecondsTZ                       // "Z07:00:00"
-	stdNumTZ                                       // "-0700"  // always numeric
+	stdNumTZ                                       // "-0700"  // 始终为数字
 	stdNumSecondsTz                                // "-070000"
-	stdNumShortTZ                                  // "-07"    // always numeric
-	stdNumColonTZ                                  // "-07:00" // always numeric
+	stdNumShortTZ                                  // "-07"    // 始终为数字
+	stdNumColonTZ                                  // "-07:00" // 始终为数字
 	stdNumColonSecondsTZ                           // "-07:00:00"
-	stdFracSecond0                                 // ".0", ".00", ... , trailing zeros included
-	stdFracSecond9                                 // ".9", ".99", ..., trailing zeros omitted
+	stdFracSecond0                                 // ".0", ".00", ... , 包含末尾的零
+	stdFracSecond9                                 // ".9", ".99", ..., 省略末尾的零
 
-	stdNeedDate       = 1 << 8             // need month, day, year
-	stdNeedYday       = 1 << 9             // need yday
-	stdNeedClock      = 1 << 10            // need hour, minute, second
-	stdArgShift       = 16                 // extra argument in high bits, above low stdArgShift
-	stdSeparatorShift = 28                 // extra argument in high 4 bits for fractional second separators
-	stdMask           = 1<<stdArgShift - 1 // mask out argument
+	stdNeedDate       = 1 << 8             // 需要月、日、年
+	stdNeedYday       = 1 << 9             // 需要 yday
+	stdNeedClock      = 1 << 10            // 需要时、分、秒
+	stdArgShift       = 16                 // 位于高位的额外参数，高于低位的 stdArgShift
+	stdSeparatorShift = 28                 // 用于小数秒分隔符的高 4 位额外参数
+	stdMask           = 1<<stdArgShift - 1 // 屏蔽掉参数
 )
 
-// std0x records the std values for "01", "02", ..., "06".
+// std0x 记录 "01"、"02"、...、"06" 对应的 std 值。
 var std0x = [...]int{stdZeroMonth, stdZeroDay, stdZeroHour12, stdZeroMinute, stdZeroSecond, stdYear}
 
-// startsWithLowerCase reports whether the string has a lower-case letter at the beginning.
-// Its purpose is to prevent matching strings like "Month" when looking for "Mon".
+// startsWithLowerCase 报告字符串开头是否为小写字母。
+// 其目的是在查找 "Mon" 时避免匹配到 "Month" 之类的字符串。
 func startsWithLowerCase(str string) bool {
 	if len(str) == 0 {
 		return false
@@ -188,16 +173,16 @@ func startsWithLowerCase(str string) bool {
 	return 'a' <= c && c <= 'z'
 }
 
-// nextStdChunk finds the first occurrence of a std string in
-// layout and returns the text before, the std string, and the text after.
+// nextStdChunk 在 layout 中查找 std 字符串的首次出现，
+// 并返回其前面的文本、std 字符串以及其后的文本。
 //
-// nextStdChunk should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
+// nextStdChunk 本应是内部细节，
+// 但许多广泛使用的包通过 linkname 访问它。
+// 耻辱榜上的知名成员包括：
 //   - github.com/searKing/golang/go
 //
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
+// 不要移除或更改类型签名。
+// 参见 go.dev/issue/67401。
 //
 //go:linkname nextStdChunk
 func nextStdChunk(layout string) (prefix string, std int, suffix string) {
@@ -250,7 +235,7 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 
 		case '_': // _2, _2006, __2
 			if len(layout) >= i+2 && layout[i+1] == '2' {
-				// _2006 is really a literal _, followed by stdLongYear
+				// _2006 实际上是一个字面量 _，后跟 stdLongYear
 				if len(layout) >= i+5 && layout[i+1:i+5] == "2006" {
 					return layout[0 : i+1], stdLongYear, layout[i+5:]
 				}
@@ -313,14 +298,14 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
 				return layout[0:i], stdISO8601ShortTZ, layout[i+3:]
 			}
 
-		case '.', ',': // ,000, or .000, or ,999, or .999 - repeated digits for fractional seconds.
+		case '.', ',': // ,000、.000、,999 或 .999 - 小数秒的重复数字。
 			if i+1 < len(layout) && (layout[i+1] == '0' || layout[i+1] == '9') {
 				ch := layout[i+1]
 				j := i + 1
 				for j < len(layout) && layout[j] == ch {
 					j++
 				}
-				// String of digits must end here - only fractional second is all digits.
+				// 数字串必须在此结束 - 只有小数秒是全数字的。
 				if !isDigit(layout, j) {
 					code := stdFracSecond0
 					if layout[i+1] == '9' {
@@ -385,14 +370,14 @@ var longMonthNames = []string{
 	"December",
 }
 
-// match reports whether s1 and s2 match ignoring case.
-// It is assumed s1 and s2 are the same length.
+// match 报告 s1 和 s2 在忽略大小写的情况下是否匹配。
+// 假定 s1 和 s2 长度相同。
 func match(s1, s2 string) bool {
 	for i := 0; i < len(s1); i++ {
 		c1 := s1[i]
 		c2 := s2[i]
 		if c1 != c2 {
-			// Switch to lower-case; 'a'-'A' is known to be a single bit.
+			// 切换到小写；已知 'a'-'A' 是单个位。
 			c1 |= 'a' - 'A'
 			c2 |= 'a' - 'A'
 			if c1 != c2 || c1 < 'a' || c1 > 'z' {
@@ -412,9 +397,9 @@ func lookup(tab []string, val string) (int, string, error) {
 	return -1, val, errBad
 }
 
-// appendInt appends the decimal form of x to b and returns the result.
-// If the decimal form (excluding sign) is shorter than width, the result is padded with leading 0's.
-// Duplicates functionality in strconv, but avoids dependency.
+// appendInt 将 x 的十进制形式追加到 b 并返回结果。
+// 如果十进制形式（不含符号）短于 width，则结果用前导 0 填充。
+// 与 strconv 中的功能重复，但避免了依赖。
 func appendInt(b []byte, x int, width int) []byte {
 	u := uint(x)
 	if x < 0 {
@@ -422,7 +407,7 @@ func appendInt(b []byte, x int, width int) []byte {
 		u = uint(-x)
 	}
 
-	// 2-digit and 4-digit fields are the most common in time formats.
+	// 2 位和 4 位字段在时间格式中最常见。
 	utod := func(u uint) byte { return '0' + byte(u) }
 	switch {
 	case width == 2 && u < 1e2:
@@ -431,7 +416,7 @@ func appendInt(b []byte, x int, width int) []byte {
 		return append(b, utod(u/1e3), utod(u/1e2%1e1), utod(u/1e1%1e1), utod(u%1e1))
 	}
 
-	// Compute the number of decimal digits.
+	// 计算十进制数字的位数。
 	var n int
 	if u == 0 {
 		n = 1
@@ -440,19 +425,19 @@ func appendInt(b []byte, x int, width int) []byte {
 		n++
 	}
 
-	// Add 0-padding.
+	// 添加 0 填充。
 	for pad := width - n; pad > 0; pad-- {
 		b = append(b, '0')
 	}
 
-	// Ensure capacity.
+	// 确保容量。
 	if len(b)+n <= cap(b) {
 		b = b[:len(b)+n]
 	} else {
 		b = append(b, make([]byte, n)...)
 	}
 
-	// Assemble decimal in reverse order.
+	// 按相反顺序组装十进制。
 	i := len(b) - 1
 	for u >= 10 && i > 0 {
 		q := u / 10
@@ -464,10 +449,10 @@ func appendInt(b []byte, x int, width int) []byte {
 	return b
 }
 
-// Never printed, just needs to be non-nil for return by atoi.
+// 从不打印，只需非 nil 以供 atoi 返回。
 var errAtoi = errors.New("time: invalid number")
 
-// Duplicates functionality in strconv, but avoids dependency.
+// 与 strconv 中的功能重复，但避免了依赖。
 func atoi[bytes []byte | string](s bytes) (x int, err error) {
 	neg := false
 	if len(s) > 0 && (s[0] == '-' || s[0] == '+') {
@@ -485,11 +470,11 @@ func atoi[bytes []byte | string](s bytes) (x int, err error) {
 	return x, nil
 }
 
-// The "std" value passed to appendNano contains two packed fields: the number of
-// digits after the decimal and the separator character (period or comma).
-// These functions pack and unpack that variable.
+// 传给 appendNano 的 "std" 值包含两个打包字段：小数点后的
+// 位数以及分隔符字符（句点或逗号）。
+// 这些函数对该变量进行打包和解包。
 func stdFracSecond(code, n, c int) int {
-	// Use 0xfff to make the failure case even more absurd.
+	// 使用 0xfff 让失败情况显得更加荒谬。
 	if c == '.' {
 		return code | ((n & 0xfff) << stdArgShift)
 	}
@@ -507,8 +492,8 @@ func separator(std int) byte {
 	return ','
 }
 
-// appendNano appends a fractional second, as nanoseconds, to b
-// and returns the result. The nanosec must be within [0, 999999999].
+// appendNano 将作为纳秒的小数秒追加到 b 并返回结果。
+// nanosec 必须在 [0, 999999999] 范围内。
 func appendNano(b []byte, nanosec int, std int) []byte {
 	trim := std&stdMask == stdFracSecond9
 	n := digitsLen(std)
@@ -532,21 +517,19 @@ func appendNano(b []byte, nanosec int, std int) []byte {
 	return b
 }
 
-// String returns the time formatted using the format string
+// String 返回按格式字符串格式化的时间
 //
 //	"2006-01-02 15:04:05.999999999 -0700 MST"
 //
-// If the time has a monotonic clock reading, the returned string
-// includes a final field "m=±<value>", where value is the monotonic
-// clock reading formatted as a decimal number of seconds.
+// 如果时间具有单调时钟读数，返回的字符串会包含一个最终字段 "m=±<value>"，
+// 其中 value 是单调时钟读数，格式化为十进制秒数。
 //
-// The returned string is meant for debugging; for a stable serialized
-// representation, use t.MarshalText, t.MarshalBinary, or t.Format
-// with an explicit format string.
+// 返回的字符串用于调试；对于稳定的序列化表示，
+// 请使用 t.MarshalText、t.MarshalBinary，或带有显式格式字符串的 t.Format。
 func (t Time) String() string {
 	s := t.Format("2006-01-02 15:04:05.999999999 -0700 MST")
 
-	// Format monotonic clock reading as m=±ddd.nnnnnnnnn.
+	// 将单调时钟读数格式化为 m=±ddd.nnnnnnnnn。
 	if t.wall&hasMonotonic != 0 {
 		m2 := uint64(t.ext)
 		sign := byte('+')
@@ -572,8 +555,7 @@ func (t Time) String() string {
 	return s
 }
 
-// GoString implements [fmt.GoStringer] and formats t to be printed in Go source
-// code.
+// GoString 实现了 [fmt.GoStringer]，并将 t 格式化为可在 Go 源代码中打印的形式。
 func (t Time) GoString() string {
 	abs := t.absSec()
 	year, month, day := abs.days().date()
@@ -586,8 +568,8 @@ func (t Time) GoString() string {
 		buf = append(buf, ", time."...)
 		buf = append(buf, longMonthNames[month-1]...)
 	} else {
-		// It's difficult to construct a time.Time with a date outside the
-		// standard range but we might as well try to handle the case.
+		// 构造一个日期超出标准范围的 time.Time 很困难，
+		// 但我们不妨尝试处理这种情况。
 		buf = appendInt(buf, int(month), 0)
 	}
 	buf = append(buf, ", "...)
@@ -607,21 +589,16 @@ func (t Time) GoString() string {
 	case Local:
 		buf = append(buf, "time.Local"...)
 	default:
-		// there are several options for how we could display this, none of
-		// which are great:
+		// 有几种显示它的方案，但没有一种是好的：
 		//
-		// - use Location(loc.name), which is not technically valid syntax
-		// - use LoadLocation(loc.name), which will cause a syntax error when
-		// embedded and also would require us to escape the string without
-		// importing fmt or strconv
-		// - try to use FixedZone, which would also require escaping the name
-		// and would represent e.g. "America/Los_Angeles" daylight saving time
-		// shifts inaccurately
-		// - use the pointer format, which is no worse than you'd get with the
-		// old fmt.Sprintf("%#v", t) format.
+		// - 使用 Location(loc.name)，它在语法上并不完全有效
+		// - 使用 LoadLocation(loc.name)，嵌入时会导致语法错误，
+		// 而且还需要在不导入 fmt 或 strconv 的情况下对字符串进行转义
+		// - 尝试使用 FixedZone，它同样需要对名称进行转义，
+		// 并且会不准确地表示诸如 "America/Los_Angeles" 的夏令时偏移
+		// - 使用指针格式，它并不比旧的 fmt.Sprintf("%#v", t) 格式更差。
 		//
-		// Of these, Location(loc.name) is the least disruptive. This is an edge
-		// case we hope not to hit too often.
+		// 其中，Location(loc.name) 破坏性最小。这是我们希望不要经常遇到的边界情况。
 		buf = append(buf, `time.Location(`...)
 		buf = append(buf, quote(loc.name)...)
 		buf = append(buf, ')')
@@ -630,12 +607,10 @@ func (t Time) GoString() string {
 	return string(buf)
 }
 
-// Format returns a textual representation of the time value formatted according
-// to the layout defined by the argument. See the documentation for the
-// constant called [Layout] to see how to represent the layout format.
+// Format 返回时间值的文本表示，按照参数定义的布局进行格式化。
+// 有关如何表示布局格式，请参见名为 [Layout] 的常量的文档。
 //
-// The executable example for [Time.Format] demonstrates the working
-// of the layout string in detail and is a good reference.
+// [Time.Format] 的可执行示例详细演示了布局字符串的工作方式，是一个很好的参考。
 func (t Time) Format(layout string) string {
 	const bufSize = 64
 	var b []byte
@@ -650,10 +625,10 @@ func (t Time) Format(layout string) string {
 	return string(b)
 }
 
-// AppendFormat is like [Time.Format] but appends the textual
-// representation to b and returns the extended buffer.
+// AppendFormat 类似于 [Time.Format]，但会将文本表示追加到 b
+// 并返回扩展后的缓冲区。
 func (t Time) AppendFormat(b []byte, layout string) []byte {
-	// Optimize for RFC3339 as it accounts for over half of all representations.
+	// 针对 RFC3339 进行优化，因为它占所有表示形式的一半以上。
 	switch layout {
 	case RFC3339:
 		return t.appendFormatRFC3339(b, false)
@@ -678,7 +653,7 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 		sec   int
 	)
 
-	// Each iteration generates one std value.
+	// 每次迭代生成一个 std 值。
 	for layout != "" {
 		prefix, std, suffix := nextStdChunk(layout)
 		if prefix != "" {
@@ -689,7 +664,7 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 		}
 		layout = suffix
 
-		// Compute year, month, day if needed.
+		// 如需要，计算年、月、日。
 		if year < 0 && std&stdNeedDate != 0 {
 			year, month, day = days.date()
 		}
@@ -697,7 +672,7 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 			_, yday = days.yearYday()
 		}
 
-		// Compute hour, minute, second if needed.
+		// 如需要，计算时、分、秒。
 		if hour < 0 && std&stdNeedClock != 0 {
 			hour, min, sec = abs.clock()
 		}
@@ -747,14 +722,14 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 		case stdHour:
 			b = appendInt(b, hour, 2)
 		case stdHour12:
-			// Noon is 12PM, midnight is 12AM.
+			// 正午是 12PM，午夜是 12AM。
 			hr := hour % 12
 			if hr == 0 {
 				hr = 12
 			}
 			b = appendInt(b, hr, 0)
 		case stdZeroHour12:
-			// Noon is 12PM, midnight is 12AM.
+			// 正午是 12PM，午夜是 12AM。
 			hr := hour % 12
 			if hr == 0 {
 				hr = 12
@@ -781,13 +756,13 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 				b = append(b, "am"...)
 			}
 		case stdISO8601TZ, stdISO8601ColonTZ, stdISO8601SecondsTZ, stdISO8601ShortTZ, stdISO8601ColonSecondsTZ, stdNumTZ, stdNumColonTZ, stdNumSecondsTz, stdNumShortTZ, stdNumColonSecondsTZ:
-			// Ugly special case. We cheat and take the "Z" variants
-			// to mean "the time zone as formatted for ISO 8601".
+			// 丑陋的特殊情况。我们取巧地将 "Z" 变体
+			// 视为"按 ISO 8601 格式化的时区"。
 			if offset == 0 && (std == stdISO8601TZ || std == stdISO8601ColonTZ || std == stdISO8601SecondsTZ || std == stdISO8601ShortTZ || std == stdISO8601ColonSecondsTZ) {
 				b = append(b, 'Z')
 				break
 			}
-			zone := offset / 60 // convert to minutes
+			zone := offset / 60 // 转换为分钟
 			absoffset := offset
 			if zone < 0 {
 				b = append(b, '-')
@@ -804,7 +779,7 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 				b = appendInt(b, zone%60, 2)
 			}
 
-			// append seconds if appropriate
+			// 如果合适则追加秒
 			if std == stdISO8601SecondsTZ || std == stdNumSecondsTz || std == stdNumColonSecondsTZ || std == stdISO8601ColonSecondsTZ {
 				if std == stdNumColonSecondsTZ || std == stdISO8601ColonSecondsTZ {
 					b = append(b, ':')
@@ -817,9 +792,9 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 				b = append(b, name...)
 				break
 			}
-			// No time zone known for this time, but we must print one.
-			// Use the -0700 format.
-			zone := offset / 60 // convert to minutes
+			// 此时间没有已知的时区，但我们必须打印一个。
+			// 使用 -0700 格式。
+			zone := offset / 60 // 转换为分钟
 			if zone < 0 {
 				b = append(b, '-')
 				zone = -zone
@@ -835,9 +810,9 @@ func (t Time) appendFormat(b []byte, layout string) []byte {
 	return b
 }
 
-var errBad = errors.New("bad value for field") // placeholder not passed to user
+var errBad = errors.New("bad value for field") // 占位符，不会传给用户
 
-// ParseError describes a problem parsing a time string.
+// ParseError 描述解析时间字符串时出现的问题。
 type ParseError struct {
 	Layout     string
 	Value      string
@@ -846,16 +821,16 @@ type ParseError struct {
 	Message    string
 }
 
-// newParseError creates a new ParseError.
-// The provided value and valueElem are cloned to avoid escaping their values.
+// newParseError 创建一个新的 ParseError。
+// 提供的 value 和 valueElem 会被克隆，以避免它们的值逃逸。
 func newParseError(layout, value, layoutElem, valueElem, message string) *ParseError {
 	valueCopy := stringslite.Clone(value)
 	valueElemCopy := stringslite.Clone(valueElem)
 	return &ParseError{layout, valueCopy, layoutElem, valueElemCopy, message}
 }
 
-// These are borrowed from unicode/utf8 and strconv and replicate behavior in
-// that package, since we can't take a dependency on either.
+// 这些取自 unicode/utf8 和 strconv 并复现那个包中的行为，
+// 因为我们不能依赖其中任何一个。
 const (
 	lowerhex  = "0123456789abcdef"
 	runeSelf  = 0x80
@@ -863,16 +838,15 @@ const (
 )
 
 func quote(s string) string {
-	buf := make([]byte, 1, len(s)+2) // slice will be at least len(s) + quotes
+	buf := make([]byte, 1, len(s)+2) // slice 至少为 len(s) + 引号长度
 	buf[0] = '"'
 	for i, c := range s {
 		if c >= runeSelf || c < ' ' {
-			// This means you are asking us to parse a time.Duration or
-			// time.Location with unprintable or non-ASCII characters in it.
-			// We don't expect to hit this case very often. We could try to
-			// reproduce strconv.Quote's behavior with full fidelity but
-			// given how rarely we expect to hit these edge cases, speed and
-			// conciseness are better.
+			// 这意味着你要求我们解析一个包含不可打印或非 ASCII 字符的
+			// time.Duration 或 time.Location。
+			// 我们预计不常遇到这种情况。我们可以尝试完全忠实地
+			// 复现 strconv.Quote 的行为，但鉴于我们预计很少遇到
+			// 这些边界情况，速度和简洁性更重要。
 			var width int
 			if c == runeError {
 				width = 1
@@ -898,7 +872,7 @@ func quote(s string) string {
 	return string(buf)
 }
 
-// Error returns the string representation of a ParseError.
+// Error 返回 ParseError 的字符串表示。
 func (e *ParseError) Error() string {
 	if e.Message == "" {
 		return "parsing time " +
@@ -911,7 +885,7 @@ func (e *ParseError) Error() string {
 		quote(e.Value) + e.Message
 }
 
-// isDigit reports whether s[i] is in range and is a decimal digit.
+// isDigit 报告 s[i] 是否在范围内且为十进制数字。
 func isDigit[bytes []byte | string](s bytes, i int) bool {
 	if len(s) <= i {
 		return false
@@ -920,9 +894,8 @@ func isDigit[bytes []byte | string](s bytes, i int) bool {
 	return '0' <= c && c <= '9'
 }
 
-// getnum parses s[0:1] or s[0:2] (fixed forces s[0:2])
-// as a decimal integer and returns the integer and the
-// remainder of the string.
+// getnum 将 s[0:1] 或 s[0:2]（fixed 强制为 s[0:2]）解析为
+// 十进制整数，并返回该整数和字符串的剩余部分。
 func getnum(s string, fixed bool) (int, string, error) {
 	if !isDigit(s, 0) {
 		return 0, s, errBad
@@ -936,9 +909,8 @@ func getnum(s string, fixed bool) (int, string, error) {
 	return int(s[0]-'0')*10 + int(s[1]-'0'), s[2:], nil
 }
 
-// getnum3 parses s[0:1], s[0:2], or s[0:3] (fixed forces s[0:3])
-// as a decimal integer and returns the integer and the remainder
-// of the string.
+// getnum3 将 s[0:1]、s[0:2] 或 s[0:3]（fixed 强制为 s[0:3]）解析为
+// 十进制整数，并返回该整数和字符串的剩余部分。
 func getnum3(s string, fixed bool) (int, string, error) {
 	var n, i int
 	for i = 0; i < 3 && isDigit(s, i); i++ {
@@ -957,8 +929,8 @@ func cutspace(s string) string {
 	return s
 }
 
-// skip removes the given prefix from value,
-// treating runs of space characters as equivalent.
+// skip 从 value 中移除给定前缀，
+// 将连续的空白字符视为等价。
 func skip(value, prefix string) (string, error) {
 	for len(prefix) > 0 {
 		if prefix[0] == ' ' {
@@ -978,50 +950,41 @@ func skip(value, prefix string) (string, error) {
 	return value, nil
 }
 
-// Parse parses a formatted string and returns the time value it represents.
-// See the documentation for the constant called [Layout] to see how to
-// represent the format. The second argument must be parseable using
-// the format string (layout) provided as the first argument.
+// Parse 解析格式化的字符串并返回它所表示的时间值。
+// 有关如何表示格式，请参见名为 [Layout] 的常量的文档。第二个参数必须能够
+// 使用作为第一个参数提供的格式字符串（布局）来解析。
 //
-// The example for [Time.Format] demonstrates the working of the layout string
-// in detail and is a good reference.
+// [Time.Format] 的示例详细演示了布局字符串的工作方式，是一个很好的参考。
 //
-// When parsing (only), the input may contain a fractional second
-// field immediately after the seconds field, even if the layout does not
-// signify its presence. In that case either a comma or a decimal point
-// followed by a maximal series of digits is parsed as a fractional second.
-// Fractional seconds are truncated to nanosecond precision.
+// 仅在解析时，输入可以在秒字段之后紧接着包含一个小数秒字段，
+// 即使布局并未表明其存在。在这种情况下，逗号或小数点后跟最大一串数字
+// 会被解析为小数秒。小数秒会被截断到纳秒精度。
 //
-// Elements omitted from the layout are assumed to be zero or, when
-// zero is impossible, one, so parsing "3:04pm" returns the time
-// corresponding to Jan 1, year 0, 15:04:00 UTC (note that because the year is
-// 0, this time is before the zero Time).
-// Years must be in the range 0000..9999. The day of the week is checked
-// for syntax but it is otherwise ignored.
+// 布局中省略的元素被假定为零，或者在零不可能时假定为一，因此解析 "3:04pm"
+// 返回对应 0 年 Jan 1 15:04:00 UTC 的时间（注意，由于年份为 0，该时间
+// 早于零值 Time）。
+// 年份必须在 0000..9999 范围内。星期几仅做语法检查，除此之外会被忽略。
 //
-// For layouts specifying the two-digit year 06, a value NN >= 69 will be treated
-// as 19NN and a value NN < 69 will be treated as 20NN.
+// 对于指定两位数年份 06 的布局，值 NN >= 69 会被视为 19NN，NN < 69
+// 会被视为 20NN。
 //
-// The remainder of this comment describes the handling of time zones.
+// 本注释的其余部分描述时区的处理。
 //
-// In the absence of a time zone indicator, Parse returns a time in UTC.
+// 在没有时区指示符的情况下，Parse 返回 UTC 时间。
 //
-// When parsing a time with a zone offset like -0700, if the offset corresponds
-// to a time zone used by the current location ([Local]), then Parse uses that
-// location and zone in the returned time. Otherwise it records the time as
-// being in a fabricated location with time fixed at the given zone offset.
+// 当解析带有诸如 -0700 的时区偏移的时间时，如果该偏移对应当前本地位置
+// （[Local]）所使用的时区，则 Parse 会在返回的时间中使用该位置和时区。
+// 否则，它会将该时间记录为处于一个虚构的位置，时间固定为给定的时区偏移。
 //
-// When parsing a time with a zone abbreviation like MST, if the zone abbreviation
-// has a defined offset in the current location, then that offset is used.
-// The zone abbreviation "UTC" is recognized as UTC regardless of location.
-// If the zone abbreviation is unknown, Parse records the time as being
-// in a fabricated location with the given zone abbreviation and a zero offset.
-// This choice means that such a time can be parsed and reformatted with the
-// same layout losslessly, but the exact instant used in the representation will
-// differ by the actual zone offset. To avoid such problems, prefer time layouts
-// that use a numeric zone offset, or use [ParseInLocation].
+// 当解析带有诸如 MST 的时区缩写的时间时，如果该时区缩写当前本地位置有
+// 已定义的偏移，则使用该偏移。无论位置如何，时区缩写 "UTC" 都被识别为 UTC。
+// 如果时区缩写未知，Parse 会将该时间记录为处于一个虚构的位置，
+// 使用给定的时区缩写和零偏移。这种选择意味着这样的时间可以用相同的布局
+// 无损地解析和重新格式化，但表示中使用的确切时刻会因实际时区偏移而不同。
+// 为避免此类问题，请优先使用采用数字时区偏移的时间布局，或使用
+// [ParseInLocation]。
 func Parse(layout, value string) (Time, error) {
-	// Optimize for RFC3339 as it accounts for over half of all representations.
+	// 针对 RFC3339 进行优化，因为它占所有表示形式的一半以上。
 	if layout == RFC3339 || layout == RFC3339Nano {
 		if t, ok := parseRFC3339(value, Local); ok {
 			return t, nil
@@ -1030,13 +993,13 @@ func Parse(layout, value string) (Time, error) {
 	return parse(layout, value, UTC, Local)
 }
 
-// ParseInLocation is like Parse but differs in two important ways.
-// First, in the absence of time zone information, Parse interprets a time as UTC;
-// ParseInLocation interprets the time as in the given location.
-// Second, when given a zone offset or abbreviation, Parse tries to match it
-// against the Local location; ParseInLocation uses the given location.
+// ParseInLocation 类似于 Parse，但有两点重要区别。
+// 第一，在没有时区信息的情况下，Parse 将时间解释为 UTC；
+// ParseInLocation 将时间解释为处于给定位置。
+// 第二，给定一个时区偏移或缩写时，Parse 尝试将其与 Local 位置匹配；
+// ParseInLocation 则使用给定位置。
 func ParseInLocation(layout, value string, loc *Location) (Time, error) {
-	// Optimize for RFC3339 as it accounts for over half of all representations.
+	// 针对 RFC3339 进行优化，因为它占所有表示形式的一半以上。
 	if layout == RFC3339 || layout == RFC3339Nano {
 		if t, ok := parseRFC3339(value, loc); ok {
 			return t, nil
@@ -1047,11 +1010,11 @@ func ParseInLocation(layout, value string, loc *Location) (Time, error) {
 
 func parse(layout, value string, defaultLocation, local *Location) (Time, error) {
 	alayout, avalue := layout, value
-	rangeErrString := "" // set if a value is out of range
-	amSet := false       // do we need to subtract 12 from the hour for midnight?
-	pmSet := false       // do we need to add 12 to the hour?
+	rangeErrString := "" // 如果某个值超出范围则设置
+	amSet := false       // 对于午夜，我们是否需要从小时中减去 12？
+	pmSet := false       // 我们是否需要给小时加上 12？
 
-	// Time being constructed.
+	// 正在构造的时间。
 	var (
 		year       int
 		month      int = -1
@@ -1066,7 +1029,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		zoneName   string
 	)
 
-	// Each iteration processes one std value.
+	// 每次迭代处理一个 std 值。
 	for {
 		var err error
 		prefix, std, suffix := nextStdChunk(layout)
@@ -1095,7 +1058,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			if err != nil {
 				break
 			}
-			if year >= 69 { // Unix time starts Dec 31 1969 in some time zones
+			if year >= 69 { // 在某些时区，Unix 时间始于 1969 年 12 月 31 日
 				year += 1900
 			} else {
 				year += 2000
@@ -1119,7 +1082,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				rangeErrString = "month"
 			}
 		case stdWeekDay:
-			// Ignore weekday except for error checking.
+			// 除错误检查外忽略星期几。
 			_, value, err = lookup(shortDayNames, value)
 		case stdLongWeekDay:
 			_, value, err = lookup(longDayNames, value)
@@ -1128,8 +1091,8 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				value = value[1:]
 			}
 			day, value, err = getnum(value, std == stdZeroDay)
-			// Note that we allow any one- or two-digit day here.
-			// The month, day, year combination is validated after we've completed parsing.
+			// 注意，这里我们允许任意一位或两位的日。
+			// 月、日、年的组合在解析完成后进行验证。
 		case stdUnderYearDay, stdZeroYearDay:
 			for i := 0; i < 2; i++ {
 				if std == stdUnderYearDay && len(value) > 0 && value[0] == ' ' {
@@ -1137,8 +1100,8 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				}
 			}
 			yday, value, err = getnum3(value, std == stdZeroYearDay)
-			// Note that we allow any one-, two-, or three-digit year-day here.
-			// The year-day, year combination is validated after we've completed parsing.
+			// 注意，这里我们允许任意一位、两位或三位的年中的日。
+			// 年中的日与年的组合在解析完成后进行验证。
 		case stdHour:
 			hour, value, err = getnum(value, false)
 			if hour < 0 || 24 <= hour {
@@ -1163,16 +1126,16 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				rangeErrString = "second"
 				break
 			}
-			// Special case: do we have a fractional second but no
-			// fractional second in the format?
+			// 特殊情况：我们有一个小数秒，但格式中没有
+			// 小数秒吗？
 			if len(value) >= 2 && commaOrPeriod(value[0]) && isDigit(value, 1) {
 				_, std, _ = nextStdChunk(layout)
 				std &= stdMask
 				if std == stdFracSecond0 || std == stdFracSecond9 {
-					// Fractional second in the layout; proceed normally
+					// 布局中有小数秒；正常继续
 					break
 				}
-				// No fractional second in the layout but we have one in the input.
+				// 布局中没有小数秒，但输入中有一个。
 				n := 2
 				for ; n < len(value) && isDigit(value, n); n++ {
 				}
@@ -1264,9 +1227,9 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				}
 			}
 
-			// The range test use > rather than >=,
-			// as some people do write offsets of 24 hours
-			// or 60 minutes or 60 seconds.
+			// 范围测试使用 > 而不是 >=，
+			// 因为有些人确实会写 24 小时
+			// 或 60 分钟或 60 秒的偏移。
 			if hr > 24 {
 				rangeErrString = "time zone offset hour"
 			}
@@ -1277,7 +1240,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				rangeErrString = "time zone offset second"
 			}
 
-			zoneOffset = (hr*60+mm)*60 + ss // offset is in seconds
+			zoneOffset = (hr*60+mm)*60 + ss // 偏移量以秒为单位
 			switch sign[0] {
 			case '+':
 			case '-':
@@ -1286,7 +1249,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 				err = errBad
 			}
 		case stdTZ:
-			// Does it look like a time zone?
+			// 它看起来像一个时区吗？
 			if len(value) >= 3 && value[0:3] == "UTC" {
 				z = UTC
 				value = value[3:]
@@ -1300,8 +1263,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			zoneName, value = value[:n], value[n:]
 
 		case stdFracSecond0:
-			// stdFracSecond0 requires the exact number of digits as specified in
-			// the layout.
+			// stdFracSecond0 要求数字位数与布局中指定的完全相同。
 			ndigit := 1 + digitsLen(std)
 			if len(value) < ndigit {
 				err = errBad
@@ -1312,11 +1274,11 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 
 		case stdFracSecond9:
 			if len(value) < 2 || !commaOrPeriod(value[0]) || value[1] < '0' || '9' < value[1] {
-				// Fractional second omitted.
+				// 省略小数秒。
 				break
 			}
-			// Take any number of digits, even more than asked for,
-			// because it is what the stdSecond case would do.
+			// 接受任意数量的数字，甚至多于要求的数量，
+			// 因为 stdSecond 分支就是这么做的。
 			i := 0
 			for i+1 < len(value) && '0' <= value[i+1] && value[i+1] <= '9' {
 				i++
@@ -1337,7 +1299,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		hour = 0
 	}
 
-	// Convert yday to day, month.
+	// 将 yday 转换为日、月。
 	if yday >= 0 {
 		var d int
 		var m int
@@ -1359,8 +1321,8 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			}
 			d = yday - daysBefore(Month(m))
 		}
-		// If month, day already seen, yday's m, d must match.
-		// Otherwise, set them from m, d.
+		// 如果已经见过月、日，那么 yday 的 m、d 必须匹配。
+		// 否则，根据 m、d 设置它们。
 		if month >= 0 && month != m {
 			return Time{}, newParseError(alayout, avalue, "", value, ": day-of-year does not match month")
 		}
@@ -1378,7 +1340,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		}
 	}
 
-	// Validate the day of the month.
+	// 验证月中的日。
 	if day < 1 || day > daysIn(Month(month), year) {
 		return Time{}, newParseError(alayout, avalue, "", value, ": day out of range")
 	}
@@ -1391,24 +1353,24 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 		t.addSec(-int64(zoneOffset))
 
-		// Look for local zone with the given offset.
-		// If that zone was in effect at the given time, use it.
+		// 查找具有给定偏移的本地时区。
+		// 如果该时区在给定时间生效，则使用它。
 		name, offset, _, _, _ := local.lookup(t.unixSec())
 		if offset == zoneOffset && (zoneName == "" || name == zoneName) {
 			t.setLoc(local)
 			return t, nil
 		}
 
-		// Otherwise create fake zone to record offset.
-		zoneNameCopy := stringslite.Clone(zoneName) // avoid leaking the input value
+		// 否则创建一个伪造的时区来记录偏移。
+		zoneNameCopy := stringslite.Clone(zoneName) // 避免泄漏输入值
 		t.setLoc(FixedZone(zoneNameCopy, zoneOffset))
 		return t, nil
 	}
 
 	if zoneName != "" {
 		t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
-		// Look for local zone with the given offset.
-		// If that zone was in effect at the given time, use it.
+		// 查找具有给定偏移的本地时区。
+		// 如果该时区在给定时间生效，则使用它。
 		offset, ok := local.lookupName(zoneName, t.unixSec())
 		if ok {
 			t.addSec(-int64(offset))
@@ -1416,50 +1378,49 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 			return t, nil
 		}
 
-		// Otherwise, create fake zone with unknown offset.
+		// 否则，创建一个偏移未知的伪造时区。
 		if len(zoneName) > 3 && zoneName[:3] == "GMT" {
-			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
+			offset, _ = atoi(zoneName[3:]) // 由 parseGMT 保证正确。
 			offset *= 3600
 		}
-		zoneNameCopy := stringslite.Clone(zoneName) // avoid leaking the input value
+		zoneNameCopy := stringslite.Clone(zoneName) // 避免泄漏输入值
 		t.setLoc(FixedZone(zoneNameCopy, offset))
 		return t, nil
 	}
 
-	// Otherwise, fall back to default.
+	// 否则，回退到默认值。
 	return Date(year, Month(month), day, hour, min, sec, nsec, defaultLocation), nil
 }
 
-// parseTimeZone parses a time zone string and returns its length. Time zones
-// are human-generated and unpredictable. We can't do precise error checking.
-// On the other hand, for a correct parse there must be a time zone at the
-// beginning of the string, so it's almost always true that there's one
-// there. We look at the beginning of the string for a run of upper-case letters.
-// If there are more than 5, it's an error.
-// If there are 4 or 5 and the last is a T, it's a time zone.
-// If there are 3, it's a time zone.
-// Otherwise, other than special cases, it's not a time zone.
-// GMT is special because it can have an hour offset.
+// parseTimeZone 解析时区字符串并返回其长度。时区是人为生成的且不可预测。
+// 我们无法进行精确的错误检查。
+// 另一方面，对于正确的解析，字符串开头必须有一个时区，
+// 因此几乎总是可以确定那里有一个时区。我们查看字符串开头的一串大写字母。
+// 如果超过 5 个，则为错误。
+// 如果有 4 或 5 个且最后一个是 T，则它是时区。
+// 如果有 3 个，则它是时区。
+// 否则，除特殊情况外，它不是时区。
+// GMT 很特殊，因为它可以带小时偏移。
 func parseTimeZone(value string) (length int, ok bool) {
 	if len(value) < 3 {
 		return 0, false
 	}
-	// Special case 1: ChST and MeST are the only zones with a lower-case letter.
+	// 特殊情况 1：ChST 和 MeST 是仅有的带小写字母的时区。
 	if len(value) >= 4 && (value[:4] == "ChST" || value[:4] == "MeST") {
 		return 4, true
 	}
-	// Special case 2: GMT may have an hour offset; treat it specially.
+	// 特殊情况 2：GMT 可能带小时偏移；特殊处理它。
 	if value[:3] == "GMT" {
 		length = parseGMT(value)
 		return length, true
 	}
-	// Special Case 3: Some time zones are not named, but have +/-00 format
+	// 特殊情况 3：有些时区没有名称，但具有 +/-00 格式
 	if value[0] == '+' || value[0] == '-' {
 		length = parseSignedOffset(value)
-		ok := length > 0 // parseSignedOffset returns 0 in case of bad input
+		ok := length > 0 // 如果输入错误，parseSignedOffset 返回 0
 		return length, ok
 	}
-	// How many upper-case letters are there? Need at least three, at most five.
+	// 有多少个大写字母？至少需要三个，最多五个。
 	var nUpper int
 	for nUpper = 0; nUpper < 6; nUpper++ {
 		if nUpper >= len(value) {
@@ -1472,12 +1433,12 @@ func parseTimeZone(value string) (length int, ok bool) {
 	switch nUpper {
 	case 0, 1, 2, 6:
 		return 0, false
-	case 5: // Must end in T to match.
+	case 5: // 必须以 T 结尾才能匹配。
 		if value[4] == 'T' {
 			return 5, true
 		}
 	case 4:
-		// Must end in T, except one special case.
+		// 必须以 T 结尾，只有一个特殊情况例外。
 		if value[3] == 'T' || value[:4] == "WITA" {
 			return 4, true
 		}
@@ -1487,9 +1448,9 @@ func parseTimeZone(value string) (length int, ok bool) {
 	return 0, false
 }
 
-// parseGMT parses a GMT time zone. The input string is known to start "GMT".
-// The function checks whether that is followed by a sign and a number in the
-// range -23 through +23 excluding zero.
+// parseGMT 解析 GMT 时区。已知输入字符串以 "GMT" 开头。
+// 该函数检查其后是否跟有一个符号以及一个在 -23 到 +23 范围内
+// （不包括零）的数字。
 func parseGMT(value string) int {
 	value = value[3:]
 	if len(value) == 0 {
@@ -1499,9 +1460,9 @@ func parseGMT(value string) int {
 	return 3 + parseSignedOffset(value)
 }
 
-// parseSignedOffset parses a signed timezone offset (e.g. "+03" or "-04").
-// The function checks for a signed number in the range -23 through +23 excluding zero.
-// Returns length of the found offset string or 0 otherwise.
+// parseSignedOffset 解析带符号的时区偏移（例如 "+03" 或 "-04"）。
+// 该函数检查一个在 -23 到 +23 范围内（不包括零）的带符号数字。
+// 返回找到的偏移字符串的长度，否则返回 0。
 func parseSignedOffset(value string) int {
 	sign := value[0]
 	if sign != '-' && sign != '+' {
@@ -1509,7 +1470,7 @@ func parseSignedOffset(value string) int {
 	}
 	x, rem, err := leadingInt(value[1:])
 
-	// fail if nothing consumed by leadingInt
+	// 如果 leadingInt 没有消耗任何内容则失败
 	if err != nil || value[1:] == rem {
 		return 0
 	}
@@ -1539,8 +1500,8 @@ func parseNanoseconds[bytes []byte | string](value bytes, nbytes int) (ns int, r
 		rangeErrString = "fractional second"
 		return
 	}
-	// We need nanoseconds, which means scaling by the number
-	// of missing digits in the format, maximum length 10.
+	// 我们需要纳秒，这意味着按格式中缺失的数字位数
+	// 进行缩放，最大长度为 10。
 	scaleDigits := 10 - nbytes
 	for i := 0; i < scaleDigits; i++ {
 		ns *= 10
@@ -1548,9 +1509,9 @@ func parseNanoseconds[bytes []byte | string](value bytes, nbytes int) (ns int, r
 	return
 }
 
-var errLeadingInt = errors.New("time: bad [0-9]*") // never printed
+var errLeadingInt = errors.New("time: bad [0-9]*") // 从不打印
 
-// leadingInt consumes the leading [0-9]* from s.
+// leadingInt 从 s 中消耗开头的 [0-9]*。
 func leadingInt[bytes []byte | string](s bytes) (x uint64, rem bytes, err error) {
 	i := 0
 	for ; i < len(s); i++ {
@@ -1559,21 +1520,21 @@ func leadingInt[bytes []byte | string](s bytes) (x uint64, rem bytes, err error)
 			break
 		}
 		if x > 1<<63/10 {
-			// overflow
+			// 溢出
 			return 0, rem, errLeadingInt
 		}
 		x = x*10 + uint64(c) - '0'
 		if x > 1<<63 {
-			// overflow
+			// 溢出
 			return 0, rem, errLeadingInt
 		}
 	}
 	return x, s[i:], nil
 }
 
-// leadingFraction consumes the leading [0-9]* from s.
-// It is used only for fractions, so does not return an error on overflow,
-// it just stops accumulating precision.
+// leadingFraction 从 s 中消耗开头的 [0-9]*。
+// 它仅用于小数部分，因此溢出时不会返回错误，
+// 只是停止累积精度。
 func leadingFraction(s string) (x uint64, scale float64, rem string) {
 	i := 0
 	scale = 1
@@ -1587,7 +1548,7 @@ func leadingFraction(s string) (x uint64, scale float64, rem string) {
 			continue
 		}
 		if x > (1<<63-1)/10 {
-			// It's possible for overflow to give a positive number, so take care.
+			// 溢出有可能得到正数，所以要小心。
 			overflow = true
 			continue
 		}
@@ -1602,7 +1563,7 @@ func leadingFraction(s string) (x uint64, scale float64, rem string) {
 	return x, scale, s[i:]
 }
 
-// parseDurationError describes a problem parsing a duration string.
+// parseDurationError 描述解析持续时长字符串时出现的问题。
 type parseDurationError struct {
 	message string
 	value   string
@@ -1615,26 +1576,26 @@ func (e *parseDurationError) Error() string {
 var unitMap = map[string]uint64{
 	"ns": uint64(Nanosecond),
 	"us": uint64(Microsecond),
-	"µs": uint64(Microsecond), // U+00B5 = micro symbol
-	"μs": uint64(Microsecond), // U+03BC = Greek letter mu
+	"µs": uint64(Microsecond), // U+00B5 = 微符号
+	"μs": uint64(Microsecond), // U+03BC = 希腊字母 mu
 	"ms": uint64(Millisecond),
 	"s":  uint64(Second),
 	"m":  uint64(Minute),
 	"h":  uint64(Hour),
 }
 
-// ParseDuration parses a duration string.
-// A duration string is a possibly signed sequence of
-// decimal numbers, each with optional fraction and a unit suffix,
-// such as "300ms", "-1.5h" or "2h45m".
-// Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+// ParseDuration 解析持续时长字符串。
+// 持续时长字符串是一个可能带符号的十进制数字序列，
+// 每个数字带有可选的小数部分和单位后缀，
+// 例如 "300ms"、"-1.5h" 或 "2h45m"。
+// 有效的时间单位有 "ns"、"us"（或 "µs"）、"ms"、"s"、"m"、"h"。
 func ParseDuration(s string) (Duration, error) {
 	// [-+]?([0-9]*(\.[0-9]*)?[a-z]+)+
 	orig := s
 	var d uint64
 	neg := false
 
-	// Consume [-+]?
+	// 消耗 [-+]?
 	if s != "" {
 		c := s[0]
 		if c == '-' || c == '+' {
@@ -1642,7 +1603,7 @@ func ParseDuration(s string) (Duration, error) {
 			s = s[1:]
 		}
 	}
-	// Special case: if all that is left is "0", this is zero.
+	// 特殊情况：如果剩下的只有 "0"，则为零。
 	if s == "0" {
 		return 0, nil
 	}
@@ -1651,25 +1612,25 @@ func ParseDuration(s string) (Duration, error) {
 	}
 	for s != "" {
 		var (
-			v, f  uint64      // integers before, after decimal point
+			v, f  uint64      // 小数点前、后的整数
 			scale float64 = 1 // value = v + f/scale
 		)
 
 		var err error
 
-		// The next character must be [0-9.]
+		// 下一个字符必须是 [0-9.]
 		if !(s[0] == '.' || '0' <= s[0] && s[0] <= '9') {
 			return 0, &parseDurationError{"invalid duration", orig}
 		}
-		// Consume [0-9]*
+		// 消耗 [0-9]*
 		pl := len(s)
 		v, s, err = leadingInt(s)
 		if err != nil {
 			return 0, &parseDurationError{"invalid duration", orig}
 		}
-		pre := pl != len(s) // whether we consumed anything before a period
+		pre := pl != len(s) // 我们是否在句点之前消耗了任何内容
 
-		// Consume (\.[0-9]*)?
+		// 消耗 (\.[0-9]*)?
 		post := false
 		if s != "" && s[0] == '.' {
 			s = s[1:]
@@ -1678,11 +1639,11 @@ func ParseDuration(s string) (Duration, error) {
 			post = pl != len(s)
 		}
 		if !pre && !post {
-			// no digits (e.g. ".s" or "-.s")
+			// 没有数字（例如 ".s" 或 "-.s"）
 			return 0, &parseDurationError{"invalid duration", orig}
 		}
 
-		// Consume unit.
+		// 消耗单位。
 		i := 0
 		for ; i < len(s); i++ {
 			c := s[i]
@@ -1700,16 +1661,16 @@ func ParseDuration(s string) (Duration, error) {
 			return 0, &parseDurationError{"unknown unit " + quote(u) + " in duration", orig}
 		}
 		if v > 1<<63/unit {
-			// overflow
+			// 溢出
 			return 0, &parseDurationError{"invalid duration", orig}
 		}
 		v *= unit
 		if f > 0 {
-			// float64 is needed to be nanosecond accurate for fractions of hours.
-			// v >= 0 && (f*unit/scale) <= 3.6e+12 (ns/h, h is the largest unit)
+			// 对于小时的小数部分，需要 float64 才能达到纳秒精度。
+			// v >= 0 && (f*unit/scale) <= 3.6e+12（ns/h，h 是最大的单位）
 			v += uint64(float64(f) * (float64(unit) / scale))
 			if v > 1<<63 {
-				// overflow
+				// 溢出
 				return 0, &parseDurationError{"invalid duration", orig}
 			}
 		}

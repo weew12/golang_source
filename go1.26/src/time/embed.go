@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// This file is used with build tag timetzdata to embed tzdata into
-// the binary.
+// 此文件与构建标签 timetzdata 一起使用，以将 tzdata 嵌入
+// 二进制文件中。
 
 //go:build timetzdata
 

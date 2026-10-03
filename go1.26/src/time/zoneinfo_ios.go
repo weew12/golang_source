@@ -10,13 +10,13 @@ import (
 	"syscall"
 )
 
-var platformZoneSources []string // none on iOS
+var platformZoneSources []string // iOS 上没有
 
 func gorootZoneSource(goroot string) (string, bool) {
-	// The working directory at initialization is the root of the
-	// app bundle: "/private/.../bundlename.app". That's where we
-	// keep zoneinfo.zip for tethered iOS builds.
-	// For self-hosted iOS builds, the zoneinfo.zip is in GOROOT.
+	// 初始化时的工作目录是
+	// app bundle 的根目录："/private/.../bundlename.app"。对于连接设备（tethered）的 iOS 构建，
+	// 我们将 zoneinfo.zip 保存在那里。
+	// 对于自托管的 iOS 构建，zoneinfo.zip 位于 GOROOT 中。
 	var roots []string
 	if goroot != "" {
 		roots = append(roots, goroot+"/lib/time")

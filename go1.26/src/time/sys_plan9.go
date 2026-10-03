@@ -11,9 +11,9 @@ import (
 	"syscall"
 )
 
-// for testing: whatever interrupts a sleep
+// 用于测试：任何会中断 sleep 的行为
 func interrupt() {
-	// cannot predict pid, don't want to kill group
+	// 无法预测 pid，不想杀掉进程组
 }
 
 func open(name string) (uintptr, error) {

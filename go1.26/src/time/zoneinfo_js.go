@@ -24,11 +24,11 @@ func initLocal() {
 	d := js.Global().Get("Date").New()
 	offset := d.Call("getTimezoneOffset").Int() * -1
 	z.offset = offset * 60
-	// According to https://tc39.github.io/ecma262/#sec-timezoneestring,
-	// the timezone name from (new Date()).toTimeString() is an implementation-dependent
-	// result, and in Google Chrome, it gives the fully expanded name rather than
-	// the abbreviation.
-	// Hence, we construct the name from the offset.
+	// 根据 https://tc39.github.io/ecma262/#sec-timezoneestring，
+	// (new Date()).toTimeString() 返回的时区名称依赖于具体实现，
+	// 并且在 Google Chrome 中，它给出的是完全展开的名称而非
+	// 缩写。
+	// 因此，我们根据偏移量构造名称。
 	z.name = "UTC"
 	if offset < 0 {
 		z.name += "-"

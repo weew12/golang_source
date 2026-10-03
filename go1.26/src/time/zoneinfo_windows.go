@@ -10,18 +10,18 @@ import (
 	"syscall"
 )
 
-var platformZoneSources []string // none: Windows uses system calls instead
+var platformZoneSources []string // 无：Windows 改用系统调用
 
-// TODO(rsc): Fall back to copy of zoneinfo files.
+// TODO(rsc): 回退到使用 zoneinfo 文件的副本。
 
-// BUG(brainman,rsc): On Windows, the operating system does not provide complete
-// time zone information.
-// The implementation assumes that this year's rules for daylight savings
-// time apply to all previous and future years as well.
+// BUG(brainman,rsc): 在 Windows 上，操作系统不提供完整的
+// 时区信息。
+// 该实现假设今年的夏令时规则
+// 同样适用于所有过去和未来的年份。
 
-// matchZoneKey checks if stdname and dstname match the corresponding key
-// values "MUI_Std" and "MUI_Dlt" or "Std" and "Dlt" in the kname key stored
-// under the open registry key zones.
+// matchZoneKey 检查 stdname 和 dstname 是否与存储在
+// 已打开的注册表键 zones 下的 kname 键中对应的键值
+// "MUI_Std" 和 "MUI_Dlt" 或 "Std" 和 "Dlt" 匹配。
 func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (matched bool, err2 error) {
 	k, err := registry.OpenKey(zones, kname, registry.READ)
 	if err != nil {
@@ -30,12 +30,12 @@ func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (ma
 	defer k.Close()
 
 	var std, dlt string
-	// Try MUI_Std and MUI_Dlt first, fallback to Std and Dlt if *any* error occurs
+	// 先尝试 MUI_Std 和 MUI_Dlt，如果发生*任何*错误则回退到 Std 和 Dlt
 	std, err = k.GetMUIStringValue("MUI_Std")
 	if err == nil {
 		dlt, err = k.GetMUIStringValue("MUI_Dlt")
 	}
-	if err != nil { // Fallback to Std and Dlt
+	if err != nil { // 回退到 Std 和 Dlt
 		if std, _, err = k.GetStringValue("Std"); err != nil {
 			return false, err
 		}
@@ -53,8 +53,8 @@ func matchZoneKey(zones registry.Key, kname string, stdname, dstname string) (ma
 	return true, nil
 }
 
-// toEnglishName searches the registry for an English name of a time zone
-// whose zone names are stdname and dstname and returns the English name.
+// toEnglishName 在注册表中搜索一个时区的英文名称，
+// 该时区的 zone 名称为 stdname 和 dstname，并返回该英文名称。
 func toEnglishName(stdname, dstname string) (string, error) {
 	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion\Time Zones`, registry.ENUMERATE_SUB_KEYS|registry.QUERY_VALUE)
 	if err != nil {
@@ -75,7 +75,7 @@ func toEnglishName(stdname, dstname string) (string, error) {
 	return "", errors.New(`English name for time zone "` + stdname + `" not found in registry`)
 }
 
-// extractCAPS extracts capital letters from description desc.
+// extractCAPS 从描述 desc 中提取大写字母。
 func extractCAPS(desc string) string {
 	var short []rune
 	for _, c := range desc {
@@ -86,13 +86,13 @@ func extractCAPS(desc string) string {
 	return string(short)
 }
 
-// abbrev returns the abbreviations to use for the given zone z.
+// abbrev 返回用于给定 zone z 的缩写。
 func abbrev(z *syscall.Timezoneinformation) (std, dst string) {
 	stdName := syscall.UTF16ToString(z.StandardName[:])
 	a, ok := abbrs[stdName]
 	if !ok {
 		dstName := syscall.UTF16ToString(z.DaylightName[:])
-		// Perhaps stdName is not English. Try to convert it.
+		// 也许 stdName 不是英文。尝试转换它。
 		englishName, err := toEnglishName(stdName, dstName)
 		if err == nil {
 			a, ok = abbrs[englishName]
@@ -100,21 +100,21 @@ func abbrev(z *syscall.Timezoneinformation) (std, dst string) {
 				return a.std, a.dst
 			}
 		}
-		// fallback to using capital letters
+		// 回退到使用大写字母
 		return extractCAPS(stdName), extractCAPS(dstName)
 	}
 	return a.std, a.dst
 }
 
-// pseudoUnix returns the pseudo-Unix time (seconds since Jan 1 1970 *LOCAL TIME*)
-// denoted by the system date+time d in the given year.
-// It is up to the caller to convert this local time into a UTC-based time.
+// pseudoUnix 返回由给定年份中的系统日期+时间 d 表示的
+// 伪 Unix 时间（自 1970 年 1 月 1 日 *本地时间* 起的秒数）。
+// 由调用者负责将此本地时间转换为基于 UTC 的时间。
 func pseudoUnix(year int, d *syscall.Systemtime) int64 {
-	// Windows specifies daylight savings information in "day in month" format:
-	// d.Month is month number (1-12)
-	// d.DayOfWeek is appropriate weekday (Sunday=0 to Saturday=6)
-	// d.Day is week within the month (1 to 5, where 5 is last week of the month)
-	// d.Hour, d.Minute and d.Second are absolute time
+	// Windows 以 "月中的日" 格式指定夏令时信息：
+	// d.Month 是月份编号（1-12）
+	// d.DayOfWeek 是相应的星期几（星期日=0 到星期六=6）
+	// d.Day 是月内的第几周（1 到 5，其中 5 表示该月的最后一周）
+	// d.Hour、d.Minute 和 d.Second 是绝对时间
 	day := 1
 	t := Date(year, Month(d.Month), day, int(d.Hour), int(d.Minute), int(d.Second), 0, UTC)
 	i := int(d.DayOfWeek) - int(t.Weekday())
@@ -125,7 +125,7 @@ func pseudoUnix(year int, d *syscall.Systemtime) int64 {
 	if week := int(d.Day) - 1; week < 4 {
 		day += week * 7
 	} else {
-		// "Last" instance of the day.
+		// 该日的“最后一个”实例。
 		day += 4 * 7
 		if day > daysIn(Month(d.Month), year) {
 			day -= 7
@@ -150,7 +150,7 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
 	std := &l.zone[0]
 	std.name = stdname
 	if nzone == 1 {
-		// No daylight savings.
+		// 无夏令时。
 		std.offset = -int(i.Bias) * 60
 		l.cacheStart = alpha
 		l.cacheEnd = omega
@@ -161,9 +161,9 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
 		return
 	}
 
-	// StandardBias must be ignored if StandardDate is not set,
-	// so this computation is delayed until after the nzone==1
-	// return above.
+	// 如果 StandardDate 未设置，则必须忽略 StandardBias，
+	// 因此该计算被推迟到上面 nzone==1 的
+	// return 之后。
 	std.offset = -int(i.Bias+i.StandardBias) * 60
 
 	dst := &l.zone[1]
@@ -171,8 +171,8 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
 	dst.offset = -int(i.Bias+i.DaylightBias) * 60
 	dst.isDST = true
 
-	// Arrange so that d0 is first transition date, d1 second,
-	// i0 is index of zone after first transition, i1 second.
+	// 调整顺序，使 d0 为第一个转换日期，d1 为第二个，
+	// i0 为第一个转换后的 zone 索引，i1 为第二个。
 	d0 := &i.StandardDate
 	d1 := &i.DaylightDate
 	i0 := 0
@@ -182,7 +182,7 @@ func initLocalFromTZI(i *syscall.Timezoneinformation) {
 		i0, i1 = i1, i0
 	}
 
-	// 2 tx per year, 100 years on each side of this year
+	// 每年 2 次转换，本年前后各 100 年
 	l.tx = make([]zoneTrans, 400)
 
 	t := Now().UTC()

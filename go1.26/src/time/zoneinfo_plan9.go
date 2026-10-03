@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Parse Plan 9 timezone(2) files.
+// 解析 Plan 9 timezone(2) 文件。
 
 package time
 
@@ -10,15 +10,15 @@ import (
 	"syscall"
 )
 
-var platformZoneSources []string // none on Plan 9
+var platformZoneSources []string // Plan 9 上没有
 
 func isSpace(r rune) bool {
 	return r == ' ' || r == '\t' || r == '\n'
 }
 
-// Copied from strings to avoid a dependency.
+// 从 strings 复制而来以避免依赖。
 func fields(s string) []string {
-	// First count the fields.
+	// 先统计字段数量。
 	n := 0
 	inField := false
 	for _, rune := range s {
@@ -29,10 +29,10 @@ func fields(s string) []string {
 		}
 	}
 
-	// Now create them.
+	// 现在创建它们。
 	a := make([]string, n)
 	na := 0
-	fieldStart := -1 // Set to -1 when looking for start of field.
+	fieldStart := -1 // 在寻找字段起始位置时设为 -1。
 	for i, rune := range s {
 		if isSpace(rune) {
 			if fieldStart >= 0 {
@@ -44,7 +44,7 @@ func fields(s string) []string {
 			fieldStart = i
 		}
 	}
-	if fieldStart >= 0 { // Last field might end at EOF.
+	if fieldStart >= 0 { // 最后一个字段可能结束于 EOF。
 		a[na] = s[fieldStart:]
 	}
 	return a
@@ -61,21 +61,21 @@ func loadZoneDataPlan9(s string) (l *Location, err error) {
 
 	var zones [2]zone
 
-	// standard timezone offset
+	// 标准时区偏移
 	o, err := atoi(f[1])
 	if err != nil {
 		return nil, errBadData
 	}
 	zones[0] = zone{name: f[0], offset: o, isDST: false}
 
-	// alternate timezone offset
+	// 备用时区偏移
 	o, err = atoi(f[3])
 	if err != nil {
 		return nil, errBadData
 	}
 	zones[1] = zone{name: f[2], offset: o, isDST: true}
 
-	// transition time pairs
+	// 转换时间对
 	var tx []zoneTrans
 	f = f[4:]
 	for i := 0; i < len(f); i++ {
@@ -91,11 +91,11 @@ func loadZoneDataPlan9(s string) (l *Location, err error) {
 		tx = append(tx, zoneTrans{when: int64(t), index: uint8(zi)})
 	}
 
-	// Committed to succeed.
+	// 已确定能成功。
 	l = &Location{zone: zones[:], tx: tx}
 
-	// Fill in the cache with information about right now,
-	// since that will be the most common lookup.
+	// 用当前时刻的信息填充缓存，
+	// 因为这将是最常见的查询。
 	sec, _, _ := runtimeNow()
 	for i := range tx {
 		if tx[i].when <= sec && (i+1 == len(tx) || sec < tx[i+1].when) {
@@ -134,6 +134,6 @@ func initLocal() {
 		}
 	}
 
-	// Fall back to UTC.
+	// 回退到 UTC。
 	localLoc.name = "UTC"
 }

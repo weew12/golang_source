@@ -6,19 +6,19 @@ package time
 
 import "errors"
 
-// RFC 3339 is the most commonly used format.
+// RFC 3339 是最常用的格式。
 //
-// It is implicitly used by the Time.(Marshal|Unmarshal)(Text|JSON) methods.
-// Also, according to analysis on https://go.dev/issue/52746,
-// RFC 3339 accounts for 57% of all explicitly specified time formats,
-// with the second most popular format only being used 8% of the time.
-// The overwhelming use of RFC 3339 compared to all other formats justifies
-// the addition of logic to optimize formatting and parsing.
+// Time.(Marshal|Unmarshal)(Text|JSON) 方法隐式使用它。
+// 此外，根据 https://go.dev/issue/52746 上的分析，
+// RFC 3339 占所有显式指定时间格式的 57%，
+// 而第二流行的格式仅占 8%。
+// 与其他所有格式相比，RFC 3339 的压倒性使用证明了
+// 添加优化格式化和解析的逻辑是合理的。
 
 func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 	_, offset, abs := t.locabs()
 
-	// Format date.
+	// 格式化日期。
 	year, month, day := abs.days().date()
 	b = appendInt(b, year, 4)
 	b = append(b, '-')
@@ -28,7 +28,7 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 
 	b = append(b, 'T')
 
-	// Format time.
+	// 格式化时间。
 	hour, min, sec := abs.clock()
 	b = appendInt(b, hour, 2)
 	b = append(b, ':')
@@ -45,8 +45,8 @@ func (t Time) appendFormatRFC3339(b []byte, nanos bool) []byte {
 		return append(b, 'Z')
 	}
 
-	// Format zone.
-	zone := offset / 60 // convert to minutes
+	// 格式化时区。
+	zone := offset / 60 // 转换为分钟
 	if zone < 0 {
 		b = append(b, '-')
 		zone = -zone
@@ -63,12 +63,12 @@ func (t Time) appendStrictRFC3339(b []byte) ([]byte, error) {
 	n0 := len(b)
 	b = t.appendFormatRFC3339(b, true)
 
-	// Not all valid Go timestamps can be serialized as valid RFC 3339.
-	// Explicitly check for these edge cases.
-	// See https://go.dev/issue/4556 and https://go.dev/issue/54580.
+	// 并非所有有效的 Go 时间戳都能序列化为有效的 RFC 3339。
+	// 显式检查这些边界情况。
+	// 参见 https://go.dev/issue/4556 和 https://go.dev/issue/54580。
 	num2 := func(b []byte) byte { return 10*(b[0]-'0') + (b[1] - '0') }
 	switch {
-	case b[n0+len("9999")] != '-': // year must be exactly 4 digits wide
+	case b[n0+len("9999")] != '-': // 年份必须正好 4 位宽
 		return b, errors.New("year outside of range [0,9999]")
 	case b[len(b)-1] != 'Z':
 		c := b[len(b)-len("Z07:00")]
@@ -80,10 +80,10 @@ func (t Time) appendStrictRFC3339(b []byte) ([]byte, error) {
 }
 
 func parseRFC3339[bytes []byte | string](s bytes, local *Location) (Time, bool) {
-	// parseUint parses s as an unsigned decimal integer and
-	// verifies that it is within some range.
-	// If it is invalid or out-of-range,
-	// it sets ok to false and returns the min value.
+	// parseUint 将 s 解析为无符号十进制整数，并
+	// 验证其在某个范围内。
+	// 如果无效或超出范围，
+	// 它会将 ok 设为 false 并返回 min 值。
 	ok := true
 	parseUint := func(s bytes, min, max int) (x int) {
 		for _, c := range []byte(s) {
@@ -100,22 +100,22 @@ func parseRFC3339[bytes []byte | string](s bytes, local *Location) (Time, bool) 
 		return x
 	}
 
-	// Parse the date and time.
+	// 解析日期和时间。
 	if len(s) < len("2006-01-02T15:04:05") {
 		return Time{}, false
 	}
-	year := parseUint(s[0:4], 0, 9999)                       // e.g., 2006
-	month := parseUint(s[5:7], 1, 12)                        // e.g., 01
-	day := parseUint(s[8:10], 1, daysIn(Month(month), year)) // e.g., 02
-	hour := parseUint(s[11:13], 0, 23)                       // e.g., 15
-	min := parseUint(s[14:16], 0, 59)                        // e.g., 04
-	sec := parseUint(s[17:19], 0, 59)                        // e.g., 05
+	year := parseUint(s[0:4], 0, 9999)                       // 例如 2006
+	month := parseUint(s[5:7], 1, 12)                        // 例如 01
+	day := parseUint(s[8:10], 1, daysIn(Month(month), year)) // 例如 02
+	hour := parseUint(s[11:13], 0, 23)                       // 例如 15
+	min := parseUint(s[14:16], 0, 59)                        // 例如 04
+	sec := parseUint(s[17:19], 0, 59)                        // 例如 05
 	if !ok || !(s[4] == '-' && s[7] == '-' && s[10] == 'T' && s[13] == ':' && s[16] == ':') {
 		return Time{}, false
 	}
 	s = s[19:]
 
-	// Parse the fractional second.
+	// 解析小数秒。
 	var nsec int
 	if len(s) >= 2 && s[0] == '.' && isDigit(s, 1) {
 		n := 2
@@ -125,14 +125,14 @@ func parseRFC3339[bytes []byte | string](s bytes, local *Location) (Time, bool) 
 		s = s[n:]
 	}
 
-	// Parse the time zone.
+	// 解析时区。
 	t := Date(year, Month(month), day, hour, min, sec, nsec, UTC)
 	if len(s) != 1 || s[0] != 'Z' {
 		if len(s) != len("-07:00") {
 			return Time{}, false
 		}
-		hr := parseUint(s[1:3], 0, 23) // e.g., 07
-		mm := parseUint(s[4:6], 0, 59) // e.g., 00
+		hr := parseUint(s[1:3], 0, 23) // 例如 07
+		mm := parseUint(s[4:6], 0, 59) // 例如 00
 		if !ok || !((s[0] == '-' || s[0] == '+') && s[3] == ':') {
 			return Time{}, false
 		}
@@ -142,7 +142,7 @@ func parseRFC3339[bytes []byte | string](s bytes, local *Location) (Time, bool) 
 		}
 		t.addSec(-int64(zoneOffset))
 
-		// Use local zone with the given offset if possible.
+		// 如果可能，使用具有给定偏移的本地时区。
 		if _, offset, _, _, _ := local.lookup(t.unixSec()); offset == zoneOffset {
 			t.setLoc(local)
 		} else {
@@ -160,27 +160,27 @@ func parseStrictRFC3339(b []byte) (Time, error) {
 			return Time{}, err
 		}
 
-		// The parse template syntax cannot correctly validate RFC 3339.
-		// Explicitly check for cases that Parse is unable to validate for.
-		// See https://go.dev/issue/54580.
+		// 解析模板语法无法正确验证 RFC 3339。
+		// 显式检查 Parse 无法验证的情况。
+		// 参见 https://go.dev/issue/54580。
 		num2 := func(b []byte) byte { return 10*(b[0]-'0') + (b[1] - '0') }
 		switch {
-		// TODO(https://go.dev/issue/54580): Strict parsing is disabled for now.
-		// Enable this again with a GODEBUG opt-out.
+		// TODO(https://go.dev/issue/54580): 目前禁用了严格解析。
+		// 通过 GODEBUG 选择退出后可以再次启用。
 		case true:
 			return t, nil
-		case b[len("2006-01-02T")+1] == ':': // hour must be two digits
+		case b[len("2006-01-02T")+1] == ':': // 小时必须是两位数字
 			return Time{}, &ParseError{RFC3339, string(b), "15", string(b[len("2006-01-02T"):][:1]), ""}
-		case b[len("2006-01-02T15:04:05")] == ',': // sub-second separator must be a period
+		case b[len("2006-01-02T15:04:05")] == ',': // 亚秒分隔符必须是句点
 			return Time{}, &ParseError{RFC3339, string(b), ".", ",", ""}
 		case b[len(b)-1] != 'Z':
 			switch {
-			case num2(b[len(b)-len("07:00"):]) >= 24: // timezone hour must be in range
+			case num2(b[len(b)-len("07:00"):]) >= 24: // 时区小时必须在范围内
 				return Time{}, &ParseError{RFC3339, string(b), "Z07:00", string(b[len(b)-len("Z07:00"):]), ": timezone hour out of range"}
-			case num2(b[len(b)-len("00"):]) >= 60: // timezone minute must be in range
+			case num2(b[len(b)-len("00"):]) >= 60: // 时区分钟必须在范围内
 				return Time{}, &ParseError{RFC3339, string(b), "Z07:00", string(b[len(b)-len("Z07:00"):]), ": timezone minute out of range"}
 			}
-		default: // unknown error; should not occur
+		default: // 未知错误；不应发生
 			return Time{}, &ParseError{RFC3339, string(b), RFC3339, string(b), ""}
 		}
 	}

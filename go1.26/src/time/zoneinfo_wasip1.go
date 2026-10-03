@@ -4,7 +4,7 @@
 
 package time
 
-// in wasip1 zoneinfo is managed by the runtime.
+// 在 wasip1 中，zoneinfo 由运行时管理。
 var platformZoneSources = []string{}
 
 func initLocal() {
