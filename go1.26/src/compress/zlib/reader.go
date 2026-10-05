@@ -3,19 +3,18 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package zlib implements reading and writing of zlib format compressed data,
-as specified in RFC 1950.
+zlib 包实现了 zlib 格式压缩数据的读写，
+该格式由 RFC 1950 规定。
 
-The implementation provides filters that uncompress during reading
-and compress during writing.  For example, to write compressed data
-to a buffer:
+该实现提供了在读取时解压、在写入时压缩的过滤器。
+例如，将压缩数据写入缓冲区：
 
 	var b bytes.Buffer
 	w := zlib.NewWriter(&b)
 	w.Write([]byte("hello, world\n"))
 	w.Close()
 
-and to read that data back:
+以及将这些数据读回：
 
 	r, err := zlib.NewReader(&b)
 	io.Copy(os.Stdout, r)
@@ -39,11 +38,11 @@ const (
 )
 
 var (
-	// ErrChecksum is returned when reading ZLIB data that has an invalid checksum.
+	// ErrChecksum 在读取校验和无效的 ZLIB 数据时返回。
 	ErrChecksum = errors.New("zlib: invalid checksum")
-	// ErrDictionary is returned when reading ZLIB data that has an invalid dictionary.
+	// ErrDictionary 在读取字典无效的 ZLIB 数据时返回。
 	ErrDictionary = errors.New("zlib: invalid dictionary")
-	// ErrHeader is returned when reading ZLIB data that has an invalid header.
+	// ErrHeader 在读取头部无效的 ZLIB 数据时返回。
 	ErrHeader = errors.New("zlib: invalid header")
 )
 
@@ -55,31 +54,30 @@ type reader struct {
 	scratch      [4]byte
 }
 
-// Resetter resets a ReadCloser returned by [NewReader] or [NewReaderDict]
-// to switch to a new underlying Reader. This permits reusing a ReadCloser
-// instead of allocating a new one.
+// Resetter 重置由 [NewReader] 或 [NewReaderDict] 返回的 ReadCloser，
+// 以切换到新的底层 Reader。这允许复用 ReadCloser
+// 而不是分配一个新的。
 type Resetter interface {
-	// Reset discards any buffered data and resets the Resetter as if it was
-	// newly initialized with the given reader.
+	// Reset 丢弃任何已缓冲的数据，并把 Resetter 重置为
+	// 如同刚用给定 reader 初始化的状态。
 	Reset(r io.Reader, dict []byte) error
 }
 
-// NewReader creates a new ReadCloser.
-// Reads from the returned ReadCloser read and decompress data from r.
-// If r does not implement [io.ByteReader], the decompressor may read more
-// data than necessary from r.
-// It is the caller's responsibility to call Close on the ReadCloser when done.
+// NewReader 创建一个新的 ReadCloser。
+// 从返回的 ReadCloser 读取时会从 r 读取并解压数据。
+// 如果 r 未实现 [io.ByteReader]，解压器可能从 r 读取比所需更多的数据。
+// 调用者有责任在完成后对 ReadCloser 调用 Close。
 //
-// The [io.ReadCloser] returned by NewReader also implements [Resetter].
+// NewReader 返回的 [io.ReadCloser] 也实现了 [Resetter]。
 func NewReader(r io.Reader) (io.ReadCloser, error) {
 	return NewReaderDict(r, nil)
 }
 
-// NewReaderDict is like [NewReader] but uses a preset dictionary.
-// NewReaderDict ignores the dictionary if the compressed data does not refer to it.
-// If the compressed data refers to a different dictionary, NewReaderDict returns [ErrDictionary].
+// NewReaderDict 类似于 [NewReader]，但使用预设字典。
+// 如果压缩数据没有引用该字典，NewReaderDict 会忽略它。
+// 如果压缩数据引用了不同的字典，NewReaderDict 返回 [ErrDictionary]。
 //
-// The ReadCloser returned by NewReaderDict also implements [Resetter].
+// NewReaderDict 返回的 ReadCloser 也实现了 [Resetter]。
 func NewReaderDict(r io.Reader, dict []byte) (io.ReadCloser, error) {
 	z := new(reader)
 	err := z.Reset(r, dict)
@@ -98,11 +96,11 @@ func (z *reader) Read(p []byte) (int, error) {
 	n, z.err = z.decompressor.Read(p)
 	z.digest.Write(p[0:n])
 	if z.err != io.EOF {
-		// In the normal case we return here.
+		// 正常情况下我们在这里返回。
 		return n, z.err
 	}
 
-	// Finished file; check checksum.
+	// 文件结束；检查校验和。
 	if _, err := io.ReadFull(z.r, z.scratch[0:4]); err != nil {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
@@ -110,7 +108,7 @@ func (z *reader) Read(p []byte) (int, error) {
 		z.err = err
 		return n, z.err
 	}
-	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
+	// 与 GZIP（RFC 1952）不同，ZLIB（RFC 1950）使用大端序。
 	checksum := binary.BigEndian.Uint32(z.scratch[:4])
 	if checksum != z.digest.Sum32() {
 		z.err = ErrChecksum
@@ -119,9 +117,9 @@ func (z *reader) Read(p []byte) (int, error) {
 	return n, io.EOF
 }
 
-// Calling Close does not close the wrapped [io.Reader] originally passed to [NewReader].
-// In order for the ZLIB checksum to be verified, the reader must be
-// fully consumed until the [io.EOF].
+// 调用 Close 不会关闭最初传给 [NewReader] 的包装 [io.Reader]。
+// 为了验证 ZLIB 校验和，读取器必须
+// 被完全消费直到 [io.EOF]。
 func (z *reader) Close() error {
 	if z.err != nil && z.err != io.EOF {
 		return z.err
@@ -138,7 +136,7 @@ func (z *reader) Reset(r io.Reader, dict []byte) error {
 		z.r = bufio.NewReader(r)
 	}
 
-	// Read the header (RFC 1950 section 2.2.).
+	// 读取头部（RFC 1950 第 2.2 节）。
 	_, z.err = io.ReadFull(z.r, z.scratch[0:2])
 	if z.err != nil {
 		if z.err == io.EOF {

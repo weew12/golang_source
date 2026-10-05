@@ -66,7 +66,7 @@
 - [X] compress/flate：实现DEFLATE压缩数据格式（RFC 1951）
 - [X] compress/gzip：实现gzip格式压缩文件读写（RFC 1952）
 - [X] compress/lzw：实现Lempel-Ziv-Welch压缩格式
-- [ ] compress/zlib：实现zlib格式压缩数据读写（RFC 1950）
+- [X] compress/zlib：实现zlib格式压缩数据读写（RFC 1950）
 
 ## 第9部分 测试
 

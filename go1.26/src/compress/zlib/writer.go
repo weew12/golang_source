@@ -13,8 +13,8 @@ import (
 	"io"
 )
 
-// These constants are copied from the [flate] package, so that code that imports
-// [compress/zlib] does not also have to import [compress/flate].
+// 这些常量复制自 [flate] 包，因此导入 [compress/zlib] 的代码
+// 无需再导入 [compress/flate]。
 const (
 	NoCompression      = flate.NoCompression
 	BestSpeed          = flate.BestSpeed
@@ -23,8 +23,8 @@ const (
 	HuffmanOnly        = flate.HuffmanOnly
 )
 
-// A Writer takes data written to it and writes the compressed
-// form of that data to an underlying writer (see [NewWriter]).
+// Writer 接收写入其中的数据，并将该数据的压缩形式
+// 写入底层 writer（参见 [NewWriter]）。
 type Writer struct {
 	w           io.Writer
 	level       int
@@ -36,31 +36,29 @@ type Writer struct {
 	wroteHeader bool
 }
 
-// NewWriter creates a new [Writer].
-// Writes to the returned Writer are compressed and written to w.
+// NewWriter 创建一个新的 [Writer]。
+// 写入返回的 Writer 的数据会被压缩并写入 w。
 //
-// It is the caller's responsibility to call Close on the Writer when done.
-// Writes may be buffered and not flushed until Close.
+// 调用者有责任在使用完毕后调用 Writer 的 Close。
+// 写入的数据可能会被缓冲，直到 Close 时才刷新。
 func NewWriter(w io.Writer) *Writer {
 	z, _ := NewWriterLevelDict(w, DefaultCompression, nil)
 	return z
 }
 
-// NewWriterLevel is like [NewWriter] but specifies the compression level instead
-// of assuming [DefaultCompression].
+// NewWriterLevel 与 [NewWriter] 类似，但会指定压缩级别，
+// 而不是假定为 [DefaultCompression]。
 //
-// The compression level can be [DefaultCompression], [NoCompression], [HuffmanOnly]
-// or any integer value between [BestSpeed] and [BestCompression] inclusive.
-// The error returned will be nil if the level is valid.
+// 压缩级别可以是 [DefaultCompression]、[NoCompression]、[HuffmanOnly]，
+// 或 [BestSpeed] 到 [BestCompression] 之间（含两端）的任意整数值。
+// 如果该级别有效，返回的错误为 nil。
 func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
 	return NewWriterLevelDict(w, level, nil)
 }
 
-// NewWriterLevelDict is like [NewWriterLevel] but specifies a dictionary to
-// compress with.
+// NewWriterLevelDict 与 [NewWriterLevel] 类似，但会指定用于压缩的字典。
 //
-// The dictionary may be nil. If not, its contents should not be modified until
-// the Writer is closed.
+// 字典可以为 nil。如果不为 nil，在 Writer 关闭之前不应修改其内容。
 func NewWriterLevelDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	if level < HuffmanOnly || level > BestCompression {
 		return nil, fmt.Errorf("zlib: invalid compression level: %d", level)
@@ -72,12 +70,11 @@ func NewWriterLevelDict(w io.Writer, level int, dict []byte) (*Writer, error) {
 	}, nil
 }
 
-// Reset clears the state of the [Writer] z such that it is equivalent to its
-// initial state from [NewWriterLevel] or [NewWriterLevelDict], but instead writing
-// to w.
+// Reset 清除 [Writer] z 的状态，使其等同于来自 [NewWriterLevel] 或
+// [NewWriterLevelDict] 的初始状态，但改为写入 w。
 func (z *Writer) Reset(w io.Writer) {
 	z.w = w
-	// z.level and z.dict left unchanged.
+	// z.level 和 z.dict 保持不变。
 	if z.compressor != nil {
 		z.compressor.Reset(w)
 	}
@@ -89,17 +86,17 @@ func (z *Writer) Reset(w io.Writer) {
 	z.wroteHeader = false
 }
 
-// writeHeader writes the ZLIB header.
+// writeHeader 写入 ZLIB 头部。
 func (z *Writer) writeHeader() (err error) {
 	z.wroteHeader = true
-	// ZLIB has a two-byte header (as documented in RFC 1950).
-	// The first four bits is the CINFO (compression info), which is 7 for the default deflate window size.
-	// The next four bits is the CM (compression method), which is 8 for deflate.
+	// ZLIB 有一个两字节的头部（如 RFC 1950 中所述）。
+	// 前四位是 CINFO（压缩信息），对于默认的 deflate 窗口大小，其值为 7。
+	// 接下来四位是 CM（压缩方法），对于 deflate，其值为 8。
 	z.scratch[0] = 0x78
-	// The next two bits is the FLEVEL (compression level). The four values are:
-	// 0=fastest, 1=fast, 2=default, 3=best.
-	// The next bit, FDICT, is set if a dictionary is given.
-	// The final five FCHECK bits form a mod-31 checksum.
+	// 接下来两位是 FLEVEL（压缩级别）。这四个取值为：
+	// 0=最快，1=快，2=默认，3=最佳。
+	// 接下来一位是 FDICT，如果给定了字典则置位。
+	// 最后的五位 FCHECK 构成一个 mod-31 校验和。
 	switch z.level {
 	case -2, 0, 1:
 		z.scratch[1] = 0 << 6
@@ -120,15 +117,15 @@ func (z *Writer) writeHeader() (err error) {
 		return err
 	}
 	if z.dict != nil {
-		// The next four bytes are the Adler-32 checksum of the dictionary.
+		// 接下来四个字节是字典的 Adler-32 校验和。
 		binary.BigEndian.PutUint32(z.scratch[:], adler32.Checksum(z.dict))
 		if _, err = z.w.Write(z.scratch[0:4]); err != nil {
 			return err
 		}
 	}
 	if z.compressor == nil {
-		// Initialize deflater unless the Writer is being reused
-		// after a Reset call.
+		// 初始化 deflater，除非 Writer 是在一次 Reset
+		// 调用之后被复用的。
 		z.compressor, err = flate.NewWriterDict(z.w, z.level, z.dict)
 		if err != nil {
 			return err
@@ -138,9 +135,8 @@ func (z *Writer) writeHeader() (err error) {
 	return nil
 }
 
-// Write writes a compressed form of p to the underlying [io.Writer]. The
-// compressed bytes are not necessarily flushed until the [Writer] is closed or
-// explicitly flushed.
+// Write 将 p 的压缩形式写入底层 [io.Writer]。在 [Writer] 被关闭或
+// 显式刷新之前，压缩后的字节不一定会被刷新。
 func (z *Writer) Write(p []byte) (n int, err error) {
 	if !z.wroteHeader {
 		z.err = z.writeHeader()
@@ -160,7 +156,7 @@ func (z *Writer) Write(p []byte) (n int, err error) {
 	return
 }
 
-// Flush flushes the Writer to its underlying [io.Writer].
+// Flush 将 Writer 刷新到底层 [io.Writer]。
 func (z *Writer) Flush() error {
 	if !z.wroteHeader {
 		z.err = z.writeHeader()
@@ -172,8 +168,8 @@ func (z *Writer) Flush() error {
 	return z.err
 }
 
-// Close closes the Writer, flushing any unwritten data to the underlying
-// [io.Writer], but does not close the underlying io.Writer.
+// Close 关闭 Writer，将任何未写入的数据刷新到底层 [io.Writer]，
+// 但不会关闭底层的 io.Writer。
 func (z *Writer) Close() error {
 	if !z.wroteHeader {
 		z.err = z.writeHeader()
@@ -186,7 +182,7 @@ func (z *Writer) Close() error {
 		return z.err
 	}
 	checksum := z.digest.Sum32()
-	// ZLIB (RFC 1950) is big-endian, unlike GZIP (RFC 1952).
+	// ZLIB（RFC 1950）是大端序，与 GZIP（RFC 1952）不同。
 	binary.BigEndian.PutUint32(z.scratch[:], checksum)
 	_, z.err = z.w.Write(z.scratch[0:4])
 	return z.err
