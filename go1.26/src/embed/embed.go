@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package embed provides access to files embedded in the running Go program.
+// Package embed 提供对嵌入到运行中的 Go 程序内的文件的访问。
 //
-// Go source files that import "embed" can use the //go:embed directive
-// to initialize a variable of type string, []byte, or [FS] with the contents of
-// files read from the package directory or subdirectories at compile time.
+// 导入 "embed" 的 Go 源文件可以使用 //go:embed 指令，
+// 用一个 string、[]byte 或 [FS] 类型的变量来初始化，
+// 其内容为编译时从包目录或子目录读取到的文件内容。
 //
-// For example, here are three ways to embed a file named hello.txt
-// and then print its contents at run time.
+// 例如，以下是将名为 hello.txt 的文件嵌入，
+// 然后在运行时打印其内容的三种方式。
 //
-// Embedding one file into a string:
+// 将单个文件嵌入到字符串中：
 //
 //	import _ "embed"
 //
@@ -19,7 +19,7 @@
 //	var s string
 //	print(s)
 //
-// Embedding one file into a slice of bytes:
+// 将单个文件嵌入到字节切片中：
 //
 //	import _ "embed"
 //
@@ -27,7 +27,7 @@
 //	var b []byte
 //	print(string(b))
 //
-// Embedded one or more files into a file system:
+// 将一个或多个文件嵌入到文件系统中：
 //
 //	import "embed"
 //
@@ -36,97 +36,95 @@
 //	data, _ := f.ReadFile("hello.txt")
 //	print(string(data))
 //
-// # Directives
+// # 指令
 //
-// A //go:embed directive above a variable declaration specifies which files to embed,
-// using one or more path.Match patterns.
+// 在变量声明上方的 //go:embed 指令使用一个或多个 path.Match 模式
+// 来指定要嵌入哪些文件。
 //
-// The directive must immediately precede a line containing the declaration of a single variable.
-// Only blank lines and ‘//’ line comments are permitted between the directive and the declaration.
+// 该指令必须紧接在包含单个变量声明的行之前。
+// 指令与声明之间只允许有空行和 ‘//’ 行注释。
 //
-// The type of the variable must be a string type, or a slice of a byte type,
-// or [FS] (or an alias of [FS]).
+// 变量的类型必须是字符串类型、字节类型的切片，
+// 或 [FS]（或 [FS] 的别名）。
 //
-// For example:
+// 例如：
 //
 //	package server
 //
 //	import "embed"
 //
-//	// content holds our static web server content.
+//	// content 保存我们静态 Web 服务器的内容。
 //	//go:embed image/* template/*
 //	//go:embed html/index.html
 //	var content embed.FS
 //
-// The Go build system will recognize the directives and arrange for the declared variable
-// (in the example above, content) to be populated with the matching files from the file system.
+// Go 构建系统会识别这些指令，并安排用文件系统中匹配的文件
+// 填充所声明的变量（在上面的示例中为 content）。
 //
-// The //go:embed directive accepts multiple space-separated patterns for
-// brevity, but it can also be repeated, to avoid very long lines when there are
-// many patterns. The patterns are interpreted relative to the package directory
-// containing the source file. The path separator is a forward slash, even on
-// Windows systems. Patterns may not contain ‘.’ or ‘..’ or empty path elements,
-// nor may they begin or end with a slash. To match everything in the current
-// directory, use ‘*’ instead of ‘.’. To allow for naming files with spaces in
-// their names, patterns can be written as Go double-quoted or back-quoted
-// string literals.
+// //go:embed 指令为了简洁可以接受多个以空格分隔的模式，
+// 但也可以重复使用，以便在模式很多时避免过长的行。
+// 这些模式是相对于包含该源文件的包目录进行解释的。
+// 路径分隔符为正斜杠，即使在 Windows 系统上也是如此。
+// 模式不能包含 ‘.’ 或 ‘..’ 或空的路径元素，也不能以斜杠开头或结尾。
+// 要匹配当前目录中的所有内容，请使用 ‘*’ 而不是 ‘.’。
+// 为了允许文件名称中包含空格，模式可以写成 Go 的双引号或反引号字符串字面量。
 //
-// If a pattern names a directory, all files in the subtree rooted at that directory are
-// embedded (recursively), except that files with names beginning with ‘.’ or ‘_’
-// are excluded. So the variable in the above example is almost equivalent to:
+// 如果某个模式指定了一个目录，则该目录为根的子目录树中的所有文件
+// 都会被（递归地）嵌入，但名称以 ‘.’ 或 ‘_’ 开头的文件会被排除。
+// 因此上面示例中的变量几乎等价于：
 //
-//	// content is our static web server content.
+//	// content 是我们静态 Web 服务器的内容。
 //	//go:embed image template html/index.html
 //	var content embed.FS
 //
-// The difference is that ‘image/*’ embeds ‘image/.tempfile’ while ‘image’ does not.
-// Neither embeds ‘image/dir/.tempfile’.
+// 不同之处在于，‘image/*’ 会嵌入 ‘image/.tempfile’，而 ‘image’ 不会。
+// 两者都不会嵌入 ‘image/dir/.tempfile’。
 //
-// If a pattern begins with the prefix ‘all:’, then the rule for walking directories is changed
-// to include those files beginning with ‘.’ or ‘_’. For example, ‘all:image’ embeds
-// both ‘image/.tempfile’ and ‘image/dir/.tempfile’.
+// 如果某个模式以前缀 ‘all:’ 开头，则遍历目录的规则会改变，
+// 以包含那些以 ‘.’ 或 ‘_’ 开头的文件。例如，‘all:image’ 会同时嵌入
+// ‘image/.tempfile’ 和 ‘image/dir/.tempfile’。
 //
-// The //go:embed directive can be used with both exported and unexported variables,
-// depending on whether the package wants to make the data available to other packages.
-// It can only be used with variables at package scope, not with local variables.
+// //go:embed 指令既可以用于导出变量，也可以用于未导出变量，
+// 取决于该包是否希望将数据提供给其他包使用。
+// 它只能用于包作用域的变量，不能用于局部变量。
 //
-// Patterns must not match files outside the package's module, such as ‘.git/*’, symbolic links,
-// 'vendor/', or any directories containing go.mod (these are separate modules).
-// Patterns must not match files whose names include the special punctuation characters  " * < > ? ` ' | / \ and :.
-// Matches for empty directories are ignored. After that, each pattern in a //go:embed line
-// must match at least one file or non-empty directory.
+// 模式不得匹配包所在模块之外的文件，例如 ‘.git/*’、符号链接、
+// 'vendor/'，或任何包含 go.mod 的目录（这些是独立的模块）。
+// 模式不得匹配名称中包含特殊标点字符  " * < > ? ` ' | / \ 和 : 的文件。
+// 对空目录的匹配会被忽略。此后，//go:embed 行中的每个模式
+// 都必须至少匹配一个文件或非空目录。
 //
-// If any patterns are invalid or have invalid matches, the build will fail.
+// 如果任何模式无效或匹配无效，构建将失败。
 //
-// # Strings and Bytes
+// # 字符串与字节
 //
-// The //go:embed line for a variable of type string or []byte can have only a single pattern,
-// and that pattern can match only a single file. The string or []byte is initialized with
-// the contents of that file.
+// 类型为 string 或 []byte 的变量的 //go:embed 行只能有一个模式，
+// 并且该模式只能匹配单个文件。该 string 或 []byte 会用
+// 该文件的内容进行初始化。
 //
-// The //go:embed directive requires importing "embed", even when using a string or []byte.
-// In source files that don't refer to [embed.FS], use a blank import (import _ "embed").
+// 即使使用 string 或 []byte，//go:embed 指令也要求导入 "embed"。
+// 在不引用 [embed.FS] 的源文件中，请使用空白导入（import _ "embed"）。
 //
-// # File Systems
+// # 文件系统
 //
-// For embedding a single file, a variable of type string or []byte is often best.
-// The [FS] type enables embedding a tree of files, such as a directory of static
-// web server content, as in the example above.
+// 对于嵌入单个文件，string 或 []byte 类型的变量通常是最佳选择。
+// [FS] 类型支持嵌入一棵文件树，例如一个包含静态 Web 服务器
+// 内容的目录，如上面的示例所示。
 //
-// FS implements the [io/fs] package's [FS] interface, so it can be used with any package that
-// understands file systems, including [net/http], [text/template], and [html/template].
+// FS 实现了 [io/fs] 包的 [FS] 接口，因此它可以与任何理解
+// 文件系统的包一起使用，包括 [net/http]、[text/template] 和 [html/template]。
 //
-// For example, given the content variable in the example above, we can write:
+// 例如，给定上面示例中的 content 变量，我们可以写：
 //
 //	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.FS(content))))
 //
 //	template.ParseFS(content, "*.tmpl")
 //
-// # Tools
+// # 工具
 //
-// To support tools that analyze Go packages, the patterns found in //go:embed lines
-// are available in “go list” output. See the EmbedPatterns, TestEmbedPatterns,
-// and XTestEmbedPatterns fields in the “go help list” output.
+// 为了支持分析 Go 包的工具，//go:embed 行中出现的模式
+// 可在 “go list” 输出中获得。参见 “go help list” 输出中的
+// EmbedPatterns、TestEmbedPatterns 和 XTestEmbedPatterns 字段。
 package embed
 
 import (
@@ -138,25 +136,25 @@ import (
 	"time"
 )
 
-// An FS is a read-only collection of files, usually initialized with a //go:embed directive.
-// When declared without a //go:embed directive, an FS is an empty file system.
+// FS 是一个只读的文件集合，通常使用 //go:embed 指令进行初始化。
+// 当声明时没有 //go:embed 指令时，FS 是一个空文件系统。
 //
-// An FS is a read-only value, so it is safe to use from multiple goroutines
-// simultaneously and also safe to assign values of type FS to each other.
+// FS 是一个只读值，因此可以安全地被多个 goroutine 同时使用，
+// 也可以安全地将 FS 类型的值相互赋值。
 //
-// FS implements fs.FS, so it can be used with any package that understands
-// file system interfaces, including net/http, text/template, and html/template.
+// FS 实现了 fs.FS，因此它可以与任何理解文件系统接口的包一起使用，
+// 包括 net/http、text/template 和 html/template。
 //
-// See the package documentation for more details about initializing an FS.
+// 有关初始化 FS 的更多详细信息，请参阅包文档。
 type FS struct {
-	// The compiler knows the layout of this struct.
-	// See cmd/compile/internal/staticdata's WriteEmbed.
+	// 编译器知道此结构体的内存布局。
+	// 参见 cmd/compile/internal/staticdata 的 WriteEmbed。
 	//
-	// The files list is sorted by name but not by simple string comparison.
-	// Instead, each file's name takes the form "dir/elem" or "dir/elem/".
-	// The optional trailing slash indicates that the file is itself a directory.
-	// The files list is sorted first by dir (if dir is missing, it is taken to be ".")
-	// and then by base, so this list of files:
+	// files 列表按名称排序，但并非简单的字符串比较。
+	// 相反，每个文件的名称采用 "dir/elem" 或 "dir/elem/" 的形式。
+	// 可选的末尾斜杠表示该文件本身是一个目录。
+	// files 列表首先按 dir 排序（如果 dir 缺失，则视为 "."），
+	// 然后按 base 排序，因此以下文件列表：
 	//
 	//	p
 	//	q/
@@ -167,7 +165,7 @@ type FS struct {
 	//	q/v
 	//	w
 	//
-	// is actually sorted as:
+	// 实际上排序为：
 	//
 	//	p       # dir=.    elem=p
 	//	q/      # dir=.    elem=q
@@ -178,15 +176,14 @@ type FS struct {
 	//	q/s/t   # dir=q/s  elem=t
 	//	q/s/u   # dir=q/s  elem=u
 	//
-	// This order brings directory contents together in contiguous sections
-	// of the list, allowing a directory read to use binary search to find
-	// the relevant sequence of entries.
+	// 这种顺序将目录内容聚集在列表中连续的区段中，
+	// 使得读取目录时可以使用二分查找来定位相关的条目序列。
 	files *[]file
 }
 
-// split splits the name into dir and elem as described in the
-// comment in the FS struct above. isDir reports whether the
-// final trailing slash was present, indicating that name is a directory.
+// split 按照上面 FS 结构体注释中描述的方式，
+// 将 name 拆分为 dir 和 elem。isDir 报告末尾斜杠是否存在，
+// 表示 name 是一个目录。
 func split(name string) (dir, elem string, isDir bool) {
 	name, isDir = stringslite.CutSuffix(name, "/")
 	i := bytealg.LastIndexByteString(name, '/')
@@ -201,14 +198,14 @@ var (
 	_ fs.ReadFileFS = FS{}
 )
 
-// A file is a single file in the FS.
-// It implements fs.FileInfo and fs.DirEntry.
+// file 是 FS 中的单个文件。
+// 它实现了 fs.FileInfo 和 fs.DirEntry。
 type file struct {
-	// The compiler knows the layout of this struct.
-	// See cmd/compile/internal/staticdata's WriteEmbed.
+	// 编译器知道此结构体的内存布局。
+	// 参见 cmd/compile/internal/staticdata 的 WriteEmbed。
 	name string
 	data string
-	hash [16]byte // truncated SHA256 hash
+	hash [16]byte // 截断的 SHA256 哈希值
 }
 
 var (
@@ -235,16 +232,16 @@ func (f *file) String() string {
 	return fs.FormatFileInfo(f)
 }
 
-// dotFile is a file for the root directory,
-// which is omitted from the files list in a FS.
+// dotFile 是根目录对应的文件，
+// 在 FS 的 files 列表中会被省略。
 var dotFile = &file{name: "./"}
 
-// lookup returns the named file, or nil if it is not present.
+// lookup 返回指定名称的文件，如果不存在则返回 nil。
 func (f FS) lookup(name string) *file {
 	if !fs.ValidPath(name) {
-		// The compiler should never emit a file with an invalid name,
-		// so this check is not strictly necessary (if name is invalid,
-		// we shouldn't find a match below), but it's a good backstop anyway.
+		// 编译器不应该生成名称无效的文件，
+		// 因此这个检查并非严格必要（如果 name 无效，
+		// 我们在下面也不应该找到匹配项），但它仍然是一个很好的兜底措施。
 		return nil
 	}
 	if name == "." {
@@ -254,8 +251,8 @@ func (f FS) lookup(name string) *file {
 		return nil
 	}
 
-	// Binary search to find where name would be in the list,
-	// and then check if name is at that position.
+	// 二分查找以确定 name 在列表中的位置，
+	// 然后检查 name 是否确实位于该位置。
 	dir, elem, _ := split(name)
 	files := *f.files
 	i := sortSearch(len(files), func(i int) bool {
@@ -268,13 +265,13 @@ func (f FS) lookup(name string) *file {
 	return nil
 }
 
-// readDir returns the list of files corresponding to the directory dir.
+// readDir 返回目录 dir 对应的文件列表。
 func (f FS) readDir(dir string) []file {
 	if f.files == nil {
 		return nil
 	}
-	// Binary search to find where dir starts and ends in the list
-	// and then return that slice of the list.
+	// 二分查找以确定 dir 在列表中的起始和结束位置，
+	// 然后返回列表中的那个切片。
 	files := *f.files
 	i := sortSearch(len(files), func(i int) bool {
 		idir, _, _ := split(files[i].name)
@@ -287,9 +284,9 @@ func (f FS) readDir(dir string) []file {
 	return files[i:j]
 }
 
-// Open opens the named file for reading and returns it as an [fs.File].
+// Open 打开指定名称的文件以供读取，并将其作为 [fs.File] 返回。
 //
-// The returned file implements [io.Seeker] and [io.ReaderAt] when the file is not a directory.
+// 当文件不是目录时，返回的文件实现了 [io.Seeker] 和 [io.ReaderAt]。
 func (f FS) Open(name string) (fs.File, error) {
 	file := f.lookup(name)
 	if file == nil {
@@ -301,7 +298,7 @@ func (f FS) Open(name string) (fs.File, error) {
 	return &openFile{file, 0}, nil
 }
 
-// ReadDir reads and returns the entire named directory.
+// ReadDir 读取并返回指定名称的整个目录。
 func (f FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	file, err := f.Open(name)
 	if err != nil {
@@ -318,7 +315,7 @@ func (f FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	return list, nil
 }
 
-// ReadFile reads and returns the content of the named file.
+// ReadFile 读取并返回指定名称文件的内容。
 func (f FS) ReadFile(name string) ([]byte, error) {
 	file, err := f.Open(name)
 	if err != nil {
@@ -331,10 +328,10 @@ func (f FS) ReadFile(name string) ([]byte, error) {
 	return []byte(ofile.f.data), nil
 }
 
-// An openFile is a regular file open for reading.
+// openFile 是一个可供读取的普通文件。
 type openFile struct {
-	f      *file // the file itself
-	offset int64 // current read offset
+	f      *file // 文件本身
+	offset int64 // 当前读取偏移量
 }
 
 var (
@@ -384,11 +381,11 @@ func (f *openFile) ReadAt(b []byte, offset int64) (int, error) {
 	return n, nil
 }
 
-// An openDir is a directory open for reading.
+// openDir 是一个可供读取的目录。
 type openDir struct {
-	f      *file  // the directory file itself
-	files  []file // the directory contents
-	offset int    // the read offset, an index into the files slice
+	f      *file  // 目录文件本身
+	files  []file // 目录内容
+	offset int    // 读取偏移量，是 files 切片中的一个索引
 }
 
 func (d *openDir) Close() error               { return nil }
@@ -417,20 +414,20 @@ func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
 	return list, nil
 }
 
-// sortSearch is like sort.Search, avoiding an import.
+// sortSearch 类似于 sort.Search，但避免了导入。
 func sortSearch(n int, f func(int) bool) int {
-	// Define f(-1) == false and f(n) == true.
-	// Invariant: f(i-1) == false, f(j) == true.
+	// 定义 f(-1) == false 且 f(n) == true。
+	// 不变式：f(i-1) == false，f(j) == true。
 	i, j := 0, n
 	for i < j {
-		h := int(uint(i+j) >> 1) // avoid overflow when computing h
+		h := int(uint(i+j) >> 1) // 计算 h 时避免溢出
 		// i ≤ h < j
 		if !f(h) {
-			i = h + 1 // preserves f(i-1) == false
+			i = h + 1 // 保持 f(i-1) == false
 		} else {
-			j = h // preserves f(j) == true
+			j = h // 保持 f(j) == true
 		}
 	}
-	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+	// i == j，f(i-1) == false，且 f(j) == f(i) == true  =>  答案为 i。
 	return i
 }
