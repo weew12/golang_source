@@ -8,12 +8,12 @@ import (
 	"internal/reflectlite"
 )
 
-// Unwrap returns the result of calling the Unwrap method on err, if err's
-// type contains an Unwrap method returning error.
-// Otherwise, Unwrap returns nil.
+// Unwrap 返回对 err 调用 Unwrap 方法的结果，如果 err 的类型
+// 包含一个返回 error 的 Unwrap 方法。
+// 否则，Unwrap 返回 nil。
 //
-// Unwrap only calls a method of the form "Unwrap() error".
-// In particular Unwrap does not unwrap errors returned by [Join].
+// Unwrap 仅调用形式为 "Unwrap() error" 的方法。
+// 特别地，Unwrap 不会解包由 [Join] 返回的错误。
 func Unwrap(err error) error {
 	u, ok := err.(interface {
 		Unwrap() error
@@ -24,24 +24,24 @@ func Unwrap(err error) error {
 	return u.Unwrap()
 }
 
-// Is reports whether any error in err's tree matches target.
-// The target must be comparable.
+// Is 报告 err 的树中是否有任何错误与 target 匹配。
+// target 必须是可比较的。
 //
-// The tree consists of err itself, followed by the errors obtained by repeatedly
-// calling its Unwrap() error or Unwrap() []error method. When err wraps multiple
-// errors, Is examines err followed by a depth-first traversal of its children.
+// 该树由 err 本身，以及通过重复调用其 Unwrap() error 或
+// Unwrap() []error 方法所得到的错误组成。当 err 包装多个错误时，
+// Is 先检查 err，然后对其子节点进行深度优先遍历。
 //
-// An error is considered to match a target if it is equal to that target or if
-// it implements a method Is(error) bool such that Is(target) returns true.
+// 如果某个错误等于 target，或者它实现了一个方法 Is(error) bool
+// 使得 Is(target) 返回 true，则认为该错误与 target 匹配。
 //
-// An error type might provide an Is method so it can be treated as equivalent
-// to an existing error. For example, if MyError defines
+// 错误类型可以提供 Is 方法，以使其可被视为等同于一个
+// 已有的错误。例如，如果 MyError 定义了
 //
 //	func (m MyError) Is(target error) bool { return target == fs.ErrExist }
 //
-// then Is(MyError{}, fs.ErrExist) returns true. See [syscall.Errno.Is] for
-// an example in the standard library. An Is method should only shallowly
-// compare err and the target and not call [Unwrap] on either.
+// 那么 Is(MyError{}, fs.ErrExist) 返回 true。标准库中的示例
+// 参见 [syscall.Errno.Is]。Is 方法应仅浅层地比较 err 和
+// target，且不应在两者上调用 [Unwrap]。
 func Is(err, target error) bool {
 	if err == nil || target == nil {
 		return err == target
@@ -78,27 +78,27 @@ func is(err, target error, targetComparable bool) bool {
 	}
 }
 
-// As finds the first error in err's tree that matches target, and if one is found, sets
-// target to that error value and returns true. Otherwise, it returns false.
+// As 在 err 的树中查找第一个与 target 匹配的错误，如果找到，
+// 则将 target 设置为该错误值并返回 true。否则，返回 false。
 //
-// For most uses, prefer [AsType]. As is equivalent to [AsType] but sets its target
-// argument rather than returning the matching error and doesn't require its target
-// argument to implement error.
+// 在大多数情况下，优先使用 [AsType]。As 与 [AsType] 等价，
+// 但它设置其 target 参数而非返回匹配的错误，且不要求其
+// target 参数实现 error。
 //
-// The tree consists of err itself, followed by the errors obtained by repeatedly
-// calling its Unwrap() error or Unwrap() []error method. When err wraps multiple
-// errors, As examines err followed by a depth-first traversal of its children.
+// 该树由 err 本身，以及通过重复调用其 Unwrap() error 或
+// Unwrap() []error 方法所得到的错误组成。当 err 包装多个错误时，
+// As 先检查 err，然后对其子节点进行深度优先遍历。
 //
-// An error matches target if the error's concrete value is assignable to the value
-// pointed to by target, or if the error has a method As(any) bool such that
-// As(target) returns true. In the latter case, the As method is responsible for
-// setting target.
+// 如果错误的具化值可赋值给 target 所指向的值，或者该错误
+// 具有一个方法 As(any) bool 使得 As(target) 返回 true，
+// 则该错误与 target 匹配。在后一种情况下，由 As 方法负责
+// 设置 target。
 //
-// An error type might provide an As method so it can be treated as if it were a
-// different error type.
+// 错误类型可以提供 As 方法，以使其可被视为
+// 另一种错误类型。
 //
-// As panics if target is not a non-nil pointer to either a type that implements
-// error, or to any interface type.
+// 如果 target 不是非 nil 指针，指向实现 error 的类型或
+// 任意接口类型，则 As 会 panic。
 func As(err error, target any) bool {
 	if err == nil {
 		return false
@@ -151,25 +151,25 @@ func as(err error, target any, targetVal reflectlite.Value, targetType reflectli
 
 var errorType = reflectlite.TypeOf((*error)(nil)).Elem()
 
-// AsType finds the first error in err's tree that matches the type E, and
-// if one is found, returns that error value and true. Otherwise, it
-// returns the zero value of E and false.
+// AsType 在 err 的树中查找第一个与类型 E 匹配的错误，如果找到，
+// 则返回该错误值以及 true。否则，返回 E 的零值
+// 以及 false。
 //
-// The tree consists of err itself, followed by the errors obtained by
-// repeatedly calling its Unwrap() error or Unwrap() []error method. When
-// err wraps multiple errors, AsType examines err followed by a
-// depth-first traversal of its children.
+// 该树由 err 本身，以及通过重复调用其 Unwrap() error 或
+// Unwrap() []error 方法所得到的错误组成。当 err 包装多个
+// 错误时，AsType 先检查 err，然后对其子节点
+// 进行深度优先遍历。
 //
-// An error err matches the type E if the type assertion err.(E) holds,
-// or if the error has a method As(any) bool such that err.As(target)
-// returns true when target is a non-nil *E. In the latter case, the As
-// method is responsible for setting target.
+// 如果类型断言 err.(E) 成立，或者该错误具有一个方法
+// As(any) bool 使得当 target 为非 nil 的 *E 时
+// err.As(target) 返回 true，则错误 err 与类型 E 匹配。
+// 在后一种情况下，由 As 方法负责设置 target。
 func AsType[E error](err error) (E, bool) {
 	if err == nil {
 		var zero E
 		return zero, false
 	}
-	var pe *E // lazily initialized
+	var pe *E // 惰性初始化
 	return asType(err, &pe)
 }
 
