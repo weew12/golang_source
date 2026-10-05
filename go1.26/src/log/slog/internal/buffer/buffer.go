@@ -2,18 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package buffer provides a pool-allocated byte buffer.
+// Package buffer 提供一个由池分配的字节缓冲区。
 package buffer
 
 import "sync"
 
-// Buffer is a byte buffer.
+// Buffer 是一个字节缓冲区。
 //
-// This implementation is adapted from the unexported type buffer
-// in go/src/fmt/print.go.
+// 此实现改编自 go/src/fmt/print.go 中未导出的类型 buffer。
 type Buffer []byte
 
-// Having an initial size gives a dramatic speedup.
+// 设置初始大小可以带来显著的提速。
 var bufPool = sync.Pool{
 	New: func() any {
 		b := make([]byte, 0, 1024)
@@ -26,7 +25,7 @@ func New() *Buffer {
 }
 
 func (b *Buffer) Free() {
-	// To reduce peak allocation, return only smaller buffers to the pool.
+	// 为减少峰值分配，只将较小的缓冲区归还到池中。
 	const maxBufferSize = 16 << 10
 	if cap(*b) <= maxBufferSize {
 		*b = (*b)[:0]

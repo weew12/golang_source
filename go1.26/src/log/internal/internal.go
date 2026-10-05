@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package internal contains definitions used by both log and log/slog.
+// Package internal 包含 log 和 log/slog 两者都会使用的定义。
 package internal
 
-// DefaultOutput holds a function which calls the default log.Logger's
-// output function.
-// It allows slog.defaultHandler to call into an unexported function of
-// the log package.
+// DefaultOutput 保存一个函数，该函数会调用默认 log.Logger 的
+// 输出函数。
+// 它允许 slog.defaultHandler 调用 log 包中未导出的函数。
 var DefaultOutput func(pc uintptr, data []byte) error

@@ -11,8 +11,8 @@ import (
 	"net"
 )
 
-// unixSyslog opens a connection to the syslog daemon running on the
-// local machine using a Unix domain socket.
+// unixSyslog 使用 Unix 域套接字打开一条到本地机器上运行的
+// syslog 守护进程的连接。
 
 func unixSyslog() (conn serverConn, err error) {
 	logTypes := []string{"unixgram", "unix"}

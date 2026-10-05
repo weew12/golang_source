@@ -3,299 +3,299 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package slog provides structured logging,
-in which log records include a message,
-a severity level, and various other attributes
-expressed as key-value pairs.
+Package slog 提供结构化日志，
+其中日志记录包含一条消息、
+一个严重级别，以及以键值对形式
+表达的各种其他属性。
 
-It defines a type, [Logger],
-which provides several methods (such as [Logger.Info] and [Logger.Error])
-for reporting events of interest.
+它定义了一个类型 [Logger]，
+该类型提供了若干方法（例如 [Logger.Info] 和 [Logger.Error]）
+用于报告关注的事件。
 
-Each Logger is associated with a [Handler].
-A Logger output method creates a [Record] from the method arguments
-and passes it to the Handler, which decides how to handle it.
-There is a default Logger accessible through top-level functions
-(such as [Info] and [Error]) that call the corresponding Logger methods.
+每个 Logger 都与一个 [Handler] 相关联。
+Logger 的输出方法会根据方法参数创建一个 [Record]，
+并将其传递给 Handler，由后者决定如何处理它。
+通过顶层函数（例如 [Info] 和 [Error]）可以访问一个默认的 Logger，
+这些顶层函数会调用相应的 Logger 方法。
 
-A log record consists of a time, a level, a message, and a set of key-value
-pairs, where the keys are strings and the values may be of any type.
-As an example,
+一条日志记录由时间、级别、消息以及一组键值对组成，
+其中键是字符串，值可以是任意类型。
+例如，
 
 	slog.Info("hello", "count", 3)
 
-creates a record containing the time of the call,
-a level of Info, the message "hello", and a single
-pair with key "count" and value 3.
+会创建一条记录，其中包含调用时的时间、
+Info 级别、消息 "hello"，以及一个
+键为 "count"、值为 3 的键值对。
 
-The [Info] top-level function calls the [Logger.Info] method on the default Logger.
-In addition to [Logger.Info], there are methods for Debug, Warn and Error levels.
-Besides these convenience methods for common levels,
-there is also a [Logger.Log] method which takes the level as an argument.
-Each of these methods has a corresponding top-level function that uses the
-default logger.
+顶层函数 [Info] 会调用默认 Logger 上的 [Logger.Info] 方法。
+除了 [Logger.Info] 之外，还有用于 Debug、Warn 和 Error 级别的方法。
+除了这些用于常见级别的便捷方法之外，
+还有一个 [Logger.Log] 方法，它将级别作为参数。
+上述每个方法都有一个对应的、使用默认 logger 的顶层函数。
 
-The default handler formats the log record's message, time, level, and attributes
-as a string and passes it to the [log] package.
+默认 handler 会将日志记录的消息、时间、级别和属性格式化为
+一个字符串，并将其传递给 [log] 包。
 
 	2022/11/08 15:28:26 INFO hello count=3
 
-For more control over the output format, create a logger with a different handler.
-This statement uses [New] to create a new logger with a [TextHandler]
-that writes structured records in text form to standard error:
+若要对输出格式进行更多控制，可以创建一个使用不同 handler 的 logger。
+下面的语句使用 [New] 创建一个带有 [TextHandler] 的新 logger，
+该 handler 会将结构化记录以文本形式写入标准错误：
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
 
-[TextHandler] output is a sequence of key=value pairs, easily and unambiguously
-parsed by machine. This statement:
+[TextHandler] 的输出是一系列 key=value 键值对，便于机器轻松且无歧义地
+解析。下面的语句：
 
 	logger.Info("hello", "count", 3)
 
-produces this output:
+会产生如下输出：
 
 	time=2022-11-08T15:28:26.000-05:00 level=INFO msg=hello count=3
 
-The package also provides [JSONHandler], whose output is line-delimited JSON:
+该包还提供了 [JSONHandler]，其输出是以行分隔的 JSON：
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	logger.Info("hello", "count", 3)
 
-produces this output:
+会产生如下输出：
 
 	{"time":"2022-11-08T15:28:26.000000000-05:00","level":"INFO","msg":"hello","count":3}
 
-Both [TextHandler] and [JSONHandler] can be configured with [HandlerOptions].
-There are options for setting the minimum level (see Levels, below),
-displaying the source file and line of the log call, and
-modifying attributes before they are logged.
+[TextHandler] 和 [JSONHandler] 都可以使用 [HandlerOptions] 进行配置。
+其中包含用于设置最低级别（参见下文“级别”一节）、
+显示日志调用的源文件和行号，以及
+在记录属性前修改属性的选项。
 
-Setting a logger as the default with
+使用以下方式将某个 logger 设为默认：
 
 	slog.SetDefault(logger)
 
-will cause the top-level functions like [Info] to use it.
-[SetDefault] also updates the default logger used by the [log] package,
-so that existing applications that use [log.Printf] and related functions
-will send log records to the logger's handler without needing to be rewritten.
+会使诸如 [Info] 之类的顶层函数使用它。
+[SetDefault] 还会更新 [log] 包所使用的默认 logger，
+这样，使用 [log.Printf] 及相关函数的现有应用程序
+无需重写即可将日志记录发送到该 logger 的 handler。
 
-Some attributes are common to many log calls.
-For example, you may wish to include the URL or trace identifier of a server request
-with all log events arising from the request.
-Rather than repeat the attribute with every log call, you can use [Logger.With]
-to construct a new Logger containing the attributes:
+有些属性在许多日志调用中都很常见。
+例如，你可能希望将某个服务器请求的 URL 或跟踪标识符
+包含在由该请求产生的所有日志事件中。
+与其在每次日志调用中重复该属性，你可以使用 [Logger.With]
+构造一个包含这些属性的新 Logger：
 
 	logger2 := logger.With("url", r.URL)
 
-The arguments to With are the same key-value pairs used in [Logger.Info].
-The result is a new Logger with the same handler as the original, but additional
-attributes that will appear in the output of every call.
+With 的参数与 [Logger.Info] 中使用的键值对相同。
+其结果是一个新 Logger，它与原 Logger 具有相同的 handler，但会额外
+包含将出现在每次调用输出中的属性。
 
-# Levels
+# 级别
 
-A [Level] is an integer representing the importance or severity of a log event.
-The higher the level, the more severe the event.
-This package defines constants for the most common levels,
-but any int can be used as a level.
+[Level] 是一个整数，表示日志事件的重要性或严重程度。
+级别越高，事件越严重。
+该包为最常见的级别定义了常量，
+但任何 int 都可以用作级别。
 
-In an application, you may wish to log messages only at a certain level or greater.
-One common configuration is to log messages at Info or higher levels,
-suppressing debug logging until it is needed.
-The built-in handlers can be configured with the minimum level to output by
-setting [HandlerOptions.Level].
-The program's `main` function typically does this.
-The default value is LevelInfo.
+在应用程序中，你可能希望只记录达到某个级别或更高级别的消息。
+一种常见的配置是记录 Info 或更高级别的消息，
+在需要之前抑制 debug 日志。
+内置 handler 可以通过设置 [HandlerOptions.Level] 来配置要输出的最低级别。
+程序的 `main` 函数通常会这样做。
+默认值是 LevelInfo。
 
-Setting the [HandlerOptions.Level] field to a [Level] value
-fixes the handler's minimum level throughout its lifetime.
-Setting it to a [LevelVar] allows the level to be varied dynamically.
-A LevelVar holds a Level and is safe to read or write from multiple
-goroutines.
-To vary the level dynamically for an entire program, first initialize
-a global LevelVar:
+将 [HandlerOptions.Level] 字段设置为一个 [Level] 值，
+会在 handler 的整个生命周期内固定其最低级别。
+将其设置为一个 [LevelVar] 则允许动态地改变级别。
+LevelVar 持有一个 Level，并且可以安全地被多个 goroutine
+读写。
+若要为整个程序动态改变级别，首先初始化
+一个全局 LevelVar：
 
 	var programLevel = new(slog.LevelVar) // Info by default
 
-Then use the LevelVar to construct a handler, and make it the default:
+然后使用该 LevelVar 构造一个 handler，并将其设为默认：
 
 	h := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
 	slog.SetDefault(slog.New(h))
 
-Now the program can change its logging level with a single statement:
+现在，程序只需一条语句即可更改其日志级别：
 
 	programLevel.Set(slog.LevelDebug)
 
-# Groups
+# 分组
 
-Attributes can be collected into groups.
-A group has a name that is used to qualify the names of its attributes.
-How this qualification is displayed depends on the handler.
-[TextHandler] separates the group and attribute names with a dot.
-[JSONHandler] treats each group as a separate JSON object, with the group name as the key.
+属性可以被收集到分组中。
+分组有一个名称，用于限定其属性名称。
+这种限定如何显示取决于 handler。
+[TextHandler] 用一个点分隔分组名称和属性名称。
+[JSONHandler] 将每个分组视为一个单独的 JSON 对象，以分组名称作为键。
 
-Use [Group] to create a Group attribute from a name and a list of key-value pairs:
+使用 [Group] 根据名称和一组键值对创建一个 Group 属性：
 
 	slog.Group("request",
 	    "method", r.Method,
 	    "url", r.URL)
 
-TextHandler would display this group as
+TextHandler 会将该分组显示为
 
 	request.method=GET request.url=http://example.com
 
-JSONHandler would display it as
+JSONHandler 会将其显示为
 
 	"request":{"method":"GET","url":"http://example.com"}
 
-Use [Logger.WithGroup] to qualify all of a Logger's output
-with a group name. Calling WithGroup on a Logger results in a
-new Logger with the same Handler as the original, but with all
-its attributes qualified by the group name.
+使用 [Logger.WithGroup] 可以用一个分组名称限定某个 Logger 的所有输出。
+对 Logger 调用 WithGroup 会得到一个新的 Logger，它与原 Logger 具有相同的 Handler，但
+其所有属性都由该分组名称限定。
 
-This can help prevent duplicate attribute keys in large systems,
-where subsystems might use the same keys.
-Pass each subsystem a different Logger with its own group name so that
-potential duplicates are qualified:
+在大型系统中，这有助于防止属性键重复，
+因为各个子系统可能会使用相同的键。
+为每个子系统传入一个带有各自分组名称的不同 Logger，以便
+潜在的重复项得到限定：
 
 	logger := slog.Default().With("id", systemID)
 	parserLogger := logger.WithGroup("parser")
 	parseInput(input, parserLogger)
 
-When parseInput logs with parserLogger, its keys will be qualified with "parser",
-so even if it uses the common key "id", the log line will have distinct keys.
+当 parseInput 使用 parserLogger 记录日志时，其键将由 "parser" 限定，
+因此即使它使用了常见的键 "id"，日志行也会具有不同的键。
 
-# Contexts
+# 上下文
 
-Some handlers may wish to include information from the [context.Context] that is
-available at the call site. One example of such information
-is the identifier for the current span when tracing is enabled.
+有些 handler 可能希望包含调用点处可用的 [context.Context] 中的信息。
+这类信息的一个例子
+是在启用跟踪时当前 span 的标识符。
 
-The [Logger.Log] and [Logger.LogAttrs] methods take a context as a first
-argument, as do their corresponding top-level functions.
+[Logger.Log] 和 [Logger.LogAttrs] 方法将 context 作为第一个
+参数，它们对应的顶层函数也是如此。
 
-Although the convenience methods on Logger (Info and so on) and the
-corresponding top-level functions do not take a context, the alternatives ending
-in "Context" do. For example,
+尽管 Logger 上的便捷方法（Info 等）以及
+对应的顶层函数不接受 context，但以 "Context" 结尾的替代方法接受。
+例如，
 
 	slog.InfoContext(ctx, "message")
 
-It is recommended to pass a context to an output method if one is available.
+如果可用，建议向输出方法传入一个 context。
 
-# Attrs and Values
+# Attr 与 Value
 
-An [Attr] is a key-value pair. The Logger output methods accept Attrs as well as
-alternating keys and values. The statement
+[Attr] 是一个键值对。Logger 的输出方法既接受 Attr，也接受
+交替出现的键和值。语句
 
 	slog.Info("hello", slog.Int("count", 3))
 
-behaves the same as
+的行为与
 
 	slog.Info("hello", "count", 3)
 
-There are convenience constructors for [Attr] such as [Int], [String], and [Bool]
-for common types, as well as the function [Any] for constructing Attrs of any
-type.
+相同。
 
-The value part of an Attr is a type called [Value].
-Like an [any], a Value can hold any Go value,
-but it can represent typical values, including all numbers and strings,
-without an allocation.
+对于常见类型，有 [Attr] 的便捷构造函数，例如 [Int]、[String] 和 [Bool]，
+还有用于构造任意类型 Attr 的函数 [Any]。
 
-For the most efficient log output, use [Logger.LogAttrs].
-It is similar to [Logger.Log] but accepts only Attrs, not alternating
-keys and values; this allows it, too, to avoid allocation.
+Attr 的值部分是一个称为 [Value] 的类型。
+与 [any] 类似，Value 可以保存任意 Go 值，
+但它可以表示典型值（包括所有数字和字符串），
+而无需分配内存。
 
-The call
+为了获得最高效的日志输出，请使用 [Logger.LogAttrs]。
+它类似于 [Logger.Log]，但只接受 Attr，而不接受交替的
+键和值；这使它也能避免分配内存。
+
+调用
 
 	logger.LogAttrs(ctx, slog.LevelInfo, "hello", slog.Int("count", 3))
 
-is the most efficient way to achieve the same output as
+是实现与
 
 	slog.InfoContext(ctx, "hello", "count", 3)
 
-# Customizing a type's logging behavior
+相同输出的最高效方式。
 
-If a type implements the [LogValuer] interface, the [Value] returned from its LogValue
-method is used for logging. You can use this to control how values of the type
-appear in logs. For example, you can redact secret information like passwords,
-or gather a struct's fields in a Group. See the examples under [LogValuer] for
-details.
+# 自定义类型的日志行为
 
-A LogValue method may return a Value that itself implements [LogValuer]. The [Value.Resolve]
-method handles these cases carefully, avoiding infinite loops and unbounded recursion.
-Handler authors and others may wish to use [Value.Resolve] instead of calling LogValue directly.
+如果某个类型实现了 [LogValuer] 接口，则其 LogValue
+方法返回的 [Value] 会被用于日志记录。你可以借此控制该类型的值
+在日志中的呈现方式。例如，你可以对密码等机密信息进行脱敏，
+或将结构体的字段收集到一个 Group 中。有关详细信息，
+请参见 [LogValuer] 下的示例。
 
-# Wrapping output methods
+LogValue 方法可能返回一个本身实现了 [LogValuer] 的 Value。[Value.Resolve]
+方法会谨慎处理这些情况，避免无限循环和无界递归。
+Handler 作者及其他人员可能希望使用 [Value.Resolve]，而不是直接调用 LogValue。
 
-The logger functions use reflection over the call stack to find the file name
-and line number of the logging call within the application. This can produce
-incorrect source information for functions that wrap slog. For instance, if you
-define this function in file mylog.go:
+# 包装输出方法
+
+logger 函数会对调用栈进行反射，以查找应用程序内日志调用的
+文件名和行号。对于包装了 slog 的函数，这可能会产生
+错误的源信息。例如，如果你
+在文件 mylog.go 中定义了如下函数：
 
 	func Infof(logger *slog.Logger, format string, args ...any) {
 	    logger.Info(fmt.Sprintf(format, args...))
 	}
 
-and you call it like this in main.go:
+并在 main.go 中像这样调用它：
 
 	Infof(slog.Default(), "hello, %s", "world")
 
-then slog will report the source file as mylog.go, not main.go.
+那么 slog 会将源文件报告为 mylog.go，而不是 main.go。
 
-A correct implementation of Infof will obtain the source location
-(pc) and pass it to NewRecord.
-The Infof function in the package-level example called "wrapping"
-demonstrates how to do this.
+Infof 的正确实现会获取源位置
+(pc) 并将其传递给 NewRecord。
+包级示例中名为 "wrapping" 的
+Infof 函数演示了如何做到这一点。
 
-# Working with Records
+# 使用 Record
 
-Sometimes a Handler will need to modify a Record
-before passing it on to another Handler or backend.
-A Record contains a mixture of simple public fields (e.g. Time, Level, Message)
-and hidden fields that refer to state (such as attributes) indirectly. This
-means that modifying a simple copy of a Record (e.g. by calling
-[Record.Add] or [Record.AddAttrs] to add attributes)
-may have unexpected effects on the original.
-Before modifying a Record, use [Record.Clone] to
-create a copy that shares no state with the original,
-or create a new Record with [NewRecord]
-and build up its Attrs by traversing the old ones with [Record.Attrs].
+有时 Handler 需要在将 Record 传递给另一个 Handler 或后端
+之前对其进行修改。
+Record 包含简单公有字段（例如 Time、Level、Message）和
+间接引用状态（例如属性）的隐藏字段的混合体。这
+意味着修改 Record 的一个简单副本（例如通过调用
+[Record.Add] 或 [Record.AddAttrs] 来添加属性）
+可能会对原始对象产生意外影响。
+在修改 Record 之前，请使用 [Record.Clone]
+创建一个与原对象不共享状态的副本，
+或使用 [NewRecord] 创建一个新的 Record，
+并通过 [Record.Attrs] 遍历旧的 Attrs 来构建其 Attrs。
 
-# Performance considerations
+# 性能注意事项
 
-If profiling your application demonstrates that logging is taking significant time,
-the following suggestions may help.
+如果对应用程序进行性能分析表明日志记录占用了大量时间，
+以下建议可能会有所帮助。
 
-If many log lines have a common attribute, use [Logger.With] to create a Logger with
-that attribute. The built-in handlers will format that attribute only once, at the
-call to [Logger.With]. The [Handler] interface is designed to allow that optimization,
-and a well-written Handler should take advantage of it.
+如果许多日志行都有一个共同的属性，请使用 [Logger.With] 创建一个带有
+该属性的 Logger。内置 handler 只会在调用 [Logger.With] 时
+对该属性格式化一次。[Handler] 接口的设计允许进行这种优化，
+编写良好的 Handler 应当利用它。
 
-The arguments to a log call are always evaluated, even if the log event is discarded.
-If possible, defer computation so that it happens only if the value is actually logged.
-For example, consider the call
+日志调用的参数总是会被求值，即使该日志事件被丢弃。
+如果可能，请推迟计算，使其仅在该值确实被记录时才发生。
+例如，考虑以下调用
 
 	slog.Info("starting request", "url", r.URL.String())  // may compute String unnecessarily
 
-The URL.String method will be called even if the logger discards Info-level events.
-Instead, pass the URL directly:
+即使 logger 丢弃 Info 级别的事件，URL.String 方法仍会被调用。
+相反，请直接传入 URL：
 
 	slog.Info("starting request", "url", &r.URL) // calls URL.String only if needed
 
-The built-in [TextHandler] will call its String method, but only
-if the log event is enabled.
-Avoiding the call to String also preserves the structure of the underlying value.
-For example [JSONHandler] emits the components of the parsed URL as a JSON object.
-If you want to avoid eagerly paying the cost of the String call
-without causing the handler to potentially inspect the structure of the value,
-wrap the value in a fmt.Stringer implementation that hides its Marshal methods.
+内置的 [TextHandler] 会调用其 String 方法，但仅
+在该日志事件启用时才会调用。
+避免调用 String 还能保留底层值的结构。
+例如 [JSONHandler] 会将解析后 URL 的各组成部分作为 JSON 对象输出。
+如果你想避免过早承担 String 调用的开销，
+而又不让 handler 可能检查值的结构，
+请将该值包装在一个隐藏其 Marshal 方法的 fmt.Stringer 实现中。
 
-You can also use the [LogValuer] interface to avoid unnecessary work in disabled log
-calls. Say you need to log some expensive value:
+你还可以使用 [LogValuer] 接口来避免在未启用的日志
+调用中进行不必要的工作。假设你需要记录某个开销很大的值：
 
 	slog.Debug("frobbing", "value", computeExpensiveValue(arg))
 
-Even if this line is disabled, computeExpensiveValue will be called.
-To avoid that, define a type implementing LogValuer:
+即使这一行被禁用，computeExpensiveValue 仍会被调用。
+为避免这种情况，请定义一个实现 LogValuer 的类型：
 
 	type expensive struct { arg int }
 
@@ -303,20 +303,20 @@ To avoid that, define a type implementing LogValuer:
 	    return slog.AnyValue(computeExpensiveValue(e.arg))
 	}
 
-Then use a value of that type in log calls:
+然后在日志调用中使用该类型的值：
 
 	slog.Debug("frobbing", "value", expensive{arg})
 
-Now computeExpensiveValue will only be called when the line is enabled.
+现在，computeExpensiveValue 只会在该行启用时才被调用。
 
-The built-in handlers acquire a lock before calling [io.Writer.Write]
-to ensure that exactly one [Record] is written at a time in its entirety.
-Although each log record has a timestamp,
-the built-in handlers do not use that time to sort the written records.
-User-defined handlers are responsible for their own locking and sorting.
+内置 handler 在调用 [io.Writer.Write] 之前会先获取锁，
+以确保一次恰好完整地写入一个 [Record]。
+尽管每条日志记录都有时间戳，
+但内置 handler 不会使用该时间对写入的记录进行排序。
+用户自定义的 handler 需自行负责加锁和排序。
 
-# Writing a handler
+# 编写 handler
 
-For a guide to writing a custom handler, see https://golang.org/s/slog-handler-guide.
+有关编写自定义 handler 的指南，请参见 https://golang.org/s/slog-handler-guide。
 */
 package slog

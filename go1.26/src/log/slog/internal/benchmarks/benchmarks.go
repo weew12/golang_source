@@ -2,25 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package benchmarks contains benchmarks for slog.
+// Package benchmarks 包含 slog 的基准测试。
 //
-// These benchmarks are loosely based on github.com/uber-go/zap/benchmarks.
-// They have the following desirable properties:
+// 这些基准测试大致基于 github.com/uber-go/zap/benchmarks。
+// 它们具有以下期望的特性：
 //
-//   - They test a complete log event, from the user's call to its return.
+//   - 它们测试一个完整的日志事件，从用户的调用到其返回。
 //
-//   - The benchmarked code is run concurrently in multiple goroutines, to
-//     better simulate a real server (the most common environment for structured
-//     logs).
+//   - 被基准测试的代码在多个 goroutine 中并发运行，以
+//     更好地模拟真实服务器（结构化日志最常见的运行环境）。
 //
-//   - Some handlers are optimistic versions of real handlers, doing real-world
-//     tasks as fast as possible (and sometimes faster, in that an
-//     implementation may not be concurrency-safe). This gives us an upper bound
-//     on handler performance, so we can evaluate the (handler-independent) core
-//     activity of the package in an end-to-end context without concern that a
-//     slow handler implementation is skewing the results.
+//   - 一些 handler 是真实 handler 的乐观版本，尽可能快地完成真实世界
+//     的任务（有时更快，因为其实现可能不是并发安全的）。这为我们提供了
+//     handler 性能的上界，因此我们可以在端到端环境中评估包中
+//     （与 handler 无关的）核心活动，而不必担心缓慢的 handler 实现
+//     会使结果产生偏差。
 //
-//   - We also test the built-in handlers, for comparison.
+//   - 我们还测试了内置的 handler，以便进行比较。
 package benchmarks
 
 import (

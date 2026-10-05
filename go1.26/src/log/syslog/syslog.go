@@ -17,20 +17,20 @@ import (
 	"time"
 )
 
-// The Priority is a combination of the syslog facility and
-// severity. For example, [LOG_ALERT] | [LOG_FTP] sends an alert severity
-// message from the FTP facility. The default severity is [LOG_EMERG];
-// the default facility is [LOG_KERN].
+// Priority 是 syslog 设施（facility）和严重级别（severity）的组合。
+// 例如，[LOG_ALERT] | [LOG_FTP] 从 FTP 设施发送一条 alert 严重级别的
+// 消息。默认严重级别是 [LOG_EMERG]；
+// 默认设施是 [LOG_KERN]。
 type Priority int
 
 const severityMask = 0x07
 const facilityMask = 0xf8
 
 const (
-	// Severity.
+	// 严重级别。
 
-	// From /usr/include/sys/syslog.h.
-	// These are the same on Linux, BSD, and OS X.
+	// 来自 /usr/include/sys/syslog.h。
+	// 这些在 Linux、BSD 和 OS X 上是相同的。
 	LOG_EMERG Priority = iota
 	LOG_ALERT
 	LOG_CRIT
@@ -42,10 +42,10 @@ const (
 )
 
 const (
-	// Facility.
+	// 设施。
 
-	// From /usr/include/sys/syslog.h.
-	// These are the same up to LOG_FTP on Linux, BSD, and OS X.
+	// 来自 /usr/include/sys/syslog.h。
+	// 在 Linux、BSD 和 OS X 上，直到 LOG_FTP 都是相同的。
 	LOG_KERN Priority = iota << 3
 	LOG_USER
 	LOG_MAIL
@@ -58,10 +58,10 @@ const (
 	LOG_CRON
 	LOG_AUTHPRIV
 	LOG_FTP
-	_ // unused
-	_ // unused
-	_ // unused
-	_ // unused
+	_ // 未使用
+	_ // 未使用
+	_ // 未使用
+	_ // 未使用
 	LOG_LOCAL0
 	LOG_LOCAL1
 	LOG_LOCAL2
@@ -72,7 +72,7 @@ const (
 	LOG_LOCAL7
 )
 
-// A Writer is a connection to a syslog server.
+// Writer 是与 syslog 服务器的连接。
 type Writer struct {
 	priority Priority
 	tag      string
@@ -80,16 +80,16 @@ type Writer struct {
 	network  string
 	raddr    string
 
-	mu   sync.Mutex // guards conn
+	mu   sync.Mutex // 保护 conn
 	conn serverConn
 }
 
-// This interface and the separate syslog_unix.go file exist for
-// Solaris support as implemented by gccgo. On Solaris you cannot
-// simply open a TCP connection to the syslog daemon. The gccgo
-// sources have a syslog_solaris.go file that implements unixSyslog to
-// return a type that satisfies this interface and simply calls the C
-// library syslog function.
+// 这个接口以及单独的 syslog_unix.go 文件是为了支持
+// gccgo 所实现的 Solaris。在 Solaris 上，你不能
+// 简单地打开一条到 syslog 守护进程的 TCP 连接。gccgo
+// 源码中有一个 syslog_solaris.go 文件，它实现了 unixSyslog，
+// 返回一个满足此接口的类型，并简单地调用 C
+// 库的 syslog 函数。
 type serverConn interface {
 	writeString(p Priority, hostname, tag, s, nl string) error
 	close() error
@@ -100,21 +100,20 @@ type netConn struct {
 	conn  net.Conn
 }
 
-// New establishes a new connection to the system log daemon. Each
-// write to the returned writer sends a log message with the given
-// priority (a combination of the syslog facility and severity) and
-// prefix tag. If tag is empty, the [os.Args][0] is used.
+// New 建立一条到系统日志守护进程的新连接。对返回的 writer 的
+// 每次写入都会使用给定的优先级（syslog 设施和严重级别的组合）
+// 和前缀 tag 发送一条日志消息。如果 tag 为空，
+// 则使用 [os.Args][0]。
 func New(priority Priority, tag string) (*Writer, error) {
 	return Dial("", "", priority, tag)
 }
 
-// Dial establishes a connection to a log daemon by connecting to
-// address raddr on the specified network. Each write to the returned
-// writer sends a log message with the facility and severity
-// (from priority) and tag. If tag is empty, the [os.Args][0] is used.
-// If network is empty, Dial will connect to the local syslog server.
-// Otherwise, see the documentation for net.Dial for valid values
-// of network and raddr.
+// Dial 通过连接到指定网络上的地址 raddr 来建立一条到日志守护进程的
+// 连接。对返回的 writer 的每次写入都会使用设施和严重级别
+// （来自 priority）以及 tag 发送一条日志消息。如果 tag 为空，
+// 则使用 [os.Args][0]。如果 network 为空，Dial 将连接到本地 syslog
+// 服务器。否则，有关 network 和 raddr 的有效值，
+// 请参阅 net.Dial 的文档。
 func Dial(network, raddr string, priority Priority, tag string) (*Writer, error) {
 	if priority < 0 || priority > LOG_LOCAL7|LOG_DEBUG {
 		return nil, errors.New("log/syslog: invalid priority")
@@ -143,11 +142,11 @@ func Dial(network, raddr string, priority Priority, tag string) (*Writer, error)
 	return w, nil
 }
 
-// connect makes a connection to the syslog server.
-// It must be called with w.mu held.
+// connect 建立一条到 syslog 服务器的连接。
+// 调用它时必须持有 w.mu。
 func (w *Writer) connect() (err error) {
 	if w.conn != nil {
-		// ignore err from close, it makes sense to continue anyway
+		// 忽略 close 返回的 err，无论如何继续下去都说得通
 		w.conn.close()
 		w.conn = nil
 	}
@@ -173,12 +172,12 @@ func (w *Writer) connect() (err error) {
 	return
 }
 
-// Write sends a log message to the syslog daemon.
+// Write 向 syslog 守护进程发送一条日志消息。
 func (w *Writer) Write(b []byte) (int, error) {
 	return w.writeAndRetry(w.priority, string(b))
 }
 
-// Close closes a connection to the syslog daemon.
+// Close 关闭到 syslog 守护进程的连接。
 func (w *Writer) Close() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -191,57 +190,57 @@ func (w *Writer) Close() error {
 	return nil
 }
 
-// Emerg logs a message with severity [LOG_EMERG], ignoring the severity
-// passed to New.
+// Emerg 以严重级别 [LOG_EMERG] 记录一条消息，忽略
+// 传给 New 的严重级别。
 func (w *Writer) Emerg(m string) error {
 	_, err := w.writeAndRetry(LOG_EMERG, m)
 	return err
 }
 
-// Alert logs a message with severity [LOG_ALERT], ignoring the severity
-// passed to New.
+// Alert 以严重级别 [LOG_ALERT] 记录一条消息，忽略
+// 传给 New 的严重级别。
 func (w *Writer) Alert(m string) error {
 	_, err := w.writeAndRetry(LOG_ALERT, m)
 	return err
 }
 
-// Crit logs a message with severity [LOG_CRIT], ignoring the severity
-// passed to New.
+// Crit 以严重级别 [LOG_CRIT] 记录一条消息，忽略
+// 传给 New 的严重级别。
 func (w *Writer) Crit(m string) error {
 	_, err := w.writeAndRetry(LOG_CRIT, m)
 	return err
 }
 
-// Err logs a message with severity [LOG_ERR], ignoring the severity
-// passed to New.
+// Err 以严重级别 [LOG_ERR] 记录一条消息，忽略
+// 传给 New 的严重级别。
 func (w *Writer) Err(m string) error {
 	_, err := w.writeAndRetry(LOG_ERR, m)
 	return err
 }
 
-// Warning logs a message with severity [LOG_WARNING], ignoring the
-// severity passed to New.
+// Warning 以严重级别 [LOG_WARNING] 记录一条消息，忽略
+// 传给 New 的严重级别。
 func (w *Writer) Warning(m string) error {
 	_, err := w.writeAndRetry(LOG_WARNING, m)
 	return err
 }
 
-// Notice logs a message with severity [LOG_NOTICE], ignoring the
-// severity passed to New.
+// Notice 以严重级别 [LOG_NOTICE] 记录一条消息，忽略
+// 传给 New 的严重级别。
 func (w *Writer) Notice(m string) error {
 	_, err := w.writeAndRetry(LOG_NOTICE, m)
 	return err
 }
 
-// Info logs a message with severity [LOG_INFO], ignoring the severity
-// passed to New.
+// Info 以严重级别 [LOG_INFO] 记录一条消息，忽略
+// 传给 New 的严重级别。
 func (w *Writer) Info(m string) error {
 	_, err := w.writeAndRetry(LOG_INFO, m)
 	return err
 }
 
-// Debug logs a message with severity [LOG_DEBUG], ignoring the severity
-// passed to New.
+// Debug 以严重级别 [LOG_DEBUG] 记录一条消息，忽略
+// 传给 New 的严重级别。
 func (w *Writer) Debug(m string) error {
 	_, err := w.writeAndRetry(LOG_DEBUG, m)
 	return err
@@ -264,10 +263,10 @@ func (w *Writer) writeAndRetry(p Priority, s string) (int, error) {
 	return w.write(pr, s)
 }
 
-// write generates and writes a syslog formatted string. The
-// format is as follows: <PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
+// write 生成并写入一个 syslog 格式的字符串。
+// 格式如下：<PRI>TIMESTAMP HOSTNAME TAG[PID]: MSG
 func (w *Writer) write(p Priority, msg string) (int, error) {
-	// ensure it ends in a \n
+	// 确保它以 \n 结尾
 	nl := ""
 	if !strings.HasSuffix(msg, "\n") {
 		nl = "\n"
@@ -277,17 +276,16 @@ func (w *Writer) write(p Priority, msg string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	// Note: return the length of the input, not the number of
-	// bytes printed by Fprintf, because this must behave like
-	// an io.Writer.
+	// 注意：返回输入的长度，而不是 Fprintf 打印的字节数，
+	// 因为它必须像 io.Writer 那样行事。
 	return len(msg), nil
 }
 
 func (n *netConn) writeString(p Priority, hostname, tag, msg, nl string) error {
 	if n.local {
-		// Compared to the network form below, the changes are:
-		//	1. Use time.Stamp instead of time.RFC3339.
-		//	2. Drop the hostname field from the Fprintf.
+		// 与下面的网络形式相比，变化是：
+		//	1. 使用 time.Stamp 而非 time.RFC3339。
+		//	2. 从 Fprintf 中去掉 hostname 字段。
 		timestamp := time.Now().Format(time.Stamp)
 		_, err := fmt.Fprintf(n.conn, "<%d>%s %s[%d]: %s%s",
 			p, timestamp,
@@ -305,10 +303,9 @@ func (n *netConn) close() error {
 	return n.conn.Close()
 }
 
-// NewLogger creates a [log.Logger] whose output is written to the
-// system log service with the specified priority, a combination of
-// the syslog facility and severity. The logFlag argument is the flag
-// set passed through to [log.New] to create the Logger.
+// NewLogger 创建一个 [log.Logger]，其输出以指定的优先级
+// （syslog 设施和严重级别的组合）写入系统日志服务。
+// logFlag 参数是创建该 Logger 时传给 [log.New] 的标志集。
 func NewLogger(p Priority, logFlag int) (*log.Logger, error) {
 	s, err := New(p, "")
 	if err != nil {

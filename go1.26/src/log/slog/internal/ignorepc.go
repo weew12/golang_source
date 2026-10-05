@@ -4,6 +4,6 @@
 
 package internal
 
-// If IgnorePC is true, do not invoke runtime.Callers to get the pc.
-// This is solely for benchmarking the slowdown from runtime.Callers.
+// 如果 IgnorePC 为 true，则不调用 runtime.Callers 来获取 pc。
+// 这仅用于对 runtime.Callers 带来的性能下降进行基准测试。
 var IgnorePC = false

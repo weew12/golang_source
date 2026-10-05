@@ -9,16 +9,16 @@ import (
 	"errors"
 )
 
-// NewMultiHandler creates a [MultiHandler] with the given Handlers.
+// NewMultiHandler 使用给定的 Handler 创建一个 [MultiHandler]。
 func NewMultiHandler(handlers ...Handler) *MultiHandler {
 	h := make([]Handler, len(handlers))
 	copy(h, handlers)
 	return &MultiHandler{multi: h}
 }
 
-// MultiHandler is a [Handler] that invokes all the given Handlers.
-// Its Enabled method reports whether any of the handlers' Enabled methods return true.
-// Its Handle, WithAttrs and WithGroup methods call the corresponding method on each of the enabled handlers.
+// MultiHandler 是一个 [Handler]，它会调用所有给定的 Handler。
+// 它的 Enabled 方法报告是否有任何 handler 的 Enabled 方法返回 true。
+// 它的 Handle、WithAttrs 和 WithGroup 方法会在每个已启用的 handler 上调用相应的方法。
 type MultiHandler struct {
 	multi []Handler
 }

@@ -2,23 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package syslog provides a simple interface to the system log
-// service. It can send messages to the syslog daemon using UNIX
-// domain sockets, UDP or TCP.
+// Package syslog 为系统日志服务提供了一个简单的接口。
+// 它可以使用 UNIX 域套接字、UDP 或 TCP 向 syslog 守护进程
+// 发送消息。
 //
-// Only one call to Dial is necessary. On write failures,
-// the syslog client will attempt to reconnect to the server
-// and write again.
+// 只需调用一次 Dial。当写入失败时，
+// syslog 客户端会尝试重新连接服务器
+// 并再次写入。
 //
-// The syslog package is frozen and is not accepting new features.
-// Some external packages provide more functionality. See:
+// syslog 包已被冻结，不再接受新特性。
+// 一些外部包提供了更多功能。参见：
 //
 //	https://godoc.org/?q=syslog
 package syslog
 
-// BUG(brainman): This package is not implemented on Windows. As the
-// syslog package is frozen, Windows users are encouraged to
-// use a package outside of the standard library. For background,
-// see https://golang.org/issue/1108.
+// BUG(brainman): 本包未在 Windows 上实现。由于
+// syslog 包已被冻结，建议 Windows 用户
+// 使用标准库之外的包。背景信息
+// 参见 https://golang.org/issue/1108。
 
-// BUG(akumar): This package is not implemented on Plan 9.
+// BUG(akumar): 本包未在 Plan 9 上实现。

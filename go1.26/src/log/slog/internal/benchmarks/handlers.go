@@ -4,7 +4,7 @@
 
 package benchmarks
 
-// Handlers for benchmarking.
+// 用于基准测试的 Handler。
 
 import (
 	"context"
@@ -16,13 +16,11 @@ import (
 	"time"
 )
 
-// A fastTextHandler writes a Record to an io.Writer in a format similar to
-// slog.TextHandler, but without quoting or locking. It has a few other
-// performance-motivated shortcuts, like writing times as seconds since the
-// epoch instead of strings.
+// fastTextHandler 以类似于 slog.TextHandler 的格式将 Record 写入 io.Writer，
+// 但不进行引号处理或加锁。它还有一些出于性能考虑的捷径，
+// 例如将时间写为自 epoch 以来的秒数而不是字符串。
 //
-// It is intended to represent a high-performance Handler that synchronously
-// writes text (as opposed to binary).
+// 它旨在表示一种同步写入文本（而非二进制）的高性能 Handler。
 type fastTextHandler struct {
 	w io.Writer
 }
@@ -100,14 +98,13 @@ func (*fastTextHandler) WithGroup(string) slog.Handler {
 	panic("fastTextHandler: WithGroup unimplemented")
 }
 
-// An asyncHandler simulates a Handler that passes Records to a
-// background goroutine for processing.
-// Because sending to a channel can be expensive due to locking,
-// we simulate a lock-free queue by adding the Record to a ring buffer.
-// Omitting the locking makes this little more than a copy of the Record,
-// but that is a worthwhile thing to measure because Records are on the large
-// side. Since nothing actually reads from the ring buffer, it can handle an
-// arbitrary number of Records without either blocking or allocation.
+// asyncHandler 模拟一种将 Record 传递给后台 goroutine 进行处理的 Handler。
+// 由于向 channel 发送数据可能因加锁而代价高昂，
+// 我们通过将 Record 添加到环形缓冲区来模拟无锁队列。
+// 省略加锁使其几乎只是 Record 的一次拷贝，
+// 但这是值得测量的，因为 Record 偏大。
+// 由于实际上没有任何东西从环形缓冲区读取，因此它可以处理任意数量的
+// Record，既不会阻塞也不会分配内存。
 type asyncHandler struct {
 	ringBuffer [100]slog.Record
 	next       int
@@ -133,7 +130,7 @@ func (*asyncHandler) WithGroup(string) slog.Handler {
 	panic("asyncHandler: WithGroup unimplemented")
 }
 
-// A disabledHandler's Enabled method always returns false.
+// disabledHandler 的 Enabled 方法始终返回 false。
 type disabledHandler struct{}
 
 func (disabledHandler) Enabled(context.Context, slog.Level) bool  { return false }
