@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package structs defines marker types that can be used as struct fields
-// to modify the properties of a struct.
+// structs 包定义了可用作结构体字段的标记类型，
+// 以修改结构体的属性。
 //
-// By convention, a marker type should be used as the type of a field
-// named "_", placed at the beginning of a struct type definition.
+// 按照约定，标记类型应用作名为 "_" 的字段的类型，
+// 并放置在结构体类型定义的起始处。
 package structs

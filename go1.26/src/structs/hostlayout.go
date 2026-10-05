@@ -4,27 +4,24 @@
 
 package structs
 
-// HostLayout marks a struct as using host memory layout. A struct with a
-// field of type HostLayout will be laid out in memory according to host
-// expectations, generally following the host's C ABI.
+// HostLayout 将结构体标记为使用宿主内存布局。带有 HostLayout 类型
+// 字段的结构体将按照宿主的预期进行内存布局，通常遵循宿主的 C ABI。
 //
-// HostLayout does not affect layout within any other struct-typed fields
-// of the containing struct, nor does it affect layout of structs
-// containing the struct marked as host layout.
+// HostLayout 不会影响包含结构体中任何其他结构体类型字段内部的布局，
+// 也不会影响包含被标记为宿主布局的结构体的那些结构体的布局。
 //
-// By convention, HostLayout should be used as the type of a field
-// named "_", placed at the beginning of the struct type definition.
+// 按照约定，HostLayout 应用作名为 "_" 的字段的类型，
+// 并放置在结构体类型定义的起始处。
 type HostLayout struct {
-	_ hostLayout // prevent accidental conversion with plain struct{}
+	_ hostLayout // 防止与普通 struct{} 发生意外转换
 }
 
-// We use an unexported type within the exported type to give the marker
-// type itself, rather than merely its name, a recognizable identity in
-// the type system. The main consequence of this is that a user can give
-// the type a new name and it will still have the same properties, e.g.,
+// 我们在导出类型内部使用一个未导出类型，是为了让标记类型本身（而非
+// 仅仅是其名称）在类型系统中具有可识别的身份。这样做的主要后果是，
+// 用户可以给该类型起一个新名字，而它仍将具有相同的属性，例如，
 //
 //	type HL structs.HostLayout
 //
-// It also prevents unintentional conversion of struct{} to a named marker type.
+// 这也可以防止将 struct{} 意外转换为具名标记类型。
 type hostLayout struct {
 }
