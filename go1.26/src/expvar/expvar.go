@@ -2,22 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package expvar provides a standardized interface to public variables, such
-// as operation counters in servers. It exposes these variables via HTTP at
-// /debug/vars in JSON format. As of Go 1.22, the /debug/vars request must
-// use GET.
+// Package expvar 提供了访问公开变量（例如服务器中的操作计数器）的标准接口。
+// 它以 JSON 格式通过 HTTP 在 /debug/vars 上暴露这些变量。从 Go 1.22 起，
+// 对 /debug/vars 的请求必须使用 GET。
 //
-// Operations to set or modify these public variables are atomic.
+// 对这些公开变量的设置或修改操作是原子的。
 //
-// In addition to adding the HTTP handler, this package registers the
-// following variables:
+// 除了添加 HTTP 处理器之外，本包还会注册以下变量：
 //
 //	cmdline   os.Args
 //	memstats  runtime.Memstats
 //
-// The package is sometimes only imported for the side effect of
-// registering its HTTP handler and the above variables. To use it
-// this way, link this package into your program:
+// 有时导入本包只是为了获得注册其 HTTP 处理器和上述变量的副作用。
+// 若要以这种方式使用它，请将该包链接到你的程序中：
 //
 //	import _ "expvar"
 package expvar
@@ -37,20 +34,20 @@ import (
 	"unicode/utf8"
 )
 
-// Var is an abstract type for all exported variables.
+// Var 是所有导出变量的抽象类型。
 type Var interface {
-	// String returns a valid JSON value for the variable.
-	// Types with String methods that do not return valid JSON
-	// (such as time.Time) must not be used as a Var.
+	// String 返回该变量的合法 JSON 值。
+	// String 方法不返回合法 JSON 的类型
+	// （例如 time.Time）不得用作 Var。
 	String() string
 }
 
 type jsonVar interface {
-	// appendJSON appends the JSON representation of the receiver to b.
+	// appendJSON 将接收者的 JSON 表示追加到 b。
 	appendJSON(b []byte) []byte
 }
 
-// Int is a 64-bit integer variable that satisfies the [Var] interface.
+// Int 是一个满足 [Var] 接口的 64 位整数变量。
 type Int struct {
 	i atomic.Int64
 }
@@ -75,7 +72,7 @@ func (v *Int) Set(value int64) {
 	v.i.Store(value)
 }
 
-// Float is a 64-bit float variable that satisfies the [Var] interface.
+// Float 是一个满足 [Var] 接口的 64 位浮点数变量。
 type Float struct {
 	f atomic.Uint64
 }
@@ -92,7 +89,7 @@ func (v *Float) appendJSON(b []byte) []byte {
 	return strconv.AppendFloat(b, math.Float64frombits(v.f.Load()), 'g', -1, 64)
 }
 
-// Add adds delta to v.
+// Add 将 delta 加到 v 上。
 func (v *Float) Add(delta float64) {
 	for {
 		cur := v.f.Load()
@@ -105,19 +102,19 @@ func (v *Float) Add(delta float64) {
 	}
 }
 
-// Set sets v to value.
+// Set 将 v 设置为 value。
 func (v *Float) Set(value float64) {
 	v.f.Store(math.Float64bits(value))
 }
 
-// Map is a string-to-Var map variable that satisfies the [Var] interface.
+// Map 是一个满足 [Var] 接口的 string 到 Var 的映射变量。
 type Map struct {
 	m      sync.Map // map[string]Var
 	keysMu sync.RWMutex
-	keys   []string // sorted
+	keys   []string // 已排序
 }
 
-// KeyValue represents a single entry in a [Map].
+// KeyValue 表示 [Map] 中的单个条目。
 type KeyValue struct {
 	Key   string
 	Value Var
@@ -164,7 +161,7 @@ func (v *Map) appendJSONMayExpand(b []byte, expand bool) []byte {
 	return b
 }
 
-// Init removes all keys from the map.
+// Init 移除映射中的所有键。
 func (v *Map) Init() *Map {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
@@ -173,11 +170,11 @@ func (v *Map) Init() *Map {
 	return v
 }
 
-// addKey updates the sorted list of keys in v.keys.
+// addKey 更新 v.keys 中已排序的键列表。
 func (v *Map) addKey(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
-	// Using insertion sort to place key into the already-sorted v.keys.
+	// 使用插入排序将 key 放入已排序的 v.keys。
 	i, found := slices.BinarySearch(v.keys, key)
 	if found {
 		return
@@ -192,9 +189,8 @@ func (v *Map) Get(key string) Var {
 }
 
 func (v *Map) Set(key string, av Var) {
-	// Before we store the value, check to see whether the key is new. Try a Load
-	// before LoadOrStore: LoadOrStore causes the key interface to escape even on
-	// the Load path.
+	// 在存储值之前，先检查该键是否为新的。在 LoadOrStore 之前先尝试 Load：
+	// LoadOrStore 即使在 Load 路径上也会导致键接口逃逸。
 	if _, ok := v.m.Load(key); !ok {
 		if _, dup := v.m.LoadOrStore(key, av); !dup {
 			v.addKey(key)
@@ -205,7 +201,7 @@ func (v *Map) Set(key string, av Var) {
 	v.m.Store(key, av)
 }
 
-// Add adds delta to the *[Int] value stored under the given map key.
+// Add 将 delta 加到存储在给定映射键下的 *[Int] 值上。
 func (v *Map) Add(key string, delta int64) {
 	i, ok := v.m.Load(key)
 	if !ok {
@@ -216,13 +212,13 @@ func (v *Map) Add(key string, delta int64) {
 		}
 	}
 
-	// Add to Int; ignore otherwise.
+	// 加到 Int 上；否则忽略。
 	if iv, ok := i.(*Int); ok {
 		iv.Add(delta)
 	}
 }
 
-// AddFloat adds delta to the *[Float] value stored under the given map key.
+// AddFloat 将 delta 加到存储在给定映射键下的 *[Float] 值上。
 func (v *Map) AddFloat(key string, delta float64) {
 	i, ok := v.m.Load(key)
 	if !ok {
@@ -233,13 +229,13 @@ func (v *Map) AddFloat(key string, delta float64) {
 		}
 	}
 
-	// Add to Float; ignore otherwise.
+	// 加到 Float 上；否则忽略。
 	if iv, ok := i.(*Float); ok {
 		iv.Add(delta)
 	}
 }
 
-// Delete deletes the given key from the map.
+// Delete 从映射中删除给定的键。
 func (v *Map) Delete(key string) {
 	v.keysMu.Lock()
 	defer v.keysMu.Unlock()
@@ -250,9 +246,9 @@ func (v *Map) Delete(key string) {
 	}
 }
 
-// Do calls f for each entry in the map.
-// The map is locked during the iteration,
-// but existing entries may be concurrently updated.
+// Do 对映射中的每个条目调用 f。
+// 迭代期间映射会被锁定，
+// 但已存在的条目可能会被并发更新。
 func (v *Map) Do(f func(KeyValue)) {
 	v.keysMu.RLock()
 	defer v.keysMu.RUnlock()
@@ -263,7 +259,7 @@ func (v *Map) Do(f func(KeyValue)) {
 	}
 }
 
-// String is a string variable, and satisfies the [Var] interface.
+// String 是一个字符串变量，并且满足 [Var] 接口。
 type String struct {
 	s atomic.Value // string
 }
@@ -273,8 +269,8 @@ func (v *String) Value() string {
 	return p
 }
 
-// String implements the [Var] interface. To get the unquoted string
-// use [String.Value].
+// String 实现 [Var] 接口。若要获取未加引号的字符串，
+// 请使用 [String.Value]。
 func (v *String) String() string {
 	return string(v.appendJSON(nil))
 }
@@ -287,8 +283,8 @@ func (v *String) Set(value string) {
 	v.s.Store(value)
 }
 
-// Func implements [Var] by calling the function
-// and formatting the returned value using JSON.
+// Func 通过调用该函数并使用 JSON 格式化其返回值
+// 来实现 [Var]。
 type Func func() any
 
 func (f Func) Value() any {
@@ -300,12 +296,11 @@ func (f Func) String() string {
 	return string(v)
 }
 
-// All published variables.
+// 所有已发布的变量。
 var vars Map
 
-// Publish declares a named exported variable. This should be called from a
-// package's init function when it creates its Vars. If the name is already
-// registered then this will log.Panic.
+// Publish 声明一个具名的导出变量。应当在包的 init 函数中创建其
+// Var 时调用。若该名称已被注册，则会触发 log.Panic。
 func Publish(name string, v Var) {
 	if _, dup := vars.m.LoadOrStore(name, v); dup {
 		log.Panicln("Reuse of exported var name:", name)
@@ -316,13 +311,13 @@ func Publish(name string, v Var) {
 	slices.Sort(vars.keys)
 }
 
-// Get retrieves a named exported variable. It returns nil if the name has
-// not been registered.
+// Get 获取一个具名的导出变量。若该名称尚未注册，
+// 则返回 nil。
 func Get(name string) Var {
 	return vars.Get(name)
 }
 
-// Convenience functions for creating new exported variables.
+// 用于创建新的导出变量的便捷函数。
 
 func NewInt(name string) *Int {
 	v := new(Int)
@@ -348,9 +343,9 @@ func NewString(name string) *String {
 	return v
 }
 
-// Do calls f for each exported variable.
-// The global variable map is locked during the iteration,
-// but existing entries may be concurrently updated.
+// Do 对每个导出变量调用 f。
+// 迭代期间全局变量映射会被锁定，
+// 但已存在的条目可能会被并发更新。
 func Do(f func(KeyValue)) {
 	vars.Do(f)
 }
@@ -360,9 +355,9 @@ func expvarHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(vars.appendJSONMayExpand(nil, true))
 }
 
-// Handler returns the expvar HTTP Handler.
+// Handler 返回 expvar 的 HTTP Handler。
 //
-// This is only needed to install the handler in a non-standard location.
+// 仅在需要将处理器安装到非标准位置时才需要它。
 func Handler() http.Handler {
 	return http.HandlerFunc(expvarHandler)
 }
@@ -387,7 +382,7 @@ func init() {
 	Publish("memstats", Func(memstats))
 }
 
-// TODO: Use json.appendString instead.
+// TODO: 改用 json.appendString。
 func appendJSONQuote(b []byte, s string) []byte {
 	const hex = "0123456789abcdef"
 	b = append(b, '"')
