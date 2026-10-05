@@ -17,68 +17,67 @@ import (
 )
 
 const (
-	// Header is a generic XML header suitable for use with the output of [Marshal].
-	// This is not automatically added to any output of this package,
-	// it is provided as a convenience.
+	// Header 是一个通用的 XML 头部，适合与 [Marshal] 的输出一起使用。
+	// 它不会被自动添加到本包的任何输出中，
+	// 此处只是作为一个便利提供。
 	Header = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
 )
 
-// Marshal returns the XML encoding of v.
+// Marshal 返回 v 的 XML 编码。
 //
-// Marshal handles an array or slice by marshaling each of the elements.
-// Marshal handles a pointer by marshaling the value it points at or, if the
-// pointer is nil, by writing nothing. Marshal handles an interface value by
-// marshaling the value it contains or, if the interface value is nil, by
-// writing nothing. Marshal handles all other data by writing one or more XML
-// elements containing the data.
+// Marshal 处理数组或切片的方式是封送其中的每个元素。
+// Marshal 处理指针的方式是封送它所指向的值，或者如果
+// 指针为 nil，则不写入任何内容。Marshal 处理接口值的方式是
+// 封送其中包含的值，或者如果接口值为 nil，则不写入任何内容。
+// Marshal 处理所有其他数据的方式是写入一个或多个包含该数据的 XML
+// 元素。
 //
-// The name for the XML elements is taken from, in order of preference:
-//   - the tag on the XMLName field, if the data is a struct
-//   - the value of the XMLName field of type [Name]
-//   - the tag of the struct field used to obtain the data
-//   - the name of the struct field used to obtain the data
-//   - the name of the marshaled type
+// XML 元素的名称按优先顺序取自：
+//   - 若数据是结构体，则取自 XMLName 字段上的标签
+//   - 类型为 [Name] 的 XMLName 字段的值
+//   - 用于获取数据的结构体字段的标签
+//   - 用于获取数据的结构体字段的名称
+//   - 被封送类型的名称
 //
-// The XML element for a struct contains marshaled elements for each of the
-// exported fields of the struct, with these exceptions:
-//   - the XMLName field, described above, is omitted.
-//   - a field with tag "-" is omitted.
-//   - a field with tag "name,attr" becomes an attribute with
-//     the given name in the XML element.
-//   - a field with tag ",attr" becomes an attribute with the
-//     field name in the XML element.
-//   - a field with tag ",chardata" is written as character data,
-//     not as an XML element.
-//   - a field with tag ",cdata" is written as character data
-//     wrapped in one or more <![CDATA[ ... ]]> tags, not as an XML element.
-//   - a field with tag ",innerxml" is written verbatim, not subject
-//     to the usual marshaling procedure.
-//   - a field with tag ",comment" is written as an XML comment, not
-//     subject to the usual marshaling procedure. It must not contain
-//     the "--" string within it.
-//   - a field with a tag including the "omitempty" option is omitted
-//     if the field value is empty. The empty values are false, 0, any
-//     nil pointer or interface value, and any array, slice, map, or
-//     string of length zero.
-//   - an anonymous struct field is handled as if the fields of its
-//     value were part of the outer struct.
-//   - an anonymous struct field of interface type is treated the same as having
-//     that type as its name, rather than being anonymous.
-//   - a field implementing [Marshaler] is written by calling its MarshalXML
-//     method.
-//   - a field implementing [encoding.TextMarshaler] is written by encoding the
-//     result of its MarshalText method as text.
+// 结构体的 XML 元素包含该结构体每个导出字段的封送元素，
+// 但有以下例外：
+//   - 上述的 XMLName 字段会被省略。
+//   - 标签为 "-" 的字段会被省略。
+//   - 标签为 "name,attr" 的字段在 XML 元素中成为具有
+//     给定名称的属性。
+//   - 标签为 ",attr" 的字段在 XML 元素中成为具有
+//     字段名的属性。
+//   - 标签为 ",chardata" 的字段被写为字符数据，
+//     而不是 XML 元素。
+//   - 标签为 ",cdata" 的字段被写为包裹在一个或多个
+//     <![CDATA[ ... ]]> 标签中的字符数据，而不是 XML 元素。
+//   - 标签为 ",innerxml" 的字段被原样写入，不经过
+//     通常的封送过程。
+//   - 标签为 ",comment" 的字段被写为 XML 注释，不经过
+//     通常的封送过程。它内部不得包含
+//     "--" 字符串。
+//   - 标签中包含 "omitempty" 选项的字段，若字段值为空则
+//     被省略。空值包括 false、0、任何
+//     nil 指针或接口值，以及任何长度为零的数组、切片、map 或
+//     字符串。
+//   - 匿名结构体字段的处理方式如同其值的字段是外层结构体的一部分。
+//   - 接口类型的匿名结构体字段被视为以该类型作为其名称，
+//     而不是匿名。
+//   - 实现了 [Marshaler] 的字段通过调用其 MarshalXML
+//     方法来写入。
+//   - 实现了 [encoding.TextMarshaler] 的字段通过将其 MarshalText 方法
+//     的结果编码为文本来写入。
 //
-// If a field uses a tag "a>b>c", then the element c will be nested inside
-// parent elements a and b. Fields that appear next to each other that name
-// the same parent will be enclosed in one XML element.
+// 如果字段使用标签 "a>b>c"，则元素 c 将嵌套在
+// 父元素 a 和 b 中。相邻出现且名称相同的父元素
+// 字段会被包含在同一个 XML 元素中。
 //
-// If the XML name for a struct field is defined by both the field tag and the
-// struct's XMLName field, the names must match.
+// 如果结构体字段的 XML 名称同时由字段标签和
+// 结构体的 XMLName 字段定义，则名称必须匹配。
 //
-// See [MarshalIndent] for an example.
+// 示例参见 [MarshalIndent]。
 //
-// Marshal will return an error if asked to marshal a channel, function, or map.
+// 如果要求 Marshal 封送 channel、函数或 map，它会返回一个错误。
 func Marshal(v any) ([]byte, error) {
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
@@ -91,44 +90,43 @@ func Marshal(v any) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// Marshaler is the interface implemented by objects that can marshal
-// themselves into valid XML elements.
+// Marshaler 是那些能够将自身封送为有效 XML 元素的对象所实现的
+// 接口。
 //
-// MarshalXML encodes the receiver as zero or more XML elements.
-// By convention, arrays or slices are typically encoded as a sequence
-// of elements, one per entry.
-// Using start as the element tag is not required, but doing so
-// will enable [Unmarshal] to match the XML elements to the correct
-// struct field.
-// One common implementation strategy is to construct a separate
-// value with a layout corresponding to the desired XML and then
-// to encode it using e.EncodeElement.
-// Another common strategy is to use repeated calls to e.EncodeToken
-// to generate the XML output one token at a time.
-// The sequence of encoded tokens must make up zero or more valid
-// XML elements.
+// MarshalXML 将接收者编码为零个或多个 XML 元素。
+// 按照惯例，数组或切片通常被编码为一个元素序列，
+// 每个条目对应一个元素。
+// 使用 start 作为元素标签并非必须，但这样做
+// 将使 [Unmarshal] 能够将 XML 元素匹配到正确的
+// 结构体字段。
+// 一种常见的实现策略是构造一个布局与所需 XML 相对应的独立
+// 值，然后使用 e.EncodeElement 对它进行编码。
+// 另一种常见策略是重复调用 e.EncodeToken
+// 来逐个 token 地生成 XML 输出。
+// 编码后的 token 序列必须构成零个或多个有效的
+// XML 元素。
 type Marshaler interface {
 	MarshalXML(e *Encoder, start StartElement) error
 }
 
-// MarshalerAttr is the interface implemented by objects that can marshal
-// themselves into valid XML attributes.
+// MarshalerAttr 是那些能够将自身封送为有效 XML 属性的对象所实现的
+// 接口。
 //
-// MarshalXMLAttr returns an XML attribute with the encoded value of the receiver.
-// Using name as the attribute name is not required, but doing so
-// will enable [Unmarshal] to match the attribute to the correct
-// struct field.
-// If MarshalXMLAttr returns the zero attribute [Attr]{}, no attribute
-// will be generated in the output.
-// MarshalXMLAttr is used only for struct fields with the
-// "attr" option in the field tag.
+// MarshalXMLAttr 返回一个 XML 属性，其值为接收者的编码值。
+// 使用 name 作为属性名称并非必须，但这样做
+// 将使 [Unmarshal] 能够将该属性匹配到正确的
+// 结构体字段。
+// 如果 MarshalXMLAttr 返回零值属性 [Attr]{}，则输出中
+// 不会生成任何属性。
+// MarshalXMLAttr 仅用于字段标签中带有
+// "attr" 选项的结构体字段。
 type MarshalerAttr interface {
 	MarshalXMLAttr(name Name) (Attr, error)
 }
 
-// MarshalIndent works like [Marshal], but each XML element begins on a new
-// indented line that starts with prefix and is followed by one or more
-// copies of indent according to the nesting depth.
+// MarshalIndent 的工作方式与 [Marshal] 类似，但每个 XML 元素都从
+// 新的一行开始，该行以 prefix 开头，并根据嵌套深度
+// 后跟一个或多个 indent 的副本。
 func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
@@ -142,32 +140,31 @@ func MarshalIndent(v any, prefix, indent string) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// An Encoder writes XML data to an output stream.
+// Encoder 将 XML 数据写入输出流。
 type Encoder struct {
 	p printer
 }
 
-// NewEncoder returns a new encoder that writes to w.
+// NewEncoder 返回一个写入 w 的新编码器。
 func NewEncoder(w io.Writer) *Encoder {
 	e := &Encoder{printer{w: bufio.NewWriter(w)}}
 	e.p.encoder = e
 	return e
 }
 
-// Indent sets the encoder to generate XML in which each element
-// begins on a new indented line that starts with prefix and is followed by
-// one or more copies of indent according to the nesting depth.
+// Indent 设置编码器生成 XML 时，每个元素都从
+// 新的一行开始，该行以 prefix 开头，并根据嵌套深度
+// 后跟一个或多个 indent 的副本。
 func (enc *Encoder) Indent(prefix, indent string) {
 	enc.p.prefix = prefix
 	enc.p.indent = indent
 }
 
-// Encode writes the XML encoding of v to the stream.
+// Encode 将 v 的 XML 编码写入流。
 //
-// See the documentation for [Marshal] for details about the conversion
-// of Go values to XML.
+// 关于 Go 值到 XML 的转换细节，参见 [Marshal] 的文档。
 //
-// Encode calls [Encoder.Flush] before returning.
+// Encode 在返回前会调用 [Encoder.Flush]。
 func (enc *Encoder) Encode(v any) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, nil)
 	if err != nil {
@@ -176,13 +173,12 @@ func (enc *Encoder) Encode(v any) error {
 	return enc.p.w.Flush()
 }
 
-// EncodeElement writes the XML encoding of v to the stream,
-// using start as the outermost tag in the encoding.
+// EncodeElement 将 v 的 XML 编码写入流，
+// 使用 start 作为编码中最外层的标签。
 //
-// See the documentation for [Marshal] for details about the conversion
-// of Go values to XML.
+// 关于 Go 值到 XML 的转换细节，参见 [Marshal] 的文档。
 //
-// EncodeElement calls [Encoder.Flush] before returning.
+// EncodeElement 在返回前会调用 [Encoder.Flush]。
 func (enc *Encoder) EncodeElement(v any, start StartElement) error {
 	err := enc.p.marshalValue(reflect.ValueOf(v), nil, &start)
 	if err != nil {
@@ -197,18 +193,18 @@ var (
 	endProcInst = []byte("?>")
 )
 
-// EncodeToken writes the given XML token to the stream.
-// It returns an error if [StartElement] and [EndElement] tokens are not properly matched.
+// EncodeToken 将给定的 XML token 写入流。
+// 如果 [StartElement] 和 [EndElement] token 未正确配对，它会返回一个错误。
 //
-// EncodeToken does not call [Encoder.Flush], because usually it is part of a larger operation
-// such as [Encoder.Encode] or [Encoder.EncodeElement] (or a custom [Marshaler]'s MarshalXML invoked
-// during those), and those will call Flush when finished.
-// Callers that create an Encoder and then invoke EncodeToken directly, without
-// using Encode or EncodeElement, need to call Flush when finished to ensure
-// that the XML is written to the underlying writer.
+// EncodeToken 不调用 [Encoder.Flush]，因为它通常是更大操作的一部分，
+// 例如 [Encoder.Encode] 或 [Encoder.EncodeElement]（或在这些操作期间调用的
+// 自定义 [Marshaler] 的 MarshalXML），这些操作会在完成时调用 Flush。
+// 创建 Encoder 后直接调用 EncodeToken、而不使用
+// Encode 或 EncodeElement 的调用者，需要在完成时调用 Flush，以确保
+// XML 被写入底层写入器。
 //
-// EncodeToken allows writing a [ProcInst] with Target set to "xml" only as the first token
-// in the stream.
+// EncodeToken 只允许将 Target 设为 "xml" 的 [ProcInst] 作为流中的
+// 第一个 token 写入。
 func (enc *Encoder) EncodeToken(t Token) error {
 
 	p := &enc.p
@@ -232,8 +228,8 @@ func (enc *Encoder) EncodeToken(t Token) error {
 		p.WriteString("-->")
 		return p.cachedWriteError()
 	case ProcInst:
-		// First token to be encoded which is also a ProcInst with target of xml
-		// is the xml declaration. The only ProcInst where target of xml is allowed.
+		// 要编码的第一个 token，同时又是目标为 xml 的 ProcInst，
+		// 即为 xml 声明。这是唯一允许目标为 xml 的 ProcInst。
 		if t.Target == "xml" && p.w.Buffered() != 0 {
 			return fmt.Errorf("xml: EncodeToken of ProcInst xml target only valid for xml declaration, first token encoded")
 		}
@@ -264,8 +260,8 @@ func (enc *Encoder) EncodeToken(t Token) error {
 	return p.cachedWriteError()
 }
 
-// isValidDirective reports whether dir is a valid directive text,
-// meaning angle brackets are matched, ignoring comments and strings.
+// isValidDirective 报告 dir 是否是有效的指令文本，
+// 即尖括号成对匹配，忽略注释和字符串。
 func isValidDirective(dir Directive) bool {
 	var (
 		depth     int
@@ -280,12 +276,12 @@ func isValidDirective(dir Directive) bool {
 					incomment = false
 				}
 			}
-			// Just ignore anything in comment
+			// 忽略注释中的任何内容
 		case inquote != 0:
 			if c == inquote {
 				inquote = 0
 			}
-			// Just ignore anything within quotes
+			// 忽略引号内的任何内容
 		case c == '\'' || c == '"':
 			inquote = c
 		case c == '<':
@@ -304,15 +300,15 @@ func isValidDirective(dir Directive) bool {
 	return depth == 0 && inquote == 0 && !incomment
 }
 
-// Flush flushes any buffered XML to the underlying writer.
-// See the [Encoder.EncodeToken] documentation for details about when it is necessary.
+// Flush 将任何已缓冲的 XML 刷新到底层写入器。
+// 关于何时需要调用它的细节，参见 [Encoder.EncodeToken] 文档。
 func (enc *Encoder) Flush() error {
 	return enc.p.w.Flush()
 }
 
-// Close the Encoder, indicating that no more data will be written. It flushes
-// any buffered XML to the underlying writer and returns an error if the
-// written XML is invalid (e.g. by containing unclosed elements).
+// Close 关闭 Encoder，表明不再写入任何数据。它会将
+// 任何已缓冲的 XML 刷新到底层写入器，并在
+// 写入的 XML 无效（例如包含未闭合的元素）时返回错误。
 func (enc *Encoder) Close() error {
 	return enc.p.Close()
 }
@@ -326,37 +322,37 @@ type printer struct {
 	depth      int
 	indentedIn bool
 	putNewline bool
-	attrNS     map[string]string // map prefix -> name space
-	attrPrefix map[string]string // map name space -> prefix
+	attrNS     map[string]string // map 前缀 -> 命名空间
+	attrPrefix map[string]string // map 命名空间 -> 前缀
 	prefixes   []string
 	tags       []Name
 	closed     bool
 	err        error
 }
 
-// createAttrPrefix finds the name space prefix attribute to use for the given name space,
-// defining a new prefix if necessary. It returns the prefix.
+// createAttrPrefix 查找用于给定命名空间的命名空间前缀属性，
+// 必要时定义一个新的前缀。它返回该前缀。
 func (p *printer) createAttrPrefix(url string) string {
 	if prefix := p.attrPrefix[url]; prefix != "" {
 		return prefix
 	}
 
-	// The "http://www.w3.org/XML/1998/namespace" name space is predefined as "xml"
-	// and must be referred to that way.
-	// (The "http://www.w3.org/2000/xmlns/" name space is also predefined as "xmlns",
-	// but users should not be trying to use that one directly - that's our job.)
+	// "http://www.w3.org/XML/1998/namespace" 命名空间被预定义为 "xml"，
+	// 必须以这种方式引用它。
+	// （"http://www.w3.org/2000/xmlns/" 命名空间也被预定义为 "xmlns"，
+	// 但用户不应尝试直接使用它 —— 那是我们的工作。）
 	if url == xmlURL {
 		return xmlPrefix
 	}
 
-	// Need to define a new name space.
+	// 需要定义一个新的命名空间。
 	if p.attrPrefix == nil {
 		p.attrPrefix = make(map[string]string)
 		p.attrNS = make(map[string]string)
 	}
 
-	// Pick a name. We try to use the final element of the path
-	// but fall back to _.
+	// 挑一个名称。我们尝试使用路径的最后一个元素，
+	// 但会回退到 _。
 	prefix := strings.TrimRight(url, "/")
 	if i := strings.LastIndex(prefix, "/"); i >= 0 {
 		prefix = prefix[i+1:]
@@ -364,15 +360,15 @@ func (p *printer) createAttrPrefix(url string) string {
 	if prefix == "" || !isName([]byte(prefix)) || strings.Contains(prefix, ":") {
 		prefix = "_"
 	}
-	// xmlanything is reserved and any variant of it regardless of
-	// case should be matched, so:
+	// xmlanything 是保留的，无论大小写，它的任何变体
+	// 都应被匹配，因此：
 	//    (('X'|'x') ('M'|'m') ('L'|'l'))
-	// See Section 2.3 of https://www.w3.org/TR/REC-xml/
+	// 参见 https://www.w3.org/TR/REC-xml/ 第 2.3 节。
 	if len(prefix) >= 3 && strings.EqualFold(prefix[:3], "xml") {
 		prefix = "_" + prefix
 	}
 	if p.attrNS[prefix] != "" {
-		// Name is taken. Find a better one.
+		// 名称已被占用。找一个更好的。
 		for p.seq++; ; p.seq++ {
 			if id := prefix + "_" + strconv.Itoa(p.seq); p.attrNS[id] == "" {
 				prefix = id
@@ -395,7 +391,7 @@ func (p *printer) createAttrPrefix(url string) string {
 	return prefix
 }
 
-// deleteAttrPrefix removes an attribute name space prefix.
+// deleteAttrPrefix 移除一个属性命名空间前缀。
 func (p *printer) deleteAttrPrefix(prefix string) {
 	delete(p.attrPrefix, p.attrNS[prefix])
 	delete(p.attrNS, prefix)
@@ -416,8 +412,8 @@ func (p *printer) popPrefix() {
 	}
 }
 
-// marshalValue writes one or more XML elements representing val.
-// If val was obtained from a struct field, finfo must have its details.
+// marshalValue 写入表示 val 的一个或多个 XML 元素。
+// 如果 val 来自结构体字段，finfo 必须包含其详细信息。
 func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplate *StartElement) error {
 	if startTemplate != nil && startTemplate.Name.Local == "" {
 		return fmt.Errorf("xml: EncodeElement of StartElement with missing name")
@@ -430,9 +426,9 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		return nil
 	}
 
-	// Drill into interfaces and pointers.
-	// This can turn into an infinite loop given a cyclic chain,
-	// but it matches the Go 1 behavior.
+	// 深入接口和指针。
+	// 面对循环引用链时，这可能导致无限循环，
+	// 但它与 Go 1 的行为一致。
 	for val.Kind() == reflect.Interface || val.Kind() == reflect.Pointer {
 		if val.IsNil() {
 			return nil
@@ -443,7 +439,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	kind := val.Kind()
 	typ := val.Type()
 
-	// Check for marshaler.
+	// 检查 marshaler。
 	if val.CanInterface() {
 		if marshaler, ok := reflect.TypeAssert[Marshaler](val); ok {
 			return p.marshalInterface(marshaler, defaultStart(typ, finfo, startTemplate))
@@ -458,7 +454,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		}
 	}
 
-	// Check for text marshaler.
+	// 检查文本 marshaler。
 	if val.CanInterface() {
 		if textMarshaler, ok := reflect.TypeAssert[encoding.TextMarshaler](val); ok {
 			return p.marshalTextInterface(textMarshaler, defaultStart(typ, finfo, startTemplate))
@@ -473,7 +469,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		}
 	}
 
-	// Slices and arrays iterate over the elements. They do not have an enclosing tag.
+	// 切片和数组会遍历其元素。它们没有外层标签。
 	if (kind == reflect.Slice || kind == reflect.Array) && typ.Elem().Kind() != reflect.Uint8 {
 		for i, n := 0, val.Len(); i < n; i++ {
 			if err := p.marshalValue(val.Index(i), finfo, startTemplate); err != nil {
@@ -488,12 +484,12 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		return err
 	}
 
-	// Create start element.
-	// Precedence for the XML element name is:
+	// 创建起始元素。
+	// XML 元素名称的优先级为：
 	// 0. startTemplate
-	// 1. XMLName field in underlying struct;
-	// 2. field name/tag in the struct field; and
-	// 3. type name
+	// 1. 底层结构体中的 XMLName 字段；
+	// 2. 结构体字段中的字段名/标签；以及
+	// 3. 类型名
 	var start StartElement
 
 	if startTemplate != nil {
@@ -516,7 +512,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	if start.Name.Local == "" {
 		name := typ.Name()
 		if i := strings.IndexByte(name, '['); i >= 0 {
-			// Truncate generic instantiation name. See issue 48318.
+			// 截断泛型实例化名称。参见 issue 48318。
 			name = name[:i]
 		}
 		if name == "" {
@@ -525,7 +521,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		start.Name.Local = name
 	}
 
-	// Attributes
+	// 属性
 	for i := range tinfo.fields {
 		finfo := &tinfo.fields[i]
 		if finfo.flags&fAttr == 0 {
@@ -547,7 +543,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 		}
 	}
 
-	// If an empty name was found, namespace is overridden with an empty space
+	// 如果发现空名称，命名空间会被覆盖为空空间
 	if tinfo.xmlname != nil && start.Name.Space == "" &&
 		tinfo.xmlname.xmlns == "" && tinfo.xmlname.name == "" &&
 		len(p.tags) != 0 && p.tags[len(p.tags)-1].Space != "" {
@@ -580,7 +576,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
 	return p.cachedWriteError()
 }
 
-// marshalAttr marshals an attribute with the given name and value, adding to start.Attr.
+// marshalAttr 封送具有给定名称和值的属性，并添加到 start.Attr 中。
 func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value) error {
 	if val.CanInterface() {
 		if marshaler, ok := reflect.TypeAssert[MarshalerAttr](val); ok {
@@ -636,7 +632,7 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 		}
 	}
 
-	// Dereference or skip nil pointer, interface values.
+	// 解引用或跳过 nil 指针、接口值。
 	switch val.Kind() {
 	case reflect.Pointer, reflect.Interface:
 		if val.IsNil() {
@@ -645,7 +641,7 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 		val = val.Elem()
 	}
 
-	// Walk slices.
+	// 遍历切片。
 	if val.Kind() == reflect.Slice && val.Type().Elem().Kind() != reflect.Uint8 {
 		n := val.Len()
 		for i := 0; i < n; i++ {
@@ -673,12 +669,12 @@ func (p *printer) marshalAttr(start *StartElement, name Name, val reflect.Value)
 	return nil
 }
 
-// defaultStart returns the default start element to use,
-// given the reflect type, field info, and start template.
+// defaultStart 返回在给定 reflect 类型、字段信息和起始模板时
+// 使用的默认起始元素。
 func defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate *StartElement) StartElement {
 	var start StartElement
-	// Precedence for the XML element name is as above,
-	// except that we do not look inside structs for the first field.
+	// XML 元素名称的优先级同上，
+	// 只是我们不会为了第一个字段而深入结构体内部查找。
 	if startTemplate != nil {
 		start.Name = startTemplate.Name
 		start.Attr = append(start.Attr, startTemplate.Attr...)
@@ -688,17 +684,17 @@ func defaultStart(typ reflect.Type, finfo *fieldInfo, startTemplate *StartElemen
 	} else if typ.Name() != "" {
 		start.Name.Local = typ.Name()
 	} else {
-		// Must be a pointer to a named type,
-		// since it has the Marshaler methods.
+		// 它必定是指向具名类型的指针，
+		// 因为它具有 Marshaler 方法。
 		start.Name.Local = typ.Elem().Name()
 	}
 	return start
 }
 
-// marshalInterface marshals a Marshaler interface value.
+// marshalInterface 封送一个 Marshaler 接口值。
 func (p *printer) marshalInterface(val Marshaler, start StartElement) error {
-	// Push a marker onto the tag stack so that MarshalXML
-	// cannot close the XML tags that it did not open.
+	// 向标签栈压入一个标记，这样 MarshalXML
+	// 就无法关闭它自己未打开的 XML 标签。
 	p.tags = append(p.tags, Name{})
 	n := len(p.tags)
 
@@ -707,7 +703,7 @@ func (p *printer) marshalInterface(val Marshaler, start StartElement) error {
 		return err
 	}
 
-	// Make sure MarshalXML closed all its tags. p.tags[n-1] is the mark.
+	// 确保 MarshalXML 关闭了它所有的标签。p.tags[n-1] 是标记。
 	if len(p.tags) > n {
 		return fmt.Errorf("xml: %s.MarshalXML wrote invalid XML: <%s> not closed", receiverType(val), p.tags[len(p.tags)-1].Local)
 	}
@@ -715,7 +711,7 @@ func (p *printer) marshalInterface(val Marshaler, start StartElement) error {
 	return nil
 }
 
-// marshalTextInterface marshals a TextMarshaler interface value.
+// marshalTextInterface 封送一个 TextMarshaler 接口值。
 func (p *printer) marshalTextInterface(val encoding.TextMarshaler, start StartElement) error {
 	if err := p.writeStart(&start); err != nil {
 		return err
@@ -728,7 +724,7 @@ func (p *printer) marshalTextInterface(val encoding.TextMarshaler, start StartEl
 	return p.writeEnd(start.Name)
 }
 
-// writeStart writes the given start element.
+// writeStart 写入给定的起始元素。
 func (p *printer) writeStart(start *StartElement) error {
 	if start.Name.Local == "" {
 		return fmt.Errorf("xml: start tag with no name")
@@ -747,7 +743,7 @@ func (p *printer) writeStart(start *StartElement) error {
 		p.WriteByte('"')
 	}
 
-	// Attributes
+	// 属性
 	for _, attr := range start.Attr {
 		name := attr.Name
 		if name.Local == "" {
@@ -828,10 +824,10 @@ func (p *printer) marshalSimple(typ reflect.Type, val reflect.Value) (string, []
 
 var ddBytes = []byte("--")
 
-// indirect drills into interfaces and pointers, returning the pointed-at value.
-// If it encounters a nil interface or pointer, indirect returns that nil value.
-// This can turn into an infinite loop given a cyclic chain,
-// but it matches the Go 1 behavior.
+// indirect 深入接口和指针，并返回所指向的值。
+// 如果遇到 nil 接口或指针，indirect 返回该 nil 值。
+// 在存在循环链的情况下，这可能变成无限循环，
+// 但它与 Go 1 的行为一致。
 func indirect(vf reflect.Value) reflect.Value {
 	for vf.Kind() == reflect.Interface || vf.Kind() == reflect.Pointer {
 		if vf.IsNil() {
@@ -851,8 +847,8 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 		}
 		vf := finfo.value(val, dontInitNilPointers)
 		if !vf.IsValid() {
-			// The field is behind an anonymous struct field that's
-			// nil. Skip it.
+			// 该字段位于一个为 nil 的匿名结构体字段之后。
+			// 跳过它。
 			continue
 		}
 
@@ -963,7 +959,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 				return fmt.Errorf(`xml: comments must not contain "--"`)
 			}
 			if dashLast {
-				// "--->" is invalid grammar. Make it "- -->"
+				// "--->" 是无效语法。将其改为 "- -->"
 				p.WriteByte(' ')
 			}
 			p.WriteString("-->")
@@ -1001,7 +997,7 @@ func (p *printer) marshalStruct(tinfo *typeInfo, val reflect.Value) error {
 	return p.cachedWriteError()
 }
 
-// Write implements io.Writer
+// Write 实现了 io.Writer
 func (p *printer) Write(b []byte) (n int, err error) {
 	if p.closed && p.err == nil {
 		p.err = errors.New("use of closed Encoder")
@@ -1012,7 +1008,7 @@ func (p *printer) Write(b []byte) (n int, err error) {
 	return n, p.err
 }
 
-// WriteString implements io.StringWriter
+// WriteString 实现了 io.StringWriter
 func (p *printer) WriteString(s string) (n int, err error) {
 	if p.closed && p.err == nil {
 		p.err = errors.New("use of closed Encoder")
@@ -1023,7 +1019,7 @@ func (p *printer) WriteString(s string) (n int, err error) {
 	return n, p.err
 }
 
-// WriteByte implements io.ByteWriter
+// WriteByte 实现了 io.ByteWriter
 func (p *printer) WriteByte(c byte) error {
 	if p.closed && p.err == nil {
 		p.err = errors.New("use of closed Encoder")
@@ -1034,9 +1030,9 @@ func (p *printer) WriteByte(c byte) error {
 	return p.err
 }
 
-// Close the Encoder, indicating that no more data will be written. It flushes
-// any buffered XML to the underlying writer and returns an error if the
-// written XML is invalid (e.g. by containing unclosed elements).
+// Close 关闭 Encoder，表明不再写入任何数据。它会将
+// 任何已缓冲的 XML 刷新到底层写入器，并在
+// 写入的 XML 无效（例如包含未闭合的元素）时返回错误。
 func (p *printer) Close() error {
 	if p.closed {
 		return nil
@@ -1051,7 +1047,7 @@ func (p *printer) Close() error {
 	return nil
 }
 
-// return the bufio Writer's cached write error
+// 返回 bufio Writer 缓存的写入错误
 func (p *printer) cachedWriteError() error {
 	_, err := p.Write(nil)
 	return err
@@ -1093,9 +1089,9 @@ type parentStack struct {
 	stack []string
 }
 
-// trim updates the XML context to match the longest common prefix of the stack
-// and the given parents. A closing tag will be written for every parent
-// popped. Passing a zero slice or nil will close all the elements.
+// trim 更新 XML 上下文，使其与栈和给定 parents 的最长公共前缀相匹配。
+// 每弹出一个父元素，都会写入一个闭合标签。
+// 传入零值切片或 nil 将关闭所有元素。
 func (s *parentStack) trim(parents []string) error {
 	split := 0
 	for ; split < len(parents) && split < len(s.stack); split++ {
@@ -1112,7 +1108,7 @@ func (s *parentStack) trim(parents []string) error {
 	return nil
 }
 
-// push adds parent elements to the stack and writes open tags.
+// push 将父元素添加到栈中并写入打开标签。
 func (s *parentStack) push(parents []string) error {
 	for i := 0; i < len(parents); i++ {
 		if err := s.p.writeStart(&StartElement{Name: Name{Local: parents[i]}}); err != nil {
@@ -1123,8 +1119,8 @@ func (s *parentStack) push(parents []string) error {
 	return nil
 }
 
-// UnsupportedTypeError is returned when [Marshal] encounters a type
-// that cannot be converted into XML.
+// 当 [Marshal] 遇到无法转换为 XML 的类型时，
+// 会返回 UnsupportedTypeError。
 type UnsupportedTypeError struct {
 	Type reflect.Type
 }

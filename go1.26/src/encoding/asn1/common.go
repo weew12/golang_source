@@ -10,15 +10,15 @@ import (
 	"strings"
 )
 
-// ASN.1 objects have metadata preceding them:
-//   the tag: the type of the object
-//   a flag denoting if this object is compound or not
-//   the class type: the namespace of the tag
-//   the length of the object, in bytes
+// ASN.1 对象前面带有元数据：
+//   标签：对象的类型
+//   一个表示此对象是否为复合对象的标志
+//   class 类型：标签的命名空间
+//   对象的长度（以字节为单位）
 
-// Here are some standard tags and classes
+// 以下是一些标准的标签和类
 
-// ASN.1 tags represent the type of the following object.
+// ASN.1 标签表示后续对象的类型。
 const (
 	TagBoolean         = 1
 	TagInteger         = 2
@@ -40,7 +40,7 @@ const (
 	TagBMPString       = 30
 )
 
-// ASN.1 class types represent the namespace of the tag.
+// ASN.1 类类型表示标签的命名空间。
 const (
 	ClassUniversal       = 0
 	ClassApplication     = 1
@@ -53,44 +53,41 @@ type tagAndLength struct {
 	isCompound         bool
 }
 
-// ASN.1 has IMPLICIT and EXPLICIT tags, which can be translated as "instead
-// of" and "in addition to". When not specified, every primitive type has a
-// default tag in the UNIVERSAL class.
+// ASN.1 有 IMPLICIT 和 EXPLICIT 标签，可分别译为“代替”和“除……之外还”。
+// 未指定时，每个原始类型在 UNIVERSAL 类中都有一个默认标签。
 //
-// For example: a BIT STRING is tagged [UNIVERSAL 3] by default (although ASN.1
-// doesn't actually have a UNIVERSAL keyword). However, by saying [IMPLICIT
-// CONTEXT-SPECIFIC 42], that means that the tag is replaced by another.
+// 例如：BIT STRING 默认被标记为 [UNIVERSAL 3]（尽管 ASN.1 实际上
+// 并没有 UNIVERSAL 关键字）。然而，若写成 [IMPLICIT
+// CONTEXT-SPECIFIC 42]，则意味着该标签被另一个标签替换。
 //
-// On the other hand, if it said [EXPLICIT CONTEXT-SPECIFIC 10], then an
-// /additional/ tag would wrap the default tag. This explicit tag will have the
-// compound flag set.
+// 另一方面，若写成 [EXPLICIT CONTEXT-SPECIFIC 10]，则会有一个
+// /额外的/ 标签包裹默认标签。这个显式标签会设置复合标志。
 //
-// (This is used in order to remove ambiguity with optional elements.)
+// （这样做是为了消除与可选元素之间的歧义。）
 //
-// You can layer EXPLICIT and IMPLICIT tags to an arbitrary depth, however we
-// don't support that here. We support a single layer of EXPLICIT or IMPLICIT
-// tagging with tag strings on the fields of a structure.
+// 你可以将 EXPLICIT 和 IMPLICIT 标签任意层叠，但我们这里不支持这样做。
+// 我们支持在结构体字段上通过标签字符串进行单层的 EXPLICIT 或 IMPLICIT 标记。
 
-// fieldParameters is the parsed representation of tag string from a structure field.
+// fieldParameters 是结构体字段的标签字符串解析后的表示。
 type fieldParameters struct {
-	optional     bool   // true iff the field is OPTIONAL
-	explicit     bool   // true iff an EXPLICIT tag is in use.
-	application  bool   // true iff an APPLICATION tag is in use.
-	private      bool   // true iff a PRIVATE tag is in use.
-	defaultValue *int64 // a default value for INTEGER typed fields (maybe nil).
-	tag          *int   // the EXPLICIT or IMPLICIT tag (maybe nil).
-	stringType   int    // the string tag to use when marshaling.
-	timeType     int    // the time tag to use when marshaling.
-	set          bool   // true iff this should be encoded as a SET
-	omitEmpty    bool   // true iff this should be omitted if empty when marshaling.
+	optional     bool   // 当且仅当该字段为 OPTIONAL 时为 true
+	explicit     bool   // 当且仅当使用了 EXPLICIT 标签时为 true。
+	application  bool   // 当且仅当使用了 APPLICATION 标签时为 true。
+	private      bool   // 当且仅当使用了 PRIVATE 标签时为 true。
+	defaultValue *int64 // INTEGER 类型字段的默认值（可能为 nil）。
+	tag          *int   // EXPLICIT 或 IMPLICIT 标签（可能为 nil）。
+	stringType   int    // 编组时使用的字符串标签。
+	timeType     int    // 编组时使用的时间标签。
+	set          bool   // 当且仅当应编码为 SET 时为 true
+	omitEmpty    bool   // 当且仅当编组时为空则应省略时为 true。
 
-	// Invariants:
-	//   if explicit is set, tag is non-nil.
+	// 不变式：
+	//   如果设置了 explicit，则 tag 非 nil。
 }
 
-// Given a tag string with the format specified in the package comment,
-// parseFieldParameters will parse it into a fieldParameters structure,
-// ignoring unknown parts of the string.
+// 给定一个格式如包注释所述的标签字符串，
+// parseFieldParameters 会将其解析为 fieldParameters 结构体，
+// 并忽略字符串中无法识别的部分。
 func parseFieldParameters(str string) (ret fieldParameters) {
 	var part string
 	for len(str) > 0 {
@@ -146,8 +143,8 @@ func parseFieldParameters(str string) (ret fieldParameters) {
 	return
 }
 
-// Given a reflected Go type, getUniversalType returns the default tag number
-// and expected compound flag.
+// 给定一个反射得到的 Go 类型，getUniversalType 返回默认的标签编号
+// 以及预期的复合标志。
 func getUniversalType(t reflect.Type) (matchAny bool, tagNumber int, isCompound, ok bool) {
 	switch t {
 	case rawValueType:

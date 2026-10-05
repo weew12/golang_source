@@ -2,23 +2,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package binary implements simple translation between numbers and byte
-// sequences and encoding and decoding of varints.
+// Package binary 实现了数字与字节序列之间的简单转换，以及 varint 的编码和解码。
 //
-// Numbers are translated by reading and writing fixed-size values.
-// A fixed-size value is either a fixed-size arithmetic
-// type (bool, int8, uint8, int16, float32, complex64, ...)
-// or an array or struct containing only fixed-size values.
+// 数字通过读取和写入固定大小的值进行转换。
+// 固定大小的值可以是固定大小的算术类型（bool、int8、uint8、int16、
+// float32、complex64 等），也可以是仅包含固定大小值的数组或结构体。
 //
-// The varint functions encode and decode single integer values using
-// a variable-length encoding; smaller values require fewer bytes.
-// For a specification, see
-// https://developers.google.com/protocol-buffers/docs/encoding.
+// varint 函数使用变长编码对单个整数值进行编码和解码；较小的值需要更少的字节。
+// 有关规范，请参见
+// https://developers.google.com/protocol-buffers/docs/encoding。
 //
-// This package favors simplicity over efficiency. Clients that require
-// high-performance serialization, especially for large data structures,
-// should look at more advanced solutions such as the [encoding/gob]
-// package or [google.golang.org/protobuf] for protocol buffers.
+// 本包更注重简洁性而非效率。需要高性能序列化（尤其是对于大型数据结构）的客户端
+// 应研究更高级的解决方案，例如 [encoding/gob] 包，
+// 或用于 protocol buffers 的 [google.golang.org/protobuf]。
 package binary
 
 import (
@@ -32,10 +28,10 @@ import (
 
 var errBufferTooSmall = errors.New("buffer too small")
 
-// A ByteOrder specifies how to convert byte slices into
-// 16-, 32-, or 64-bit unsigned integers.
+// ByteOrder 指定如何将字节切片转换为
+// 16 位、32 位或 64 位无符号整数。
 //
-// It is implemented by [LittleEndian], [BigEndian], and [NativeEndian].
+// 它由 [LittleEndian]、[BigEndian] 和 [NativeEndian] 实现。
 type ByteOrder interface {
 	Uint16([]byte) uint16
 	Uint32([]byte) uint32
@@ -46,10 +42,10 @@ type ByteOrder interface {
 	String() string
 }
 
-// AppendByteOrder specifies how to append 16-, 32-, or 64-bit unsigned integers
-// into a byte slice.
+// AppendByteOrder 指定如何将 16 位、32 位或 64 位无符号整数
+// 追加到字节切片中。
 //
-// It is implemented by [LittleEndian], [BigEndian], and [NativeEndian].
+// 它由 [LittleEndian]、[BigEndian] 和 [NativeEndian] 实现。
 type AppendByteOrder interface {
 	AppendUint16([]byte, uint16) []byte
 	AppendUint32([]byte, uint32) []byte
@@ -57,28 +53,28 @@ type AppendByteOrder interface {
 	String() string
 }
 
-// LittleEndian is the little-endian implementation of [ByteOrder] and [AppendByteOrder].
+// LittleEndian 是 [ByteOrder] 和 [AppendByteOrder] 的小端字节序实现。
 var LittleEndian littleEndian
 
-// BigEndian is the big-endian implementation of [ByteOrder] and [AppendByteOrder].
+// BigEndian 是 [ByteOrder] 和 [AppendByteOrder] 的大端字节序实现。
 var BigEndian bigEndian
 
 type littleEndian struct{}
 
-// Uint16 returns the uint16 representation of b[0:2].
+// Uint16 返回 b[0:2] 的 uint16 表示。
 func (littleEndian) Uint16(b []byte) uint16 {
-	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+	_ = b[1] // 向编译器提示边界检查；参见 golang.org/issue/14808
 	return uint16(b[0]) | uint16(b[1])<<8
 }
 
-// PutUint16 stores v into b[0:2].
+// PutUint16 将 v 存入 b[0:2]。
 func (littleEndian) PutUint16(b []byte, v uint16) {
-	_ = b[1] // early bounds check to guarantee safety of writes below
+	_ = b[1] // 提前进行边界检查，以保证下面写入的安全性
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 }
 
-// AppendUint16 appends the bytes of v to b and returns the appended slice.
+// AppendUint16 将 v 的字节追加到 b，并返回追加后的切片。
 func (littleEndian) AppendUint16(b []byte, v uint16) []byte {
 	return append(b,
 		byte(v),
@@ -86,22 +82,22 @@ func (littleEndian) AppendUint16(b []byte, v uint16) []byte {
 	)
 }
 
-// Uint32 returns the uint32 representation of b[0:4].
+// Uint32 返回 b[0:4] 的 uint32 表示。
 func (littleEndian) Uint32(b []byte) uint32 {
-	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+	_ = b[3] // 向编译器提示边界检查；参见 golang.org/issue/14808
 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
 }
 
-// PutUint32 stores v into b[0:4].
+// PutUint32 将 v 存入 b[0:4]。
 func (littleEndian) PutUint32(b []byte, v uint32) {
-	_ = b[3] // early bounds check to guarantee safety of writes below
+	_ = b[3] // 提前进行边界检查，以保证下面写入的安全性
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 	b[2] = byte(v >> 16)
 	b[3] = byte(v >> 24)
 }
 
-// AppendUint32 appends the bytes of v to b and returns the appended slice.
+// AppendUint32 将 v 的字节追加到 b，并返回追加后的切片。
 func (littleEndian) AppendUint32(b []byte, v uint32) []byte {
 	return append(b,
 		byte(v),
@@ -111,16 +107,16 @@ func (littleEndian) AppendUint32(b []byte, v uint32) []byte {
 	)
 }
 
-// Uint64 returns the uint64 representation of b[0:8].
+// Uint64 返回 b[0:8] 的 uint64 表示。
 func (littleEndian) Uint64(b []byte) uint64 {
-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+	_ = b[7] // 向编译器提示边界检查；参见 golang.org/issue/14808
 	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
 		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
 }
 
-// PutUint64 stores v into b[0:8].
+// PutUint64 将 v 存入 b[0:8]。
 func (littleEndian) PutUint64(b []byte, v uint64) {
-	_ = b[7] // early bounds check to guarantee safety of writes below
+	_ = b[7] // 提前进行边界检查，以保证下面写入的安全性
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 	b[2] = byte(v >> 16)
@@ -131,7 +127,7 @@ func (littleEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v >> 56)
 }
 
-// AppendUint64 appends the bytes of v to b and returns the appended slice.
+// AppendUint64 将 v 的字节追加到 b，并返回追加后的切片。
 func (littleEndian) AppendUint64(b []byte, v uint64) []byte {
 	return append(b,
 		byte(v),
@@ -151,20 +147,20 @@ func (littleEndian) GoString() string { return "binary.LittleEndian" }
 
 type bigEndian struct{}
 
-// Uint16 returns the uint16 representation of b[0:2].
+// Uint16 返回 b[0:2] 的 uint16 表示。
 func (bigEndian) Uint16(b []byte) uint16 {
-	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+	_ = b[1] // 向编译器提示边界检查；参见 golang.org/issue/14808
 	return uint16(b[1]) | uint16(b[0])<<8
 }
 
-// PutUint16 stores v into b[0:2].
+// PutUint16 将 v 存入 b[0:2]。
 func (bigEndian) PutUint16(b []byte, v uint16) {
-	_ = b[1] // early bounds check to guarantee safety of writes below
+	_ = b[1] // 提前进行边界检查，以保证下面写入的安全性
 	b[0] = byte(v >> 8)
 	b[1] = byte(v)
 }
 
-// AppendUint16 appends the bytes of v to b and returns the appended slice.
+// AppendUint16 将 v 的字节追加到 b，并返回追加后的切片。
 func (bigEndian) AppendUint16(b []byte, v uint16) []byte {
 	return append(b,
 		byte(v>>8),
@@ -172,22 +168,22 @@ func (bigEndian) AppendUint16(b []byte, v uint16) []byte {
 	)
 }
 
-// Uint32 returns the uint32 representation of b[0:4].
+// Uint32 返回 b[0:4] 的 uint32 表示。
 func (bigEndian) Uint32(b []byte) uint32 {
-	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+	_ = b[3] // 向编译器提示边界检查；参见 golang.org/issue/14808
 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
 }
 
-// PutUint32 stores v into b[0:4].
+// PutUint32 将 v 存入 b[0:4]。
 func (bigEndian) PutUint32(b []byte, v uint32) {
-	_ = b[3] // early bounds check to guarantee safety of writes below
+	_ = b[3] // 提前进行边界检查，以保证下面写入的安全性
 	b[0] = byte(v >> 24)
 	b[1] = byte(v >> 16)
 	b[2] = byte(v >> 8)
 	b[3] = byte(v)
 }
 
-// AppendUint32 appends the bytes of v to b and returns the appended slice.
+// AppendUint32 将 v 的字节追加到 b，并返回追加后的切片。
 func (bigEndian) AppendUint32(b []byte, v uint32) []byte {
 	return append(b,
 		byte(v>>24),
@@ -197,16 +193,16 @@ func (bigEndian) AppendUint32(b []byte, v uint32) []byte {
 	)
 }
 
-// Uint64 returns the uint64 representation of b[0:8].
+// Uint64 返回 b[0:8] 的 uint64 表示。
 func (bigEndian) Uint64(b []byte) uint64 {
-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+	_ = b[7] // 向编译器提示边界检查；参见 golang.org/issue/14808
 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
 		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
 }
 
-// PutUint64 stores v into b[0:8].
+// PutUint64 将 v 存入 b[0:8]。
 func (bigEndian) PutUint64(b []byte, v uint64) {
-	_ = b[7] // early bounds check to guarantee safety of writes below
+	_ = b[7] // 提前进行边界检查，以保证下面写入的安全性
 	b[0] = byte(v >> 56)
 	b[1] = byte(v >> 48)
 	b[2] = byte(v >> 40)
@@ -217,7 +213,7 @@ func (bigEndian) PutUint64(b []byte, v uint64) {
 	b[7] = byte(v)
 }
 
-// AppendUint64 appends the bytes of v to b and returns the appended slice.
+// AppendUint64 将 v 的字节追加到 b，并返回追加后的切片。
 func (bigEndian) AppendUint64(b []byte, v uint64) []byte {
 	return append(b,
 		byte(v>>56),
@@ -239,24 +235,19 @@ func (nativeEndian) String() string { return "NativeEndian" }
 
 func (nativeEndian) GoString() string { return "binary.NativeEndian" }
 
-// Read reads structured binary data from r into data.
-// Data must be a pointer to a fixed-size value or a slice
-// of fixed-size values.
-// Bytes read from r are decoded using the specified byte order
-// and written to successive fields of the data.
-// When decoding boolean values, a zero byte is decoded as false, and
-// any other non-zero byte is decoded as true.
-// When reading into structs, the field data for fields with
-// blank (_) field names is skipped; i.e., blank field names
-// may be used for padding.
-// When reading into a struct, all non-blank fields must be exported
-// or Read may panic.
+// Read 从 r 读取结构化二进制数据并存入 data。
+// data 必须是指向固定大小值的指针，或者是固定大小值的切片。
+// 从 r 读取的字节按指定的字节序解码，并写入 data 的各个连续字段。
+// 解码布尔值时，零字节被解码为 false，任何其他非零字节被解码为 true。
+// 读入结构体时，字段名为空白（_）的字段数据会被跳过；
+// 也就是说，空白字段名可用于填充。
+// 读入结构体时，所有非空白字段都必须导出，否则 Read 可能会 panic。
 //
-// The error is [io.EOF] only if no bytes were read.
-// If an [io.EOF] happens after reading some but not all the bytes,
-// Read returns [io.ErrUnexpectedEOF].
+// 只有在未读取任何字节时，错误才为 [io.EOF]。
+// 如果在读取了一些但并非全部字节之后发生 [io.EOF]，
+// Read 会返回 [io.ErrUnexpectedEOF]。
 func Read(r io.Reader, order ByteOrder, data any) error {
-	// Fast path for basic types and slices.
+	// 基本类型和切片的快速路径。
 	if n, _ := intDataSize(data); n != 0 {
 		bs := make([]byte, n)
 		if _, err := io.ReadFull(r, bs); err != nil {
@@ -268,7 +259,7 @@ func Read(r io.Reader, order ByteOrder, data any) error {
 		}
 	}
 
-	// Fallback to reflect-based decoding.
+	// 回退到基于反射的解码。
 	v := reflect.ValueOf(data)
 	size := -1
 	switch v.Kind() {
@@ -290,10 +281,8 @@ func Read(r io.Reader, order ByteOrder, data any) error {
 	return nil
 }
 
-// Decode decodes binary data from buf into data according to
-// the given byte order.
-// It returns an error if buf is too small, otherwise the number of
-// bytes consumed from buf.
+// Decode 按给定的字节序将 buf 中的二进制数据解码到 data。
+// 如果 buf 太小，它会返回错误，否则返回从 buf 消耗的字节数。
 func Decode(buf []byte, order ByteOrder, data any) (int, error) {
 	if n, _ := intDataSize(data); n != 0 {
 		if len(buf) < n {
@@ -305,7 +294,7 @@ func Decode(buf []byte, order ByteOrder, data any) (int, error) {
 		}
 	}
 
-	// Fallback to reflect-based decoding.
+	// 回退到基于反射的解码。
 	v := reflect.ValueOf(data)
 	size := -1
 	switch v.Kind() {
@@ -352,7 +341,7 @@ func decodeFast(bs []byte, order ByteOrder, data any) bool {
 	case *float64:
 		*data = math.Float64frombits(order.Uint64(bs))
 	case []bool:
-		for i, x := range bs { // Easier to loop over the input for 8-bit values.
+		for i, x := range bs { // 对于 8 位值，直接循环遍历输入更简单。
 			data[i] = x != 0
 		}
 	case []int8:
@@ -399,16 +388,13 @@ func decodeFast(bs []byte, order ByteOrder, data any) bool {
 	return true
 }
 
-// Write writes the binary representation of data into w.
-// Data must be a fixed-size value or a slice of fixed-size
-// values, or a pointer to such data.
-// Boolean values encode as one byte: 1 for true, and 0 for false.
-// Bytes written to w are encoded using the specified byte order
-// and read from successive fields of the data.
-// When writing structs, zero values are written for fields
-// with blank (_) field names.
+// Write 将 data 的二进制表示写入 w。
+// data 必须是固定大小值、固定大小值的切片，或指向此类数据的指针。
+// 布尔值编码为一个字节：true 为 1，false 为 0。
+// 写入 w 的字节按指定的字节序编码，并从 data 的各个连续字段读取。
+// 写入结构体时，字段名为空白（_）的字段会写入零值。
 func Write(w io.Writer, order ByteOrder, data any) error {
-	// Fast path for basic types and slices.
+	// 基本类型和切片的快速路径。
 	if n, bs := intDataSize(data); n != 0 {
 		if bs == nil {
 			bs = make([]byte, n)
@@ -419,7 +405,7 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 		return err
 	}
 
-	// Fallback to reflect-based encoding.
+	// 回退到基于反射的编码。
 	v := reflect.Indirect(reflect.ValueOf(data))
 	size := dataSize(v)
 	if size < 0 {
@@ -433,12 +419,10 @@ func Write(w io.Writer, order ByteOrder, data any) error {
 	return err
 }
 
-// Encode encodes the binary representation of data into buf according to
-// the given byte order.
-// It returns an error if buf is too small, otherwise the number of
-// bytes written into buf.
+// Encode 按给定的字节序将 data 的二进制表示编码到 buf。
+// 如果 buf 太小，它会返回错误，否则返回写入 buf 的字节数。
 func Encode(buf []byte, order ByteOrder, data any) (int, error) {
-	// Fast path for basic types and slices.
+	// 基本类型和切片的快速路径。
 	if n, _ := intDataSize(data); n != 0 {
 		if len(buf) < n {
 			return 0, errBufferTooSmall
@@ -448,7 +432,7 @@ func Encode(buf []byte, order ByteOrder, data any) (int, error) {
 		return n, nil
 	}
 
-	// Fallback to reflect-based encoding.
+	// 回退到基于反射的编码。
 	v := reflect.Indirect(reflect.ValueOf(data))
 	size := dataSize(v)
 	if size < 0 {
@@ -463,19 +447,19 @@ func Encode(buf []byte, order ByteOrder, data any) (int, error) {
 	return size, nil
 }
 
-// Append appends the binary representation of data to buf.
-// buf may be nil, in which case a new buffer will be allocated.
-// See [Write] on which data are acceptable.
-// It returns the (possibly extended) buffer containing data or an error.
+// Append 将 data 的二进制表示追加到 buf。
+// buf 可以为 nil，此时会分配一个新的缓冲区。
+// 关于哪些 data 是可接受的，请参见 [Write]。
+// 它返回包含 data 的（可能已扩展的）缓冲区，或返回错误。
 func Append(buf []byte, order ByteOrder, data any) ([]byte, error) {
-	// Fast path for basic types and slices.
+	// 基本类型和切片的快速路径。
 	if n, _ := intDataSize(data); n != 0 {
 		buf, pos := ensure(buf, n)
 		encodeFast(pos, order, data)
 		return buf, nil
 	}
 
-	// Fallback to reflect-based encoding.
+	// 回退到基于反射的编码。
 	v := reflect.Indirect(reflect.ValueOf(data))
 	size := dataSize(v)
 	if size < 0 {
@@ -591,9 +575,9 @@ func encodeFast(bs []byte, order ByteOrder, data any) {
 	}
 }
 
-// Size returns how many bytes [Write] would generate to encode the value v, which
-// must be a fixed-size value or a slice of fixed-size values, or a pointer to such data.
-// If v is neither of these, Size returns -1.
+// Size 返回 [Write] 为编码值 v 会生成多少字节，v
+// 必须是固定大小值、固定大小值的切片，或指向此类数据的指针。
+// 如果 v 不属于这些类型，Size 返回 -1。
 func Size(v any) int {
 	switch data := v.(type) {
 	case bool, int8, uint8:
@@ -691,10 +675,10 @@ func Size(v any) int {
 
 var structSize sync.Map // map[reflect.Type]int
 
-// dataSize returns the number of bytes the actual data represented by v occupies in memory.
-// For compound structures, it sums the sizes of the elements. Thus, for instance, for a slice
-// it returns the length of the slice times the element size and does not count the memory
-// occupied by the header. If the type of v is not acceptable, dataSize returns -1.
+// dataSize 返回 v 所表示的实际数据在内存中占用的字节数。
+// 对于复合结构，它累加各元素的大小。因此，例如对于切片，
+// 它返回切片长度乘以元素大小，而不计入头部占用的内存。
+// 如果 v 的类型不可接受，dataSize 返回 -1。
 func dataSize(v reflect.Value) int {
 	switch v.Kind() {
 	case reflect.Slice, reflect.Array:
@@ -729,7 +713,7 @@ func dataSize(v reflect.Value) int {
 	return -1
 }
 
-// sizeof returns the size >= 0 of variables for the given type or -1 if the type is not acceptable.
+// sizeof 返回给定类型变量的大小（>= 0），如果类型不可接受则返回 -1。
 func sizeof(t reflect.Type) int {
 	switch t.Kind() {
 	case reflect.Array:
@@ -854,11 +838,10 @@ func (d *decoder) value(v reflect.Value) {
 		t := v.Type()
 		l := v.NumField()
 		for i := 0; i < l; i++ {
-			// Note: Calling v.CanSet() below is an optimization.
-			// It would be sufficient to check the field name,
-			// but creating the StructField info for each field is
-			// costly (run "go test -bench=ReadStruct" and compare
-			// results when making changes to this code).
+			// 注意：下面调用 v.CanSet() 是一种优化。
+			// 仅检查字段名就足够了，但为每个字段创建 StructField
+			// 信息的开销很大（运行 "go test -bench=ReadStruct" 并在此代码
+			// 发生更改时比较结果）。
 			if v := v.Field(i); v.CanSet() || t.Field(i).Name != "_" {
 				d.value(v)
 			} else {
@@ -923,7 +906,7 @@ func (e *encoder) value(v reflect.Value) {
 		t := v.Type()
 		l := v.NumField()
 		for i := 0; i < l; i++ {
-			// see comment for corresponding code in decoder.value()
+			// 参见 decoder.value() 中对应代码的注释
 			if v := v.Field(i); v.CanSet() || t.Field(i).Name != "_" {
 				e.value(v)
 			} else {
@@ -984,9 +967,9 @@ func (e *encoder) skip(v reflect.Value) {
 	e.offset += n
 }
 
-// intDataSize returns the size of the data required to represent the data when encoded,
-// and optionally a byte slice containing the encoded data if no conversion is necessary.
-// It returns zero, nil if the type cannot be implemented by the fast path in Read or Write.
+// intDataSize 返回编码时表示 data 所需的数据大小，
+// 并在无需转换时可选地返回包含已编码数据的字节切片。
+// 如果该类型无法由 Read 或 Write 中的快速路径实现，则返回 0, nil。
 func intDataSize(data any) (int, []byte) {
 	switch data := data.(type) {
 	case bool, int8, uint8, *bool, *int8, *uint8:
@@ -1027,8 +1010,8 @@ func intDataSize(data any) (int, []byte) {
 	return 0, nil
 }
 
-// ensure grows buf to length len(buf) + n and returns the grown buffer
-// and a slice starting at the original length of buf (that is, buf2[len(buf):]).
+// ensure 将 buf 增长到长度 len(buf) + n，并返回增长后的缓冲区
+// 以及从 buf 原始长度处开始的切片（即 buf2[len(buf):]）。
 func ensure(buf []byte, n int) (buf2, pos []byte) {
 	l := len(buf)
 	buf = slices.Grow(buf, n)[:l+n]

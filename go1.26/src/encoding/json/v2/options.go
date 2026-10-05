@@ -14,32 +14,32 @@ import (
 	"encoding/json/internal/jsonopts"
 )
 
-// Options configure [Marshal], [MarshalWrite], [MarshalEncode],
-// [Unmarshal], [UnmarshalRead], and [UnmarshalDecode] with specific features.
-// Each function takes in a variadic list of options, where properties
-// set in later options override the value of previously set properties.
+// Options 使用特定功能来配置 [Marshal]、[MarshalWrite]、[MarshalEncode]、
+// [Unmarshal]、[UnmarshalRead] 和 [UnmarshalDecode]。
+// 每个函数接受一个可变参数列表的选项，其中
+// 后续选项中设置的属性会覆盖先前设置的属性值。
 //
-// The Options type is identical to [encoding/json.Options] and
-// [encoding/json/jsontext.Options]. Options from the other packages can
-// be used interchangeably with functionality in this package.
+// Options 类型与 [encoding/json.Options] 和
+// [encoding/json/jsontext.Options] 完全相同。其他包中的 Options
+// 可以与本包的功能互换使用。
 //
-// Options represent either a singular option or a set of options.
-// It can be functionally thought of as a Go map of option properties
-// (even though the underlying implementation avoids Go maps for performance).
+// Options 表示单个选项或一组选项。
+// 在功能上可以把它看作选项属性的 Go map
+// （尽管底层实现出于性能考虑避免使用 Go map）。
 //
-// The constructors (e.g., [Deterministic]) return a singular option value:
+// 构造函数（例如 [Deterministic]）返回单个选项值：
 //
 //	opt := Deterministic(true)
 //
-// which is analogous to creating a single entry map:
+// 它类似于创建单条目 map：
 //
 //	opt := Options{"Deterministic": true}
 //
-// [JoinOptions] composes multiple options values to together:
+// [JoinOptions] 将多个选项值组合在一起：
 //
 //	out := JoinOptions(opts...)
 //
-// which is analogous to making a new map and copying the options over:
+// 它类似于创建一个新 map 并复制选项：
 //
 //	out := make(Options)
 //	for _, m := range opts {
@@ -48,72 +48,72 @@ import (
 //		}
 //	}
 //
-// [GetOption] looks up the value of options parameter:
+// [GetOption] 查找 options 参数的值：
 //
 //	v, ok := GetOption(opts, Deterministic)
 //
-// which is analogous to a Go map lookup:
+// 它类似于 Go map 查找：
 //
 //	v, ok := Options["Deterministic"]
 //
-// There is a single Options type, which is used with both marshal and unmarshal.
-// Some options affect both operations, while others only affect one operation:
+// 只有单一的 Options 类型，它同时用于 marshal 和 unmarshal。
+// 有些选项影响两种操作，而其他选项只影响一种操作：
 //
-//   - [StringifyNumbers] affects marshaling and unmarshaling
-//   - [Deterministic] affects marshaling only
-//   - [FormatNilSliceAsNull] affects marshaling only
-//   - [FormatNilMapAsNull] affects marshaling only
-//   - [OmitZeroStructFields] affects marshaling only
-//   - [MatchCaseInsensitiveNames] affects marshaling and unmarshaling
-//   - [DiscardUnknownMembers] affects marshaling only
-//   - [RejectUnknownMembers] affects unmarshaling only
-//   - [WithMarshalers] affects marshaling only
-//   - [WithUnmarshalers] affects unmarshaling only
+//   - [StringifyNumbers] 影响 marshaling 和 unmarshaling
+//   - [Deterministic] 仅影响 marshaling
+//   - [FormatNilSliceAsNull] 仅影响 marshaling
+//   - [FormatNilMapAsNull] 仅影响 marshaling
+//   - [OmitZeroStructFields] 仅影响 marshaling
+//   - [MatchCaseInsensitiveNames] 影响 marshaling 和 unmarshaling
+//   - [DiscardUnknownMembers] 仅影响 marshaling
+//   - [RejectUnknownMembers] 仅影响 unmarshaling
+//   - [WithMarshalers] 仅影响 marshaling
+//   - [WithUnmarshalers] 仅影响 unmarshaling
 //
-// Options that do not affect a particular operation are ignored.
+// 不影响某一特定操作的选项会被忽略。
 type Options = jsonopts.Options
 
-// JoinOptions coalesces the provided list of options into a single Options.
-// Properties set in later options override the value of previously set properties.
+// JoinOptions 将提供的选项列表合并为单个 Options。
+// 后续选项中设置的属性会覆盖先前设置的属性值。
 func JoinOptions(srcs ...Options) Options {
 	var dst jsonopts.Struct
 	dst.Join(srcs...)
 	return &dst
 }
 
-// GetOption returns the value stored in opts with the provided setter,
-// reporting whether the value is present.
+// GetOption 返回使用提供的 setter 存储在 opts 中的值，
+// 并报告该值是否存在。
 //
-// Example usage:
+// 示例用法：
 //
 //	v, ok := json.GetOption(opts, json.Deterministic)
 //
-// Options are most commonly introspected to alter the JSON representation of
-// [MarshalerTo.MarshalJSONTo] and [UnmarshalerFrom.UnmarshalJSONFrom] methods, and
-// [MarshalToFunc] and [UnmarshalFromFunc] functions.
-// In such cases, the presence bit should generally be ignored.
+// Options 最常见的用途是通过内省来改变
+// [MarshalerTo.MarshalJSONTo] 和 [UnmarshalerFrom.UnmarshalJSONFrom] 方法，以及
+// [MarshalToFunc] 和 [UnmarshalFromFunc] 函数的 JSON 表示形式。
+// 在这些情况下，通常应忽略存在性标志位。
 func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
 	return jsonopts.GetOption(opts, setter)
 }
 
-// DefaultOptionsV2 is the full set of all options that define v2 semantics.
-// It is equivalent to the set of options in [encoding/json.DefaultOptionsV1]
-// all being set to false. All other options are not present.
+// DefaultOptionsV2 是定义 v2 语义的所有选项的完整集合。
+// 它等价于 [encoding/json.DefaultOptionsV1] 中的选项集合
+// 全部设置为 false。所有其他选项都不存在。
 func DefaultOptionsV2() Options {
 	return &jsonopts.DefaultOptionsV2
 }
 
-// StringifyNumbers specifies that numeric Go types should be marshaled
-// as a JSON string containing the equivalent JSON number value.
-// When unmarshaling, numeric Go types are parsed from a JSON string
-// containing the JSON number without any surrounding whitespace.
+// StringifyNumbers 指定数值 Go 类型应被 marshal 为
+// 包含等价 JSON 数字值的 JSON 字符串。
+// 在 unmarshaling 时，数值 Go 类型会从包含该 JSON 数字
+// 且不含任何周围空白的 JSON 字符串中解析。
 //
-// According to RFC 8259, section 6, a JSON implementation may choose to
-// limit the representation of a JSON number to an IEEE 754 binary64 value.
-// This may cause decoders to lose precision for int64 and uint64 types.
-// Quoting JSON numbers as a JSON string preserves the exact precision.
+// 根据 RFC 8259 第 6 节，JSON 实现可以选择
+// 将 JSON 数字的表示限制为 IEEE 754 binary64 值。
+// 这可能导致解码器对 int64 和 uint64 类型丢失精度。
+// 将 JSON 数字作为 JSON 字符串加引号可以保留精确精度。
 //
-// This affects either marshaling or unmarshaling.
+// 这影响 marshaling 或 unmarshaling。
 func StringifyNumbers(v bool) Options {
 	if v {
 		return jsonflags.StringifyNumbers | 1
@@ -122,13 +122,13 @@ func StringifyNumbers(v bool) Options {
 	}
 }
 
-// Deterministic specifies that the same input value will be serialized
-// as the exact same output bytes. Different processes of
-// the same program will serialize equal values to the same bytes,
-// but different versions of the same program are not guaranteed
-// to produce the exact same sequence of bytes.
+// Deterministic 指定相同的输入值将被序列化为
+// 完全相同的输出字节。同一程序的
+// 不同进程会将相等的值序列化为相同的字节，
+// 但不保证同一程序的不同版本
+// 产生完全相同的字节序列。
 //
-// This only affects marshaling and is ignored when unmarshaling.
+// 这仅影响 marshaling，在 unmarshaling 时会被忽略。
 func Deterministic(v bool) Options {
 	if v {
 		return jsonflags.Deterministic | 1
@@ -137,13 +137,13 @@ func Deterministic(v bool) Options {
 	}
 }
 
-// FormatNilSliceAsNull specifies that a nil Go slice should marshal as a
-// JSON null instead of the default representation as an empty JSON array
-// (or an empty JSON string in the case of ~[]byte).
-// Slice fields explicitly marked with `format:emitempty` still marshal
-// as an empty JSON array.
+// FormatNilSliceAsNull 指定 nil 的 Go slice 应 marshal 为
+// JSON null，而不是默认表示为空的 JSON 数组
+// （对于 ~[]byte 则为空的 JSON 字符串）。
+// 显式标记了 `format:emitempty` 的 slice 字段仍然会 marshal
+// 为空的 JSON 数组。
 //
-// This only affects marshaling and is ignored when unmarshaling.
+// 这仅影响 marshaling，在 unmarshaling 时会被忽略。
 func FormatNilSliceAsNull(v bool) Options {
 	if v {
 		return jsonflags.FormatNilSliceAsNull | 1
@@ -152,12 +152,12 @@ func FormatNilSliceAsNull(v bool) Options {
 	}
 }
 
-// FormatNilMapAsNull specifies that a nil Go map should marshal as a
-// JSON null instead of the default representation as an empty JSON object.
-// Map fields explicitly marked with `format:emitempty` still marshal
-// as an empty JSON object.
+// FormatNilMapAsNull 指定 nil 的 Go map 应 marshal 为
+// JSON null，而不是默认表示为空的 JSON 对象。
+// 显式标记了 `format:emitempty` 的 map 字段仍然会 marshal
+// 为空的 JSON 对象。
 //
-// This only affects marshaling and is ignored when unmarshaling.
+// 这仅影响 marshaling，在 unmarshaling 时会被忽略。
 func FormatNilMapAsNull(v bool) Options {
 	if v {
 		return jsonflags.FormatNilMapAsNull | 1
@@ -166,14 +166,14 @@ func FormatNilMapAsNull(v bool) Options {
 	}
 }
 
-// OmitZeroStructFields specifies that a Go struct should marshal in such a way
-// that all struct fields that are zero are omitted from the marshaled output
-// if the value is zero as determined by the "IsZero() bool" method if present,
-// otherwise based on whether the field is the zero Go value.
-// This is semantically equivalent to specifying the `omitzero` tag option
-// on every field in a Go struct.
+// OmitZeroStructFields 指定 Go struct 应以如下方式 marshal：
+// 如果字段值按其 "IsZero() bool" 方法（若存在）判定为零，
+// 否则按该字段是否为零值 Go 值来判定，
+// 则从 marshal 输出中省略所有为零的 struct 字段。
+// 这在语义上等价于在 Go struct 的每个字段上
+// 指定 `omitzero` 标签选项。
 //
-// This only affects marshaling and is ignored when unmarshaling.
+// 这仅影响 marshaling，在 unmarshaling 时会被忽略。
 func OmitZeroStructFields(v bool) Options {
 	if v {
 		return jsonflags.OmitZeroStructFields | 1
@@ -182,16 +182,16 @@ func OmitZeroStructFields(v bool) Options {
 	}
 }
 
-// MatchCaseInsensitiveNames specifies that JSON object members are matched
-// against Go struct fields using a case-insensitive match of the name.
-// Go struct fields explicitly marked with `case:strict` or `case:ignore`
-// always use case-sensitive (or case-insensitive) name matching,
-// regardless of the value of this option.
+// MatchCaseInsensitiveNames 指定 JSON 对象成员使用名称的
+// 不区分大小写匹配来与 Go struct 字段进行匹配。
+// 显式标记了 `case:strict` 或 `case:ignore` 的 Go struct 字段
+// 始终使用区分大小写（或不区分大小写）的名称匹配，
+// 无论该选项的值是什么。
 //
-// This affects either marshaling or unmarshaling.
-// For marshaling, this option may alter the detection of duplicate names
-// (assuming [jsontext.AllowDuplicateNames] is false) from inlined fields
-// if it matches one of the declared fields in the Go struct.
+// 这影响 marshaling 或 unmarshaling。
+// 对于 marshaling，如果内联字段与 Go struct 中声明的某个字段匹配，
+// 该选项可能会改变对内联字段重复名称的检测
+// （假定 [jsontext.AllowDuplicateNames] 为 false）。
 func MatchCaseInsensitiveNames(v bool) Options {
 	if v {
 		return jsonflags.MatchCaseInsensitiveNames | 1
@@ -200,11 +200,11 @@ func MatchCaseInsensitiveNames(v bool) Options {
 	}
 }
 
-// DiscardUnknownMembers specifies that marshaling should ignore any
-// JSON object members stored in Go struct fields dedicated to storing
-// unknown JSON object members.
+// DiscardUnknownMembers 指定 marshaling 应忽略任何存储在
+// 专门用于存放未知 JSON 对象成员的 Go struct 字段中的
+// JSON 对象成员。
 //
-// This only affects marshaling and is ignored when unmarshaling.
+// 这仅影响 marshaling，在 unmarshaling 时会被忽略。
 func DiscardUnknownMembers(v bool) Options {
 	if v {
 		return jsonflags.DiscardUnknownMembers | 1
@@ -213,11 +213,10 @@ func DiscardUnknownMembers(v bool) Options {
 	}
 }
 
-// RejectUnknownMembers specifies that unknown members should be rejected
-// when unmarshaling a JSON object, regardless of whether there is a field
-// to store unknown members.
+// RejectUnknownMembers 指定在 unmarshal 一个 JSON 对象时，
+// 应拒绝未知成员，无论是否存在用于存放未知成员的字段。
 //
-// This only affects unmarshaling and is ignored when marshaling.
+// 这仅影响 unmarshaling，在 marshaling 时会被忽略。
 func RejectUnknownMembers(v bool) Options {
 	if v {
 		return jsonflags.RejectUnknownMembers | 1
@@ -226,26 +225,24 @@ func RejectUnknownMembers(v bool) Options {
 	}
 }
 
-// WithMarshalers specifies a list of type-specific marshalers to use,
-// which can be used to override the default marshal behavior for values
-// of particular types.
+// WithMarshalers 指定要使用的类型特定 marshaler 列表，
+// 可用于覆盖特定类型值的默认 marshal 行为。
 //
-// This only affects marshaling and is ignored when unmarshaling.
+// 这仅影响 marshaling，在 unmarshaling 时会被忽略。
 func WithMarshalers(v *Marshalers) Options {
 	return (*marshalersOption)(v)
 }
 
-// WithUnmarshalers specifies a list of type-specific unmarshalers to use,
-// which can be used to override the default unmarshal behavior for values
-// of particular types.
+// WithUnmarshalers 指定要使用的类型特定 unmarshaler 列表，
+// 可用于覆盖特定类型值的默认 unmarshal 行为。
 //
-// This only affects unmarshaling and is ignored when marshaling.
+// 这仅影响 unmarshaling，在 marshaling 时会被忽略。
 func WithUnmarshalers(v *Unmarshalers) Options {
 	return (*unmarshalersOption)(v)
 }
 
-// These option types are declared here instead of "jsonopts"
-// to avoid a dependency on "reflect" from "jsonopts".
+// 这些选项类型在此处声明而不是在 "jsonopts" 中声明，
+// 以避免 "jsonopts" 依赖 "reflect"。
 type (
 	marshalersOption   Marshalers
 	unmarshalersOption Unmarshalers
@@ -254,7 +251,7 @@ type (
 func (*marshalersOption) JSONOptions(internal.NotForPublicUse)   {}
 func (*unmarshalersOption) JSONOptions(internal.NotForPublicUse) {}
 
-// Inject support into "jsonopts" to handle these types.
+// 向 "jsonopts" 注入支持以处理这些类型。
 func init() {
 	jsonopts.GetUnknownOption = func(src jsonopts.Struct, zero jsonopts.Options) (any, bool) {
 		switch zero.(type) {

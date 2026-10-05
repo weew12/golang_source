@@ -4,10 +4,10 @@
 
 //go:build ignore
 
-// decgen writes the helper functions for decoding. Intended to be
-// used with go generate; see the invocation in decode.go.
+// decgen 生成用于解码的辅助函数。旨在配合 go generate 使用；
+// 参见 decode.go 中的调用。
 
-// TODO: We could do more by being unsafe. Add a -unsafe flag?
+// TODO：借助 unsafe 我们可以做得更多。是否添加一个 -unsafe 标志？
 
 package main
 
@@ -160,7 +160,7 @@ var types = []Type{
 		}
 		slice[i] = uintptr(x)`,
 	},
-	// uint8 Handled separately.
+	// uint8 单独处理。
 }
 
 func main() {

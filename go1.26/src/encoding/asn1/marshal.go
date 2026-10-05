@@ -20,11 +20,11 @@ var (
 	byteFFEncoder encoder = byteEncoder(0xff)
 )
 
-// encoder represents an ASN.1 element that is waiting to be marshaled.
+// encoder 表示一个等待编组的 ASN.1 元素。
 type encoder interface {
-	// Len returns the number of bytes needed to marshal this element.
+	// Len 返回编组此元素所需的字节数。
 	Len() int
-	// Encode encodes this element by writing Len() bytes to dst.
+	// Encode 通过向 dst 写入 Len() 个字节来编码此元素。
 	Encode(dst []byte)
 }
 
@@ -91,26 +91,24 @@ func (s setEncoder) Len() int {
 }
 
 func (s setEncoder) Encode(dst []byte) {
-	// Per X690 Section 11.6: The encodings of the component values of a
-	// set-of value shall appear in ascending order, the encodings being
-	// compared as octet strings with the shorter components being padded
-	// at their trailing end with 0-octets.
+	// 依据 X690 第 11.6 节：set-of 值的各分量值的编码应按升序出现，
+	// 编码按八位组字符串进行比较，较短的分子在其尾端
+	// 用 0 八位组补齐。
 	//
-	// First we encode each element to its TLV encoding and then use
-	// octetSort to get the ordering expected by X690 DER rules before
-	// writing the sorted encodings out to dst.
+	// 我们先将每个元素编码为其 TLV 编码，然后使用
+	// octetSort 得到 X690 DER 规则所期望的排序，再
+	// 将排序后的编码写出到 dst。
 	l := make([][]byte, len(s))
 	for i, e := range s {
 		l[i] = make([]byte, e.Len())
 		e.Encode(l[i])
 	}
 
-	// Since we are using bytes.Compare to compare TLV encodings we
-	// don't need to right pad s[i] and s[j] to the same length as
-	// suggested in X690. If len(s[i]) < len(s[j]) the length octet of
-	// s[i], which is the first determining byte, will inherently be
-	// smaller than the length octet of s[j]. This lets us skip the
-	// padding step.
+	// 由于我们使用 bytes.Compare 比较 TLV 编码，我们
+	// 无需像 X690 所建议的那样将 s[i] 和 s[j] 右补齐到相同长度。
+	// 如果 len(s[i]) < len(s[j])，s[i] 的长度八位组（即第一个起决定作用的
+	// 字节）本身就会小于 s[j] 的长度八位组。这让我们可以跳过
+	// 补齐步骤。
 	slices.SortFunc(l, bytes.Compare)
 
 	var off int
@@ -121,8 +119,8 @@ func (s setEncoder) Encode(dst []byte) {
 }
 
 type taggedEncoder struct {
-	// scratch contains temporary space for encoding the tag and length of
-	// an element in order to avoid extra allocations.
+	// scratch 包含用于编码元素标签和长度的临时空间，
+	// 以避免额外的分配。
 	scratch [8]byte
 	tag     encoder
 	body    encoder
@@ -198,10 +196,9 @@ func makeBigInt(n *big.Int) (encoder, error) {
 	}
 
 	if n.Sign() < 0 {
-		// A negative number has to be converted to two's-complement
-		// form. So we'll invert and subtract 1. If the
-		// most-significant-bit isn't set then we'll need to pad the
-		// beginning with 0xff in order to keep the number negative.
+		// 负数必须转换为二进制补码形式。因此我们会取反并减 1。
+		// 如果最高有效位未设置，那么我们需要在开头
+		// 用 0xff 补齐，以保持该数为负数。
 		nMinus1 := new(big.Int).Neg(n)
 		nMinus1.Sub(nMinus1, bigOne)
 		bytes := nMinus1.Bytes()
@@ -213,13 +210,13 @@ func makeBigInt(n *big.Int) (encoder, error) {
 		}
 		return bytesEncoder(bytes), nil
 	} else if n.Sign() == 0 {
-		// Zero is written as a single 0 zero rather than no bytes.
+		// 零被写为单个 0 字节，而不是没有字节。
 		return byte00Encoder, nil
 	} else {
 		bytes := n.Bytes()
 		if len(bytes) > 0 && bytes[0]&0x80 != 0 {
-			// We'll have to pad this with 0x00 in order to stop it
-			// looking like a negative number.
+			// 我们必须用 0x00 补齐它，以防止它
+			// 看起来像负数。
 			return multiEncoder([]encoder{byte00Encoder, bytesEncoder(bytes)}), nil
 		}
 		return bytesEncoder(bytes), nil
@@ -310,12 +307,10 @@ func makeObjectIdentifier(oid []int) (e encoder, err error) {
 
 func makePrintableString(s string) (e encoder, err error) {
 	for i := 0; i < len(s); i++ {
-		// The asterisk is often used in PrintableString, even though
-		// it is invalid. If a PrintableString was specifically
-		// requested then the asterisk is permitted by this code.
-		// Ampersand is allowed in parsing due a handful of CA
-		// certificates, however when making new certificates
-		// it is rejected.
+		// 星号在 PrintableString 中经常被使用，尽管它是无效的。
+		// 如果专门请求了 PrintableString，那么这段代码允许星号。
+		// 与号在解析时由于少数 CA 证书而被允许，
+		// 然而在生成新证书时它会被拒绝。
 		if !isPrintable(s[i], allowAsterisk, rejectAmpersand) {
 			return nil, StructuralError{"PrintableString contains invalid character"}
 		}
@@ -500,16 +495,16 @@ func makeBody(value reflect.Value, params fieldParameters) (e encoder, err error
 			return bytesEncoder(nil), nil
 		}
 
-		// If the first element of the structure is a non-empty
-		// RawContents, then we don't bother serializing the rest.
+		// 如果结构体的第一个元素是非空的
+		// RawContents，那么我们就不必序列化其余内容。
 		if t.Field(0).Type == rawContentsType {
 			s := v.Field(0)
 			if s.Len() > 0 {
 				bytes := s.Bytes()
-				/* The RawContents will contain the tag and
-				 * length fields but we'll also be writing
-				 * those ourselves, so we strip them out of
-				 * bytes */
+				/* RawContents 将包含标签和
+				 * 长度字段，但我们自己也会写入
+				 * 这些内容，因此将它们从
+				 * bytes 中剥离 */
 				return bytesEncoder(stripTagAndLength(bytes)), nil
 			}
 
@@ -580,7 +575,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 	if !v.IsValid() {
 		return nil, fmt.Errorf("asn1: cannot marshal nil value")
 	}
-	// If the field is an interface{} then recurse into it.
+	// 如果该字段是 interface{}，则递归进入其中。
 	if v.Kind() == reflect.Interface && v.Type().NumMethod() == 0 {
 		return makeField(v.Elem(), params)
 	}
@@ -598,9 +593,8 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 		}
 	}
 
-	// If no default value is given then the zero value for the type is
-	// assumed to be the default value. This isn't obviously the correct
-	// behavior, but it's what Go has traditionally done.
+	// 如果未给出默认值，则假定该类型的零值为默认值。
+	// 这显然不一定正确，但这是 Go 一贯的做法。
 	if params.optional && params.defaultValue == nil {
 		if reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
 			return bytesEncoder(nil), nil
@@ -637,9 +631,9 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 	switch tag {
 	case TagPrintableString:
 		if params.stringType == 0 {
-			// This is a string without an explicit string type. We'll use
-			// a PrintableString if the character set in the string is
-			// sufficiently limited, otherwise we'll use a UTF8String.
+			// 这是一个没有显式字符串类型的字符串。如果字符串中的
+			// 字符集足够有限，我们将使用 PrintableString，
+			// 否则将使用 UTF8String。
 			for _, r := range v.String() {
 				if r >= utf8.RuneSelf || !isPrintable(byte(r), rejectAsterisk, rejectAmpersand) {
 					if !utf8.ValidString(v.String()) {
@@ -666,11 +660,10 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 		tag = TagSet
 	}
 
-	// makeField can be called for a slice that should be treated as a SET
-	// but doesn't have params.set set, for instance when using a slice
-	// with the SET type name suffix. In this case getUniversalType returns
-	// TagSet, but makeBody doesn't know about that so will treat the slice
-	// as a sequence. To work around this we set params.set.
+	// makeField 可能会针对一个应被视为 SET 但未设置 params.set 的切片
+	// 被调用，例如当使用带有 SET 类型名称后缀的切片时。
+	// 在这种情况下 getUniversalType 返回 TagSet，但 makeBody 并不知道这一点，
+	// 因此会把该切片当作序列处理。为解决这个问题，我们设置 params.set。
 	if tag == TagSet && !params.set {
 		params.set = true
 	}
@@ -711,7 +704,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 			return tt, nil
 		}
 
-		// implicit tag.
+		// 隐式标签。
 		tag = *params.tag
 	}
 
@@ -720,24 +713,23 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 	return t, nil
 }
 
-// Marshal returns the ASN.1 encoding of val.
+// Marshal 返回 val 的 ASN.1 编码。
 //
-// In addition to the struct tags recognized by Unmarshal, the following can be
-// used:
+// 除 Unmarshal 可识别的结构体标签外，还可以使用以下标签：
 //
-//	ia5:         causes strings to be marshaled as ASN.1, IA5String values
-//	omitempty:   causes empty slices to be skipped
-//	printable:   causes strings to be marshaled as ASN.1, PrintableString values
-//	utf8:        causes strings to be marshaled as ASN.1, UTF8String values
-//	numeric:     causes strings to be marshaled as ASN.1, NumericString values
-//	utc:         causes time.Time to be marshaled as ASN.1, UTCTime values
-//	generalized: causes time.Time to be marshaled as ASN.1, GeneralizedTime values
+//	ia5:         使字符串按 ASN.1 IA5String 值编组
+//	omitempty:   使空切片被跳过
+//	printable:   使字符串按 ASN.1 PrintableString 值编组
+//	utf8:        使字符串按 ASN.1 UTF8String 值编组
+//	numeric:     使字符串按 ASN.1 NumericString 值编组
+//	utc:         使 time.Time 按 ASN.1 UTCTime 值编组
+//	generalized: 使 time.Time 按 ASN.1 GeneralizedTime 值编组
 func Marshal(val any) ([]byte, error) {
 	return MarshalWithParams(val, "")
 }
 
-// MarshalWithParams allows field parameters to be specified for the
-// top-level element. The form of the params is the same as the field tags.
+// MarshalWithParams 允许为顶层元素指定字段参数。
+// params 的形式与字段标签相同。
 func MarshalWithParams(val any, params string) ([]byte, error) {
 	e, err := makeField(reflect.ValueOf(val), parseFieldParameters(params))
 	if err != nil {

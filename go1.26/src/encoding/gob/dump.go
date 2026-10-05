@@ -6,8 +6,8 @@
 
 package main
 
-// Need to compile package gob with debug.go to build this program.
-// See comments in debug.go for how to do this.
+// 需要将 gob 包与 debug.go 一起编译才能构建此程序。
+// 操作方法参见 debug.go 中的注释。
 
 import (
 	"encoding/gob"

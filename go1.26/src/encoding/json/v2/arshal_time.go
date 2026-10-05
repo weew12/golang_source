@@ -31,14 +31,14 @@ var (
 )
 
 func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
-	// Ideally, time types would implement MarshalerTo and UnmarshalerFrom,
-	// but that would incur a dependency on package json from package time.
-	// Given how widely used time is, it is more acceptable that we incur a
-	// dependency on time from json.
+	// 理想情况下，time 类型应该实现 MarshalerTo 和 UnmarshalerFrom，
+	// 但这会引入从 time 包到 json 包的依赖。
+	// 考虑到 time 被广泛使用，更可接受的是我们引入
+	// 从 json 到 time 的依赖。
 	//
-	// Injecting the arshaling functionality like this will not be identical
-	// to actually declaring methods on the time types since embedding of the
-	// time types will not be able to forward this functionality.
+	// 像这样注入 arshaling 功能，与真正在 time 类型上声明方法
+	// 并不完全相同，因为对 time 类型的嵌入
+	// 将无法转发这一功能。
 	switch t {
 	case timeDurationType:
 		fncs.nonDefault = true
@@ -53,7 +53,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			} else if mo.Flags.Get(jsonflags.FormatDurationAsNano) {
 				return marshalNano(enc, va, mo)
 			} else {
-				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
+				// TODO(https://go.dev/issue/71631): 决定默认的 duration 表示形式。
 				return newMarshalErrorBefore(enc, t, errors.New("no default representation (see https://go.dev/issue/71631); specify an explicit format"))
 			}
 
@@ -78,7 +78,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			} else if uo.Flags.Get(jsonflags.FormatDurationAsNano) {
 				return unmarshalNano(dec, va, uo)
 			} else {
-				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
+				// TODO(https://go.dev/issue/71631): 决定默认的 duration 表示形式。
 				return newUnmarshalErrorBeforeWithSkipping(dec, t, errors.New("no default representation (see https://go.dev/issue/71631); specify an explicit format"))
 			}
 
@@ -132,7 +132,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			k := stringOrNumberKind(!m.isNumeric() || xe.Tokens.Last.NeedObjectName() || mo.Flags.Get(jsonflags.StringifyNumbers))
 			if err := xe.AppendRaw(k, !m.hasCustomFormat(), m.appendMarshal); err != nil {
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
+					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // 与 unmarshal 不同，总是被包装
 				}
 				if !isSyntacticError(err) && !export.IsIOError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -172,7 +172,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				val = jsonwire.UnquoteMayCopy(val, flags.IsVerbatim())
 				if err := u.unmarshal(val); err != nil {
 					if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-						return err // unlike marshal, never wrapped
+						return err // 与 marshal 不同，从不被包装
 					}
 					return newUnmarshalErrorAfter(dec, t, err)
 				}
@@ -184,7 +184,7 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 				}
 				if err := u.unmarshal(val); err != nil {
 					if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-						return err // unlike marshal, never wrapped
+						return err // 与 marshal 不同，从不被包装
 					}
 					return newUnmarshalErrorAfter(dec, t, err)
 				}
@@ -200,11 +200,11 @@ func makeTimeArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 type durationArshaler struct {
 	td time.Duration
 
-	// base records the representation where:
-	//   - 0 uses time.Duration.String
-	//   - 1e0, 1e3, 1e6, or 1e9 use a decimal encoding of the duration as
-	//     nanoseconds, microseconds, milliseconds, or seconds.
-	//   - 8601 uses ISO 8601
+	// base 记录表示形式，其中：
+	//   - 0 使用 time.Duration.String
+	//   - 1e0、1e3、1e6 或 1e9 使用 duration 的十进制编码，表示为
+	//     纳秒、微秒、毫秒或秒。
+	//   - 8601 使用 ISO 8601
 	base uint64
 }
 
@@ -258,24 +258,24 @@ func (a *durationArshaler) unmarshal(b []byte) (err error) {
 type timeArshaler struct {
 	tt time.Time
 
-	// base records the representation where:
-	//   - 0 uses RFC 3339 encoding of the timestamp
-	//   - 1e0, 1e3, 1e6, or 1e9 use a decimal encoding of the timestamp as
-	//     seconds, milliseconds, microseconds, or nanoseconds since Unix epoch.
-	//   - math.MaxUint uses time.Time.Format to encode the timestamp
+	// base 记录表示形式，其中：
+	//   - 0 使用时间戳的 RFC 3339 编码
+	//   - 1e0、1e3、1e6 或 1e9 使用时间戳的十进制编码，表示为
+	//     自 Unix 纪元以来的秒、毫秒、微秒或纳秒。
+	//   - math.MaxUint 使用 time.Time.Format 编码时间戳
 	base   uint64
-	format string // time format passed to time.Parse
+	format string // 传递给 time.Parse 的时间格式
 
 	looseRFC3339 bool
 }
 
 func (a *timeArshaler) initFormat(format string) bool {
-	// We assume that an exported constant in the time package will
-	// always start with an uppercase ASCII letter.
+	// 我们假定 time 包中导出的常量
+	// 总是以大写 ASCII 字母开头。
 	if len(format) == 0 {
 		return false
 	}
-	a.base = math.MaxUint // implies custom format
+	a.base = math.MaxUint // 意味着自定义格式
 	if c := format[0]; !('a' <= c && c <= 'z') && !('A' <= c && c <= 'Z') {
 		a.format = format
 		return true
@@ -328,7 +328,7 @@ func (a *timeArshaler) initFormat(format string) bool {
 	case "unixnano":
 		a.base = 1e9
 	default:
-		// Reject any Go identifier in case new constants are supported.
+		// 拒绝任何 Go 标识符，以防将来支持新的常量。
 		if strings.TrimFunc(format, isLetterOrDigit) == "" {
 			return false
 		}
@@ -351,11 +351,11 @@ func (a *timeArshaler) appendMarshal(b []byte) ([]byte, error) {
 		format := cmp.Or(a.format, time.RFC3339Nano)
 		n0 := len(b)
 		b = a.tt.AppendFormat(b, format)
-		// Not all Go timestamps can be represented as valid RFC 3339.
-		// Explicitly check for these edge cases.
-		// See https://go.dev/issue/4556 and https://go.dev/issue/54580.
+		// 并非所有 Go 时间戳都能表示为有效的 RFC 3339。
+		// 显式检查这些边界情况。
+		// 参见 https://go.dev/issue/4556 和 https://go.dev/issue/54580。
 		switch b := b[n0:]; {
-		case b[len("9999")] != '-': // year must be exactly 4 digits wide
+		case b[len("9999")] != '-': // 年份必须正好是 4 位数字宽
 			return b, errors.New("year outside of range [0,9999]")
 		case b[len(b)-1] != 'Z':
 			c := b[len(b)-len("Z07:00")]
@@ -374,30 +374,30 @@ func (a *timeArshaler) appendMarshal(b []byte) ([]byte, error) {
 func (a *timeArshaler) unmarshal(b []byte) (err error) {
 	switch a.base {
 	case 0:
-		// Use time.Time.UnmarshalText to avoid possible string allocation.
+		// 使用 time.Time.UnmarshalText 以避免可能的字符串分配。
 		if err := a.tt.UnmarshalText(b); err != nil {
 			return err
 		}
 		// TODO(https://go.dev/issue/57912):
-		// RFC 3339 specifies the grammar for a valid timestamp.
-		// However, the parsing functionality in "time" is too loose and
-		// incorrectly accepts invalid timestamps as valid.
-		// Remove these manual checks when "time" checks it for us.
+		// RFC 3339 规定了有效时间戳的语法。
+		// 然而，"time" 中的解析功能过于宽松，
+		// 会错误地将无效时间戳当作有效。
+		// 当 "time" 为我们检查时，请移除这些手动检查。
 		newParseError := func(layout, value, layoutElem, valueElem, message string) error {
 			return &time.ParseError{Layout: layout, Value: value, LayoutElem: layoutElem, ValueElem: valueElem, Message: message}
 		}
 		switch {
 		case a.looseRFC3339:
 			return nil
-		case b[len("2006-01-02T")+1] == ':': // hour must be two digits
+		case b[len("2006-01-02T")+1] == ':': // 小时必须为两位数字
 			return newParseError(time.RFC3339, string(b), "15", string(b[len("2006-01-02T"):][:1]), "")
-		case b[len("2006-01-02T15:04:05")] == ',': // sub-second separator must be a period
+		case b[len("2006-01-02T15:04:05")] == ',': // 亚秒分隔符必须是一个点号
 			return newParseError(time.RFC3339, string(b), ".", ",", "")
 		case b[len(b)-1] != 'Z':
 			switch {
-			case parseDec2(b[len(b)-len("07:00"):]) >= 24: // timezone hour must be in range
+			case parseDec2(b[len(b)-len("07:00"):]) >= 24: // 时区小时必须在范围内
 				return newParseError(time.RFC3339, string(b), "Z07:00", string(b[len(b)-len("Z07:00"):]), ": timezone hour out of range")
-			case parseDec2(b[len(b)-len("00"):]) >= 60: // timezone minute must be in range
+			case parseDec2(b[len(b)-len("00"):]) >= 60: // 时区分钟必须在范围内
 				return newParseError(time.RFC3339, string(b), "Z07:00", string(b[len(b)-len("Z07:00"):]), ": timezone minute out of range")
 			}
 		}
@@ -411,25 +411,25 @@ func (a *timeArshaler) unmarshal(b []byte) (err error) {
 	}
 }
 
-// appendDurationBase10 appends d formatted as a decimal fractional number,
-// where pow10 is a power-of-10 used to scale down the number.
+// appendDurationBase10 将 d 格式化为十进制小数并追加，
+// 其中 pow10 是用于缩小该数字的 10 的幂。
 func appendDurationBase10(b []byte, d time.Duration, pow10 uint64) []byte {
-	b, n := mayAppendDurationSign(b, d)            // append sign
-	whole, frac := bits.Div64(0, n, uint64(pow10)) // compute whole and frac fields
-	b = strconv.AppendUint(b, whole, 10)           // append whole field
-	return appendFracBase10(b, frac, pow10)        // append frac field
+	b, n := mayAppendDurationSign(b, d)            // 追加符号
+	whole, frac := bits.Div64(0, n, uint64(pow10)) // 计算整数和小数部分
+	b = strconv.AppendUint(b, whole, 10)           // 追加整数部分
+	return appendFracBase10(b, frac, pow10)        // 追加小数部分
 }
 
-// parseDurationBase10 parses d from a decimal fractional number,
-// where pow10 is a power-of-10 used to scale up the number.
+// parseDurationBase10 从十进制小数中解析出 d，
+// 其中 pow10 是用于放大该数字的 10 的幂。
 func parseDurationBase10(b []byte, pow10 uint64) (time.Duration, error) {
-	suffix, neg := consumeSign(b, false)                     // consume sign
-	wholeBytes, fracBytes := bytesCutByte(suffix, '.', true) // consume whole and frac fields
-	whole, okWhole := jsonwire.ParseUint(wholeBytes)         // parse whole field; may overflow
-	frac, okFrac := parseFracBase10(fracBytes, pow10)        // parse frac field
-	hi, lo := bits.Mul64(whole, uint64(pow10))               // overflow if hi > 0
-	sum, co := bits.Add64(lo, uint64(frac), 0)               // overflow if co > 0
-	switch d := mayApplyDurationSign(sum, neg); {            // overflow if neg != (d < 0)
+	suffix, neg := consumeSign(b, false)                     // 消费符号
+	wholeBytes, fracBytes := bytesCutByte(suffix, '.', true) // 消费整数和小数部分
+	whole, okWhole := jsonwire.ParseUint(wholeBytes)         // 解析整数部分；可能溢出
+	frac, okFrac := parseFracBase10(fracBytes, pow10)        // 解析小数部分
+	hi, lo := bits.Mul64(whole, uint64(pow10))               // 若 hi > 0 则溢出
+	sum, co := bits.Add64(lo, uint64(frac), 0)               // 若 co > 0 则溢出
+	switch d := mayApplyDurationSign(sum, neg); {            // 若 neg != (d < 0) 则溢出
 	case (!okWhole && whole != math.MaxUint64) || !okFrac:
 		return 0, fmt.Errorf("invalid duration %q: %w", b, strconv.ErrSyntax)
 	case !okWhole || hi > 0 || co > 0 || neg != (d < 0):
@@ -439,19 +439,19 @@ func parseDurationBase10(b []byte, pow10 uint64) (time.Duration, error) {
 	}
 }
 
-// appendDurationISO8601 appends an ISO 8601 duration with a restricted grammar,
-// where leading and trailing zeroes and zero-value designators are omitted.
-// It only uses hour, minute, and second designators since ISO 8601 defines
-// those as being "accurate", while year, month, week, and day are "nominal".
+// appendDurationISO8601 追加一个使用受限语法的 ISO 8601 duration，
+// 其中前导和尾随的零以及零值指示符会被省略。
+// 它只使用小时、分钟和秒的指示符，因为 ISO 8601 将这些定义为“精确的（accurate）”，
+// 而年、月、周和日则是“名义的（nominal）”。
 func appendDurationISO8601(b []byte, d time.Duration) []byte {
 	if d == 0 {
 		return append(b, "PT0S"...)
 	}
 	b, n := mayAppendDurationSign(b, d)
 	b = append(b, "PT"...)
-	n, nsec := bits.Div64(0, n, 1e9)  // compute nsec field
-	n, sec := bits.Div64(0, n, 60)    // compute sec field
-	hour, min := bits.Div64(0, n, 60) // compute hour and min fields
+	n, nsec := bits.Div64(0, n, 1e9)  // 计算纳秒部分
+	n, sec := bits.Div64(0, n, 60)    // 计算秒部分
+	hour, min := bits.Div64(0, n, 60) // 计算小时和分钟部分
 	if hour > 0 {
 		b = append(strconv.AppendUint(b, hour, 10), 'H')
 	}
@@ -464,62 +464,62 @@ func appendDurationISO8601(b []byte, d time.Duration) []byte {
 	return b
 }
 
-// daysPerYear is the exact average number of days in a year according to
-// the Gregorian calendar, which has an extra day each year that is
-// a multiple of 4, unless it is evenly divisible by 100 but not by 400.
-// This does not take into account leap seconds, which are not deterministic.
+// daysPerYear 是根据格里高利历（Gregorian calendar）计算的
+// 一年的精确平均天数，该历法每年会多出一天，即
+// 4 的倍数，除非它能被 100 整除但不能被 400 整除。
+// 这并未考虑闰秒，因为闰秒是不确定的。
 const daysPerYear = 365.2425
 
 var errInaccurateDateUnits = errors.New("inaccurate year, month, week, or day units")
 
-// parseDurationISO8601 parses a duration according to ISO 8601-1:2019,
-// section 5.5.2.2 and 5.5.2.3 with the following restrictions or extensions:
+// parseDurationISO8601 根据 ISO 8601-1:2019 第 5.5.2.2 节和第 5.5.2.3 节
+// 解析 duration，并带有以下限制或扩展：
 //
-//   - A leading minus sign is permitted for negative duration according
-//     to ISO 8601-2:2019, section 4.4.1.9. We do not permit negative values
-//     for each "time scale component", which is permitted by section 4.4.1.1,
-//     but rarely supported by parsers.
+//   - 根据 ISO 8601-2:2019 第 4.4.1.9 节，允许为负 duration
+//     使用前导负号。我们不允许为每个“时间尺度分量（time scale component）”
+//     使用负值——第 4.4.1.1 节允许这样做，
+//     但解析器很少支持。
 //
-//   - A leading plus sign is permitted (and ignored).
-//     This is not required by ISO 8601, but not forbidden either.
-//     There is some precedent for this as it is supported by the principle of
-//     duration arithmetic as specified in ISO 8601-2-2019, section 14.1.
-//     Of note, the JavaScript grammar for ISO 8601 permits a leading plus sign.
+//   - 允许前导正号（并被忽略）。
+//     ISO 8601 并未要求这一点，但也没有禁止。
+//     这有一些先例，因为它得到 ISO 8601-2-2019 第 14.1 节
+//     所规定的 duration 算术原则的支持。
+//     值得注意的是，ISO 8601 的 JavaScript 语法允许前导正号。
 //
-//   - A fractional value is only permitted for accurate units
-//     (i.e., hour, minute, and seconds) in the last time component,
-//     which is permissible by ISO 8601-1:2019, section 5.5.2.3.
+//   - 分数值仅允许用于最后一个时间分量中的精确单位
+//     （即小时、分钟和秒），
+//     这是 ISO 8601-1:2019 第 5.5.2.3 节所允许的。
 //
-//   - Both periods ('.') and commas (',') are supported as the separator
-//     between the integer part and fraction part of a number,
-//     as specified in ISO 8601-1:2019, section 3.2.6.
-//     While ISO 8601 recommends comma as the default separator,
-//     most formatters uses a period.
+//   - 小数点（'.'）和逗号（','）都支持作为
+//     数字整数部分与小数部分之间的分隔符，
+//     如 ISO 8601-1:2019 第 3.2.6 节所规定。
+//     虽然 ISO 8601 推荐逗号作为默认分隔符，
+//     但大多数格式化程序使用小数点。
 //
-//   - Leading zeros are ignored. This is not required by ISO 8601,
-//     but also not forbidden by the standard. Many parsers support this.
+//   - 前导零会被忽略。ISO 8601 并未要求这一点，
+//     但标准也未禁止。许多解析器支持这一点。
 //
-//   - Lowercase designators are supported. This is not required by ISO 8601,
-//     but also not forbidden by the standard. Many parsers support this.
+//   - 支持小写指示符。ISO 8601 并未要求这一点，
+//     但标准也未禁止。许多解析器支持这一点。
 //
-// If the nominal units of year, month, week, or day are present,
-// this produces a best-effort value and also reports [errInaccurateDateUnits].
+// 如果存在年、月、周或日的名义单位，
+// 这会生成一个尽力而为的值，并同时报告 [errInaccurateDateUnits]。
 //
-// The accepted grammar is identical to JavaScript's Duration:
+// 所接受的语法与 JavaScript 的 Duration 完全相同：
 //
 //	https://tc39.es/proposal-temporal/#prod-Duration
 //
-// We follow JavaScript's grammar as JSON itself is derived from JavaScript.
-// The Temporal.Duration.toJSON method is guaranteed to produce an output
-// that can be parsed by this function so long as arithmetic in JavaScript
-// do not use a largestUnit value higher than "hours" (which is the default).
-// Even if it does, this will do a best-effort parsing with inaccurate units,
-// but report [errInaccurateDateUnits].
+// 我们遵循 JavaScript 的语法，因为 JSON 本身派生自 JavaScript。
+// 只要 JavaScript 中的算术不使用高于 "hours" 的 largestUnit 值
+// （这是默认值），Temporal.Duration.toJSON 方法就保证
+// 能产生可由此函数解析的输出。
+// 即使它使用了，这也会以不精确的单位进行尽力而为的解析，
+// 但会报告 [errInaccurateDateUnits]。
 func parseDurationISO8601(b []byte) (time.Duration, error) {
 	var invalid, overflow, inaccurate, sawFrac bool
 	var sumNanos, n, co uint64
 
-	// cutBytes is like [bytes.Cut], but uses either c0 or c1 as the separator.
+	// cutBytes 类似于 [bytes.Cut]，但使用 c0 或 c1 作为分隔符。
 	cutBytes := func(b []byte, c0, c1 byte) (prefix, suffix []byte, ok bool) {
 		for i, c := range b {
 			if c == c0 || c == c1 {
@@ -529,17 +529,17 @@ func parseDurationISO8601(b []byte) (time.Duration, error) {
 		return b, nil, false
 	}
 
-	// mayParseUnit attempts to parse another date or time number
-	// identified by the desHi and desLo unit characters.
-	// If the part is absent for current unit, it returns b as is.
+	// mayParseUnit 尝试解析由 desHi 和 desLo 单位字符
+	// 标识的另一个日期或时间数字。
+	// 如果当前单位对应的部分不存在，则原样返回 b。
 	mayParseUnit := func(b []byte, desHi, desLo byte, unit time.Duration) []byte {
 		number, suffix, ok := cutBytes(b, desHi, desLo)
 		if !ok || sawFrac {
-			return b // designator is not present or already saw fraction, which can only be in the last component
+			return b // 指示符不存在，或者已经出现过分数，而分数只能出现在最后一个分量中
 		}
 
-		// Parse the number.
-		// A fraction allowed for the accurate units in the last part.
+		// 解析该数字。
+		// 最后一部分中的精确单位允许有分数。
 		whole, frac, ok := cutBytes(number, '.', ',')
 		if ok {
 			sawFrac = true
@@ -550,17 +550,17 @@ func parseDurationISO8601(b []byte) (time.Duration, error) {
 			} else {
 				f, err := strconv.ParseFloat("0."+string(frac), 64)
 				invalid = invalid || err != nil || len(bytes.Trim(frac[len("."):], "0123456789")) > 0
-				n = uint64(math.Round(f * float64(unit))) // never overflows since f is within [0..1]
+				n = uint64(math.Round(f * float64(unit))) // 从不溢出，因为 f 在 [0..1] 范围内
 			}
-			sumNanos, co = bits.Add64(sumNanos, n, 0) // overflow if co > 0
+			sumNanos, co = bits.Add64(sumNanos, n, 0) // 若 co > 0 则溢出
 			overflow = overflow || co > 0
 		}
 		for len(whole) > 1 && whole[0] == '0' {
-			whole = whole[len("0"):] // trim leading zeros
+			whole = whole[len("0"):] // 去除前导零
 		}
-		n, ok := jsonwire.ParseUint(whole)         // overflow if !ok && MaxUint64
-		hi, lo := bits.Mul64(n, uint64(unit))      // overflow if hi > 0
-		sumNanos, co = bits.Add64(sumNanos, lo, 0) // overflow if co > 0
+		n, ok := jsonwire.ParseUint(whole)         // 若 !ok && MaxUint64 则溢出
+		hi, lo := bits.Mul64(n, uint64(unit))      // 若 hi > 0 则溢出
+		sumNanos, co = bits.Add64(sumNanos, lo, 0) // 若 co > 0 则溢出
 		invalid = invalid || (!ok && n != math.MaxUint64)
 		overflow = overflow || (!ok && n == math.MaxUint64) || hi > 0 || co > 0
 		inaccurate = inaccurate || unit > time.Hour
@@ -571,21 +571,21 @@ func parseDurationISO8601(b []byte) (time.Duration, error) {
 	prefix, suffix, okP := cutBytes(suffix, 'P', 'p')
 	durDate, durTime, okT := cutBytes(suffix, 'T', 't')
 	invalid = invalid || len(prefix) > 0 || !okP || (okT && len(durTime) == 0) || len(durDate)+len(durTime) == 0
-	if len(durDate) > 0 { // nominal portion of the duration
+	if len(durDate) > 0 { // duration 的名义部分
 		durDate = mayParseUnit(durDate, 'Y', 'y', time.Duration(daysPerYear*24*60*60*1e9))
 		durDate = mayParseUnit(durDate, 'M', 'm', time.Duration(daysPerYear/12*24*60*60*1e9))
 		durDate = mayParseUnit(durDate, 'W', 'w', time.Duration(7*24*60*60*1e9))
 		durDate = mayParseUnit(durDate, 'D', 'd', time.Duration(24*60*60*1e9))
-		invalid = invalid || len(durDate) > 0 // unknown elements
+		invalid = invalid || len(durDate) > 0 // 未知元素
 	}
-	if len(durTime) > 0 { // accurate portion of the duration
+	if len(durTime) > 0 { // duration 的精确部分
 		durTime = mayParseUnit(durTime, 'H', 'h', time.Duration(60*60*1e9))
 		durTime = mayParseUnit(durTime, 'M', 'm', time.Duration(60*1e9))
 		durTime = mayParseUnit(durTime, 'S', 's', time.Duration(1e9))
-		invalid = invalid || len(durTime) > 0 // unknown elements
+		invalid = invalid || len(durTime) > 0 // 未知元素
 	}
 	d := mayApplyDurationSign(sumNanos, neg)
-	overflow = overflow || (neg != (d < 0) && d != 0) // overflows signed duration
+	overflow = overflow || (neg != (d < 0) && d != 0) // 使带符号 duration 溢出
 
 	switch {
 	case invalid:
@@ -599,7 +599,7 @@ func parseDurationISO8601(b []byte) (time.Duration, error) {
 	}
 }
 
-// mayAppendDurationSign appends a negative sign if n is negative.
+// mayAppendDurationSign 在 d 为负时追加一个负号。
 func mayAppendDurationSign(b []byte, d time.Duration) ([]byte, uint64) {
 	if d < 0 {
 		b = append(b, '-')
@@ -608,7 +608,7 @@ func mayAppendDurationSign(b []byte, d time.Duration) ([]byte, uint64) {
 	return b, uint64(d)
 }
 
-// mayApplyDurationSign inverts n if neg is specified.
+// mayApplyDurationSign 在指定 neg 时反转 n 的符号。
 func mayApplyDurationSign(n uint64, neg bool) time.Duration {
 	if neg {
 		return -1 * time.Duration(n)
@@ -617,8 +617,8 @@ func mayApplyDurationSign(n uint64, neg bool) time.Duration {
 	}
 }
 
-// appendTimeUnix appends t formatted as a decimal fractional number,
-// where pow10 is a power-of-10 used to scale up the number.
+// appendTimeUnix 将 t 格式化为十进制小数并追加，
+// 其中 pow10 是用于放大该数字的 10 的幂。
 func appendTimeUnix(b []byte, t time.Time, pow10 uint64) []byte {
 	sec, nsec := t.Unix(), int64(t.Nanosecond())
 	if sec < 0 {
@@ -626,40 +626,40 @@ func appendTimeUnix(b []byte, t time.Time, pow10 uint64) []byte {
 		sec, nsec = negateSecNano(sec, nsec)
 	}
 	switch {
-	case pow10 == 1e0: // fast case where units is in seconds
+	case pow10 == 1e0: // 单位为秒的快速情形
 		b = strconv.AppendUint(b, uint64(sec), 10)
 		return appendFracBase10(b, uint64(nsec), 1e9)
-	case uint64(sec) < 1e9: // intermediate case where units is not seconds, but no overflow
+	case uint64(sec) < 1e9: // 单位不是秒但不会溢出的中间情形
 		b = strconv.AppendUint(b, uint64(sec)*uint64(pow10)+uint64(uint64(nsec)/(1e9/pow10)), 10)
 		return appendFracBase10(b, (uint64(nsec)*pow10)%1e9, 1e9)
-	default: // slow case where units is not seconds and overflow would occur
+	default: // 单位不是秒且会发生溢出的慢速情形
 		b = strconv.AppendUint(b, uint64(sec), 10)
 		b = appendPaddedBase10(b, uint64(nsec)/(1e9/pow10), pow10)
 		return appendFracBase10(b, (uint64(nsec)*pow10)%1e9, 1e9)
 	}
 }
 
-// parseTimeUnix parses t formatted as a decimal fractional number,
-// where pow10 is a power-of-10 used to scale down the number.
+// parseTimeUnix 从十进制小数中解析出 t，
+// 其中 pow10 是用于缩小该数字的 10 的幂。
 func parseTimeUnix(b []byte, pow10 uint64) (time.Time, error) {
-	suffix, neg := consumeSign(b, false)                     // consume sign
-	wholeBytes, fracBytes := bytesCutByte(suffix, '.', true) // consume whole and frac fields
-	whole, okWhole := jsonwire.ParseUint(wholeBytes)         // parse whole field; may overflow
-	frac, okFrac := parseFracBase10(fracBytes, 1e9/pow10)    // parse frac field
+	suffix, neg := consumeSign(b, false)                     // 消费符号
+	wholeBytes, fracBytes := bytesCutByte(suffix, '.', true) // 消费整数和小数部分
+	whole, okWhole := jsonwire.ParseUint(wholeBytes)         // 解析整数部分；可能溢出
+	frac, okFrac := parseFracBase10(fracBytes, 1e9/pow10)    // 解析小数部分
 	var sec, nsec int64
 	switch {
-	case pow10 == 1e0: // fast case where units is in seconds
-		sec = int64(whole) // check overflow later after negation
-		nsec = int64(frac) // cannot overflow
-	case okWhole: // intermediate case where units is not seconds, but no overflow
-		sec = int64(whole / pow10)                     // check overflow later after negation
-		nsec = int64((whole%pow10)*(1e9/pow10) + frac) // cannot overflow
-	case !okWhole && whole == math.MaxUint64: // slow case where units is not seconds and overflow occurred
-		width := int(math.Log10(float64(pow10)))                                // compute len(strconv.Itoa(pow10-1))
-		whole, okWhole = jsonwire.ParseUint(wholeBytes[:len(wholeBytes)-width]) // parse the upper whole field
-		mid, _ := parsePaddedBase10(wholeBytes[len(wholeBytes)-width:], pow10)  // parse the lower whole field
-		sec = int64(whole)                                                      // check overflow later after negation
-		nsec = int64(mid*(1e9/pow10) + frac)                                    // cannot overflow
+	case pow10 == 1e0: // 单位为秒的快速情形
+		sec = int64(whole) // 稍后在取负之后检查溢出
+		nsec = int64(frac) // 不会溢出
+	case okWhole: // 单位不是秒但不会溢出的中间情形
+		sec = int64(whole / pow10)                     // 稍后在取负之后检查溢出
+		nsec = int64((whole%pow10)*(1e9/pow10) + frac) // 不会溢出
+	case !okWhole && whole == math.MaxUint64: // 单位不是秒且发生溢出的慢速情形
+		width := int(math.Log10(float64(pow10)))                                // 计算 len(strconv.Itoa(pow10-1))
+		whole, okWhole = jsonwire.ParseUint(wholeBytes[:len(wholeBytes)-width]) // 解析高位的整数部分
+		mid, _ := parsePaddedBase10(wholeBytes[len(wholeBytes)-width:], pow10)  // 解析低位的整数部分
+		sec = int64(whole)                                                      // 稍后在取负之后检查溢出
+		nsec = int64(mid*(1e9/pow10) + frac)                                    // 不会溢出
 	}
 	if neg {
 		sec, nsec = negateSecNano(sec, nsec)
@@ -674,17 +674,17 @@ func parseTimeUnix(b []byte, pow10 uint64) (time.Time, error) {
 	}
 }
 
-// negateSecNano negates a Unix timestamp, where nsec must be within [0, 1e9).
+// negateSecNano 对一个 Unix 时间戳取负，其中 nsec 必须在 [0, 1e9) 范围内。
 func negateSecNano(sec, nsec int64) (int64, int64) {
-	sec = ^sec               // twos-complement negation (i.e., -1*sec + 1)
-	nsec = -nsec + 1e9       // negate nsec and add 1e9 (which is the extra +1 from sec negation)
-	sec += int64(nsec / 1e9) // handle possible overflow of nsec if it started as zero
-	nsec %= 1e9              // ensure nsec stays within [0, 1e9)
+	sec = ^sec               // 二进制补码取负（即 -1*sec + 1）
+	nsec = -nsec + 1e9       // 对 nsec 取负并加上 1e9（即 sec 取负带来的额外 +1）
+	sec += int64(nsec / 1e9) // 处理 nsec 最初为零时可能发生的溢出
+	nsec %= 1e9              // 确保 nsec 保持在 [0, 1e9) 范围内
 	return sec, nsec
 }
 
-// appendFracBase10 appends the fraction of n/max10,
-// where max10 is a power-of-10 that is larger than n.
+// appendFracBase10 追加 n/max10 的小数部分，
+// 其中 max10 是大于 n 的 10 的幂。
 func appendFracBase10(b []byte, n, max10 uint64) []byte {
 	if n == 0 {
 		return b
@@ -692,8 +692,8 @@ func appendFracBase10(b []byte, n, max10 uint64) []byte {
 	return bytes.TrimRight(appendPaddedBase10(append(b, '.'), n, max10), "0")
 }
 
-// parseFracBase10 parses the fraction of n/max10,
-// where max10 is a power-of-10 that is larger than n.
+// parseFracBase10 解析 n/max10 的小数部分，
+// 其中 max10 是大于 n 的 10 的幂。
 func parseFracBase10(b []byte, max10 uint64) (n uint64, ok bool) {
 	switch {
 	case len(b) == 0:
@@ -704,24 +704,24 @@ func parseFracBase10(b []byte, max10 uint64) (n uint64, ok bool) {
 	return parsePaddedBase10(b[len("."):], max10)
 }
 
-// appendPaddedBase10 appends a zero-padded encoding of n,
-// where max10 is a power-of-10 that is larger than n.
+// appendPaddedBase10 追加 n 的零填充编码，
+// 其中 max10 是大于 n 的 10 的幂。
 func appendPaddedBase10(b []byte, n, max10 uint64) []byte {
 	if n < max10/10 {
-		// Formatting of n is shorter than log10(max10),
-		// so add max10/10 to ensure the length is equal to log10(max10).
+		// n 的格式化结果比 log10(max10) 短，
+		// 因此加上 max10/10 以确保长度等于 log10(max10)。
 		i := len(b)
 		b = strconv.AppendUint(b, n+max10/10, 10)
-		b[i]-- // subtract the addition of max10/10
+		b[i]-- // 减去所加的 max10/10
 		return b
 	}
 	return strconv.AppendUint(b, n, 10)
 }
 
-// parsePaddedBase10 parses b as the zero-padded encoding of n,
-// where max10 is a power-of-10 that is larger than n.
-// Truncated suffix is treated as implicit zeros.
-// Extended suffix is ignored, but verified to contain only digits.
+// parsePaddedBase10 将 b 解析为 n 的零填充编码，
+// 其中 max10 是大于 n 的 10 的幂。
+// 被截断的后缀视为隐式的零。
+// 扩展的后缀会被忽略，但会验证其只包含数字。
 func parsePaddedBase10(b []byte, max10 uint64) (n uint64, ok bool) {
 	pow10 := uint64(1)
 	for pow10 < max10 {
@@ -736,12 +736,12 @@ func parsePaddedBase10(b []byte, max10 uint64) (n uint64, ok bool) {
 		pow10 *= 10
 	}
 	if len(b) > 0 && len(bytes.TrimRight(b, "0123456789")) > 0 {
-		return n, false // trailing characters are not digits
+		return n, false // 尾随字符不是数字
 	}
 	return n, true
 }
 
-// consumeSign consumes an optional leading negative or positive sign.
+// consumeSign 消费一个可选的前导负号或正号。
 func consumeSign(b []byte, allowPlus bool) ([]byte, bool) {
 	if len(b) > 0 {
 		if b[0] == '-' {
@@ -753,8 +753,8 @@ func consumeSign(b []byte, allowPlus bool) ([]byte, bool) {
 	return b, false
 }
 
-// bytesCutByte is similar to bytes.Cut(b, []byte{c}),
-// except c may optionally be included as part of the suffix.
+// bytesCutByte 类似于 bytes.Cut(b, []byte{c})，
+// 不同之处在于 c 可以选择性地包含在后缀中。
 func bytesCutByte(b []byte, c byte, include bool) ([]byte, []byte) {
 	if i := bytes.IndexByte(b, c); i >= 0 {
 		if include {
@@ -765,8 +765,8 @@ func bytesCutByte(b []byte, c byte, include bool) ([]byte, []byte) {
 	return b, nil
 }
 
-// parseDec2 parses b as an unsigned, base-10, 2-digit number.
-// The result is undefined if digits are not base-10.
+// parseDec2 将 b 解析为一个无符号的、十进制、2 位数字。
+// 如果数字不是十进制，则结果未定义。
 func parseDec2(b []byte) byte {
 	if len(b) < 2 {
 		return 0

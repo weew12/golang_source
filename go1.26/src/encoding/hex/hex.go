@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package hex implements hexadecimal encoding and decoding.
+// Package hex 实现十六进制编码和解码。
 package hex
 
 import (
@@ -34,14 +34,14 @@ const (
 		"\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff"
 )
 
-// EncodedLen returns the length of an encoding of n source bytes.
-// Specifically, it returns n * 2.
+// EncodedLen 返回 n 个源字节的编码长度。
+// 具体来说，它返回 n * 2。
 func EncodedLen(n int) int { return n * 2 }
 
-// Encode encodes src into [EncodedLen](len(src))
-// bytes of dst. As a convenience, it returns the number
-// of bytes written to dst, but this value is always [EncodedLen](len(src)).
-// Encode implements hexadecimal encoding.
+// Encode 将 src 编码到 [EncodedLen](len(src)) 个字节的 dst 中。
+// 为方便起见，它返回写入 dst 的字节数，
+// 但该值始终等于 [EncodedLen](len(src))。
+// Encode 实现十六进制编码。
 func Encode(dst, src []byte) int {
 	j := 0
 	for _, v := range src {
@@ -52,8 +52,8 @@ func Encode(dst, src []byte) int {
 	return len(src) * 2
 }
 
-// AppendEncode appends the hexadecimally encoded src to dst
-// and returns the extended buffer.
+// AppendEncode 将十六进制编码后的 src 追加到 dst
+// 并返回扩展后的缓冲区。
 func AppendEncode(dst, src []byte) []byte {
 	n := EncodedLen(len(src))
 	dst = slices.Grow(dst, n)
@@ -61,29 +61,28 @@ func AppendEncode(dst, src []byte) []byte {
 	return dst[:len(dst)+n]
 }
 
-// ErrLength reports an attempt to decode an odd-length input
-// using [Decode] or [DecodeString].
-// The stream-based Decoder returns [io.ErrUnexpectedEOF] instead of ErrLength.
+// ErrLength 报告尝试使用 [Decode] 或 [DecodeString]
+// 解码奇数长度的输入。
+// 基于流的 Decoder 返回 [io.ErrUnexpectedEOF] 而不是 ErrLength。
 var ErrLength = errors.New("encoding/hex: odd length hex string")
 
-// InvalidByteError values describe errors resulting from an invalid byte in a hex string.
+// InvalidByteError 值描述由十六进制字符串中的无效字节导致的错误。
 type InvalidByteError byte
 
 func (e InvalidByteError) Error() string {
 	return fmt.Sprintf("encoding/hex: invalid byte: %#U", rune(e))
 }
 
-// DecodedLen returns the length of a decoding of x source bytes.
-// Specifically, it returns x / 2.
+// DecodedLen 返回 x 个源字节的解码长度。
+// 具体来说，它返回 x / 2。
 func DecodedLen(x int) int { return x / 2 }
 
-// Decode decodes src into [DecodedLen](len(src)) bytes,
-// returning the actual number of bytes written to dst.
+// Decode 将 src 解码到 [DecodedLen](len(src)) 个字节中，
+// 返回实际写入 dst 的字节数。
 //
-// Decode expects that src contains only hexadecimal
-// characters and that src has even length.
-// If the input is malformed, Decode returns the number
-// of bytes decoded before the error.
+// Decode 要求 src 只包含十六进制字符，且 src 长度为偶数。
+// 如果输入格式错误，Decode 返回出错之前
+// 已解码的字节数。
 func Decode(dst, src []byte) (int, error) {
 	i, j := 0, 1
 	for ; j < len(src); j += 2 {
@@ -102,8 +101,8 @@ func Decode(dst, src []byte) (int, error) {
 		i++
 	}
 	if len(src)%2 == 1 {
-		// Check for invalid char before reporting bad length,
-		// since the invalid char (if present) is an earlier problem.
+		// 在报告长度错误之前先检查无效字符，
+		// 因为无效字符（如果存在）是更早出现的问题。
 		if reverseHexTable[src[j-1]] > 0x0f {
 			return i, InvalidByteError(src[j-1])
 		}
@@ -112,9 +111,9 @@ func Decode(dst, src []byte) (int, error) {
 	return i, nil
 }
 
-// AppendDecode appends the hexadecimally decoded src to dst
-// and returns the extended buffer.
-// If the input is malformed, it returns the partially decoded src and an error.
+// AppendDecode 将十六进制解码后的 src 追加到 dst
+// 并返回扩展后的缓冲区。
+// 如果输入格式错误，它返回部分解码的 src 和一个错误。
 func AppendDecode(dst, src []byte) ([]byte, error) {
 	n := DecodedLen(len(src))
 	dst = slices.Grow(dst, n)
@@ -122,36 +121,34 @@ func AppendDecode(dst, src []byte) ([]byte, error) {
 	return dst[:len(dst)+n], err
 }
 
-// EncodeToString returns the hexadecimal encoding of src.
+// EncodeToString 返回 src 的十六进制编码。
 func EncodeToString(src []byte) string {
 	dst := make([]byte, EncodedLen(len(src)))
 	Encode(dst, src)
 	return string(dst)
 }
 
-// DecodeString returns the bytes represented by the hexadecimal string s.
+// DecodeString 返回十六进制字符串 s 所表示的字节。
 //
-// DecodeString expects that src contains only hexadecimal
-// characters and that src has even length.
-// If the input is malformed, DecodeString returns
-// the bytes decoded before the error.
+// DecodeString 要求 src 只包含十六进制字符，且 src 长度为偶数。
+// 如果输入格式错误，DecodeString 返回出错之前
+// 已解码的字节。
 func DecodeString(s string) ([]byte, error) {
 	dst := make([]byte, DecodedLen(len(s)))
 	n, err := Decode(dst, []byte(s))
 	return dst[:n], err
 }
 
-// Dump returns a string that contains a hex dump of the given data. The format
-// of the hex dump matches the output of `hexdump -C` on the command line.
+// Dump 返回一个包含给定数据的十六进制转储的字符串。该十六进制转储的格式
+// 与命令行中 `hexdump -C` 的输出一致。
 func Dump(data []byte) string {
 	if len(data) == 0 {
 		return ""
 	}
 
 	var buf strings.Builder
-	// Dumper will write 79 bytes per complete 16 byte chunk, and at least
-	// 64 bytes for whatever remains. Round the allocation up, since only a
-	// maximum of 15 bytes will be wasted.
+	// Dumper 每完成一个 16 字节块会写入 79 个字节，剩余部分至少
+	// 写入 64 个字节。将分配向上取整，因为最多只会浪费 15 个字节。
 	buf.Grow((1 + ((len(data) - 1) / 16)) * 79)
 
 	dumper := Dumper(&buf)
@@ -160,16 +157,16 @@ func Dump(data []byte) string {
 	return buf.String()
 }
 
-// bufferSize is the number of hexadecimal characters to buffer in encoder and decoder.
+// bufferSize 是编码器和解码器中缓冲的十六进制字符数。
 const bufferSize = 1024
 
 type encoder struct {
 	w   io.Writer
 	err error
-	out [bufferSize]byte // output buffer
+	out [bufferSize]byte // 输出缓冲区
 }
 
-// NewEncoder returns an [io.Writer] that writes lowercase hexadecimal characters to w.
+// NewEncoder 返回一个 [io.Writer]，它将小写十六进制字符写入 w。
 func NewEncoder(w io.Writer) io.Writer {
 	return &encoder{w: w}
 }
@@ -193,21 +190,21 @@ func (e *encoder) Write(p []byte) (n int, err error) {
 type decoder struct {
 	r   io.Reader
 	err error
-	in  []byte           // input buffer (encoded form)
-	arr [bufferSize]byte // backing array for in
+	in  []byte           // 输入缓冲区（编码形式）
+	arr [bufferSize]byte // in 的底层数组
 }
 
-// NewDecoder returns an [io.Reader] that decodes hexadecimal characters from r.
-// NewDecoder expects that r contain only an even number of hexadecimal characters.
+// NewDecoder 返回一个 [io.Reader]，它从 r 解码十六进制字符。
+// NewDecoder 要求 r 只包含偶数个十六进制字符。
 func NewDecoder(r io.Reader) io.Reader {
 	return &decoder{r: r}
 }
 
 func (d *decoder) Read(p []byte) (n int, err error) {
-	// Fill internal buffer with sufficient bytes to decode
+	// 用足够的字节填充内部缓冲区以进行解码
 	if len(d.in) < 2 && d.err == nil {
 		var numCopy, numRead int
-		numCopy = copy(d.arr[:], d.in) // Copies either 0 or 1 bytes
+		numCopy = copy(d.arr[:], d.in) // 复制 0 或 1 个字节
 		numRead, d.err = d.r.Read(d.arr[numCopy:])
 		d.in = d.arr[:numCopy+numRead]
 		if d.err == io.EOF && len(d.in)%2 != 0 {
@@ -220,25 +217,25 @@ func (d *decoder) Read(p []byte) (n int, err error) {
 		}
 	}
 
-	// Decode internal buffer into output buffer
+	// 将内部缓冲区解码到输出缓冲区
 	if numAvail := len(d.in) / 2; len(p) > numAvail {
 		p = p[:numAvail]
 	}
 	numDec, err := Decode(p, d.in[:len(p)*2])
 	d.in = d.in[2*numDec:]
 	if err != nil {
-		d.in, d.err = nil, err // Decode error; discard input remainder
+		d.in, d.err = nil, err // 解码错误；丢弃输入剩余部分
 	}
 
 	if len(d.in) < 2 {
-		return numDec, d.err // Only expose errors when buffer fully consumed
+		return numDec, d.err // 仅在缓冲区完全消耗后才暴露错误
 	}
 	return numDec, nil
 }
 
-// Dumper returns a [io.WriteCloser] that writes a hex dump of all written data to
-// w. The format of the dump matches the output of `hexdump -C` on the command
-// line.
+// Dumper 返回一个 [io.WriteCloser]，它将所有写入数据的十六进制转储写入
+// w。转储的格式与命令行中 `hexdump -C` 的输出
+// 一致。
 func Dumper(w io.Writer) io.WriteCloser {
 	return &dumper{w: w}
 }
@@ -247,8 +244,8 @@ type dumper struct {
 	w          io.Writer
 	rightChars [18]byte
 	buf        [14]byte
-	used       int  // number of bytes in the current line
-	n          uint // number of bytes, total
+	used       int  // 当前行中的字节数
+	n          uint // 字节总数
 	closed     bool
 }
 
@@ -264,13 +261,13 @@ func (h *dumper) Write(data []byte) (n int, err error) {
 		return 0, errors.New("encoding/hex: dumper closed")
 	}
 
-	// Output lines look like:
+	// 输出行类似这样：
 	// 00000010  2e 2f 30 31 32 33 34 35  36 37 38 39 3a 3b 3c 3d  |./0123456789:;<=|
 	// ^ offset                          ^ extra space              ^ ASCII of line.
 	for i := range data {
 		if h.used == 0 {
-			// At the beginning of a line we print the current
-			// offset in hex.
+			// 在行首，我们用十六进制打印当前
+			// 偏移量。
 			h.buf[0] = byte(h.n >> 24)
 			h.buf[1] = byte(h.n >> 16)
 			h.buf[2] = byte(h.n >> 8)
@@ -287,12 +284,12 @@ func (h *dumper) Write(data []byte) (n int, err error) {
 		h.buf[2] = ' '
 		l := 3
 		if h.used == 7 {
-			// There's an additional space after the 8th byte.
+			// 第 8 个字节之后有一个额外的空格。
 			h.buf[3] = ' '
 			l = 4
 		} else if h.used == 15 {
-			// At the end of the line there's an extra space and
-			// the bar for the right column.
+			// 在行尾有一个额外的空格
+			// 以及右列的竖线。
 			h.buf[3] = ' '
 			h.buf[4] = '|'
 			l = 5
@@ -319,7 +316,7 @@ func (h *dumper) Write(data []byte) (n int, err error) {
 }
 
 func (h *dumper) Close() (err error) {
-	// See the comments in Write() for the details of this format.
+	// 有关此格式的细节，请参见 Write() 中的注释。
 	if h.closed {
 		return
 	}

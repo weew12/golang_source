@@ -11,23 +11,23 @@ import (
 	"math/bits"
 )
 
-// stringCache is a cache for strings converted from a []byte.
+// stringCache 是用于缓存由 []byte 转换而来的字符串的缓存。
 type stringCache = [256]string // 256*unsafe.Sizeof(string("")) => 4KiB
 
-// makeString returns the string form of b.
-// It returns a pre-allocated string from c if present, otherwise
-// it allocates a new string, inserts it into the cache, and returns it.
+// makeString 返回 b 的字符串形式。
+// 如果 c 中存在预先分配的字符串则返回它，
+// 否则分配一个新字符串，将其插入缓存并返回。
 func makeString(c *stringCache, b []byte) string {
 	const (
-		minCachedLen = 2   // single byte strings are already interned by the runtime
-		maxCachedLen = 256 // large enough for UUIDs, IPv6 addresses, SHA-256 checksums, etc.
+		minCachedLen = 2   // 单字节字符串已由运行时驻留
+		maxCachedLen = 256 // 足以容纳 UUID、IPv6 地址、SHA-256 校验和等
 	)
 	if c == nil || len(b) < minCachedLen || len(b) > maxCachedLen {
 		return string(b)
 	}
 
-	// Compute a hash from the fixed-width prefix and suffix of the string.
-	// This ensures hashing a string is a constant time operation.
+	// 从字符串的固定宽度前缀和后缀计算哈希值。
+	// 这确保对字符串进行哈希是常数时间操作。
 	var h uint32
 	switch {
 	case len(b) >= 8:
@@ -44,7 +44,7 @@ func makeString(c *stringCache, b []byte) string {
 		h = hash64(uint32(lo), uint32(hi))
 	}
 
-	// Check the cache for the string.
+	// 在缓存中检查该字符串。
 	i := h % uint32(len(*c))
 	if s := (*c)[i]; s == string(b) {
 		return s
@@ -54,9 +54,9 @@ func makeString(c *stringCache, b []byte) string {
 	return s
 }
 
-// hash64 returns the hash of two uint32s as a single uint32.
+// hash64 将两个 uint32 的哈希返回为单个 uint32。
 func hash64(lo, hi uint32) uint32 {
-	// If avalanche=true, this is identical to XXH32 hash on a 8B string:
+	// 如果 avalanche=true，则这与对 8B 字符串执行 XXH32 哈希完全相同：
 	//	var b [8]byte
 	//	binary.LittleEndian.PutUint32(b[:4], lo)
 	//	binary.LittleEndian.PutUint32(b[4:], hi)
@@ -73,9 +73,9 @@ func hash64(lo, hi uint32) uint32 {
 	h = bits.RotateLeft32(h, 17) * prime4
 	h += hi * prime3
 	h = bits.RotateLeft32(h, 17) * prime4
-	// Skip final mix (avalanche) step of XXH32 for performance reasons.
-	// Empirical testing shows that the improvements in unbiased distribution
-	// does not outweigh the extra cost in computational complexity.
+	// 出于性能原因，跳过 XXH32 的最终混合（雪崩）步骤。
+	// 经验测试表明，无偏分布方面的改进
+	// 不足以抵消计算复杂度带来的额外成本。
 	const avalanche = false
 	if avalanche {
 		h ^= h >> 15

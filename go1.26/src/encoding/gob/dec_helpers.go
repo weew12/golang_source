@@ -50,7 +50,7 @@ var decSliceHelper = map[reflect.Kind]decHelper{
 }
 
 func decBoolArray(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -60,7 +60,7 @@ func decBoolArray(state *decoderState, v reflect.Value, length int, ovfl error) 
 func decBoolSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]bool](v)
 	if !ok {
-		// It is kind bool but not type bool. TODO: We can handle this unsafely.
+		// 它是 bool 种类但不是 bool 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -68,7 +68,7 @@ func decBoolSlice(state *decoderState, v reflect.Value, length int, ovfl error) 
 			errorf("decoding bool array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		slice[i] = state.decodeUint() != 0
@@ -77,7 +77,7 @@ func decBoolSlice(state *decoderState, v reflect.Value, length int, ovfl error) 
 }
 
 func decComplex64Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -87,7 +87,7 @@ func decComplex64Array(state *decoderState, v reflect.Value, length int, ovfl er
 func decComplex64Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]complex64](v)
 	if !ok {
-		// It is kind complex64 but not type complex64. TODO: We can handle this unsafely.
+		// 它是 complex64 种类但不是 complex64 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -95,7 +95,7 @@ func decComplex64Slice(state *decoderState, v reflect.Value, length int, ovfl er
 			errorf("decoding complex64 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		real := float32FromBits(state.decodeUint(), ovfl)
@@ -106,7 +106,7 @@ func decComplex64Slice(state *decoderState, v reflect.Value, length int, ovfl er
 }
 
 func decComplex128Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -116,7 +116,7 @@ func decComplex128Array(state *decoderState, v reflect.Value, length int, ovfl e
 func decComplex128Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]complex128](v)
 	if !ok {
-		// It is kind complex128 but not type complex128. TODO: We can handle this unsafely.
+		// 它是 complex128 种类但不是 complex128 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -124,7 +124,7 @@ func decComplex128Slice(state *decoderState, v reflect.Value, length int, ovfl e
 			errorf("decoding complex128 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		real := float64FromBits(state.decodeUint())
@@ -135,7 +135,7 @@ func decComplex128Slice(state *decoderState, v reflect.Value, length int, ovfl e
 }
 
 func decFloat32Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -145,7 +145,7 @@ func decFloat32Array(state *decoderState, v reflect.Value, length int, ovfl erro
 func decFloat32Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]float32](v)
 	if !ok {
-		// It is kind float32 but not type float32. TODO: We can handle this unsafely.
+		// 它是 float32 种类但不是 float32 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -153,7 +153,7 @@ func decFloat32Slice(state *decoderState, v reflect.Value, length int, ovfl erro
 			errorf("decoding float32 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		slice[i] = float32(float32FromBits(state.decodeUint(), ovfl))
@@ -162,7 +162,7 @@ func decFloat32Slice(state *decoderState, v reflect.Value, length int, ovfl erro
 }
 
 func decFloat64Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -172,7 +172,7 @@ func decFloat64Array(state *decoderState, v reflect.Value, length int, ovfl erro
 func decFloat64Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]float64](v)
 	if !ok {
-		// It is kind float64 but not type float64. TODO: We can handle this unsafely.
+		// 它是 float64 种类但不是 float64 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -180,7 +180,7 @@ func decFloat64Slice(state *decoderState, v reflect.Value, length int, ovfl erro
 			errorf("decoding float64 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		slice[i] = float64FromBits(state.decodeUint())
@@ -189,7 +189,7 @@ func decFloat64Slice(state *decoderState, v reflect.Value, length int, ovfl erro
 }
 
 func decIntArray(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -199,7 +199,7 @@ func decIntArray(state *decoderState, v reflect.Value, length int, ovfl error) b
 func decIntSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]int](v)
 	if !ok {
-		// It is kind int but not type int. TODO: We can handle this unsafely.
+		// 它是 int 种类但不是 int 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -207,11 +207,11 @@ func decIntSlice(state *decoderState, v reflect.Value, length int, ovfl error) b
 			errorf("decoding int array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		x := state.decodeInt()
-		// MinInt and MaxInt
+		// MinInt 与 MaxInt
 		if x < ^int64(^uint(0)>>1) || int64(^uint(0)>>1) < x {
 			error_(ovfl)
 		}
@@ -221,7 +221,7 @@ func decIntSlice(state *decoderState, v reflect.Value, length int, ovfl error) b
 }
 
 func decInt16Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -231,7 +231,7 @@ func decInt16Array(state *decoderState, v reflect.Value, length int, ovfl error)
 func decInt16Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]int16](v)
 	if !ok {
-		// It is kind int16 but not type int16. TODO: We can handle this unsafely.
+		// 它是 int16 种类但不是 int16 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -239,7 +239,7 @@ func decInt16Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 			errorf("decoding int16 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		x := state.decodeInt()
@@ -252,7 +252,7 @@ func decInt16Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 }
 
 func decInt32Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -262,7 +262,7 @@ func decInt32Array(state *decoderState, v reflect.Value, length int, ovfl error)
 func decInt32Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]int32](v)
 	if !ok {
-		// It is kind int32 but not type int32. TODO: We can handle this unsafely.
+		// 它是 int32 种类但不是 int32 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -270,7 +270,7 @@ func decInt32Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 			errorf("decoding int32 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		x := state.decodeInt()
@@ -283,7 +283,7 @@ func decInt32Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 }
 
 func decInt64Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -293,7 +293,7 @@ func decInt64Array(state *decoderState, v reflect.Value, length int, ovfl error)
 func decInt64Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]int64](v)
 	if !ok {
-		// It is kind int64 but not type int64. TODO: We can handle this unsafely.
+		// 它是 int64 种类但不是 int64 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -301,7 +301,7 @@ func decInt64Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 			errorf("decoding int64 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		slice[i] = state.decodeInt()
@@ -310,7 +310,7 @@ func decInt64Slice(state *decoderState, v reflect.Value, length int, ovfl error)
 }
 
 func decInt8Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -320,7 +320,7 @@ func decInt8Array(state *decoderState, v reflect.Value, length int, ovfl error) 
 func decInt8Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]int8](v)
 	if !ok {
-		// It is kind int8 but not type int8. TODO: We can handle this unsafely.
+		// 它是 int8 种类但不是 int8 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -328,7 +328,7 @@ func decInt8Slice(state *decoderState, v reflect.Value, length int, ovfl error) 
 			errorf("decoding int8 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		x := state.decodeInt()
@@ -341,7 +341,7 @@ func decInt8Slice(state *decoderState, v reflect.Value, length int, ovfl error) 
 }
 
 func decStringArray(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -351,7 +351,7 @@ func decStringArray(state *decoderState, v reflect.Value, length int, ovfl error
 func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]string](v)
 	if !ok {
-		// It is kind string but not type string. TODO: We can handle this unsafely.
+		// 它是 string 种类但不是 string 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -359,7 +359,7 @@ func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error
 			errorf("decoding string array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		u := state.decodeUint()
@@ -370,7 +370,7 @@ func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error
 		if n > state.b.Len() {
 			errorf("string data too long for buffer: %d", n)
 		}
-		// Read the data.
+		// 读取数据。
 		data := state.b.Bytes()
 		if len(data) < n {
 			errorf("invalid string length %d: exceeds input size %d", n, len(data))
@@ -382,7 +382,7 @@ func decStringSlice(state *decoderState, v reflect.Value, length int, ovfl error
 }
 
 func decUintArray(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -392,7 +392,7 @@ func decUintArray(state *decoderState, v reflect.Value, length int, ovfl error) 
 func decUintSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]uint](v)
 	if !ok {
-		// It is kind uint but not type uint. TODO: We can handle this unsafely.
+		// 它是 uint 种类但不是 uint 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -400,7 +400,7 @@ func decUintSlice(state *decoderState, v reflect.Value, length int, ovfl error) 
 			errorf("decoding uint array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		x := state.decodeUint()
@@ -413,7 +413,7 @@ func decUintSlice(state *decoderState, v reflect.Value, length int, ovfl error) 
 }
 
 func decUint16Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -423,7 +423,7 @@ func decUint16Array(state *decoderState, v reflect.Value, length int, ovfl error
 func decUint16Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]uint16](v)
 	if !ok {
-		// It is kind uint16 but not type uint16. TODO: We can handle this unsafely.
+		// 它是 uint16 种类但不是 uint16 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -431,7 +431,7 @@ func decUint16Slice(state *decoderState, v reflect.Value, length int, ovfl error
 			errorf("decoding uint16 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		x := state.decodeUint()
@@ -444,7 +444,7 @@ func decUint16Slice(state *decoderState, v reflect.Value, length int, ovfl error
 }
 
 func decUint32Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -454,7 +454,7 @@ func decUint32Array(state *decoderState, v reflect.Value, length int, ovfl error
 func decUint32Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]uint32](v)
 	if !ok {
-		// It is kind uint32 but not type uint32. TODO: We can handle this unsafely.
+		// 它是 uint32 种类但不是 uint32 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -462,7 +462,7 @@ func decUint32Slice(state *decoderState, v reflect.Value, length int, ovfl error
 			errorf("decoding uint32 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		x := state.decodeUint()
@@ -475,7 +475,7 @@ func decUint32Slice(state *decoderState, v reflect.Value, length int, ovfl error
 }
 
 func decUint64Array(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -485,7 +485,7 @@ func decUint64Array(state *decoderState, v reflect.Value, length int, ovfl error
 func decUint64Slice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]uint64](v)
 	if !ok {
-		// It is kind uint64 but not type uint64. TODO: We can handle this unsafely.
+		// 它是 uint64 种类但不是 uint64 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -493,7 +493,7 @@ func decUint64Slice(state *decoderState, v reflect.Value, length int, ovfl error
 			errorf("decoding uint64 array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		slice[i] = state.decodeUint()
@@ -502,7 +502,7 @@ func decUint64Slice(state *decoderState, v reflect.Value, length int, ovfl error
 }
 
 func decUintptrArray(state *decoderState, v reflect.Value, length int, ovfl error) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -512,7 +512,7 @@ func decUintptrArray(state *decoderState, v reflect.Value, length int, ovfl erro
 func decUintptrSlice(state *decoderState, v reflect.Value, length int, ovfl error) bool {
 	slice, ok := reflect.TypeAssert[[]uintptr](v)
 	if !ok {
-		// It is kind uintptr but not type uintptr. TODO: We can handle this unsafely.
+		// 它是 uintptr 种类但不是 uintptr 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for i := 0; i < length; i++ {
@@ -520,7 +520,7 @@ func decUintptrSlice(state *decoderState, v reflect.Value, length int, ovfl erro
 			errorf("decoding uintptr array or slice: length exceeds input size (%d elements)", length)
 		}
 		if i >= len(slice) {
-			// This is a slice that we only partially allocated.
+			// 这是一个我们只分配了部分的切片。
 			growSlice(v, &slice, length)
 		}
 		x := state.decodeUint()
@@ -532,8 +532,8 @@ func decUintptrSlice(state *decoderState, v reflect.Value, length int, ovfl erro
 	return true
 }
 
-// growSlice is called for a slice that we only partially allocated,
-// to grow it up to length.
+// growSlice 用于我们只分配了部分的切片，
+// 将其增长到 length。
 func growSlice[E any](v reflect.Value, ps *[]E, length int) {
 	var zero E
 	s := *ps

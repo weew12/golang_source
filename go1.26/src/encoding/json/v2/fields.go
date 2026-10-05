@@ -29,23 +29,23 @@ type isZeroer interface {
 var isZeroerType = reflect.TypeFor[isZeroer]()
 
 type structFields struct {
-	flattened       []structField // listed in depth-first ordering
+	flattened       []structField // 按深度优先顺序排列
 	byActualName    map[string]*structField
 	byFoldedName    map[string][]*structField
 	inlinedFallback *structField
 }
 
-// reindex recomputes index to avoid bounds check during runtime.
+// reindex 重新计算 index，以避免运行时进行边界检查。
 //
-// During the construction of each [structField] in [makeStructFields],
-// the index field is 0-indexed. However, before it returns,
-// the 0th field is stored in index0 and index stores the remainder.
+// 在 [makeStructFields] 中构造每个 [structField] 期间，
+// index 字段以 0 为起始索引。然而，在它返回之前，
+// 第 0 个字段被存储到 index0 中，而 index 存储剩余部分。
 func (sf *structFields) reindex() {
 	reindex := func(f *structField) {
 		f.index0 = f.index[0]
 		f.index = f.index[1:]
 		if len(f.index) == 0 {
-			f.index = nil // avoid pinning the backing slice
+			f.index = nil // 避免固定底层切片
 		}
 	}
 	for i := range sf.flattened {
@@ -56,16 +56,16 @@ func (sf *structFields) reindex() {
 	}
 }
 
-// lookupByFoldedName looks up name by a case-insensitive match
-// that also ignores the presence of dashes and underscores.
+// lookupByFoldedName 通过大小写不敏感匹配查找 name，
+// 该匹配还会忽略短横线和下划线的存在。
 func (fs *structFields) lookupByFoldedName(name []byte) []*structField {
 	return fs.byFoldedName[string(foldName(name))]
 }
 
 type structField struct {
-	id      int   // unique numeric ID in breadth-first ordering
-	index0  int   // 0th index into a struct according to [reflect.Type.FieldByIndex]
-	index   []int // 1st index and remainder according to [reflect.Type.FieldByIndex]
+	id      int   // 广度优先排序中的唯一数字 ID
+	index0  int   // 根据 [reflect.Type.FieldByIndex] 在结构体中的第 0 个索引
+	index   []int // 根据 [reflect.Type.FieldByIndex] 的第 1 个索引及剩余索引
 	typ     reflect.Type
 	fncs    *arshaler
 	isZero  func(addressableValue) bool
@@ -80,28 +80,28 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 		return cmp.Or(serr, &SemanticError{GoType: t, Err: fmt.Errorf(f, a...)})
 	}
 
-	// Setup a queue for a breath-first search.
+	// 为广度优先搜索设置一个队列。
 	var queueIndex int
 	type queueEntry struct {
 		typ           reflect.Type
 		index         []int
-		visitChildren bool // whether to recursively visit inlined field in this struct
+		visitChildren bool // 是否递归访问此结构体中的内联字段
 	}
 	queue := []queueEntry{{root, nil, true}}
 	seen := map[reflect.Type]bool{root: true}
 
-	// Perform a breadth-first search over all reachable fields.
-	// This ensures that len(f.index) will be monotonically increasing.
+	// 对所有可达字段执行广度优先搜索。
+	// 这确保了 len(f.index) 将单调递增。
 	var allFields, inlinedFallbacks []structField
 	for queueIndex < len(queue) {
 		qe := queue[queueIndex]
 		queueIndex++
 
 		t := qe.typ
-		inlinedFallbackIndex := -1         // index of last inlined fallback field in current struct
-		namesIndex := make(map[string]int) // index of each field with a given JSON object name in current struct
-		var hasAnyJSONTag bool             // whether any Go struct field has a `json` tag
-		var hasAnyJSONField bool           // whether any JSON serializable fields exist in current struct
+		inlinedFallbackIndex := -1         // 当前结构体中最后一个内联回退字段的索引
+		namesIndex := make(map[string]int) // 当前结构体中具有给定 JSON 对象名的每个字段的索引
+		var hasAnyJSONTag bool             // 是否有任意 Go 结构体字段带有 `json` 标签
+		var hasAnyJSONField bool           // 当前结构体中是否存在任意可 JSON 序列化的字段
 		for i := range t.NumField() {
 			sf := t.Field(i)
 			_, hasTag := sf.Tag.Lookup("json")
@@ -115,9 +115,9 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 			}
 			hasAnyJSONField = true
 			f := structField{
-				// Allocate a new slice (len=N+1) to hold both
-				// the parent index (len=N) and the current index (len=1).
-				// Do this to avoid clobbering the memory of the parent index.
+				// 分配一个新的切片（len=N+1）以同时保存
+				// 父索引（len=N）和当前索引（len=1）。
+				// 这样做是为了避免覆写父索引的内存。
 				index:        append(append(make([]int, 0, len(qe.index)+1), qe.index...), i),
 				typ:          sf.Type,
 				fieldOptions: options,
@@ -126,43 +126,43 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				if indirectType(f.typ).Kind() != reflect.Struct {
 					serr = orErrorf(serr, t, "embedded Go struct field %s of non-struct type must be explicitly given a JSON name", sf.Name)
 				} else {
-					f.inline = true // implied by use of Go embedding without an explicit name
+					f.inline = true // 由不使用显式名称的 Go 嵌入所隐含
 				}
 			}
 			if f.inline || f.unknown {
-				// Handle an inlined field that serializes to/from
-				// zero or more JSON object members.
+				// 处理一个内联字段，它与
+				// 零个或多个 JSON 对象成员之间进行序列化。
 
 				switch f.fieldOptions {
 				case fieldOptions{name: f.name, quotedName: f.quotedName, inline: true}:
 				case fieldOptions{name: f.name, quotedName: f.quotedName, unknown: true}:
 				case fieldOptions{name: f.name, quotedName: f.quotedName, inline: true, unknown: true}:
 					serr = orErrorf(serr, t, "Go struct field %s cannot have both `inline` and `unknown` specified", sf.Name)
-					f.inline = false // let `unknown` take precedence
+					f.inline = false // 让 `unknown` 优先
 				default:
 					serr = orErrorf(serr, t, "Go struct field %s cannot have any options other than `inline` or `unknown` specified", sf.Name)
 					if f.hasName {
-						continue // invalid inlined field; treat as ignored
+						continue // 无效的内联字段；视为被忽略
 					}
 					f.fieldOptions = fieldOptions{name: f.name, quotedName: f.quotedName, inline: f.inline, unknown: f.unknown}
 					if f.inline && f.unknown {
-						f.inline = false // let `unknown` take precedence
+						f.inline = false // 让 `unknown` 优先
 					}
 				}
 
-				// Reject any types with custom serialization otherwise
-				// it becomes impossible to know what sub-fields to inline.
+				// 拒绝任何带有自定义序列化的类型，
+				// 否则将无法知道要内联哪些子字段。
 				tf := indirectType(f.typ)
 				if implementsAny(tf, allMethodTypes...) && tf != jsontextValueType {
 					serr = orErrorf(serr, t, "inlined Go struct field %s of type %s must not implement marshal or unmarshal methods", sf.Name, tf)
 				}
 
-				// Handle an inlined field that serializes to/from
-				// a finite number of JSON object members backed by a Go struct.
+				// 处理一个内联字段，它与
+				// 由 Go 结构体支持的有限数量的 JSON 对象成员之间进行序列化。
 				if tf.Kind() == reflect.Struct {
 					if f.unknown {
 						serr = orErrorf(serr, t, "inlined Go struct field %s of type %s with `unknown` tag must be a Go map of string key or a jsontext.Value", sf.Name, tf)
-						continue // invalid inlined field; treat as ignored
+						continue // 无效的内联字段；视为被忽略
 					}
 					if qe.visitChildren {
 						queue = append(queue, queueEntry{tf, f.index, !seen[tf]})
@@ -171,49 +171,48 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 					continue
 				} else if !sf.IsExported() {
 					serr = orErrorf(serr, t, "inlined Go struct field %s is not exported", sf.Name)
-					continue // invalid inlined field; treat as ignored
+					continue // 无效的内联字段；视为被忽略
 				}
 
-				// Handle an inlined field that serializes to/from any number of
-				// JSON object members back by a Go map or jsontext.Value.
+				// 处理一个内联字段，它与由 Go map 或 jsontext.Value 支持的
+				// 任意数量的 JSON 对象成员之间进行序列化。
 				switch {
 				case tf == jsontextValueType:
-					f.fncs = nil // specially handled in arshal_inlined.go
+					f.fncs = nil // 在 arshal_inlined.go 中特殊处理
 				case tf.Kind() == reflect.Map && tf.Key().Kind() == reflect.String:
 					if implementsAny(tf.Key(), allMethodTypes...) {
 						serr = orErrorf(serr, t, "inlined map field %s of type %s must have a string key that does not implement marshal or unmarshal methods", sf.Name, tf)
-						continue // invalid inlined field; treat as ignored
+						continue // 无效的内联字段；视为被忽略
 					}
 					f.fncs = lookupArshaler(tf.Elem())
 				default:
 					serr = orErrorf(serr, t, "inlined Go struct field %s of type %s must be a Go struct, Go map of string key, or jsontext.Value", sf.Name, tf)
-					continue // invalid inlined field; treat as ignored
+					continue // 无效的内联字段；视为被忽略
 				}
 
-				// Reject multiple inlined fallback fields within the same struct.
+				// 拒绝同一结构体中的多个内联回退字段。
 				if inlinedFallbackIndex >= 0 {
 					serr = orErrorf(serr, t, "inlined Go struct fields %s and %s cannot both be a Go map or jsontext.Value", t.Field(inlinedFallbackIndex).Name, sf.Name)
-					// Still append f to inlinedFallbacks as there is still a
-					// check for a dominant inlined fallback before returning.
+					// 仍然将 f 追加到 inlinedFallbacks，因为在返回之前
+					// 仍会检查主导的内联回退字段。
 				}
 				inlinedFallbackIndex = i
 
 				inlinedFallbacks = append(inlinedFallbacks, f)
 			} else {
-				// Handle normal Go struct field that serializes to/from
-				// a single JSON object member.
+				// 处理与单个 JSON 对象成员之间进行序列化的
+				// 普通 Go 结构体字段。
 
-				// Unexported fields cannot be serialized except for
-				// embedded fields of a struct type,
-				// which might promote exported fields of their own.
+				// 未导出字段无法被序列化，但结构体类型的
+				// 嵌入字段除外，因为它们可能提升自身的导出字段。
 				if !sf.IsExported() {
 					tf := indirectType(f.typ)
 					if !(sf.Anonymous && tf.Kind() == reflect.Struct) {
 						serr = orErrorf(serr, t, "Go struct field %s is not exported", sf.Name)
 						continue
 					}
-					// Unfortunately, methods on the unexported field
-					// still cannot be called.
+					// 遗憾的是，未导出字段上的方法
+					// 仍然无法被调用。
 					if implementsAny(tf, allMethodTypes...) ||
 						(f.omitzero && implementsAny(tf, isZeroerType)) {
 						serr = orErrorf(serr, t, "Go struct field %s is not exported for method calls", sf.Name)
@@ -221,17 +220,17 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 					}
 				}
 
-				// Provide a function that uses a type's IsZero method.
+				// 提供一个使用类型 IsZero 方法的函数。
 				switch {
 				case sf.Type.Kind() == reflect.Interface && sf.Type.Implements(isZeroerType):
 					f.isZero = func(va addressableValue) bool {
-						// Avoid panics calling IsZero on a nil interface or
-						// non-nil interface with nil pointer.
+						// 避免在 nil 接口或
+						// 含 nil 指针的非 nil 接口上调用 IsZero 导致 panic。
 						return va.IsNil() || (va.Elem().Kind() == reflect.Pointer && va.Elem().IsNil()) || va.Interface().(isZeroer).IsZero()
 					}
 				case sf.Type.Kind() == reflect.Pointer && sf.Type.Implements(isZeroerType):
 					f.isZero = func(va addressableValue) bool {
-						// Avoid panics calling IsZero on nil pointer.
+						// 避免在 nil 指针上调用 IsZero 导致 panic。
 						return va.IsNil() || va.Interface().(isZeroer).IsZero()
 					}
 				case sf.Type.Implements(isZeroerType):
@@ -240,8 +239,8 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 					f.isZero = func(va addressableValue) bool { return va.Addr().Interface().(isZeroer).IsZero() }
 				}
 
-				// Provide a function that can determine whether the value would
-				// serialize as an empty JSON value.
+				// 提供一个函数，用于判断该值是否会
+				// 序列化为空的 JSON 值。
 				switch sf.Type.Kind() {
 				case reflect.String, reflect.Map, reflect.Array, reflect.Slice:
 					f.isEmpty = func(va addressableValue) bool { return va.Len() == 0 }
@@ -249,11 +248,11 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 					f.isEmpty = func(va addressableValue) bool { return va.IsNil() }
 				}
 
-				// Reject multiple fields with same name within the same struct.
+				// 拒绝同一结构体中具有相同名称的多个字段。
 				if j, ok := namesIndex[f.name]; ok {
 					serr = orErrorf(serr, t, "Go struct fields %s and %s conflict over JSON object name %q", t.Field(j).Name, sf.Name, f.name)
-					// Still append f to allFields as there is still a
-					// check for a dominant field before returning.
+					// 仍然将 f 追加到 allFields，因为在返回之前
+					// 仍会检查主导字段。
 				}
 				namesIndex[f.name] = i
 
@@ -263,28 +262,27 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 			}
 		}
 
-		// NOTE: New users to the json package are occasionally surprised that
-		// unexported fields are ignored. This occurs by necessity due to our
-		// inability to directly introspect such fields with Go reflection
-		// without the use of unsafe.
+		// NOTE: json 包的新用户偶尔会对
+		// 未导出字段被忽略感到惊讶。这是必然的，因为我们
+		// 无法在不使用 unsafe 的情况下用 Go 反射直接内省此类字段。
 		//
-		// To reduce friction here, refuse to serialize any Go struct that
-		// has no JSON serializable fields, has at least one Go struct field,
-		// and does not have any `json` tags present. For example,
-		// errors returned by errors.New would fail to serialize.
+		// 为减少此处的困扰，拒绝序列化任何满足以下条件的 Go 结构体：
+		// 没有可 JSON 序列化的字段、至少有一个 Go 结构体字段，
+		// 且不存在任何 `json` 标签。例如，
+		// errors.New 返回的错误将无法序列化。
 		isEmptyStruct := t.NumField() == 0
 		if !isEmptyStruct && !hasAnyJSONTag && !hasAnyJSONField {
 			serr = cmp.Or(serr, &SemanticError{GoType: t, Err: errNoExportedFields})
 		}
 	}
 
-	// Sort the fields by exact name (breaking ties by depth and
-	// then by presence of an explicitly provided JSON name).
-	// Select the dominant field from each set of fields with the same name.
-	// If multiple fields have the same name, then the dominant field
-	// is the one that exists alone at the shallowest depth,
-	// or the one that is uniquely tagged with a JSON name.
-	// Otherwise, no dominant field exists for the set.
+	// 按精确名称对字段排序（先按深度打破平局，
+	// 再按是否存在显式提供的 JSON 名称打破平局）。
+	// 从每组同名字段中选出主导字段。
+	// 如果多个字段具有相同名称，则主导字段
+	// 是在最浅深度处单独存在的那个，
+	// 或者是唯一被标注 JSON 名称的那个。
+	// 否则，该组不存在主导字段。
 	flattened := allFields[:0]
 	slices.SortStableFunc(allFields, func(x, y structField) int {
 		return cmp.Or(
@@ -293,19 +291,19 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 			boolsCompare(!x.hasName, !y.hasName))
 	})
 	for len(allFields) > 0 {
-		n := 1 // number of fields with the same exact name
+		n := 1 // 具有相同精确名称的字段数量
 		for n < len(allFields) && allFields[n-1].name == allFields[n].name {
 			n++
 		}
 		if n == 1 || len(allFields[0].index) != len(allFields[1].index) || allFields[0].hasName != allFields[1].hasName {
-			flattened = append(flattened, allFields[0]) // only keep field if there is a dominant field
+			flattened = append(flattened, allFields[0]) // 仅当存在主导字段时才保留该字段
 		}
 		allFields = allFields[n:]
 	}
 
-	// Sort the fields according to a breadth-first ordering
-	// so that we can re-number IDs with the smallest possible values.
-	// This optimizes use of uintSet such that it fits in the 64-entry bit set.
+	// 按广度优先顺序对字段排序，
+	// 以便用尽可能小的值重新编号 ID。
+	// 这优化了 uintSet 的使用，使其能放入 64 位位集中。
 	slices.SortFunc(flattened, func(x, y structField) int {
 		return cmp.Compare(x.id, y.id)
 	})
@@ -313,14 +311,14 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 		flattened[i].id = i
 	}
 
-	// Sort the fields according to a depth-first ordering
-	// as the typical order that fields are marshaled.
+	// 按深度优先顺序对字段排序，
+	// 这是字段被序列化的典型顺序。
 	slices.SortFunc(flattened, func(x, y structField) int {
 		return slices.Compare(x.index, y.index)
 	})
 
-	// Compute the mapping of fields in the byActualName map.
-	// Pre-fold all names so that we can lookup folded names quickly.
+	// 计算 byActualName 映射中的字段映射。
+	// 预先折叠所有名称，以便快速查找折叠后的名称。
 	fs = structFields{
 		flattened:    flattened,
 		byActualName: make(map[string]*structField, len(flattened)),
@@ -333,8 +331,8 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 	}
 	for foldedName, fields := range fs.byFoldedName {
 		if len(fields) > 1 {
-			// The precedence order for conflicting ignoreCase names
-			// is by breadth-first order, rather than depth-first order.
+			// 冲突的 ignoreCase 名称的优先级顺序
+			// 是按广度优先顺序，而非深度优先顺序。
 			slices.SortFunc(fields, func(x, y *structField) int {
 				return cmp.Compare(x.id, y.id)
 			})
@@ -342,15 +340,15 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 		}
 	}
 	if n := len(inlinedFallbacks); n == 1 || (n > 1 && len(inlinedFallbacks[0].index) != len(inlinedFallbacks[1].index)) {
-		fs.inlinedFallback = &inlinedFallbacks[0] // dominant inlined fallback field
+		fs.inlinedFallback = &inlinedFallbacks[0] // 主导的内联回退字段
 	}
 	fs.reindex()
 	return fs, serr
 }
 
-// indirectType unwraps one level of pointer indirection
-// similar to how Go only allows embedding either T or *T,
-// but not **T or P (which is a named pointer).
+// indirectType 解包一层指针间接引用，
+// 类似于 Go 仅允许嵌入 T 或 *T，
+// 而不允许 **T 或 P（即命名指针）。
 func indirectType(t reflect.Type) reflect.Type {
 	if t.Kind() == reflect.Pointer && t.Name() == "" {
 		t = t.Elem()
@@ -358,19 +356,19 @@ func indirectType(t reflect.Type) reflect.Type {
 	return t
 }
 
-// matchFoldedName matches a case-insensitive name depending on the options.
-// It assumes that foldName(f.name) == foldName(name).
+// matchFoldedName 根据选项匹配大小写不敏感的名称。
+// 它假定 foldName(f.name) == foldName(name)。
 //
-// Case-insensitive matching is used if the `case:ignore` tag option is specified
-// or the MatchCaseInsensitiveNames call option is specified
-// (and the `case:strict` tag option is not specified).
-// Functionally, the `case:ignore` and `case:strict` tag options take precedence.
+// 如果指定了 `case:ignore` 标签选项
+// 或指定了 MatchCaseInsensitiveNames 调用选项
+// （且未指定 `case:strict` 标签选项），则使用大小写不敏感匹配。
+// 在功能上，`case:ignore` 和 `case:strict` 标签选项优先。
 //
-// The v1 definition of case-insensitivity operated under strings.EqualFold
-// and would strictly compare dashes and underscores,
-// while the v2 definition would ignore the presence of dashes and underscores.
-// Thus, if the MatchCaseSensitiveDelimiter call option is specified,
-// the match is further restricted to using strings.EqualFold.
+// v1 的大小写不敏感定义基于 strings.EqualFold 运作，
+// 会严格比较短横线和下划线，
+// 而 v2 的定义会忽略短横线和下划线的存在。
+// 因此，如果指定了 MatchCaseSensitiveDelimiter 调用选项，
+// 则匹配进一步限制为使用 strings.EqualFold。
 func (f *structField) matchFoldedName(name []byte, flags *jsonflags.Flags) bool {
 	if f.casing == caseIgnore || (flags.Get(jsonflags.MatchCaseInsensitiveNames) && f.casing != caseStrict) {
 		if !flags.Get(jsonflags.MatchCaseSensitiveDelimiter) || strings.EqualFold(string(name), f.name) {
@@ -387,10 +385,10 @@ const (
 
 type fieldOptions struct {
 	name           string
-	quotedName     string // quoted name per RFC 8785, section 3.2.2.2.
+	quotedName     string // 根据 RFC 8785 第 3.2.2.2 节引用后的名称。
 	hasName        bool
 	nameNeedEscape bool
-	casing         int8 // either 0, caseIgnore, or caseStrict
+	casing         int8 // 为 0、caseIgnore 或 caseStrict
 	inline         bool
 	unknown        bool
 	omitzero       bool
@@ -399,50 +397,50 @@ type fieldOptions struct {
 	format         string
 }
 
-// parseFieldOptions parses the `json` tag in a Go struct field as
-// a structured set of options configuring parameters such as
-// the JSON member name and other features.
+// parseFieldOptions 将 Go 结构体字段中的 `json` 标签解析为
+// 一组结构化的选项，用于配置诸如
+// JSON 成员名称和其他特性等参数。
 func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, err error) {
 	tag, hasTag := sf.Tag.Lookup("json")
 	tagOrig := tag
 
-	// Check whether this field is explicitly ignored.
+	// 检查此字段是否被显式忽略。
 	if tag == "-" {
 		return fieldOptions{}, true, nil
 	}
 
-	// Check whether this field is unexported and not embedded,
-	// which Go reflection cannot mutate for the sake of serialization.
+	// 检查此字段是否未导出且未被嵌入，
+	// Go 反射无法为序列化而修改此类字段。
 	//
-	// An embedded field of an unexported type is still capable of
-	// forwarding exported fields, which may be JSON serialized.
-	// This technically operates on the edge of what is permissible by
-	// the Go language, but the most recent decision is to permit this.
+	// 未导出类型的嵌入字段仍然能够
+	// 转发导出字段，这些字段可以进行 JSON 序列化。
+	// 这在技术上处于 Go 语言所允许的边缘，
+	// 但最新的决定是允许这样做。
 	//
-	// See https://go.dev/issue/24153 and https://go.dev/issue/32772.
+	// 参见 https://go.dev/issue/24153 和 https://go.dev/issue/32772。
 	if !sf.IsExported() && !sf.Anonymous {
-		// Tag options specified on an unexported field suggests user error.
+		// 在未导出字段上指定标签选项暗示用户错误。
 		if hasTag {
 			err = cmp.Or(err, fmt.Errorf("unexported Go struct field %s cannot have non-ignored `json:%q` tag", sf.Name, tag))
 		}
 		return fieldOptions{}, true, err
 	}
 
-	// Determine the JSON member name for this Go field. A user-specified name
-	// may be provided as either an identifier or a single-quoted string.
-	// The single-quoted string allows arbitrary characters in the name.
-	// See https://go.dev/issue/2718 and https://go.dev/issue/3546.
-	out.name = sf.Name // always starts with an uppercase character
+	// 确定此 Go 字段的 JSON 成员名称。用户指定的名称
+	// 可以作为标识符或单引号字符串提供。
+	// 单引号字符串允许名称中包含任意字符。
+	// 参见 https://go.dev/issue/2718 和 https://go.dev/issue/3546。
+	out.name = sf.Name // 始终以大写字符开头
 	if len(tag) > 0 && !strings.HasPrefix(tag, ",") {
-		// For better compatibility with v1, accept almost any unescaped name.
+		// 为了与 v1 更好地兼容，接受几乎任何未转义的名称。
 		n := len(tag) - len(strings.TrimLeftFunc(tag, func(r rune) bool {
-			return !strings.ContainsRune(",\\'\"`", r) // reserve comma, backslash, and quotes
+			return !strings.ContainsRune(",\\'\"`", r) // 保留逗号、反斜杠和引号
 		}))
 		name := tag[:n]
 
-		// If the next character is not a comma, then the name is either
-		// malformed (if n > 0) or a single-quoted name.
-		// In either case, call consumeTagOption to handle it further.
+		// 如果下一个字符不是逗号，则该名称要么
+		// 格式错误（如果 n > 0），要么是单引号名称。
+		// 无论哪种情况，都调用 consumeTagOption 进一步处理。
 		var err2 error
 		if !strings.HasPrefix(tag[n:], ",") && len(name) != len(tag) {
 			name, n, err2 = consumeTagOption(tag)
@@ -452,10 +450,10 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 		}
 		if !utf8.ValidString(name) {
 			err = cmp.Or(err, fmt.Errorf("Go struct field %s has JSON object name %q with invalid UTF-8", sf.Name, name))
-			name = string([]rune(name)) // replace invalid UTF-8 with utf8.RuneError
+			name = string([]rune(name)) // 用 utf8.RuneError 替换无效的 UTF-8
 		}
 		if name == "-" && tag[0] == '-' {
-			defer func() { // defer to let other errors take precedence
+			defer func() { // 延迟执行以便让其他错误优先
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s has JSON object name %q; either "+
 					"use `json:\"-\"` to ignore the field or "+
 					"use `json:\"'-'%s` to specify %q as the name", sf.Name, out.name, strings.TrimPrefix(strconv.Quote(tagOrig), `"-`), name))
@@ -471,11 +469,11 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 	out.quotedName = string(b)
 	out.nameNeedEscape = jsonwire.NeedEscape(out.name)
 
-	// Handle any additional tag options (if any).
+	// 处理任何附加的标签选项（如果有）。
 	var wasFormat bool
 	seenOpts := make(map[string]bool)
 	for len(tag) > 0 {
-		// Consume comma delimiter.
+		// 消费逗号分隔符。
 		if tag[0] != ',' {
 			err = cmp.Or(err, fmt.Errorf("Go struct field %s has malformed `json` tag: invalid character %q before next option (expecting ',')", sf.Name, tag[0]))
 		} else {
@@ -486,7 +484,7 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 			}
 		}
 
-		// Consume and process the tag option.
+		// 消费并处理标签选项。
 		opt, n, err2 := consumeTagOption(tag)
 		if err2 != nil {
 			err = cmp.Or(err, fmt.Errorf("Go struct field %s has malformed `json` tag: %v", sf.Name, err2))
@@ -549,20 +547,20 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 			out.format = opt
 			wasFormat = true
 		default:
-			// Reject keys that resemble one of the supported options.
-			// This catches invalid mutants such as "omitEmpty" or "omit_empty".
+			// 拒绝与受支持选项相似的键。
+			// 这可以捕获诸如 "omitEmpty" 或 "omit_empty" 之类的无效变体。
 			normOpt := strings.ReplaceAll(strings.ToLower(opt), "_", "")
 			switch normOpt {
 			case "case", "inline", "unknown", "omitzero", "omitempty", "string", "format":
 				err = cmp.Or(err, fmt.Errorf("Go struct field %s has invalid appearance of `%s` tag option; specify `%s` instead", sf.Name, opt, normOpt))
 			}
 
-			// NOTE: Everything else is ignored. This does not mean it is
-			// forward compatible to insert arbitrary tag options since
-			// a future version of this package may understand that tag.
+			// NOTE: 其他所有内容都被忽略。这并不意味着
+			// 插入任意标签选项是向前兼容的，因为
+			// 此包的未来版本可能会理解该标签。
 		}
 
-		// Reject duplicates.
+		// 拒绝重复项。
 		switch {
 		case out.casing == caseIgnore|caseStrict:
 			err = cmp.Or(err, fmt.Errorf("Go struct field %s cannot have both `case:ignore` and `case:strict` tag options", sf.Name))
@@ -574,31 +572,31 @@ func parseFieldOptions(sf reflect.StructField) (out fieldOptions, ignored bool, 
 	return out, false, err
 }
 
-// consumeTagOption consumes the next option,
-// which is either a Go identifier or a single-quoted string.
-// If the next option is invalid, it returns all of in until the next comma,
-// and reports an error.
+// consumeTagOption 消费下一个选项，
+// 它要么是 Go 标识符，要么是单引号字符串。
+// 如果下一个选项无效，则返回 in 中直到下一个逗号为止的所有内容，
+// 并报告错误。
 func consumeTagOption(in string) (string, int, error) {
-	// For legacy compatibility with v1, assume options are comma-separated.
+	// 为了与 v1 的旧版兼容性，假定选项以逗号分隔。
 	i := strings.IndexByte(in, ',')
 	if i < 0 {
 		i = len(in)
 	}
 
 	switch r, _ := utf8.DecodeRuneInString(in); {
-	// Option as a Go identifier.
+	// 选项作为 Go 标识符。
 	case r == '_' || unicode.IsLetter(r):
 		n := len(in) - len(strings.TrimLeftFunc(in, isLetterOrDigit))
 		return in[:n], n, nil
-	// Option as a single-quoted string.
+	// 选项作为单引号字符串。
 	case r == '\'':
-		// The grammar is nearly identical to a double-quoted Go string literal,
-		// but uses single quotes as the terminators. The reason for a custom
-		// grammar is because both backtick and double quotes cannot be used
-		// verbatim in a struct tag.
+		// 该语法与双引号 Go 字符串字面量几乎相同，
+		// 但使用单引号作为终止符。采用自定义
+		// 语法的原因是反引号和双引号都无法
+		// 在结构体标签中原样使用。
 		//
-		// Convert a single-quoted string to a double-quote string and rely on
-		// strconv.Unquote to handle the rest.
+		// 将单引号字符串转换为双引号字符串，并依赖
+		// strconv.Unquote 处理其余部分。
 		var inEscape bool
 		b := []byte{'"'}
 		n := len(`'`)
@@ -607,13 +605,13 @@ func consumeTagOption(in string) (string, int, error) {
 			switch {
 			case inEscape:
 				if r == '\'' {
-					b = b[:len(b)-1] // remove escape character: `\'` => `'`
+					b = b[:len(b)-1] // 移除转义字符：`\'` => `'`
 				}
 				inEscape = false
 			case r == '\\':
 				inEscape = true
 			case r == '"':
-				b = append(b, '\\') // insert escape character: `"` => `\"`
+				b = append(b, '\\') // 插入转义字符：`"` => `\"`
 			case r == '\'':
 				b = append(b, '"')
 				n += len(`'`)
@@ -627,7 +625,7 @@ func consumeTagOption(in string) (string, int, error) {
 			n += rn
 		}
 		if n > 10 {
-			n = 10 // limit the amount of context printed in the error
+			n = 10 // 限制错误中打印的上下文数量
 		}
 		return in[:i], i, fmt.Errorf("single-quoted string not terminated: %s...", in[:n])
 	case len(in) == 0:
@@ -641,7 +639,7 @@ func isLetterOrDigit(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsNumber(r)
 }
 
-// boolsCompare compares x and y, ordering false before true.
+// boolsCompare 比较 x 和 y，将 false 排在 true 之前。
 func boolsCompare(x, y bool) int {
 	switch {
 	case !x && y:

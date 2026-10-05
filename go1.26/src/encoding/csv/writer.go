@@ -12,30 +12,29 @@ import (
 	"unicode/utf8"
 )
 
-// A Writer writes records using CSV encoding.
+// Writer 使用 CSV 编码写入记录。
 //
-// As returned by [NewWriter], a Writer writes records terminated by a
-// newline and uses ',' as the field delimiter. The exported fields can be
-// changed to customize the details before
-// the first call to [Writer.Write] or [Writer.WriteAll].
+// 由 [NewWriter] 返回的 Writer 写入以换行符结尾的记录，并使用 ',' 作为字段分隔符。
+// 导出的字段可以在首次调用 [Writer.Write] 或 [Writer.WriteAll]
+// 之前更改，以自定义各个细节。
 //
-// [Writer.Comma] is the field delimiter.
+// [Writer.Comma] 是字段分隔符。
 //
-// If [Writer.UseCRLF] is true,
-// the Writer ends each output line with \r\n instead of \n.
+// 如果 [Writer.UseCRLF] 为 true，
+// Writer 会用 \r\n 而不是 \n 结束每一输出行。
 //
-// The writes of individual records are buffered.
-// After all data has been written, the client should call the
-// [Writer.Flush] method to guarantee all data has been forwarded to
-// the underlying [io.Writer].  Any errors that occurred should
-// be checked by calling the [Writer.Error] method.
+// 单条记录的写入是带缓冲的。
+// 所有数据写入完毕后，客户端应调用
+// [Writer.Flush] 方法，以保证所有数据都已转发到
+// 底层 [io.Writer]。任何发生的错误都应
+// 通过调用 [Writer.Error] 方法检查。
 type Writer struct {
-	Comma   rune // Field delimiter (set to ',' by NewWriter)
-	UseCRLF bool // True to use \r\n as the line terminator
+	Comma   rune // 字段分隔符（由 NewWriter 设为 ','）
+	UseCRLF bool // 若为 true，则使用 \r\n 作为行终止符
 	w       *bufio.Writer
 }
 
-// NewWriter returns a new Writer that writes to w.
+// NewWriter 返回一个写入 w 的新 Writer。
 func NewWriter(w io.Writer) *Writer {
 	return &Writer{
 		Comma: ',',
@@ -43,10 +42,10 @@ func NewWriter(w io.Writer) *Writer {
 	}
 }
 
-// Write writes a single CSV record to w along with any necessary quoting.
-// A record is a slice of strings with each string being one field.
-// Writes are buffered, so [Writer.Flush] must eventually be called to ensure
-// that the record is written to the underlying [io.Writer].
+// Write 将单条 CSV 记录连同任何必要的引号一起写入 w。
+// 记录是一个字符串切片，其中每个字符串为一个字段。
+// 写入是带缓冲的，因此最终必须调用 [Writer.Flush] 以确保
+// 记录被写入底层 [io.Writer]。
 func (w *Writer) Write(record []string) error {
 	if !validDelim(w.Comma) {
 		return errInvalidDelim
@@ -59,8 +58,8 @@ func (w *Writer) Write(record []string) error {
 			}
 		}
 
-		// If we don't have to have a quoted field then just
-		// write out the field and continue to the next field.
+		// 如果不需要带引号的字段，那么直接
+		// 写出该字段并继续处理下一个字段。
 		if !w.fieldNeedsQuotes(field) {
 			if _, err := w.w.WriteString(field); err != nil {
 				return err
@@ -72,19 +71,19 @@ func (w *Writer) Write(record []string) error {
 			return err
 		}
 		for len(field) > 0 {
-			// Search for special characters.
+			// 搜索特殊字符。
 			i := strings.IndexAny(field, "\"\r\n")
 			if i < 0 {
 				i = len(field)
 			}
 
-			// Copy verbatim everything before the special character.
+			// 逐字复制特殊字符之前的所有内容。
 			if _, err := w.w.WriteString(field[:i]); err != nil {
 				return err
 			}
 			field = field[i:]
 
-			// Encode the special character.
+			// 编码该特殊字符。
 			if len(field) > 0 {
 				var err error
 				switch field[0] {
@@ -120,21 +119,21 @@ func (w *Writer) Write(record []string) error {
 	return err
 }
 
-// Flush writes any buffered data to the underlying [io.Writer].
-// To check if an error occurred during Flush, call [Writer.Error].
+// Flush 将任何缓冲数据写入底层 [io.Writer]。
+// 要检查 Flush 期间是否发生错误，请调用 [Writer.Error]。
 func (w *Writer) Flush() {
 	w.w.Flush()
 }
 
-// Error reports any error that has occurred during
-// a previous [Writer.Write] or [Writer.Flush].
+// Error 报告在之前的 [Writer.Write] 或 [Writer.Flush] 期间
+// 发生的任何错误。
 func (w *Writer) Error() error {
 	_, err := w.w.Write(nil)
 	return err
 }
 
-// WriteAll writes multiple CSV records to w using [Writer.Write] and
-// then calls [Writer.Flush], returning any error from the Flush.
+// WriteAll 使用 [Writer.Write] 将多条 CSV 记录写入 w，
+// 然后调用 [Writer.Flush]，返回 Flush 产生的任何错误。
 func (w *Writer) WriteAll(records [][]string) error {
 	for _, record := range records {
 		err := w.Write(record)
@@ -145,18 +144,18 @@ func (w *Writer) WriteAll(records [][]string) error {
 	return w.w.Flush()
 }
 
-// fieldNeedsQuotes reports whether our field must be enclosed in quotes.
-// Fields with a Comma, fields with a quote or newline, and
-// fields which start with a space must be enclosed in quotes.
-// We used to quote empty strings, but we do not anymore (as of Go 1.4).
-// The two representations should be equivalent, but Postgres distinguishes
-// quoted vs non-quoted empty string during database imports, and it has
-// an option to force the quoted behavior for non-quoted CSV but it has
-// no option to force the non-quoted behavior for quoted CSV, making
-// CSV with quoted empty strings strictly less useful.
-// Not quoting the empty string also makes this package match the behavior
-// of Microsoft Excel and Google Drive.
-// For Postgres, quote the data terminating string `\.`.
+// fieldNeedsQuotes 报告字段是否必须用引号括起来。
+// 包含 Comma 的字段、包含引号或换行符的字段，
+// 以及以空格开头的字段必须用引号括起来。
+// 我们过去会给空字符串加引号，但（自 Go 1.4 起）已不再这样做。
+// 这两种表示应当是等价的，但 Postgres 在数据库导入期间
+// 会区分带引号与不带引号的空字符串，且它有一个选项
+// 可以为不带引号的 CSV 强制使用带引号行为，却没有选项
+// 为带引号的 CSV 强制使用不带引号行为，这使得
+// 带引号空字符串的 CSV 的实用性严格更低。
+// 不给空字符串加引号也使本包与 Microsoft Excel 和 Google Drive
+// 的行为一致。
+// 对于 Postgres，请给数据终止字符串 `\.` 加引号。
 func (w *Writer) fieldNeedsQuotes(field string) bool {
 	if field == "" {
 		return false

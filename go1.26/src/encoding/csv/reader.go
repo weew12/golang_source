@@ -2,51 +2,50 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package csv reads and writes comma-separated values (CSV) files.
-// There are many kinds of CSV files; this package supports the format
-// described in RFC 4180, except that [Writer] uses LF
-// instead of CRLF as newline character by default.
+// Package csv 读取和写入逗号分隔值（CSV）文件。
+// CSV 文件有多种类型；本包支持 RFC 4180 中描述的格式，
+// 只是 [Writer] 默认使用 LF 而不是 CRLF 作为换行字符。
 //
-// A csv file contains zero or more records of one or more fields per record.
-// Each record is separated by the newline character. The final record may
-// optionally be followed by a newline character.
+// 一个 csv 文件包含零条或多条记录，每条记录包含一个或多个字段。
+// 每条记录由换行字符分隔。最后一条记录后面
+// 可以选择性地跟一个换行字符。
 //
 //	field1,field2,field3
 //
-// White space is considered part of a field.
+// 空白字符被视为字段的一部分。
 //
-// Carriage returns before newline characters are silently removed.
+// 换行字符之前的回车符会被静默移除。
 //
-// Blank lines are ignored. A line with only whitespace characters (excluding
-// the ending newline character) is not considered a blank line.
+// 空行会被忽略。仅含空白字符的行（不包括
+// 结尾的换行字符）不算空行。
 //
-// Fields which start and stop with the quote character " are called
-// quoted-fields. The beginning and ending quote are not part of the
-// field.
+// 以引号字符 " 开头和结尾的字段称为
+// 带引号字段。开头和结尾的引号不属于
+// 字段的一部分。
 //
-// The source:
+// 源内容：
 //
 //	normal string,"quoted-field"
 //
-// results in the fields
+// 会得到字段
 //
 //	{`normal string`, `quoted-field`}
 //
-// Within a quoted-field a quote character followed by a second quote
-// character is considered a single quote.
+// 在带引号字段内，紧跟着第二个引号字符的引号字符
+// 被视为单个引号。
 //
 //	"the ""word"" is true","a ""quoted-field"""
 //
-// results in
+// 会得到
 //
 //	{`the "word" is true`, `a "quoted-field"`}
 //
-// Newlines and commas may be included in a quoted-field
+// 换行符和逗号可以包含在带引号字段中
 //
 //	"Multi-line
 //	field","comma is ,"
 //
-// results in
+// 会得到
 //
 //	{`Multi-line
 //	field`, `comma is ,`}
@@ -62,13 +61,13 @@ import (
 	"unicode/utf8"
 )
 
-// A ParseError is returned for parsing errors.
-// Line and column numbers are 1-indexed.
+// 解析错误会返回 ParseError。
+// 行号和列号从 1 开始索引。
 type ParseError struct {
-	StartLine int   // Line where the record starts
-	Line      int   // Line where the error occurred
-	Column    int   // Column (1-based byte index) where the error occurred
-	Err       error // The actual error
+	StartLine int   // 记录开始的行
+	Line      int   // 发生错误的行
+	Column    int   // 发生错误的列（从 1 开始的字节索引）
+	Err       error // 实际的错误
 }
 
 func (e *ParseError) Error() string {
@@ -83,13 +82,13 @@ func (e *ParseError) Error() string {
 
 func (e *ParseError) Unwrap() error { return e.Err }
 
-// These are the errors that can be returned in [ParseError.Err].
+// 这些是可以在 [ParseError.Err] 中返回的错误。
 var (
 	ErrBareQuote  = errors.New("bare \" in non-quoted-field")
 	ErrQuote      = errors.New("extraneous or missing \" in quoted-field")
 	ErrFieldCount = errors.New("wrong number of fields")
 
-	// Deprecated: ErrTrailingComma is no longer used.
+	// Deprecated: ErrTrailingComma 不再被使用。
 	ErrTrailingComma = errors.New("extra delimiter at end of line")
 )
 
@@ -99,85 +98,85 @@ func validDelim(r rune) bool {
 	return r != 0 && r != '"' && r != '\r' && r != '\n' && utf8.ValidRune(r) && r != utf8.RuneError
 }
 
-// A Reader reads records from a CSV-encoded file.
+// Reader 从 CSV 编码的文件中读取记录。
 //
-// As returned by [NewReader], a Reader expects input conforming to RFC 4180.
-// The exported fields can be changed to customize the details before the
-// first call to [Reader.Read] or [Reader.ReadAll].
+// 由 [NewReader] 返回的 Reader 期望输入符合 RFC 4180。
+// 导出的字段可以在首次调用 [Reader.Read] 或 [Reader.ReadAll]
+// 之前更改，以自定义各个细节。
 //
-// The Reader converts all \r\n sequences in its input to plain \n,
-// including in multiline field values, so that the returned data does
-// not depend on which line-ending convention an input file uses.
+// Reader 会将其输入中所有 \r\n 序列转换为单纯的 \n，
+// 包括多行字段值中的，因此返回的数据不会
+// 依赖于输入文件使用哪种行结束约定。
 type Reader struct {
-	// Comma is the field delimiter.
-	// It is set to comma (',') by NewReader.
-	// Comma must be a valid rune and must not be \r, \n,
-	// or the Unicode replacement character (0xFFFD).
+	// Comma 是字段分隔符。
+	// 由 NewReader 设为逗号（','）。
+	// Comma 必须是有效的 rune，且不能是 \r、\n
+	// 或 Unicode 替换字符（0xFFFD）。
 	Comma rune
 
-	// Comment, if not 0, is the comment character. Lines beginning with the
-	// Comment character without preceding whitespace are ignored.
-	// With leading whitespace the Comment character becomes part of the
-	// field, even if TrimLeadingSpace is true.
-	// Comment must be a valid rune and must not be \r, \n,
-	// or the Unicode replacement character (0xFFFD).
-	// It must also not be equal to Comma.
+	// Comment 若非 0，则它是注释字符。以 Comment 字符开头
+	// 且前面没有空白字符的行会被忽略。
+	// 若有前导空白字符，则 Comment 字符会成为
+	// 字段的一部分，即使 TrimLeadingSpace 为 true。
+	// Comment 必须是有效的 rune，且不能是 \r、\n
+	// 或 Unicode 替换字符（0xFFFD）。
+	// 它也不能等于 Comma。
 	Comment rune
 
-	// FieldsPerRecord is the number of expected fields per record.
-	// If FieldsPerRecord is positive, Read requires each record to
-	// have the given number of fields. If FieldsPerRecord is 0, Read sets it to
-	// the number of fields in the first record, so that future records must
-	// have the same field count. If FieldsPerRecord is negative, no check is
-	// made and records may have a variable number of fields.
+	// FieldsPerRecord 是每条记录期望的字段数。
+	// 如果 FieldsPerRecord 为正，Read 要求每条记录
+	// 具有给定的字段数。如果 FieldsPerRecord 为 0，Read 会将它设为
+	// 第一条记录的字段数，从而使后续记录必须
+	// 具有相同的字段计数。如果 FieldsPerRecord 为负，则不进行检查，
+	// 记录可以具有可变的字段数。
 	FieldsPerRecord int
 
-	// If LazyQuotes is true, a quote may appear in an unquoted field and a
-	// non-doubled quote may appear in a quoted field.
+	// 如果 LazyQuotes 为 true，引号可以出现在不带引号的字段中，
+	// 非成对的引号也可以出现在带引号的字段中。
 	LazyQuotes bool
 
-	// If TrimLeadingSpace is true, leading white space in a field is ignored.
-	// This is done even if the field delimiter, Comma, is white space.
+	// 如果 TrimLeadingSpace 为 true，字段中的前导空白会被忽略。
+	// 即使字段分隔符 Comma 是空白，也会这样做。
 	TrimLeadingSpace bool
 
-	// ReuseRecord controls whether calls to Read may return a slice sharing
-	// the backing array of the previous call's returned slice for performance.
-	// By default, each call to Read returns newly allocated memory owned by the caller.
+	// ReuseRecord 控制 Read 的调用是否可以为提升性能而返回
+	// 与上一次调用返回的切片共享底层数组的切片。
+	// 默认情况下，每次调用 Read 都返回由调用者拥有的新分配内存。
 	ReuseRecord bool
 
-	// Deprecated: TrailingComma is no longer used.
+	// Deprecated: TrailingComma 不再被使用。
 	TrailingComma bool
 
 	r *bufio.Reader
 
-	// numLine is the current line being read in the CSV file.
+	// numLine 是 CSV 文件中当前正在读取的行。
 	numLine int
 
-	// offset is the input stream byte offset of the current reader position.
+	// offset 是当前读取器位置的输入流字节偏移量。
 	offset int64
 
-	// rawBuffer is a line buffer only used by the readLine method.
+	// rawBuffer 是仅由 readLine 方法使用的行缓冲区。
 	rawBuffer []byte
 
-	// recordBuffer holds the unescaped fields, one after another.
-	// The fields can be accessed by using the indexes in fieldIndexes.
-	// E.g., For the row `a,"b","c""d",e`, recordBuffer will contain `abc"de`
-	// and fieldIndexes will contain the indexes [1, 2, 5, 6].
+	// recordBuffer 依次保存未转义的字段。
+	// 可以通过 fieldIndexes 中的索引访问这些字段。
+	// 例如，对于行 `a,"b","c""d",e`，recordBuffer 将包含 `abc"de`，
+	// fieldIndexes 将包含索引 [1, 2, 5, 6]。
 	recordBuffer []byte
 
-	// fieldIndexes is an index of fields inside recordBuffer.
-	// The i'th field ends at offset fieldIndexes[i] in recordBuffer.
+	// fieldIndexes 是 recordBuffer 内字段的索引。
+	// 第 i 个字段在 recordBuffer 中结束于偏移量 fieldIndexes[i]。
 	fieldIndexes []int
 
-	// fieldPositions is an index of field positions for the
-	// last record returned by Read.
+	// fieldPositions 是 Read 返回的最后一条记录
+	// 的字段位置索引。
 	fieldPositions []position
 
-	// lastRecord is a record cache and only used when ReuseRecord == true.
+	// lastRecord 是记录缓存，仅在 ReuseRecord == true 时使用。
 	lastRecord []string
 }
 
-// NewReader returns a new Reader that reads from r.
+// NewReader 返回一个从 r 读取的新 Reader。
 func NewReader(r io.Reader) *Reader {
 	return &Reader{
 		Comma: ',',
@@ -185,15 +184,15 @@ func NewReader(r io.Reader) *Reader {
 	}
 }
 
-// Read reads one record (a slice of fields) from r.
-// If the record has an unexpected number of fields,
-// Read returns the record along with the error [ErrFieldCount].
-// If the record contains a field that cannot be parsed,
-// Read returns a partial record along with the parse error.
-// The partial record contains all fields read before the error.
-// If there is no data left to be read, Read returns nil, [io.EOF].
-// If [Reader.ReuseRecord] is true, the returned slice may be shared
-// between multiple calls to Read.
+// Read 从 r 读取一条记录（一个字段切片）。
+// 如果记录的字段数不符合预期，
+// Read 会返回该记录以及错误 [ErrFieldCount]。
+// 如果记录中包含无法解析的字段，
+// Read 会返回部分记录以及解析错误。
+// 该部分记录包含出错之前已读取的所有字段。
+// 如果没有剩余数据可读，Read 返回 nil, [io.EOF]。
+// 如果 [Reader.ReuseRecord] 为 true，返回的切片可能在
+// 多次调用 Read 之间共享。
 func (r *Reader) Read() (record []string, err error) {
 	if r.ReuseRecord {
 		record, err = r.readRecord(r.lastRecord)
@@ -204,12 +203,11 @@ func (r *Reader) Read() (record []string, err error) {
 	return record, err
 }
 
-// FieldPos returns the line and column corresponding to
-// the start of the field with the given index in the slice most recently
-// returned by [Reader.Read]. Numbering of lines and columns starts at 1;
-// columns are counted in bytes, not runes.
+// FieldPos 返回 [Reader.Read] 最近返回的切片中
+// 给定索引的字段起始位置所对应的行和列。行号和列号从 1 开始；
+// 列按字节计数，而不是按 rune。
 //
-// If this is called with an out-of-bounds index, it panics.
+// 如果使用越界的索引调用它，它会 panic。
 func (r *Reader) FieldPos(field int) (line, column int) {
 	if field < 0 || field >= len(r.fieldPositions) {
 		panic("out of range index passed to FieldPos")
@@ -218,23 +216,23 @@ func (r *Reader) FieldPos(field int) (line, column int) {
 	return p.line, p.col
 }
 
-// InputOffset returns the input stream byte offset of the current reader
-// position. The offset gives the location of the end of the most recently
-// read row and the beginning of the next row.
+// InputOffset 返回当前读取器位置的输入流字节偏移量。
+// 该偏移量给出最近读取的行的末尾位置
+// 以及下一行的起始位置。
 func (r *Reader) InputOffset() int64 {
 	return r.offset
 }
 
-// pos holds the position of a field in the current line.
+// pos 保存字段在当前行中的位置。
 type position struct {
 	line, col int
 }
 
-// ReadAll reads all the remaining records from r.
-// Each record is a slice of fields.
-// A successful call returns err == nil, not err == [io.EOF]. Because ReadAll is
-// defined to read until EOF, it does not treat end of file as an error to be
-// reported.
+// ReadAll 从 r 读取所有剩余记录。
+// 每条记录是一个字段切片。
+// 成功的调用返回 err == nil，而不是 err == [io.EOF]。因为 ReadAll
+// 定义为读取到 EOF，它不把文件末尾视为需要
+// 报告的错误。
 func (r *Reader) ReadAll() (records [][]string, err error) {
 	for {
 		record, err := r.readRecord(nil)
@@ -248,10 +246,10 @@ func (r *Reader) ReadAll() (records [][]string, err error) {
 	}
 }
 
-// readLine reads the next line (with the trailing endline).
-// If EOF is hit without a trailing endline, it will be omitted.
-// If some bytes were read, then the error is never [io.EOF].
-// The result is only valid until the next call to readLine.
+// readLine 读取下一行（包括结尾的换行符）。
+// 如果在没有结尾换行符的情况下遇到 EOF，则会省略它。
+// 如果读取了一些字节，那么错误永远不会是 [io.EOF]。
+// 结果仅在下次调用 readLine 之前有效。
 func (r *Reader) readLine() ([]byte, error) {
 	line, err := r.r.ReadSlice('\n')
 	if err == bufio.ErrBufferFull {
@@ -265,14 +263,14 @@ func (r *Reader) readLine() ([]byte, error) {
 	readSize := len(line)
 	if readSize > 0 && err == io.EOF {
 		err = nil
-		// For backwards compatibility, drop trailing \r before EOF.
+		// 为了向后兼容，在 EOF 之前去掉结尾的 \r。
 		if line[readSize-1] == '\r' {
 			line = line[:readSize-1]
 		}
 	}
 	r.numLine++
 	r.offset += int64(readSize)
-	// Normalize \r\n to \n on all input lines.
+	// 将所有输入行中的 \r\n 规范化为 \n。
 	if n := len(line); n >= 2 && line[n-2] == '\r' && line[n-1] == '\n' {
 		line[n-2] = '\n'
 		line = line[:n-1]
@@ -280,7 +278,7 @@ func (r *Reader) readLine() ([]byte, error) {
 	return line, err
 }
 
-// lengthNL reports the number of bytes for the trailing \n.
+// lengthNL 报告结尾 \n 的字节数。
 func lengthNL(b []byte) int {
 	if len(b) > 0 && b[len(b)-1] == '\n' {
 		return 1
@@ -288,7 +286,7 @@ func lengthNL(b []byte) int {
 	return 0
 }
 
-// nextRune returns the next rune in b or utf8.RuneError.
+// nextRune 返回 b 中的下一个 rune，或 utf8.RuneError。
 func nextRune(b []byte) rune {
 	r, _ := utf8.DecodeRune(b)
 	return r
@@ -299,18 +297,18 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 		return nil, errInvalidDelim
 	}
 
-	// Read line (automatically skipping past empty lines and any comments).
+	// 读取一行（自动跳过空行和任何注释）。
 	var line []byte
 	var errRead error
 	for errRead == nil {
 		line, errRead = r.readLine()
 		if r.Comment != 0 && nextRune(line) == r.Comment {
 			line = nil
-			continue // Skip comment lines
+			continue // 跳过注释行
 		}
 		if errRead == nil && len(line) == lengthNL(line) {
 			line = nil
-			continue // Skip empty lines
+			continue // 跳过空行
 		}
 		break
 	}
@@ -318,11 +316,11 @@ func (r *Reader) readRecord(dst []string) ([]string, error) {
 		return nil, errRead
 	}
 
-	// Parse each field in the record.
+	// 解析记录中的每个字段。
 	var err error
 	const quoteLen = len(`"`)
 	commaLen := utf8.RuneLen(r.Comma)
-	recLine := r.numLine // Starting line for record
+	recLine := r.numLine // 记录开始的行
 	r.recordBuffer = r.recordBuffer[:0]
 	r.fieldIndexes = r.fieldIndexes[:0]
 	r.fieldPositions = r.fieldPositions[:0]
@@ -341,7 +339,7 @@ parseField:
 			pos.col += i
 		}
 		if len(line) == 0 || line[0] != '"' {
-			// Non-quoted string field
+			// 不带引号的字符串字段
 			i := bytes.IndexRune(line, r.Comma)
 			field := line
 			if i >= 0 {
@@ -349,7 +347,7 @@ parseField:
 			} else {
 				field = field[:len(field)-lengthNL(field)]
 			}
-			// Check to make sure a quote does not appear in field.
+			// 检查以确保字段中不出现引号。
 			if !r.LazyQuotes {
 				if j := bytes.IndexByte(field, '"'); j >= 0 {
 					col := pos.col + j
@@ -367,45 +365,45 @@ parseField:
 			}
 			break parseField
 		} else {
-			// Quoted string field
+			// 带引号的字符串字段
 			fieldPos := pos
 			line = line[quoteLen:]
 			pos.col += quoteLen
 			for {
 				i := bytes.IndexByte(line, '"')
 				if i >= 0 {
-					// Hit next quote.
+					// 遇到下一个引号。
 					r.recordBuffer = append(r.recordBuffer, line[:i]...)
 					line = line[i+quoteLen:]
 					pos.col += i + quoteLen
 					switch rn := nextRune(line); {
 					case rn == '"':
-						// `""` sequence (append quote).
+						// `""` 序列（追加一个引号）。
 						r.recordBuffer = append(r.recordBuffer, '"')
 						line = line[quoteLen:]
 						pos.col += quoteLen
 					case rn == r.Comma:
-						// `",` sequence (end of field).
+						// `",` 序列（字段结束）。
 						line = line[commaLen:]
 						pos.col += commaLen
 						r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
 						r.fieldPositions = append(r.fieldPositions, fieldPos)
 						continue parseField
 					case lengthNL(line) == len(line):
-						// `"\n` sequence (end of line).
+						// `"\n` 序列（行结束）。
 						r.fieldIndexes = append(r.fieldIndexes, len(r.recordBuffer))
 						r.fieldPositions = append(r.fieldPositions, fieldPos)
 						break parseField
 					case r.LazyQuotes:
-						// `"` sequence (bare quote).
+						// `"` 序列（裸引号）。
 						r.recordBuffer = append(r.recordBuffer, '"')
 					default:
-						// `"*` sequence (invalid non-escaped quote).
+						// `"*` 序列（无效的未转义引号）。
 						err = &ParseError{StartLine: recLine, Line: r.numLine, Column: pos.col - quoteLen, Err: ErrQuote}
 						break parseField
 					}
 				} else if len(line) > 0 {
-					// Hit end of line (copy all data so far).
+					// 遇到行尾（复制目前的所有数据）。
 					r.recordBuffer = append(r.recordBuffer, line...)
 					if errRead != nil {
 						break parseField
@@ -420,7 +418,7 @@ parseField:
 						errRead = nil
 					}
 				} else {
-					// Abrupt end of file (EOF or error).
+					// 文件突然结束（EOF 或错误）。
 					if !r.LazyQuotes && errRead == nil {
 						err = &ParseError{StartLine: recLine, Line: pos.line, Column: pos.col, Err: ErrQuote}
 						break parseField
@@ -436,9 +434,9 @@ parseField:
 		err = errRead
 	}
 
-	// Create a single string and create slices out of it.
-	// This pins the memory of the fields together, but allocates once.
-	str := string(r.recordBuffer) // Convert to string once to batch allocations
+	// 创建一个单独的字符串并从中切出各个切片。
+	// 这会将各字段的内存固定在一起，但只需分配一次。
+	str := string(r.recordBuffer) // 只转换为字符串一次，以批量分配
 	dst = dst[:0]
 	if cap(dst) < len(r.fieldIndexes) {
 		dst = make([]string, len(r.fieldIndexes))
@@ -450,7 +448,7 @@ parseField:
 		preIdx = idx
 	}
 
-	// Check or update the expected fields per record.
+	// 检查或更新每条记录期望的字段数。
 	if r.FieldsPerRecord > 0 {
 		if len(dst) != r.FieldsPerRecord && err == nil {
 			err = &ParseError{

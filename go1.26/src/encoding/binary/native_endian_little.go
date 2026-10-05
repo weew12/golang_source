@@ -10,5 +10,5 @@ type nativeEndian struct {
 	littleEndian
 }
 
-// NativeEndian is the native-endian implementation of [ByteOrder] and [AppendByteOrder].
+// NativeEndian 是 [ByteOrder] 和 [AppendByteOrder] 的本机字节序实现。
 var NativeEndian nativeEndian

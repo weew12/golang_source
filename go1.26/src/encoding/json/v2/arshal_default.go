@@ -29,19 +29,19 @@ import (
 	"encoding/json/jsontext"
 )
 
-// optimizeCommon specifies whether to use optimizations targeted for certain
-// common patterns, rather than using the slower, but more general logic.
-// All tests should pass regardless of whether this is true or not.
+// optimizeCommon 指定是否使用针对某些常见模式优化的逻辑，
+// 而非使用较慢但更通用的逻辑。
+// 无论此常量是否为 true，所有测试都应通过。
 const optimizeCommon = true
 
 var (
-	// Most natural Go type that correspond with each JSON type.
-	anyType          = reflect.TypeFor[any]()            // JSON value
-	boolType         = reflect.TypeFor[bool]()           // JSON bool
-	stringType       = reflect.TypeFor[string]()         // JSON string
-	float64Type      = reflect.TypeFor[float64]()        // JSON number
-	mapStringAnyType = reflect.TypeFor[map[string]any]() // JSON object
-	sliceAnyType     = reflect.TypeFor[[]any]()          // JSON array
+	// 与每种 JSON 类型对应的最自然的 Go 类型
+	anyType          = reflect.TypeFor[any]()            // JSON 值
+	boolType         = reflect.TypeFor[bool]()           // JSON 布尔值
+	stringType       = reflect.TypeFor[string]()         // JSON 字符串
+	float64Type      = reflect.TypeFor[float64]()        // JSON 数字
+	mapStringAnyType = reflect.TypeFor[map[string]any]() // JSON 对象
+	sliceAnyType     = reflect.TypeFor[[]any]()          // JSON 数组
 
 	bytesType       = reflect.TypeFor[[]byte]()
 	emptyStructType = reflect.TypeFor[struct{}]()
@@ -53,12 +53,12 @@ type seenPointers = map[any]struct{}
 
 type typedPointer struct {
 	typ reflect.Type
-	ptr any // always stores unsafe.Pointer, but avoids depending on unsafe
-	len int // remember slice length to avoid false positives
+	ptr any // 始终存储 unsafe.Pointer，但避免依赖 unsafe
+	len int // 记住切片长度以避免误报
 }
 
-// visitPointer visits pointer p of type t, reporting an error if seen before.
-// If successfully visited, then the caller must eventually call leave.
+// visitPointer 访问类型为 t 的指针 p，如果之前已经访问过则报告错误。
+// 如果访问成功，则调用方最终必须调用 leave。
 func visitPointer(m *seenPointers, v reflect.Value) error {
 	p := typedPointer{v.Type(), v.UnsafePointer(), sliceLen(v)}
 	if _, ok := (*m)[p]; ok {
@@ -131,7 +131,7 @@ func makeBoolArshaler(t reflect.Type) *arshaler {
 			return newInvalidFormatError(enc, t)
 		}
 
-		// Optimize for marshaling without preceding whitespace.
+		// 针对没有前置空白的情况优化序列化。
 		if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace|jsonflags.StringifyBoolsAndStrings) && !xe.Tokens.Last.NeedObjectName() {
 			xe.Buf = strconv.AppendBool(xe.Tokens.MayAppendDelim(xe.Buf, 't'), va.Bool())
 			xe.Tokens.Last.Increment()
@@ -203,7 +203,7 @@ func makeStringArshaler(t reflect.Type) *arshaler {
 			return newInvalidFormatError(enc, t)
 		}
 
-		// Optimize for marshaling without preceding whitespace.
+		// 针对没有前置空白的情况优化序列化。
 		s := va.String()
 		if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace|jsonflags.StringifyBoolsAndStrings) && !xe.Tokens.Last.NeedObjectName() {
 			b := xe.Buf
@@ -217,8 +217,8 @@ func makeStringArshaler(t reflect.Type) *arshaler {
 				}
 				return nil
 			}
-			// Otherwise, the string contains invalid UTF-8,
-			// so let the logic below construct the proper error.
+			// 否则，该字符串包含无效的 UTF-8，
+			// 因此让下面的逻辑构造适当的错误。
 		}
 
 		if mo.Flags.Get(jsonflags.StringifyBoolsAndStrings) {
@@ -296,18 +296,18 @@ var (
 )
 
 func makeBytesArshaler(t reflect.Type, fncs *arshaler) *arshaler {
-	// NOTE: This handles both []~byte and [N]~byte.
-	// The v2 default is to treat a []namedByte as equivalent to []T
-	// since being able to convert []namedByte to []byte relies on
-	// dubious Go reflection behavior (see https://go.dev/issue/24746).
-	// For v1 emulation, we use jsonflags.FormatBytesWithLegacySemantics
-	// to forcibly treat []namedByte as a []byte.
+	// 注意：这同时处理 []~byte 和 [N]~byte。
+	// v2 的默认行为是将 []namedByte 视为等价于 []T，
+	// 因为能够将 []namedByte 转换为 []byte 依赖
+	// 可疑的 Go 反射行为（参见 https://go.dev/issue/24746）。
+	// 为了模拟 v1，我们使用 jsonflags.FormatBytesWithLegacySemantics
+	// 强制将 []namedByte 视为 []byte。
 	marshalArray := fncs.marshal
 	isNamedByte := t.Elem().PkgPath() != ""
 	hasMarshaler := implementsAny(t.Elem(), allMarshalerTypes...)
 	fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 		if !mo.Flags.Get(jsonflags.FormatBytesWithLegacySemantics) && isNamedByte {
-			return marshalArray(enc, va, mo) // treat as []T or [N]T
+			return marshalArray(enc, va, mo) // 视为 []T 或 [N]T
 		}
 		xe := export.Encoder(enc)
 		appendEncode := appendEncodeBase64
@@ -335,7 +335,7 @@ func makeBytesArshaler(t reflect.Type, fncs *arshaler) *arshaler {
 			return marshalArray(enc, va, mo)
 		}
 		if mo.Flags.Get(jsonflags.FormatNilSliceAsNull) && va.Kind() == reflect.Slice && va.IsNil() {
-			// TODO: Provide a "emitempty" format override?
+			// TODO: 提供 "emitempty" 格式覆盖？
 			return enc.WriteToken(jsontext.Null)
 		}
 		return xe.AppendRaw('"', true, func(b []byte) ([]byte, error) {
@@ -345,7 +345,7 @@ func makeBytesArshaler(t reflect.Type, fncs *arshaler) *arshaler {
 	unmarshalArray := fncs.unmarshal
 	fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 		if !uo.Flags.Get(jsonflags.FormatBytesWithLegacySemantics) && isNamedByte {
-			return unmarshalArray(dec, va, uo) // treat as []T or [N]T
+			return unmarshalArray(dec, va, uo) // 视为 []T 或 [N]T
 		}
 		xd := export.Decoder(dec)
 		appendDecode, encodedLen := appendDecodeBase64, encodedLenBase64
@@ -385,23 +385,23 @@ func makeBytesArshaler(t reflect.Type, fncs *arshaler) *arshaler {
 			}
 			return nil
 		case '"':
-			// NOTE: The v2 default is to strictly comply with RFC 4648.
-			// Section 3.2 specifies that padding is required.
-			// Section 3.3 specifies that non-alphabet characters
-			// (e.g., '\r' or '\n') must be rejected.
-			// Section 3.5 specifies that unnecessary non-zero bits in
-			// the last quantum may be rejected. Since this is optional,
-			// we do not reject such inputs.
+			// 注意：v2 的默认行为是严格遵循 RFC 4648。
+			// 第 3.2 节规定填充是必需的。
+			// 第 3.3 节规定必须拒绝非字母表字符
+			// （例如 '\r' 或 '\n'）。
+			// 第 3.5 节规定最后一个量子中不必要的非零位
+			// 可以被拒绝。由于这是可选的，
+			// 我们不拒绝此类输入。
 			val = jsonwire.UnquoteMayCopy(val, flags.IsVerbatim())
 			b, err := appendDecode(va.Bytes()[:0], val)
 			if err != nil {
 				return newUnmarshalErrorAfter(dec, t, err)
 			}
 			if len(val) != encodedLen(len(b)) && !uo.Flags.Get(jsonflags.ParseBytesWithLooseRFC4648) {
-				// TODO(https://go.dev/issue/53845): RFC 4648, section 3.3,
-				// specifies that non-alphabet characters must be rejected.
-				// Unfortunately, the "base32" and "base64" packages allow
-				// '\r' and '\n' characters by default.
+				// TODO(https://go.dev/issue/53845): RFC 4648 第 3.3 节
+				// 规定必须拒绝非字母表字符。
+				// 遗憾的是，"base32" 和 "base64" 包默认允许
+				// '\r' 和 '\n' 字符。
 				i := bytes.IndexAny(val, "\r\n")
 				err := fmt.Errorf("illegal character %s at offset %d", jsonwire.QuoteRune(val[i:]), i)
 				return newUnmarshalErrorAfter(dec, t, err)
@@ -409,7 +409,7 @@ func makeBytesArshaler(t reflect.Type, fncs *arshaler) *arshaler {
 
 			if va.Kind() == reflect.Array {
 				dst := va.Bytes()
-				clear(dst[copy(dst, b):]) // noop if len(b) <= len(dst)
+				clear(dst[copy(dst, b):]) // 若 len(b) <= len(dst) 则为空操作
 				if len(b) != len(dst) && !uo.Flags.Get(jsonflags.UnmarshalArrayFromAnyLength) {
 					err := fmt.Errorf("decoded length of %d mismatches array length of %d", len(b), len(dst))
 					return newUnmarshalErrorAfter(dec, t, err)
@@ -436,7 +436,7 @@ func makeIntArshaler(t reflect.Type) *arshaler {
 			return newInvalidFormatError(enc, t)
 		}
 
-		// Optimize for marshaling without preceding whitespace or string escaping.
+		// 针对没有前置空白或字符串转义的情况优化序列化。
 		if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace|jsonflags.StringifyNumbers) && !xe.Tokens.Last.NeedObjectName() {
 			xe.Buf = strconv.AppendInt(xe.Tokens.MayAppendDelim(xe.Buf, '0'), va.Int(), 10)
 			xe.Tokens.Last.Increment()
@@ -475,9 +475,9 @@ func makeIntArshaler(t reflect.Type) *arshaler {
 			}
 			val = jsonwire.UnquoteMayCopy(val, flags.IsVerbatim())
 			if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
-				// For historical reasons, v1 parsed a quoted number
-				// according to the Go syntax and permitted a quoted null.
-				// See https://go.dev/issue/75619
+				// 出于历史原因，v1 按照 Go 语法解析带引号的数字，
+				// 并允许带引号的 null。
+				// 参见 https://go.dev/issue/75619
 				n, err := strconv.ParseInt(string(val), 10, bits)
 				if err != nil {
 					if string(val) == "null" {
@@ -534,7 +534,7 @@ func makeUintArshaler(t reflect.Type) *arshaler {
 			return newInvalidFormatError(enc, t)
 		}
 
-		// Optimize for marshaling without preceding whitespace or string escaping.
+		// 针对没有前置空白或字符串转义的情况优化序列化。
 		if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace|jsonflags.StringifyNumbers) && !xe.Tokens.Last.NeedObjectName() {
 			xe.Buf = strconv.AppendUint(xe.Tokens.MayAppendDelim(xe.Buf, '0'), va.Uint(), 10)
 			xe.Tokens.Last.Increment()
@@ -573,9 +573,9 @@ func makeUintArshaler(t reflect.Type) *arshaler {
 			}
 			val = jsonwire.UnquoteMayCopy(val, flags.IsVerbatim())
 			if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
-				// For historical reasons, v1 parsed a quoted number
-				// according to the Go syntax and permitted a quoted null.
-				// See https://go.dev/issue/75619
+				// 出于历史原因，v1 按照 Go 语法解析带引号的数字，
+				// 并允许带引号的 null。
+				// 参见 https://go.dev/issue/75619
 				n, err := strconv.ParseUint(string(val), 10, bits)
 				if err != nil {
 					if string(val) == "null" {
@@ -637,7 +637,7 @@ func makeFloatArshaler(t reflect.Type) *arshaler {
 			return enc.WriteToken(jsontext.Float(fv))
 		}
 
-		// Optimize for marshaling without preceding whitespace or string escaping.
+		// 针对没有前置空白或字符串转义的情况优化序列化。
 		if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace|jsonflags.StringifyNumbers) && !xe.Tokens.Last.NeedObjectName() {
 			xe.Buf = jsonwire.AppendFloat(xe.Tokens.MayAppendDelim(xe.Buf, '0'), fv, bits)
 			xe.Tokens.Last.Increment()
@@ -694,9 +694,9 @@ func makeFloatArshaler(t reflect.Type) *arshaler {
 				break
 			}
 			if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
-				// For historical reasons, v1 parsed a quoted number
-				// according to the Go syntax and permitted a quoted null.
-				// See https://go.dev/issue/75619
+				// 出于历史原因，v1 按照 Go 语法解析带引号的数字，
+				// 并允许带引号的 null。
+				// 参见 https://go.dev/issue/75619
 				n, err := strconv.ParseFloat(string(val), bits)
 				if err != nil {
 					if string(val) == "null" {
@@ -731,12 +731,12 @@ func makeFloatArshaler(t reflect.Type) *arshaler {
 }
 
 func makeMapArshaler(t reflect.Type) *arshaler {
-	// NOTE: The logic below disables namespaces for tracking duplicate names
-	// when handling map keys with a unique representation.
+	// 注意：下面的逻辑在处理具有唯一表示的映射键时，
+	// 禁用用于跟踪重复名称的命名空间。
 
-	// NOTE: Values retrieved from a map are not addressable,
-	// so we shallow copy the values to make them addressable and
-	// store them back into the map afterwards.
+	// 注意：从 map 中取出的值是不可寻址的，
+	// 因此我们浅拷贝这些值使其可寻址，
+	// 之后再将其存回 map。
 
 	var fncs arshaler
 	var (
@@ -751,7 +751,7 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 	nillableLegacyKey := t.Key().Kind() == reflect.Pointer &&
 		implementsAny(t.Key(), textMarshalerType, textAppenderType)
 	fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
-		// Check for cycles.
+		// 检查循环。
 		xe := export.Encoder(enc)
 		if xe.Tokens.Depth() > startDetectingCyclesAfter {
 			if err := visitPointer(&xe.SeenPointers, va.Value); err != nil {
@@ -774,13 +774,13 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 			}
 		}
 
-		// Handle empty maps.
+		// 处理空 map。
 		n := va.Len()
 		if n == 0 {
 			if emitNull && va.IsNil() {
 				return enc.WriteToken(jsontext.Null)
 			}
-			// Optimize for marshaling an empty map without any preceding whitespace.
+			// 针对没有任何前置空白的情况优化空 map 的序列化。
 			if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace) && !xe.Tokens.Last.NeedObjectName() {
 				xe.Buf = append(xe.Tokens.MayAppendDelim(xe.Buf, '{'), "{}"...)
 				xe.Tokens.Last.Increment()
@@ -808,9 +808,9 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 			k := newAddressableValue(t.Key())
 			v := newAddressableValue(t.Elem())
 
-			// A Go map guarantees that each entry has a unique key.
-			// As such, disable the expensive duplicate name check if we know
-			// that every Go key will serialize as a unique JSON string.
+			// Go map 保证每个条目都有唯一的键。
+			// 因此，如果我们知道每个 Go 键都会序列化为唯一的 JSON 字符串，
+			// 就禁用开销较大的重复名称检查。
 			if !nonDefaultKey && mapKeyWithUniqueRepresentation(k.Kind(), mo.Flags.Get(jsonflags.AllowInvalidUTF8)) {
 				xe.Tokens.Last.DisableNamespace()
 			}
@@ -848,7 +848,7 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 					if err := enc.WriteToken(jsontext.String(name)); err != nil {
 						return err
 					}
-					// TODO(https://go.dev/issue/57061): Use v.SetMapIndexOf.
+					// TODO(https://go.dev/issue/57061): 使用 v.SetMapIndexOf。
 					k.SetString(name)
 					v.Set(va.MapIndex(k.Value))
 					if err := marshalVal(enc, v, mo); err != nil {
@@ -858,7 +858,7 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 				putStrings(names)
 			default:
 				type member struct {
-					name string // unquoted name
+					name string // 未加引号的名称
 					key  addressableValue
 					val  addressableValue
 				}
@@ -866,10 +866,10 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 				keys := reflect.MakeSlice(reflect.SliceOf(t.Key()), n, n)
 				vals := reflect.MakeSlice(reflect.SliceOf(t.Elem()), n, n)
 				for i, iter := 0, va.Value.MapRange(); i < n && iter.Next(); i++ {
-					// Marshal the member name.
-					k := addressableValue{keys.Index(i), true} // indexed slice element is always addressable
+					// 序列化成员名称。
+					k := addressableValue{keys.Index(i), true} // 索引切片元素始终可寻址
 					k.SetIterKey(iter)
-					v := addressableValue{vals.Index(i), true} // indexed slice element is always addressable
+					v := addressableValue{vals.Index(i), true} // 索引切片元素始终可寻址
 					v.SetIterValue(iter)
 					err := marshalKey(enc, k, mo)
 					if err != nil {
@@ -887,9 +887,9 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 					name := xe.UnwriteOnlyObjectMemberName()
 					members[i] = member{name, k, v}
 				}
-				// TODO: If AllowDuplicateNames is enabled, then sort according
-				// to reflect.Value as well if the names are equal.
-				// See internal/fmtsort.
+				// TODO: 如果启用了 AllowDuplicateNames，
+				// 那么当名称相等时也根据 reflect.Value 排序。
+				// 参见 internal/fmtsort。
 				slices.SortFunc(members, func(x, y member) int {
 					return strings.Compare(x.name, y.name)
 				})
@@ -913,7 +913,7 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 		if uo.Format != "" && uo.FormatDepth == xd.Tokens.Depth() {
 			switch uo.Format {
 			case "emitnull", "emitempty":
-				uo.Format = "" // only relevant for marshaling
+				uo.Format = "" // 仅在序列化时相关
 			default:
 				return newInvalidFormatError(dec, t)
 			}
@@ -945,20 +945,19 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 			k := newAddressableValue(t.Key())
 			v := newAddressableValue(t.Elem())
 
-			// Manually check for duplicate entries by virtue of whether the
-			// unmarshaled key already exists in the destination Go map.
-			// Consequently, syntactically different names (e.g., "0" and "-0")
-			// will be rejected as duplicates since they semantically refer
-			// to the same Go value. This is an unusual interaction
-			// between syntax and semantics, but is more correct.
+			// 通过判断反序列化后的键是否已存在于目标 Go map 中来手动检查重复条目。
+			// 因此，语法上不同的名称（例如 "0" 和 "-0"）
+			// 会被作为重复项拒绝，因为它们在语义上指向
+			// 同一个 Go 值。这是语法与语义之间一种不寻常的
+			// 交互，但更为正确。
 			if !nonDefaultKey && mapKeyWithUniqueRepresentation(k.Kind(), uo.Flags.Get(jsonflags.AllowInvalidUTF8)) {
 				xd.Tokens.Last.DisableNamespace()
 			}
 
-			// In the rare case where the map is not already empty,
-			// then we need to manually track which keys we already saw
-			// since existing presence alone is insufficient to indicate
-			// whether the input had a duplicate name.
+			// 在 map 并非已经为空的罕见情况下，
+			// 我们需要手动跟踪已经见到过哪些键，
+			// 因为仅凭已存在这一点不足以表明
+			// 输入中是否出现了重复名称。
 			var seen reflect.Value
 			if !uo.Flags.Get(jsonflags.AllowDuplicateNames) && va.Len() > 0 {
 				seen = reflect.MakeMap(reflect.MapOf(k.Type(), emptyStructType))
@@ -966,7 +965,7 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 
 			var errUnmarshal error
 			for dec.PeekKind() != '}' {
-				// Unmarshal the map entry key.
+				// 反序列化 map 条目的键。
 				k.SetZero()
 				err := unmarshalKey(dec, k, uo)
 				if err != nil {
@@ -991,10 +990,10 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 					continue
 				}
 
-				// Check if a pre-existing map entry value exists for this key.
+				// 检查此键是否已存在预先存在的 map 条目值。
 				if v2 := va.MapIndex(k.Value); v2.IsValid() {
 					if !uo.Flags.Get(jsonflags.AllowDuplicateNames) && (!seen.IsValid() || seen.MapIndex(k.Value).IsValid()) {
-						// TODO: Unread the object name.
+						// TODO: 取消读取对象名称。
 						name := xd.PreviousTokenOrValue()
 						return newDuplicateNameError(dec.StackPointer(), nil, dec.InputOffset()-len64(name))
 					}
@@ -1007,7 +1006,7 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 					v.SetZero()
 				}
 
-				// Unmarshal the map entry value.
+				// 反序列化 map 条目的值。
 				err = unmarshalVal(dec, v, uo)
 				va.SetMapIndex(k.Value, v.Value)
 				if seen.IsValid() {
@@ -1030,10 +1029,9 @@ func makeMapArshaler(t reflect.Type) *arshaler {
 	return &fncs
 }
 
-// mapKeyWithUniqueRepresentation reports whether all possible values of k
-// marshal to a different JSON value, and whether all possible JSON values
-// that can unmarshal into k unmarshal to different Go values.
-// In other words, the representation must be a bijective.
+// mapKeyWithUniqueRepresentation 报告 k 的所有可能值是否都序列化为不同的 JSON 值，
+// 以及所有能够反序列化到 k 的 JSON 值是否都反序列化为不同的 Go 值。
+// 换句话说，该表示必须是双射的。
 func mapKeyWithUniqueRepresentation(k reflect.Kind, allowInvalidUTF8 bool) bool {
 	switch k {
 	case reflect.Bool,
@@ -1041,12 +1039,12 @@ func mapKeyWithUniqueRepresentation(k reflect.Kind, allowInvalidUTF8 bool) bool 
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return true
 	case reflect.String:
-		// For strings, we have to be careful since names with invalid UTF-8
-		// maybe unescape to the same Go string value.
+		// 对于字符串，必须小心，因为带有无效 UTF-8 的名称
+		// 可能会反转义为相同的 Go 字符串值。
 		return !allowInvalidUTF8
 	default:
-		// Floating-point kinds are not listed above since NaNs
-		// can appear multiple times and all serialize as "NaN".
+		// 上面未列出浮点类型，因为 NaN 可能出现多次，
+		// 且都会序列化为 "NaN"。
 		return false
 	}
 }
@@ -1054,9 +1052,9 @@ func mapKeyWithUniqueRepresentation(k reflect.Kind, allowInvalidUTF8 bool) bool 
 var errNilField = errors.New("cannot set embedded pointer to unexported struct type")
 
 func makeStructArshaler(t reflect.Type) *arshaler {
-	// NOTE: The logic below disables namespaces for tracking duplicate names
-	// and does the tracking locally with an efficient bit-set based on which
-	// Go struct fields were seen.
+	// 注意：下面的逻辑禁用了用于跟踪重复名称的命名空间，
+	// 而是根据所见过的 Go 结构体字段，用一个高效的位集
+	// 在本地进行跟踪。
 
 	var fncs arshaler
 	var (
@@ -1081,25 +1079,25 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 		}
 		var seenIdxs uintSet
 		prevIdx := -1
-		xe.Tokens.Last.DisableNamespace() // we manually ensure unique names below
+		xe.Tokens.Last.DisableNamespace() // 我们在下面手动确保名称唯一
 		for i := range fields.flattened {
 			f := &fields.flattened[i]
-			v := addressableValue{va.Field(f.index0), va.forcedAddr} // addressable if struct value is addressable
+			v := addressableValue{va.Field(f.index0), va.forcedAddr} // 如果结构体值可寻址，则此项可寻址
 			if len(f.index) > 0 {
 				v = v.fieldByIndex(f.index, false)
 				if !v.IsValid() {
-					continue // implies a nil inlined field
+					continue // 意味着内联字段为 nil
 				}
 			}
 
-			// OmitZero skips the field if the Go value is zero,
-			// which we can determine up front without calling the marshaler.
+			// OmitZero 在 Go 值为零时跳过该字段，
+			// 我们可以在前面就确定这一点，而无需调用序列化器。
 			if (f.omitzero || mo.Flags.Get(jsonflags.OmitZeroStructFields)) &&
 				((f.isZero == nil && v.IsZero()) || (f.isZero != nil && f.isZero(v))) {
 				continue
 			}
 
-			// Check for the legacy definition of omitempty.
+			// 检查 omitempty 的遗留定义。
 			if f.omitempty && mo.Flags.Get(jsonflags.OmitEmptyWithLegacySemantics) && isLegacyEmpty(v) {
 				continue
 			}
@@ -1112,26 +1110,26 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 				nonDefault = nonDefault || ok
 			}
 
-			// OmitEmpty skips the field if the marshaled JSON value is empty,
-			// which we can know up front if there are no custom marshalers,
-			// otherwise we must marshal the value and unwrite it if empty.
+			// OmitEmpty 在序列化后的 JSON 值为空时跳过该字段，
+			// 如果没有自定义序列化器，我们可以在前面就确定这一点，
+			// 否则必须先序列化该值，若为空再取消写入。
 			if f.omitempty && !mo.Flags.Get(jsonflags.OmitEmptyWithLegacySemantics) &&
 				!nonDefault && f.isEmpty != nil && f.isEmpty(v) {
-				continue // fast path for omitempty
+				continue // omitempty 的快速路径
 			}
 
-			// Write the object member name.
+			// 写入对象成员名称。
 			//
-			// The logic below is semantically equivalent to:
+			// 下面的逻辑在语义上等价于：
 			//	enc.WriteToken(String(f.name))
-			// but specialized and simplified because:
-			//	1. The Encoder must be expecting an object name.
-			//	2. The object namespace is guaranteed to be disabled.
-			//	3. The object name is guaranteed to be valid and pre-escaped.
-			//	4. There is no need to flush the buffer (for unwrite purposes).
-			//	5. There is no possibility of an error occurring.
+			// 但经过了专门化和简化，因为：
+			//	1. Encoder 必定正期待一个对象名称。
+			//	2. 对象命名空间保证已禁用。
+			//	3. 对象名称保证有效且已预先转义。
+			//	4. 无需刷新缓冲区（为了取消写入）。
+			//	5. 不可能发生错误。
 			if optimizeCommon {
-				// Append any delimiters or optional whitespace.
+				// 追加任意分隔符或可选空白。
 				b := xe.Buf
 				if xe.Tokens.Last.Length() > 0 {
 					b = append(b, ',')
@@ -1143,8 +1141,8 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 					b = xe.AppendIndent(b, xe.Tokens.NeedIndent('"'))
 				}
 
-				// Append the token to the output and to the state machine.
-				n0 := len(b) // offset before calling AppendQuote
+				// 将该 token 追加到输出和状态机。
+				n0 := len(b) // 调用 AppendQuote 之前的偏移量
 				if !f.nameNeedEscape {
 					b = append(b, f.quotedName...)
 				} else {
@@ -1159,7 +1157,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 				}
 			}
 
-			// Write the object member value.
+			// 写入对象成员值。
 			flagsOriginal := mo.Flags
 			if f.string {
 				if !mo.Flags.Get(jsonflags.StringifyWithLegacySemantics) {
@@ -1179,7 +1177,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 				return err
 			}
 
-			// Try unwriting the member if empty (slow path for omitempty).
+			// 如果成员为空则尝试取消写入（omitempty 的慢速路径）。
 			if f.omitempty && !mo.Flags.Get(jsonflags.OmitEmptyWithLegacySemantics) {
 				var prevName *string
 				if prevIdx >= 0 {
@@ -1190,9 +1188,9 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 				}
 			}
 
-			// Remember the previous written object member.
-			// The set of seen fields only needs to be updated to detect
-			// duplicate names with those from the inlined fallback.
+			// 记住上一个写入的对象成员。
+			// 只有在需要检测与来自内联回退的名称重复时，
+			// 才需要更新已见字段的集合。
 			if !mo.Flags.Get(jsonflags.AllowDuplicateNames) && fields.inlinedFallback != nil {
 				seenIdxs.insert(uint(f.id))
 			}
@@ -1202,8 +1200,8 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			var insertUnquotedName func([]byte) bool
 			if !mo.Flags.Get(jsonflags.AllowDuplicateNames) {
 				insertUnquotedName = func(name []byte) bool {
-					// Check that the name from inlined fallback does not match
-					// one of the previously marshaled names from known fields.
+					// 检查来自内联回退的名称是否不与
+					// 之前从已知字段序列化出的某个名称匹配。
 					if foldedFields := fields.lookupByFoldedName(name); len(foldedFields) > 0 {
 						if f := fields.byActualName[string(name)]; f != nil {
 							return seenIdxs.insert(uint(f.id))
@@ -1215,8 +1213,8 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 						}
 					}
 
-					// Check that the name does not match any other name
-					// previously marshaled from the inlined fallback.
+					// 检查该名称是否不与之前从内联回退
+					// 序列化出的任何其他名称匹配。
 					return xe.Namespaces.Last().InsertUnquoted(name)
 				}
 			}
@@ -1254,7 +1252,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 			xd.Tokens.Last.DisableNamespace()
 			var errUnmarshal error
 			for dec.PeekKind() != '}' {
-				// Process the object member name.
+				// 处理对象成员名称。
 				var flags jsonwire.ValueFlags
 				val, err := xd.ReadValue(&flags)
 				if err != nil {
@@ -1278,17 +1276,17 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 							errUnmarshal = cmp.Or(errUnmarshal, err)
 						}
 						if !uo.Flags.Get(jsonflags.AllowDuplicateNames) && !xd.Namespaces.Last().InsertUnquoted(name) {
-							// TODO: Unread the object name.
+							// TODO: 取消读取对象名称。
 							return newDuplicateNameError(dec.StackPointer(), nil, dec.InputOffset()-len64(val))
 						}
 
 						if fields.inlinedFallback == nil {
-							// Skip unknown value since we have no place to store it.
+							// 跳过未知值，因为我们没有地方存储它。
 							if err := dec.SkipValue(); err != nil {
 								return err
 							}
 						} else {
-							// Marshal into value capable of storing arbitrary object members.
+							// 序列化到能够存储任意对象成员的值中。
 							if err := unmarshalInlinedFallbackNext(dec, va, uo, fields.inlinedFallback, val, name); err != nil {
 								if isFatalError(err, uo.Flags) {
 									return err
@@ -1300,11 +1298,11 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 					}
 				}
 				if !uo.Flags.Get(jsonflags.AllowDuplicateNames) && !seenIdxs.insert(uint(f.id)) {
-					// TODO: Unread the object name.
+					// TODO: 取消读取对象名称。
 					return newDuplicateNameError(dec.StackPointer(), nil, dec.InputOffset()-len64(val))
 				}
 
-				// Process the object member value.
+				// 处理对象成员值。
 				unmarshal := f.fncs.unmarshal
 				if uo.Unmarshalers != nil {
 					unmarshal, _ = uo.Unmarshalers.(*Unmarshalers).lookup(unmarshal, f.typ)
@@ -1321,7 +1319,7 @@ func makeStructArshaler(t reflect.Type) *arshaler {
 					uo.FormatDepth = xd.Tokens.Depth()
 					uo.Format = f.format
 				}
-				v := addressableValue{va.Field(f.index0), va.forcedAddr} // addressable if struct value is addressable
+				v := addressableValue{va.Field(f.index0), va.forcedAddr} // 如果结构体值可寻址，则此项可寻址
 				if len(f.index) > 0 {
 					v = v.fieldByIndex(f.index, true)
 					if !v.IsValid() {
@@ -1361,7 +1359,7 @@ func (va addressableValue) fieldByIndex(index []int, mayAlloc bool) addressableV
 		if !va.IsValid() {
 			return va
 		}
-		va = addressableValue{va.Field(i), va.forcedAddr} // addressable if struct value is addressable
+		va = addressableValue{va.Field(i), va.forcedAddr} // 如果结构体值可寻址，则此项可寻址
 	}
 	return va
 }
@@ -1374,14 +1372,14 @@ func (va addressableValue) indirect(mayAlloc bool) addressableValue {
 			}
 			va.Set(reflect.New(va.Type().Elem()))
 		}
-		va = addressableValue{va.Elem(), false} // dereferenced pointer is always addressable
+		va = addressableValue{va.Elem(), false} // 解引用后的指针始终可寻址
 	}
 	return va
 }
 
-// isLegacyEmpty reports whether a value is empty according to the v1 definition.
+// isLegacyEmpty 报告根据 v1 定义该值是否为空。
 func isLegacyEmpty(v addressableValue) bool {
-	// Equivalent to encoding/json.isEmptyValue@v1.21.0.
+	// 等价于 encoding/json.isEmptyValue@v1.21.0。
 	switch v.Kind() {
 	case reflect.Bool:
 		return v.Bool() == false
@@ -1399,12 +1397,12 @@ func isLegacyEmpty(v addressableValue) bool {
 	return false
 }
 
-// canLegacyStringify reports whether t can be stringified according to v1,
-// where t is a bool, string, or number (or unnamed pointer to such).
-// In v1, the `string` option does not apply recursively to nested types within
-// a composite Go type (e.g., an array, slice, struct, map, or interface).
+// canLegacyStringify 报告 t 是否可以根据 v1 被字符串化，
+// 其中 t 是布尔值、字符串或数字（或指向此类类型的未命名指针）。
+// 在 v1 中，`string` 选项不会递归地应用于
+// 复合 Go 类型（例如数组、切片、结构体、map 或接口）内的嵌套类型。
 func canLegacyStringify(t reflect.Type) bool {
-	// Based on encoding/json.typeFields#L1126-L1143@v1.23.0
+	// 基于 encoding/json.typeFields#L1126-L1143@v1.23.0
 	if t.Name() == "" && t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
@@ -1428,7 +1426,7 @@ func makeSliceArshaler(t reflect.Type) *arshaler {
 		valFncs = lookupArshaler(t.Elem())
 	}
 	fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
-		// Check for cycles.
+		// 检查循环。
 		xe := export.Encoder(enc)
 		if xe.Tokens.Depth() > startDetectingCyclesAfter {
 			if err := visitPointer(&xe.SeenPointers, va.Value); err != nil {
@@ -1451,13 +1449,13 @@ func makeSliceArshaler(t reflect.Type) *arshaler {
 			}
 		}
 
-		// Handle empty slices.
+		// 处理空切片。
 		n := va.Len()
 		if n == 0 {
 			if emitNull && va.IsNil() {
 				return enc.WriteToken(jsontext.Null)
 			}
-			// Optimize for marshaling an empty slice without any preceding whitespace.
+			// 针对没有任何前置空白的情况优化空切片的序列化。
 			if optimizeCommon && !mo.Flags.Get(jsonflags.AnyWhitespace) && !xe.Tokens.Last.NeedObjectName() {
 				xe.Buf = append(xe.Tokens.MayAppendDelim(xe.Buf, '['), "[]"...)
 				xe.Tokens.Last.Increment()
@@ -1477,7 +1475,7 @@ func makeSliceArshaler(t reflect.Type) *arshaler {
 			marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, t.Elem())
 		}
 		for i := range n {
-			v := addressableValue{va.Index(i), false} // indexed slice element is always addressable
+			v := addressableValue{va.Index(i), false} // 索引切片元素始终可寻址
 			if err := marshal(enc, v, mo); err != nil {
 				return err
 			}
@@ -1493,7 +1491,7 @@ func makeSliceArshaler(t reflect.Type) *arshaler {
 		if uo.Format != "" && uo.FormatDepth == xd.Tokens.Depth() {
 			switch uo.Format {
 			case "emitnull", "emitempty":
-				uo.Format = "" // only relevant for marshaling
+				uo.Format = "" // 仅在序列化时相关
 			default:
 				return newInvalidFormatError(dec, t)
 			}
@@ -1514,7 +1512,7 @@ func makeSliceArshaler(t reflect.Type) *arshaler {
 			if uo.Unmarshalers != nil {
 				unmarshal, _ = uo.Unmarshalers.(*Unmarshalers).lookup(unmarshal, t.Elem())
 			}
-			mustZero := true // we do not know the cleanliness of unused capacity
+			mustZero := true // 我们不知道未使用容量是否干净
 			cap := va.Cap()
 			if cap > 0 {
 				va.SetLen(cap)
@@ -1526,9 +1524,9 @@ func makeSliceArshaler(t reflect.Type) *arshaler {
 					va.Value.Grow(1)
 					cap = va.Cap()
 					va.SetLen(cap)
-					mustZero = false // reflect.Value.Grow ensures new capacity is zero-initialized
+					mustZero = false // reflect.Value.Grow 确保新容量被零初始化
 				}
-				v := addressableValue{va.Index(i), false} // indexed slice element is always addressable
+				v := addressableValue{va.Index(i), false} // 索引切片元素始终可寻址
 				i++
 				if mustZero && !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
 					v.SetZero()
@@ -1583,7 +1581,7 @@ func makeArrayArshaler(t reflect.Type) *arshaler {
 			marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, t.Elem())
 		}
 		for i := range n {
-			v := addressableValue{va.Index(i), va.forcedAddr} // indexed array element is addressable if array is addressable
+			v := addressableValue{va.Index(i), va.forcedAddr} // 如果数组可寻址，则索引数组元素可寻址
 			if err := marshal(enc, v, mo); err != nil {
 				return err
 			}
@@ -1625,7 +1623,7 @@ func makeArrayArshaler(t reflect.Type) *arshaler {
 					err = errArrayOverflow
 					continue
 				}
-				v := addressableValue{va.Index(i), va.forcedAddr} // indexed array element is addressable if array is addressable
+				v := addressableValue{va.Index(i), va.forcedAddr} // 如果数组可寻址，则索引数组元素可寻址
 				if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
 					v.SetZero()
 				}
@@ -1664,7 +1662,7 @@ func makePointerArshaler(t reflect.Type) *arshaler {
 		valFncs = lookupArshaler(t.Elem())
 	}
 	fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
-		// Check for cycles.
+		// 检查循环。
 		xe := export.Encoder(enc)
 		if xe.Tokens.Depth() > startDetectingCyclesAfter {
 			if err := visitPointer(&xe.SeenPointers, va.Value); err != nil {
@@ -1673,7 +1671,7 @@ func makePointerArshaler(t reflect.Type) *arshaler {
 			defer leavePointer(&xe.SeenPointers, va.Value)
 		}
 
-		// NOTE: Struct.Format is forwarded to underlying marshal.
+		// 注意：Struct.Format 会被转发到底层的 marshal。
 		if va.IsNil() {
 			return enc.WriteToken(jsontext.Null)
 		}
@@ -1682,11 +1680,11 @@ func makePointerArshaler(t reflect.Type) *arshaler {
 		if mo.Marshalers != nil {
 			marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, t.Elem())
 		}
-		v := addressableValue{va.Elem(), false} // dereferenced pointer is always addressable
+		v := addressableValue{va.Elem(), false} // 解引用后的指针始终可寻址
 		return marshal(enc, v, mo)
 	}
 	fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
-		// NOTE: Struct.Format is forwarded to underlying unmarshal.
+		// 注意：Struct.Format 会被转发到底层的 unmarshal。
 		if dec.PeekKind() == 'n' {
 			if _, err := dec.ReadToken(); err != nil {
 				return err
@@ -1702,18 +1700,18 @@ func makePointerArshaler(t reflect.Type) *arshaler {
 		if va.IsNil() {
 			va.Set(reflect.New(t.Elem()))
 		}
-		v := addressableValue{va.Elem(), false} // dereferenced pointer is always addressable
+		v := addressableValue{va.Elem(), false} // 解引用后的指针始终可寻址
 		if err := unmarshal(dec, v, uo); err != nil {
 			return err
 		}
 		if uo.Flags.Get(jsonflags.StringifyWithLegacySemantics) &&
 			uo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringifyBoolsAndStrings) {
-			// A JSON null quoted within a JSON string should take effect
-			// within the pointer value, rather than the indirect value.
+			// 位于 JSON 字符串内被引用的 JSON null 应当在
+			// 指针值内生效，而非在间接值内生效。
 			//
-			// TODO: This does not correctly handle escaped nulls
-			// (e.g., "\u006e\u0075\u006c\u006c"), but is good enough
-			// for such an esoteric use case of the `string` option.
+			// TODO: 这无法正确处理转义的 null
+			// （例如 "\u006e\u0075\u006c\u006c"），但对于
+			// `string` 选项这种冷门用例已经足够。
 			if string(export.Decoder(dec).PreviousTokenOrValue()) == `"null"` {
 				va.SetZero()
 			}
@@ -1724,9 +1722,9 @@ func makePointerArshaler(t reflect.Type) *arshaler {
 }
 
 func makeInterfaceArshaler(t reflect.Type) *arshaler {
-	// NOTE: Values retrieved from an interface are not addressable,
-	// so we shallow copy the values to make them addressable and
-	// store them back into the interface afterwards.
+	// 注意：从接口中取出的值是不可寻址的，
+	// 因此我们浅拷贝这些值使其可寻址，
+	// 之后再将其存回接口。
 
 	var fncs arshaler
 	var whichMarshaler reflect.Type
@@ -1744,9 +1742,9 @@ func makeInterfaceArshaler(t reflect.Type) *arshaler {
 		if va.IsNil() {
 			return enc.WriteToken(jsontext.Null)
 		} else if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) && whichMarshaler != nil {
-			// The marshaler for a pointer never calls the method on a nil receiver.
-			// Wrap the nil pointer within a struct type so that marshal
-			// instead appears on a value receiver and may be called.
+			// 指针的序列化器从不会在 nil 接收者上调用方法。
+			// 将该 nil 指针包装在一个结构体类型中，使 marshal
+			// 改为出现在值接收者上从而可以被调用。
 			if va.Elem().Kind() == reflect.Pointer && va.Elem().IsNil() {
 				v2 := newAddressableValue(whichMarshaler)
 				switch whichMarshaler {
@@ -1768,7 +1766,7 @@ func makeInterfaceArshaler(t reflect.Type) *arshaler {
 		if mo.Marshalers != nil {
 			marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, v.Type())
 		}
-		// Optimize for the any type if there are no special options.
+		// 如果没有特殊选项，则针对 any 类型进行优化。
 		if optimizeCommon &&
 			t == anyType && !mo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringifyBoolsAndStrings) && mo.Format == "" &&
 			(mo.Marshalers == nil || !mo.Marshalers.(*Marshalers).fromAny) {
@@ -1782,11 +1780,11 @@ func makeInterfaceArshaler(t reflect.Type) *arshaler {
 			return newInvalidFormatError(dec, t)
 		}
 		if uo.Flags.Get(jsonflags.MergeWithLegacySemantics) && !va.IsNil() {
-			// Legacy merge behavior is difficult to explain.
-			// In general, it only merges for non-nil pointer kinds.
-			// As a special case, unmarshaling a JSON null into a pointer
-			// sets a concrete nil pointer of the underlying type
-			// (rather than setting the interface value itself to nil).
+			// 遗留的合并行为很难解释。
+			// 一般来说，它只对非 nil 指针类型进行合并。
+			// 作为一种特殊情况，将 JSON null 反序列化到指针
+			// 会设置底层类型的具体 nil 指针
+			// （而不是将接口值本身设为 nil）。
 			e := va.Elem()
 			if e.Kind() == reflect.Pointer && !e.IsNil() {
 				if dec.PeekKind() == 'n' && e.Elem().Kind() == reflect.Pointer {
@@ -1809,17 +1807,17 @@ func makeInterfaceArshaler(t reflect.Type) *arshaler {
 		}
 		var v addressableValue
 		if va.IsNil() {
-			// Optimize for the any type if there are no special options.
-			// We do not care about stringified numbers since JSON strings
-			// are always unmarshaled into an any value as Go strings.
-			// Duplicate name check must be enforced since unmarshalValueAny
-			// does not implement merge semantics.
+			// 如果没有特殊选项，则针对 any 类型进行优化。
+			// 我们不关心字符串化的数字，因为 JSON 字符串
+			// 总是会作为 Go 字符串反序列化到 any 值中。
+			// 必须强制执行重复名称检查，因为 unmarshalValueAny
+			// 并未实现合并语义。
 			if optimizeCommon &&
 				t == anyType && !uo.Flags.Get(jsonflags.AllowDuplicateNames) && uo.Format == "" &&
 				(uo.Unmarshalers == nil || !uo.Unmarshalers.(*Unmarshalers).fromAny) {
 				v, err := unmarshalValueAny(dec, uo)
-				// We must check for nil interface values up front.
-				// See https://go.dev/issue/52310.
+				// 我们必须在前面检查 nil 接口值。
+				// 参见 https://go.dev/issue/52310。
 				if v != nil {
 					va.Set(reflect.ValueOf(v))
 				}
@@ -1846,17 +1844,17 @@ func makeInterfaceArshaler(t reflect.Type) *arshaler {
 			case '[':
 				v = newAddressableValue(sliceAnyType)
 			default:
-				// If k is invalid (e.g., due to an I/O or syntax error), then
-				// that will be cached by PeekKind and returned by ReadValue.
-				// If k is '}' or ']', then ReadValue must error since
-				// those are invalid kinds at the start of a JSON value.
+				// 如果 k 无效（例如由于 I/O 或语法错误），
+				// 那么它会被 PeekKind 缓存并由 ReadValue 返回。
+				// 如果 k 是 '}' 或 ']'，则 ReadValue 必定出错，因为
+				// 这些是 JSON 值开头的非法类型。
 				_, err := dec.ReadValue()
 				return err
 			}
 		} else {
-			// Shallow copy the existing value to keep it addressable.
-			// Any mutations at the top-level of the value will be observable
-			// since we always store this value back into the interface value.
+			// 浅拷贝现有值以使其保持可寻址。
+			// 该值顶层的任何修改都是可观察的，
+			// 因为我们总是会将该值存回接口值中。
 			v = newAddressableValue(va.Elem().Type())
 			v.Set(va.Elem())
 		}
@@ -1871,12 +1869,12 @@ func makeInterfaceArshaler(t reflect.Type) *arshaler {
 	return &fncs
 }
 
-// isAnyType reports wether t is equivalent to the any interface type.
+// isAnyType 报告 t 是否等价于 any 接口类型。
 func isAnyType(t reflect.Type) bool {
-	// This is forward compatible if the Go language permits type sets within
-	// ordinary interfaces where an interface with zero methods does not
-	// necessarily mean it can hold every possible Go type.
-	// See https://go.dev/issue/45346.
+	// 如果 Go 语言允许在普通接口中使用类型集，那么这是向前兼容的，
+	// 在这种情况下，零方法的接口并不
+	// 一定意味着它可以容纳所有可能的 Go 类型。
+	// 参见 https://go.dev/issue/45346。
 	return t == anyType || anyType.Implements(t)
 }
 
@@ -1904,14 +1902,14 @@ type uintSet64 uint64
 func (s uintSet64) has(i uint) bool { return s&(1<<i) > 0 }
 func (s *uintSet64) set(i uint)     { *s |= 1 << i }
 
-// uintSet is a set of unsigned integers.
-// It is optimized for most integers being close to zero.
+// uintSet 是一个无符号整数集合。
+// 它针对大多数整数接近零的情况进行了优化。
 type uintSet struct {
 	lo uintSet64
 	hi []uintSet64
 }
 
-// has reports whether i is in the set.
+// has 报告 i 是否在集合中。
 func (s *uintSet) has(i uint) bool {
 	if i < 64 {
 		return s.lo.has(i)
@@ -1922,9 +1920,9 @@ func (s *uintSet) has(i uint) bool {
 	}
 }
 
-// insert inserts i into the set and reports whether it was the first insertion.
+// insert 将 i 插入集合，并报告它是否为首次插入。
 func (s *uintSet) insert(i uint) bool {
-	// TODO: Make this inlinable at least for the lower 64-bit case.
+	// TODO: 至少对低 64 位的情况使其可内联。
 	if i < 64 {
 		has := s.lo.has(i)
 		s.lo.set(i)

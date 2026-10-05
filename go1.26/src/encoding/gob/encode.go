@@ -19,21 +19,20 @@ const uint64Size = 8
 
 type encHelper func(state *encoderState, v reflect.Value) bool
 
-// encoderState is the global execution state of an instance of the encoder.
-// Field numbers are delta encoded and always increase. The field
-// number is initialized to -1 so 0 comes out as delta(1). A delta of
-// 0 terminates the structure.
+// encoderState 是编码器实例的全局执行状态。
+// 字段号采用增量编码，且总是递增。字段号被初始化为 -1，因此 0 会以增量 (1) 出现。
+// 增量为 0 则终止该结构体。
 type encoderState struct {
 	enc      *Encoder
 	b        *encBuffer
-	sendZero bool                 // encoding an array element or map key/value pair; send zero values
-	fieldnum int                  // the last field number written.
-	buf      [1 + uint64Size]byte // buffer used by the encoder; here to avoid allocation.
-	next     *encoderState        // for free list
+	sendZero bool                 // 正在编码数组元素或 map 的键/值对；发送零值
+	fieldnum int                  // 最后写入的字段号。
+	buf      [1 + uint64Size]byte // 编码器使用的缓冲区；放在此处以避免分配。
+	next     *encoderState        // 用于空闲列表
 }
 
-// encBuffer is an extremely simple, fast implementation of a write-only byte buffer.
-// It never returns a non-nil error, but Write returns an error value so it matches io.Writer.
+// encBuffer 是一个极其简单、快速的只写字节缓冲区实现。
+// 它从不返回非 nil 错误，但 Write 会返回错误值，以便与 io.Writer 匹配。
 type encBuffer struct {
 	data    []byte
 	scratch [64]byte
@@ -98,12 +97,10 @@ func (enc *Encoder) freeEncoderState(e *encoderState) {
 	enc.freeList = e
 }
 
-// Unsigned integers have a two-state encoding. If the number is less
-// than 128 (0 through 0x7F), its value is written directly.
-// Otherwise the value is written in big-endian byte order preceded
-// by the byte length, negated.
+// 无符号整数采用双状态编码。如果该数小于 128（0 到 0x7F），则直接写入其值。
+// 否则，该值以大写端序（big-endian）字节顺序写入，并在其前面加上取负后的字节长度。
 
-// encodeUint writes an encoded unsigned integer to state.b.
+// encodeUint 将一个编码后的无符号整数写入 state.b。
 func (state *encoderState) encodeUint(x uint64) {
 	if x <= 0x7F {
 		state.b.writeByte(uint8(x))
@@ -112,14 +109,13 @@ func (state *encoderState) encodeUint(x uint64) {
 
 	binary.BigEndian.PutUint64(state.buf[1:], x)
 	bc := bits.LeadingZeros64(x) >> 3      // 8 - bytelen(x)
-	state.buf[bc] = uint8(bc - uint64Size) // and then we subtract 8 to get -bytelen(x)
+	state.buf[bc] = uint8(bc - uint64Size) // 然后再减去 8 以得到 -bytelen(x)
 
 	state.b.Write(state.buf[bc : uint64Size+1])
 }
 
-// encodeInt writes an encoded signed integer to state.w.
-// The low bit of the encoding says whether to bit complement the (other bits of the)
-// uint to recover the int.
+// encodeInt 将一个编码后的有符号整数写入 state.w。
+// 编码的最低位表示是否需要对 uint 的（其余位）取位补，以恢复出 int。
 func (state *encoderState) encodeInt(i int64) {
 	var x uint64
 	if i < 0 {
@@ -130,19 +126,19 @@ func (state *encoderState) encodeInt(i int64) {
 	state.encodeUint(x)
 }
 
-// encOp is the signature of an encoding operator for a given type.
+// encOp 是给定类型的编码算子的签名。
 type encOp func(i *encInstr, state *encoderState, v reflect.Value)
 
-// The 'instructions' of the encoding machine
+// 编码机器的“指令”
 type encInstr struct {
 	op    encOp
-	field int   // field number in input
-	index []int // struct index
-	indir int   // how many pointer indirections to reach the value in the struct
+	field int   // 输入中的字段号
+	index []int // 结构体索引
+	indir int   // 到达结构体中该值需要多少层指针间接寻址
 }
 
-// update emits a field number and updates the state to record its value for delta encoding.
-// If the instruction pointer is nil, it does nothing
+// update 发出一个字段号，并更新状态以记录其值，用于增量编码。
+// 如果指令指针为 nil，则不做任何事。
 func (state *encoderState) update(instr *encInstr) {
 	if instr != nil {
 		state.encodeUint(uint64(instr.field - state.fieldnum))
@@ -150,16 +146,13 @@ func (state *encoderState) update(instr *encInstr) {
 	}
 }
 
-// Each encoder for a composite is responsible for handling any
-// indirections associated with the elements of the data structure.
-// If any pointer so reached is nil, no bytes are written. If the
-// data item is zero, no bytes are written. Single values - ints,
-// strings etc. - are indirected before calling their encoders.
-// Otherwise, the output (for a scalar) is the field number, as an
-// encoded integer, followed by the field data in its appropriate
-// format.
+// 每个复合类型的编码器都负责处理与数据结构元素相关联的任何间接寻址。
+// 如果由此到达的任何指针为 nil，则不写入任何字节。如果数据项为零值，则不写入
+// 任何字节。单个值——int、string 等——会在调用其编码器之前先进行间接寻址。
+// 否则，输出（对于标量）就是字段号（作为一个编码后的整数），后跟相应格式的
+// 字段数据。
 
-// encIndirect dereferences pv indir times and returns the result.
+// encIndirect 对 pv 解引用 indir 次并返回结果。
 func encIndirect(pv reflect.Value, indir int) reflect.Value {
 	for ; indir > 0; indir-- {
 		if pv.IsNil() {
@@ -170,7 +163,7 @@ func encIndirect(pv reflect.Value, indir int) reflect.Value {
 	return pv
 }
 
-// encBool encodes the bool referenced by v as an unsigned 0 or 1.
+// encBool 将 v 引用的 bool 编码为无符号的 0 或 1。
 func encBool(i *encInstr, state *encoderState, v reflect.Value) {
 	b := v.Bool()
 	if b || state.sendZero {
@@ -183,7 +176,7 @@ func encBool(i *encInstr, state *encoderState, v reflect.Value) {
 	}
 }
 
-// encInt encodes the signed integer (int int8 int16 int32 int64) referenced by v.
+// encInt 编码 v 引用的有符号整数（int int8 int16 int32 int64）。
 func encInt(i *encInstr, state *encoderState, v reflect.Value) {
 	value := v.Int()
 	if value != 0 || state.sendZero {
@@ -192,7 +185,7 @@ func encInt(i *encInstr, state *encoderState, v reflect.Value) {
 	}
 }
 
-// encUint encodes the unsigned integer (uint uint8 uint16 uint32 uint64 uintptr) referenced by v.
+// encUint 编码 v 引用的无符号整数（uint uint8 uint16 uint32 uint64 uintptr）。
 func encUint(i *encInstr, state *encoderState, v reflect.Value) {
 	value := v.Uint()
 	if value != 0 || state.sendZero {
@@ -201,18 +194,15 @@ func encUint(i *encInstr, state *encoderState, v reflect.Value) {
 	}
 }
 
-// floatBits returns a uint64 holding the bits of a floating-point number.
-// Floating-point numbers are transmitted as uint64s holding the bits
-// of the underlying representation. They are sent byte-reversed, with
-// the exponent end coming out first, so integer floating point numbers
-// (for example) transmit more compactly. This routine does the
-// swizzling.
+// floatBits 返回一个 uint64，其中保存着某个浮点数的位。
+// 浮点数以 uint64 形式传输，其中保存着底层表示的位。它们以字节反转的形式发送，
+// 指数端先出现，因此（例如）整数浮点数可以更紧凑地传输。此例程完成这种字节交换。
 func floatBits(f float64) uint64 {
 	u := math.Float64bits(f)
 	return bits.ReverseBytes64(u)
 }
 
-// encFloat encodes the floating point value (float32 float64) referenced by v.
+// encFloat 编码 v 引用的浮点值（float32 float64）。
 func encFloat(i *encInstr, state *encoderState, v reflect.Value) {
 	f := v.Float()
 	if f != 0 || state.sendZero {
@@ -222,8 +212,8 @@ func encFloat(i *encInstr, state *encoderState, v reflect.Value) {
 	}
 }
 
-// encComplex encodes the complex value (complex64 complex128) referenced by v.
-// Complex numbers are just a pair of floating-point numbers, real part first.
+// encComplex 编码 v 引用的复数值（complex64 complex128）。
+// 复数就是一对浮点数，实部在前。
 func encComplex(i *encInstr, state *encoderState, v reflect.Value) {
 	c := v.Complex()
 	if c != 0+0i || state.sendZero {
@@ -235,8 +225,8 @@ func encComplex(i *encInstr, state *encoderState, v reflect.Value) {
 	}
 }
 
-// encUint8Array encodes the byte array referenced by v.
-// Byte arrays are encoded as an unsigned count followed by the raw bytes.
+// encUint8Array 编码 v 引用的字节数组。
+// 字节数组编码为一个无符号计数后跟原始字节。
 func encUint8Array(i *encInstr, state *encoderState, v reflect.Value) {
 	b := v.Bytes()
 	if len(b) > 0 || state.sendZero {
@@ -246,8 +236,8 @@ func encUint8Array(i *encInstr, state *encoderState, v reflect.Value) {
 	}
 }
 
-// encString encodes the string referenced by v.
-// Strings are encoded as an unsigned count followed by the raw bytes.
+// encString 编码 v 引用的字符串。
+// 字符串编码为一个无符号计数后跟原始字节。
 func encString(i *encInstr, state *encoderState, v reflect.Value) {
 	s := v.String()
 	if len(s) > 0 || state.sendZero {
@@ -257,24 +247,23 @@ func encString(i *encInstr, state *encoderState, v reflect.Value) {
 	}
 }
 
-// encStructTerminator encodes the end of an encoded struct
-// as delta field number of 0.
+// encStructTerminator 将编码后的结构体末尾编码为字段增量 0。
 func encStructTerminator(i *encInstr, state *encoderState, v reflect.Value) {
 	state.encodeUint(0)
 }
 
-// Execution engine
+// 执行引擎
 
-// encEngine an array of instructions indexed by field number of the encoding
-// data, typically a struct. It is executed top to bottom, walking the struct.
+// encEngine 是一个由编码数据（通常是结构体）的字段号索引的指令数组。
+// 它自上而下执行，遍历该结构体。
 type encEngine struct {
 	instr []encInstr
 }
 
 const singletonField = 0
 
-// valid reports whether the value is valid and a non-nil pointer.
-// (Slices, maps, and chans take care of themselves.)
+// valid 报告该值是否有效且为非 nil 指针。
+// （切片、map 和 chan 会自行处理。）
 func valid(v reflect.Value) bool {
 	switch v.Kind() {
 	case reflect.Invalid:
@@ -285,13 +274,13 @@ func valid(v reflect.Value) bool {
 	return true
 }
 
-// encodeSingle encodes a single top-level non-struct value.
+// encodeSingle 编码单个顶层的非结构体值。
 func (enc *Encoder) encodeSingle(b *encBuffer, engine *encEngine, value reflect.Value) {
 	state := enc.newEncoderState(b)
 	defer enc.freeEncoderState(state)
 	state.fieldnum = singletonField
-	// There is no surrounding struct to frame the transmission, so we must
-	// generate data even if the item is zero. To do this, set sendZero.
+	// 没有外围结构体来为传输划定框架，因此即使该项为零值也必须生成数据。
+	// 为此，设置 sendZero。
 	state.sendZero = true
 	instr := &engine.instr[singletonField]
 	if instr.indir > 0 {
@@ -302,7 +291,7 @@ func (enc *Encoder) encodeSingle(b *encBuffer, engine *encEngine, value reflect.
 	}
 }
 
-// encodeStruct encodes a single struct value.
+// encodeStruct 编码单个结构体值。
 func (enc *Encoder) encodeStruct(b *encBuffer, engine *encEngine, value reflect.Value) {
 	if !valid(value) {
 		return
@@ -320,7 +309,7 @@ func (enc *Encoder) encodeStruct(b *encBuffer, engine *encEngine, value reflect.
 		field := value.FieldByIndex(instr.index)
 		if instr.indir > 0 {
 			field = encIndirect(field, instr.indir)
-			// TODO: Is field guaranteed valid? If so we could avoid this check.
+			// TODO：field 是否保证有效？如果是，我们可以避免这个检查。
 			if !valid(field) {
 				continue
 			}
@@ -329,7 +318,7 @@ func (enc *Encoder) encodeStruct(b *encBuffer, engine *encEngine, value reflect.
 	}
 }
 
-// encodeArray encodes an array.
+// encodeArray 编码一个数组。
 func (enc *Encoder) encodeArray(b *encBuffer, value reflect.Value, op encOp, elemIndir int, length int, helper encHelper) {
 	state := enc.newEncoderState(b)
 	defer enc.freeEncoderState(state)
@@ -343,7 +332,7 @@ func (enc *Encoder) encodeArray(b *encBuffer, value reflect.Value, op encOp, ele
 		elem := value.Index(i)
 		if elemIndir > 0 {
 			elem = encIndirect(elem, elemIndir)
-			// TODO: Is elem guaranteed valid? If so we could avoid this check.
+			// TODO：elem 是否保证有效？如果是，我们可以避免这个检查。
 			if !valid(elem) {
 				errorf("encodeArray: nil element")
 			}
@@ -352,7 +341,7 @@ func (enc *Encoder) encodeArray(b *encBuffer, value reflect.Value, op encOp, ele
 	}
 }
 
-// encodeReflectValue is a helper for maps. It encodes the value v.
+// encodeReflectValue 是 map 的辅助函数。它编码值 v。
 func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir int) {
 	for i := 0; i < indir && v.IsValid(); i++ {
 		v = reflect.Indirect(v)
@@ -363,7 +352,7 @@ func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir in
 	op(nil, state, v)
 }
 
-// encodeMap encodes a map as unsigned count followed by key:value pairs.
+// encodeMap 将 map 编码为无符号计数后跟 key:value 对。
 func (enc *Encoder) encodeMap(b *encBuffer, mv reflect.Value, keyOp, elemOp encOp, keyIndir, elemIndir int) {
 	state := enc.newEncoderState(b)
 	state.fieldnum = -1
@@ -377,14 +366,13 @@ func (enc *Encoder) encodeMap(b *encBuffer, mv reflect.Value, keyOp, elemOp encO
 	enc.freeEncoderState(state)
 }
 
-// encodeInterface encodes the interface value iv.
-// To send an interface, we send a string identifying the concrete type, followed
-// by the type identifier (which might require defining that type right now), followed
-// by the concrete value. A nil value gets sent as the empty string for the name,
-// followed by no value.
+// encodeInterface 编码接口值 iv。
+// 要发送一个接口，我们先发送一个标识具体类型的字符串，后跟类型标识符
+// （这可能需要立即定义该类型），再后跟具体值。nil 值会以空字符串作为名称发送，
+// 其后不跟随任何值。
 func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
-	// Gobs can encode nil interface values but not typed interface
-	// values holding nil pointers, since nil pointers point to no value.
+	// Gob 可以编码 nil 接口值，但不能编码持有 nil 指针的有类型接口值，
+	// 因为 nil 指针不指向任何值。
 	elem := iv.Elem()
 	if elem.Kind() == reflect.Pointer && elem.IsNil() {
 		errorf("gob: cannot encode nil pointer of type %s inside interface", iv.Elem().Type())
@@ -404,15 +392,15 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	}
 	name := namei.(string)
 
-	// Send the name.
+	// 发送名称。
 	state.encodeUint(uint64(len(name)))
 	state.b.WriteString(name)
-	// Define the type id if necessary.
+	// 如有必要，定义类型 id。
 	enc.sendTypeDescriptor(enc.writer(), state, ut)
-	// Send the type id.
+	// 发送类型 id。
 	enc.sendTypeId(state, ut)
-	// Encode the value into a new buffer. Any nested type definitions
-	// should be written to b, before the encoded value.
+	// 将值编码进一个新缓冲区。任何嵌套的类型定义都应写入 b，
+	// 且在编码后的值之前。
 	enc.pushWriter(b)
 	data := encBufferPool.Get().(*encBuffer)
 	data.Write(spaceForLength)
@@ -430,14 +418,14 @@ func (enc *Encoder) encodeInterface(b *encBuffer, iv reflect.Value) {
 	enc.freeEncoderState(state)
 }
 
-// encodeGobEncoder encodes a value that implements the GobEncoder interface.
-// The data is sent as a byte array.
+// encodeGobEncoder 编码实现了 GobEncoder 接口的值。
+// 数据以字节数组的形式发送。
 func (enc *Encoder) encodeGobEncoder(b *encBuffer, ut *userTypeInfo, v reflect.Value) {
-	// TODO: should we catch panics from the called method?
+	// TODO：我们是否应该捕获被调用方法产生的 panic？
 
 	var data []byte
 	var err error
-	// We know it's one of these.
+	// 我们知道它是其中之一。
 	switch ut.externalEnc {
 	case xGob:
 		gobEncoder, _ := reflect.TypeAssert[GobEncoder](v)
@@ -479,16 +467,15 @@ var encOpTable = [...]encOp{
 	reflect.String:     encString,
 }
 
-// encOpFor returns (a pointer to) the encoding op for the base type under rt and
-// the indirection count to reach it.
+// encOpFor 返回（指向）rt 下基础类型的编码算子，以及到达它所需的间接寻址层数。
 func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[*typeInfo]bool) (*encOp, int) {
 	ut := userType(rt)
-	// If the type implements GobEncoder, we handle it without further processing.
+	// 如果该类型实现了 GobEncoder，我们无需进一步处理即可处理它。
 	if ut.externalEnc != 0 {
 		return gobEncodeOpFor(ut)
 	}
-	// If this type is already in progress, it's a recursive type (e.g. map[string]*T).
-	// Return the pointer to the op we're already building.
+	// 如果该类型已在处理中，则它是递归类型（例如 map[string]*T）。
+	// 返回我们正在构建的算子的指针。
 	if opPtr := inProgress[rt]; opPtr != nil {
 		return opPtr, ut.indir
 	}
@@ -501,14 +488,14 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 	}
 	if op == nil {
 		inProgress[rt] = &op
-		// Special cases
+		// 特殊情况
 		switch t := typ; t.Kind() {
 		case reflect.Slice:
 			if t.Elem().Kind() == reflect.Uint8 {
 				op = encUint8Array
 				break
 			}
-			// Slices have a header; we decode it to find the underlying array.
+			// 切片有一个头部；我们解码它以找到底层数组。
 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
 			helper := encSliceHelper[t.Elem().Kind()]
 			op = func(i *encInstr, state *encoderState, slice reflect.Value) {
@@ -519,7 +506,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 				state.enc.encodeArray(state.b, slice, *elemOp, elemIndir, slice.Len(), helper)
 			}
 		case reflect.Array:
-			// True arrays have size in the type.
+			// 真正的数组在类型中已带有大小。
 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
 			helper := encArrayHelper[t.Elem().Kind()]
 			op = func(i *encInstr, state *encoderState, array reflect.Value) {
@@ -530,8 +517,8 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 			keyOp, keyIndir := encOpFor(t.Key(), inProgress, building)
 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
 			op = func(i *encInstr, state *encoderState, mv reflect.Value) {
-				// We send zero-length (but non-nil) maps because the
-				// receiver might want to use the map.  (Maps don't use append.)
+				// 我们发送零长度（但非 nil）的 map，因为接收方可能想使用该 map。
+				// （map 不使用 append。）
 				if !state.sendZero && mv.IsNil() {
 					return
 				}
@@ -539,12 +526,12 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 				state.enc.encodeMap(state.b, mv, *keyOp, *elemOp, keyIndir, elemIndir)
 			}
 		case reflect.Struct:
-			// Generate a closure that calls out to the engine for the nested type.
+			// 生成一个闭包，调用嵌套类型的引擎。
 			getEncEngine(userType(typ), building)
 			info := mustGetTypeInfo(typ)
 			op = func(i *encInstr, state *encoderState, sv reflect.Value) {
 				state.update(i)
-				// indirect through info to delay evaluation for recursive structs
+				// 通过 info 进行间接寻址，以推迟递归结构体的求值
 				enc := info.encoder.Load()
 				state.enc.encodeStruct(state.b, enc, sv)
 			}
@@ -564,7 +551,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
 	return &op, indir
 }
 
-// gobEncodeOpFor returns the op for a type that is known to implement GobEncoder.
+// gobEncodeOpFor 返回一个已知实现 GobEncoder 的类型的算子。
 func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 	rt := ut.user
 	if ut.encIndir == -1 {
@@ -577,7 +564,7 @@ func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 	var op encOp
 	op = func(i *encInstr, state *encoderState, v reflect.Value) {
 		if ut.encIndir == -1 {
-			// Need to climb up one level to turn value into pointer.
+			// 需要向上爬一层，把值变成指针。
 			if !v.CanAddr() {
 				errorf("unaddressable value of type %s", rt)
 			}
@@ -589,10 +576,10 @@ func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
 		state.update(i)
 		state.enc.encodeGobEncoder(state.b, ut, v)
 	}
-	return &op, int(ut.encIndir) // encIndir: op will get called with p == address of receiver.
+	return &op, int(ut.encIndir) // encIndir：算子将以 p == 接收者的地址被调用。
 }
 
-// compileEnc returns the engine to compile the type.
+// compileEnc 返回用于编译该类型的引擎。
 func compileEnc(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
 	srt := ut.base
 	engine := new(encEngine)
@@ -623,7 +610,7 @@ func compileEnc(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
 	return engine
 }
 
-// getEncEngine returns the engine to compile the type.
+// getEncEngine 返回用于编译该类型的引擎。
 func getEncEngine(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
 	info, err := getTypeInfo(ut)
 	if err != nil {
@@ -637,7 +624,7 @@ func getEncEngine(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
 }
 
 func buildEncEngine(info *typeInfo, ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
-	// Check for recursive types.
+	// 检查递归类型。
 	if building != nil && building[info] {
 		return nil
 	}

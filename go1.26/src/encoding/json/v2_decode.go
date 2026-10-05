@@ -4,8 +4,8 @@
 
 //go:build goexperiment.jsonv2
 
-// Represents JSON data structure using native Go types: booleans, floats,
-// strings, arrays, and maps.
+// 使用原生 Go 类型表示 JSON 数据结构：布尔值、浮点数、
+// 字符串、数组和 map。
 
 package json
 
@@ -21,117 +21,118 @@ import (
 	jsonv2 "encoding/json/v2"
 )
 
-// Unmarshal parses the JSON-encoded data and stores the result
-// in the value pointed to by v. If v is nil or not a pointer,
-// Unmarshal returns an [InvalidUnmarshalError].
+// Unmarshal 解析 JSON 编码的数据，并将结果存储到
+// v 指向的值中。如果 v 为 nil 或不是指针，
+// Unmarshal 返回 [InvalidUnmarshalError]。
 //
-// Unmarshal uses the inverse of the encodings that
-// [Marshal] uses, allocating maps, slices, and pointers as necessary,
-// with the following additional rules:
+// Unmarshal 使用 [Marshal] 所使用编码的逆编码，
+// 在必要时分配 map、切片和指针，并遵循以下附加规则：
 //
-// To unmarshal JSON into a pointer, Unmarshal first handles the case of
-// the JSON being the JSON literal null. In that case, Unmarshal sets
-// the pointer to nil. Otherwise, Unmarshal unmarshals the JSON into
-// the value pointed at by the pointer. If the pointer is nil, Unmarshal
-// allocates a new value for it to point to.
+// 要将 JSON 反序列化到指针中，Unmarshal 首先处理
+// JSON 为 JSON 字面量 null 的情况。在这种情况下，Unmarshal 将
+// 该指针设置为 nil。否则，Unmarshal 将 JSON 反序列化到
+// 指针所指向的值中。如果指针为 nil，Unmarshal
+// 会分配一个新值供其指向。
 //
-// To unmarshal JSON into a value implementing [Unmarshaler],
-// Unmarshal calls that value's [Unmarshaler.UnmarshalJSON] method, including
-// when the input is a JSON null.
-// Otherwise, if the value implements [encoding.TextUnmarshaler]
-// and the input is a JSON quoted string, Unmarshal calls
-// [encoding.TextUnmarshaler.UnmarshalText] with the unquoted form of the string.
+// 要将 JSON 反序列化到实现 [Unmarshaler] 的值中，
+// Unmarshal 会调用该值的 [Unmarshaler.UnmarshalJSON] 方法，
+// 包括当输入为 JSON null 时。
+// 否则，如果该值实现了 [encoding.TextUnmarshaler]
+// 且输入是 JSON 引号字符串，Unmarshal 会使用
+// 该字符串的去引号形式调用 [encoding.TextUnmarshaler.UnmarshalText]。
 //
-// To unmarshal JSON into a struct, Unmarshal matches incoming object
-// keys to the keys used by [Marshal] (either the struct field name or its tag),
-// preferring an exact match but also accepting a case-insensitive match. By
-// default, object keys which don't have a corresponding struct field are
-// ignored (see [Decoder.DisallowUnknownFields] for an alternative).
+// 要将 JSON 反序列化到结构体中，Unmarshal 将传入的对象键
+// 与 [Marshal] 使用的键（结构体字段名或其标签）进行匹配，
+// 优先精确匹配，但也接受不区分大小写的匹配。默认情况下，
+// 没有对应结构体字段的对象键会被忽略
+// （另一种方式请参见 [Decoder.DisallowUnknownFields]）。
 //
-// To unmarshal JSON into an interface value,
-// Unmarshal stores one of these in the interface value:
+// 要将 JSON 反序列化到接口值中，
+// Unmarshal 会将以下值之一存储到接口值中：
 //
-//   - bool, for JSON booleans
-//   - float64, for JSON numbers
-//   - string, for JSON strings
-//   - []any, for JSON arrays
-//   - map[string]any, for JSON objects
-//   - nil for JSON null
+//   - bool，用于 JSON 布尔值
+//   - float64，用于 JSON 数字
+//   - string，用于 JSON 字符串
+//   - []any，用于 JSON 数组
+//   - map[string]any，用于 JSON 对象
+//   - nil，用于 JSON null
 //
-// To unmarshal a JSON array into a slice, Unmarshal resets the slice length
-// to zero and then appends each element to the slice.
-// As a special case, to unmarshal an empty JSON array into a slice,
-// Unmarshal replaces the slice with a new empty slice.
+// 要将 JSON 数组反序列化到切片中，Unmarshal 将切片长度
+// 重置为零，然后将每个元素追加到切片中。
+// 作为一种特殊情况，要将空 JSON 数组反序列化到切片中，
+// Unmarshal 会用一个新的空切片替换该切片。
 //
-// To unmarshal a JSON array into a Go array, Unmarshal decodes
-// JSON array elements into corresponding Go array elements.
-// If the Go array is smaller than the JSON array,
-// the additional JSON array elements are discarded.
-// If the JSON array is smaller than the Go array,
-// the additional Go array elements are set to zero values.
+// 要将 JSON 数组反序列化到 Go 数组中，Unmarshal 将
+// JSON 数组元素解码到对应的 Go 数组元素中。
+// 如果 Go 数组比 JSON 数组小，
+// 多余的 JSON 数组元素会被丢弃。
+// 如果 JSON 数组比 Go 数组小，
+// 多余的 Go 数组元素会被设置为零值。
 //
-// To unmarshal a JSON object into a map, Unmarshal first establishes a map to
-// use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
-// reuses the existing map, keeping existing entries. Unmarshal then stores
-// key-value pairs from the JSON object into the map. The map's key type must
-// either be any string type, an integer, or implement [encoding.TextUnmarshaler].
+// 要将 JSON 对象反序列化到 map 中，Unmarshal 首先建立一个
+// 要使用的 map。如果 map 为 nil，Unmarshal 分配一个新 map。
+// 否则 Unmarshal 重用现有 map，保留现有条目。
+// 然后 Unmarshal 将 JSON 对象中的键值对存储到 map 中。
+// map 的键类型必须是任意字符串类型、整数，
+// 或实现 [encoding.TextUnmarshaler]。
 //
-// If the JSON-encoded data contain a syntax error, Unmarshal returns a [SyntaxError].
+// 如果 JSON 编码的数据包含语法错误，Unmarshal 返回 [SyntaxError]。
 //
-// If a JSON value is not appropriate for a given target type,
-// or if a JSON number overflows the target type, Unmarshal
-// skips that field and completes the unmarshaling as best it can.
-// If no more serious errors are encountered, Unmarshal returns
-// an [UnmarshalTypeError] describing the earliest such error. In any
-// case, it's not guaranteed that all the remaining fields following
-// the problematic one will be unmarshaled into the target object.
+// 如果 JSON 值不适合给定的目标类型，
+// 或 JSON 数字溢出目标类型，Unmarshal
+// 会跳过该字段并尽其所能完成反序列化。
+// 如果没有遇到更严重的错误，Unmarshal 返回
+// 描述最早此类错误的 [UnmarshalTypeError]。
+// 在任何情况下，都不能保证问题字段之后的
+// 所有剩余字段都会被反序列化到目标对象中。
 //
-// The JSON null value unmarshals into an interface, map, pointer, or slice
-// by setting that Go value to nil. Because null is often used in JSON to mean
-// “not present,” unmarshaling a JSON null into any other Go type has no effect
-// on the value and produces no error.
+// JSON null 值通过将该 Go 值设置为 nil 来
+// 反序列化到接口、map、指针或切片中。
+// 因为 null 在 JSON 中常用于表示"不存在"，
+// 将 JSON null 反序列化到任何其他 Go 类型中
+// 对该值没有影响，也不会产生错误。
 //
-// When unmarshaling quoted strings, invalid UTF-8 or
-// invalid UTF-16 surrogate pairs are not treated as an error.
-// Instead, they are replaced by the Unicode replacement
-// character U+FFFD.
+// 在反序列化引号字符串时，无效的 UTF-8 或
+// 无效的 UTF-16 代理对不会被视为错误。
+// 相反，它们会被替换为 Unicode 替换
+// 字符 U+FFFD。
 func Unmarshal(data []byte, v any) error {
 	return jsonv2.Unmarshal(data, v, DefaultOptionsV1())
 }
 
-// Unmarshaler is the interface implemented by types
-// that can unmarshal a JSON description of themselves.
-// The input can be assumed to be a valid encoding of
-// a JSON value. UnmarshalJSON must copy the JSON data
-// if it wishes to retain the data after returning.
+// Unmarshaler 是由能够反序列化自身 JSON 描述的类型
+// 实现的接口。
+// 输入可以假定为某个 JSON 值的有效编码。
+// 如果 UnmarshalJSON 希望在返回后保留数据，
+// 则必须复制该 JSON 数据。
 type Unmarshaler = jsonv2.Unmarshaler
 
-// An UnmarshalTypeError describes a JSON value that was
-// not appropriate for a value of a specific Go type.
+// UnmarshalTypeError 描述了一个不适合
+// 特定 Go 类型值的 JSON 值。
 type UnmarshalTypeError struct {
-	Value  string       // description of JSON value - "bool", "array", "number -5"
-	Type   reflect.Type // type of Go value it could not be assigned to
-	Offset int64        // error occurred after reading Offset bytes
-	Struct string       // name of the root type containing the field
-	Field  string       // the full path from root node to the value
-	Err    error        // may be nil
+	Value  string       // JSON 值的描述 - "bool"、"array"、"number -5"
+	Type   reflect.Type // 无法赋给的 Go 值的类型
+	Offset int64        // 错误发生在读取 Offset 个字节之后
+	Struct string       // 包含该字段的根类型的名称
+	Field  string       // 从根节点到该值的完整路径
+	Err    error        // 可能为 nil
 }
 
 func (e *UnmarshalTypeError) Error() string {
 	var s string
 	if e.Struct != "" || e.Field != "" {
-		// The design of UnmarshalTypeError overly assumes a struct-based
-		// Go representation for the JSON value.
-		// The logic in jsontext represents paths using a JSON Pointer,
-		// which is agnostic to the Go type system.
-		// Trying to convert a JSON Pointer into a UnmarshalTypeError.Field
-		// is difficult. As a heuristic, if the last path token looks like
-		// an index into a JSON array (e.g., ".foo.bar.0"),
-		// avoid the phrase "Go struct field ".
+		// UnmarshalTypeError 的设计过度假设了
+		// JSON 值基于结构体的 Go 表示。
+		// jsontext 中的逻辑使用 JSON Pointer 表示路径，
+		// 它与 Go 类型系统无关。
+		// 试图将 JSON Pointer 转换为 UnmarshalTypeError.Field
+		// 是困难的。作为启发式，如果最后一个路径标记看起来
+		// 像是 JSON 数组的索引（例如 ".foo.bar.0"），
+		// 则避免使用短语 "Go struct field "。
 		intoWhat := "Go struct field "
 		i := strings.LastIndexByte(e.Field, '.') + len(".")
 		if len(e.Field[i:]) > 0 && strings.TrimRight(e.Field[i:], "0123456789") == "" {
-			intoWhat = "" // likely a Go slice or array
+			intoWhat = "" // 可能是 Go 切片或数组
 		}
 		s = "json: cannot unmarshal " + e.Value + " into " + intoWhat + e.Struct + "." + e.Field + " of type " + e.Type.String()
 	} else {
@@ -147,10 +148,10 @@ func (e *UnmarshalTypeError) Unwrap() error {
 	return e.Err
 }
 
-// An UnmarshalFieldError describes a JSON object key that
-// led to an unexported (and therefore unwritable) struct field.
+// UnmarshalFieldError 描述了一个导致指向未导出
+// （因此不可写）结构体字段的 JSON 对象键。
 //
-// Deprecated: No longer used; kept for compatibility.
+// Deprecated: 不再使用；为兼容性保留。
 type UnmarshalFieldError struct {
 	Key   string
 	Type  reflect.Type
@@ -161,8 +162,8 @@ func (e *UnmarshalFieldError) Error() string {
 	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
 }
 
-// An InvalidUnmarshalError describes an invalid argument passed to [Unmarshal].
-// (The argument to [Unmarshal] must be a non-nil pointer.)
+// InvalidUnmarshalError 描述传递给 [Unmarshal] 的无效参数。
+// （[Unmarshal] 的参数必须是非 nil 指针。）
 type InvalidUnmarshalError struct {
 	Type reflect.Type
 }
@@ -178,30 +179,30 @@ func (e *InvalidUnmarshalError) Error() string {
 	return "json: Unmarshal(nil " + e.Type.String() + ")"
 }
 
-// A Number represents a JSON number literal.
+// Number 表示一个 JSON 数字字面量。
 type Number string
 
-// String returns the literal text of the number.
+// String 返回该数字的字面文本。
 func (n Number) String() string { return string(n) }
 
-// Float64 returns the number as a float64.
+// Float64 将该数字作为 float64 返回。
 func (n Number) Float64() (float64, error) {
 	return strconv.ParseFloat(string(n), 64)
 }
 
-// Int64 returns the number as an int64.
+// Int64 将该数字作为 int64 返回。
 func (n Number) Int64() (int64, error) {
 	return strconv.ParseInt(string(n), 10, 64)
 }
 
 var numberType = reflect.TypeFor[Number]()
 
-// MarshalJSONTo implements [jsonv2.MarshalerTo].
+// MarshalJSONTo 实现 [jsonv2.MarshalerTo]。
 func (n Number) MarshalJSONTo(enc *jsontext.Encoder) error {
 	opts := enc.Options()
 	stringify, _ := jsonv2.GetOption(opts, jsonv2.StringifyNumbers)
 	if k, n := enc.StackIndex(enc.StackDepth()); k == '{' && n%2 == 0 {
-		stringify = true // expecting a JSON object name
+		stringify = true // 期望一个 JSON 对象名称
 	}
 	n = cmp.Or(n, "0")
 	var num []byte
@@ -221,12 +222,12 @@ func (n Number) MarshalJSONTo(enc *jsontext.Encoder) error {
 	return enc.WriteValue(val)
 }
 
-// UnmarshalJSONFrom implements [jsonv2.UnmarshalerFrom].
+// UnmarshalJSONFrom 实现 [jsonv2.UnmarshalerFrom]。
 func (n *Number) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	opts := dec.Options()
 	stringify, _ := jsonv2.GetOption(opts, jsonv2.StringifyNumbers)
 	if k, n := dec.StackIndex(dec.StackDepth()); k == '{' && n%2 == 0 {
-		stringify = true // expecting a JSON object name
+		stringify = true // 期望一个 JSON 对象名称
 	}
 	val, err := dec.ReadValue()
 	if err != nil {

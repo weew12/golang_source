@@ -20,8 +20,8 @@ import (
 	"encoding/json/jsontext"
 )
 
-// Reference encoding and time packages to assist pkgsite
-// in being able to hotlink references to those packages.
+// 引用 encoding 和 time 包以帮助 pkgsite
+// 能够热链接到这些包。
 var (
 	_ encoding.TextMarshaler
 	_ encoding.TextAppender
@@ -30,144 +30,143 @@ var (
 	_ time.Duration
 )
 
-// export exposes internal functionality of the "jsontext" package.
+// export 暴露 "jsontext" 包的内部功能。
 var export = jsontext.Internal.Export(&internal.AllowInternalUse)
 
-// Marshal serializes a Go value as a []byte according to the provided
-// marshal and encode options (while ignoring unmarshal or decode options).
-// It does not terminate the output with a newline.
+// Marshal 根据提供的 marshal 和 encode 选项（同时忽略 unmarshal 或 decode 选项）
+// 将 Go 值序列化为一个 []byte。
+// 它不会以换行符终止输出。
 //
-// Type-specific marshal functions and methods take precedence
-// over the default representation of a value.
-// Functions or methods that operate on *T are only called when encoding
-// a value of type T (by taking its address) or a non-nil value of *T.
-// Marshal ensures that a value is always addressable
-// (by boxing it on the heap if necessary) so that
-// these functions and methods can be consistently called. For performance,
-// it is recommended that Marshal be passed a non-nil pointer to the value.
+// 特定于类型的 marshal 函数和方法优先于
+// 值的默认表示形式。
+// 作用于 *T 的函数或方法仅在编码
+// 类型为 T 的值（通过取其地址）或 *T 的非 nil 值时被调用。
+// Marshal 确保值始终可寻址
+// （必要时将其装箱到堆上），以便
+// 这些函数和方法能够被一致地调用。为了性能，
+// 建议向 Marshal 传递该值的非 nil 指针。
 //
-// The input value is encoded as JSON according the following rules:
+// 输入值按照以下规则编码为 JSON：
 //
-//   - If any type-specific functions in a [WithMarshalers] option match
-//     the value type, then those functions are called to encode the value.
-//     If all applicable functions return [SkipFunc],
-//     then the value is encoded according to subsequent rules.
+//   - 如果 [WithMarshalers] 选项中的任何特定于类型的函数
+//     与该值类型匹配，则调用这些函数来编码该值。
+//     如果所有适用的函数都返回 [SkipFunc]，
+//     则按照后续规则编码该值。
 //
-//   - If the value type implements [MarshalerTo],
-//     then the MarshalJSONTo method is called to encode the value.
+//   - 如果值类型实现了 [MarshalerTo]，
+//     则调用 MarshalJSONTo 方法来编码该值。
 //
-//   - If the value type implements [Marshaler],
-//     then the MarshalJSON method is called to encode the value.
+//   - 如果值类型实现了 [Marshaler]，
+//     则调用 MarshalJSON 方法来编码该值。
 //
-//   - If the value type implements [encoding.TextAppender],
-//     then the AppendText method is called to encode the value and
-//     subsequently encode its result as a JSON string.
+//   - 如果值类型实现了 [encoding.TextAppender]，
+//     则调用 AppendText 方法来编码该值，并
+//     随后将其结果编码为 JSON 字符串。
 //
-//   - If the value type implements [encoding.TextMarshaler],
-//     then the MarshalText method is called to encode the value and
-//     subsequently encode its result as a JSON string.
+//   - 如果值类型实现了 [encoding.TextMarshaler]，
+//     则调用 MarshalText 方法来编码该值，并
+//     随后将其结果编码为 JSON 字符串。
 //
-//   - Otherwise, the value is encoded according to the value's type
-//     as described in detail below.
+//   - 否则，按照值类型编码该值，
+//     详细描述如下。
 //
-// Most Go types have a default JSON representation.
-// Certain types support specialized formatting according to
-// a format flag optionally specified in the Go struct tag
-// for the struct field that contains the current value
-// (see the “JSON Representation of Go structs” section for more details).
+// 大多数 Go 类型都有默认的 JSON 表示形式。
+// 某些类型支持根据 Go 结构体标签中
+// 为包含当前值的结构体字段可选指定的
+// 格式标志进行特殊格式化
+// （更多细节参见“Go 结构体的 JSON 表示”一节）。
 //
-// The representation of each type is as follows:
+// 各类型的表示形式如下：
 //
-//   - A Go boolean is encoded as a JSON boolean (e.g., true or false).
-//     It does not support any custom format flags.
+//   - Go 布尔值被编码为 JSON 布尔值（例如 true 或 false）。
+//     它不支持任何自定义格式标志。
 //
-//   - A Go string is encoded as a JSON string.
-//     It does not support any custom format flags.
+//   - Go 字符串被编码为 JSON 字符串。
+//     它不支持任何自定义格式标志。
 //
-//   - A Go []byte or [N]byte is encoded as a JSON string containing
-//     the binary value encoded using RFC 4648.
-//     If the format is "base64" or unspecified, then this uses RFC 4648, section 4.
-//     If the format is "base64url", then this uses RFC 4648, section 5.
-//     If the format is "base32", then this uses RFC 4648, section 6.
-//     If the format is "base32hex", then this uses RFC 4648, section 7.
-//     If the format is "base16" or "hex", then this uses RFC 4648, section 8.
-//     If the format is "array", then the bytes value is encoded as a JSON array
-//     where each byte is recursively JSON-encoded as each JSON array element.
+//   - Go []byte 或 [N]byte 被编码为 JSON 字符串，
+//     其中包含使用 RFC 4648 编码的二进制值。
+//     如果格式为 "base64" 或未指定，则使用 RFC 4648 第 4 节。
+//     如果格式为 "base64url"，则使用 RFC 4648 第 5 节。
+//     如果格式为 "base32"，则使用 RFC 4648 第 6 节。
+//     如果格式为 "base32hex"，则使用 RFC 4648 第 7 节。
+//     如果格式为 "base16" 或 "hex"，则使用 RFC 4648 第 8 节。
+//     如果格式为 "array"，则字节值被编码为 JSON 数组，
+//     其中每个字节被递归地 JSON 编码为每个 JSON 数组元素。
 //
-//   - A Go integer is encoded as a JSON number without fractions or exponents.
-//     If [StringifyNumbers] is specified or encoding a JSON object name,
-//     then the JSON number is encoded within a JSON string.
-//     It does not support any custom format flags.
+//   - Go 整数被编码为不含小数或指数的 JSON 数字。
+//     如果指定了 [StringifyNumbers] 或正在编码 JSON 对象名称，
+//     则该 JSON 数字被编码在 JSON 字符串内。
+//     它不支持任何自定义格式标志。
 //
-//   - A Go float is encoded as a JSON number.
-//     If [StringifyNumbers] is specified or encoding a JSON object name,
-//     then the JSON number is encoded within a JSON string.
-//     If the format is "nonfinite", then NaN, +Inf, and -Inf are encoded as
-//     the JSON strings "NaN", "Infinity", and "-Infinity", respectively.
-//     Otherwise, the presence of non-finite numbers results in a [SemanticError].
+//   - Go 浮点数被编码为 JSON 数字。
+//     如果指定了 [StringifyNumbers] 或正在编码 JSON 对象名称，
+//     则该 JSON 数字被编码在 JSON 字符串内。
+//     如果格式为 "nonfinite"，则 NaN、+Inf 和 -Inf 分别被编码为
+//     JSON 字符串 "NaN"、"Infinity" 和 "-Infinity"。
+//     否则，存在非有限数字将导致 [SemanticError]。
 //
-//   - A Go map is encoded as a JSON object, where each Go map key and value
-//     is recursively encoded as a name and value pair in the JSON object.
-//     The Go map key must encode as a JSON string, otherwise this results
-//     in a [SemanticError]. The Go map is traversed in a non-deterministic order.
-//     For deterministic encoding, consider using the [Deterministic] option.
-//     If the format is "emitnull", then a nil map is encoded as a JSON null.
-//     If the format is "emitempty", then a nil map is encoded as an empty JSON object,
-//     regardless of whether [FormatNilMapAsNull] is specified.
-//     Otherwise by default, a nil map is encoded as an empty JSON object.
+//   - Go map 被编码为 JSON 对象，其中每个 Go map 键和值
+//     被递归地编码为 JSON 对象中的名称和值对。
+//     Go map 键必须编码为 JSON 字符串，否则将导致
+//     [SemanticError]。Go map 以非确定性顺序遍历。
+//     如需确定性编码，请考虑使用 [Deterministic] 选项。
+//     如果格式为 "emitnull"，则 nil map 被编码为 JSON null。
+//     如果格式为 "emitempty"，则 nil map 被编码为空 JSON 对象，
+//     无论是否指定了 [FormatNilMapAsNull]。
+//     否则默认情况下，nil map 被编码为空 JSON 对象。
 //
-//   - A Go struct is encoded as a JSON object.
-//     See the “JSON Representation of Go structs” section
-//     in the package-level documentation for more details.
+//   - Go 结构体被编码为 JSON 对象。
+//     更多细节参见包级文档中的“Go 结构体的 JSON 表示”一节。
 //
-//   - A Go slice is encoded as a JSON array, where each Go slice element
-//     is recursively JSON-encoded as the elements of the JSON array.
-//     If the format is "emitnull", then a nil slice is encoded as a JSON null.
-//     If the format is "emitempty", then a nil slice is encoded as an empty JSON array,
-//     regardless of whether [FormatNilSliceAsNull] is specified.
-//     Otherwise by default, a nil slice is encoded as an empty JSON array.
+//   - Go 切片被编码为 JSON 数组，其中每个 Go 切片元素
+//     被递归地 JSON 编码为 JSON 数组的元素。
+//     如果格式为 "emitnull"，则 nil 切片被编码为 JSON null。
+//     如果格式为 "emitempty"，则 nil 切片被编码为空 JSON 数组，
+//     无论是否指定了 [FormatNilSliceAsNull]。
+//     否则默认情况下，nil 切片被编码为空 JSON 数组。
 //
-//   - A Go array is encoded as a JSON array, where each Go array element
-//     is recursively JSON-encoded as the elements of the JSON array.
-//     The JSON array length is always identical to the Go array length.
-//     It does not support any custom format flags.
+//   - Go 数组被编码为 JSON 数组，其中每个 Go 数组元素
+//     被递归地 JSON 编码为 JSON 数组的元素。
+//     JSON 数组长度始终与 Go 数组长度相同。
+//     它不支持任何自定义格式标志。
 //
-//   - A Go pointer is encoded as a JSON null if nil, otherwise it is
-//     the recursively JSON-encoded representation of the underlying value.
-//     Format flags are forwarded to the encoding of the underlying value.
+//   - Go 指针如果为 nil 则被编码为 JSON null，否则它就是
+//     底层值的递归 JSON 编码表示形式。
+//     格式标志被转发到底层值的编码。
 //
-//   - A Go interface is encoded as a JSON null if nil, otherwise it is
-//     the recursively JSON-encoded representation of the underlying value.
-//     It does not support any custom format flags.
+//   - Go 接口如果为 nil 则被编码为 JSON null，否则它就是
+//     底层值的递归 JSON 编码表示形式。
+//     它不支持任何自定义格式标志。
 //
-//   - A Go [time.Time] is encoded as a JSON string containing the timestamp
-//     formatted in RFC 3339 with nanosecond precision.
-//     If the format matches one of the format constants declared
-//     in the time package (e.g., RFC1123), then that format is used.
-//     If the format is "unix", "unixmilli", "unixmicro", or "unixnano",
-//     then the timestamp is encoded as a possibly fractional JSON number
-//     of the number of seconds (or milliseconds, microseconds, or nanoseconds)
-//     since the Unix epoch, which is January 1st, 1970 at 00:00:00 UTC.
-//     To avoid a fractional component, round the timestamp to the relevant unit.
-//     Otherwise, the format is used as-is with [time.Time.Format] if non-empty.
+//   - Go [time.Time] 被编码为 JSON 字符串，其中包含
+//     以 RFC 3339 格式、纳秒精度格式化的时间戳。
+//     如果格式与 time 包中声明的某个格式常量
+//     匹配（例如 RFC1123），则使用该格式。
+//     如果格式为 "unix"、"unixmilli"、"unixmicro" 或 "unixnano"，
+//     则时间戳被编码为一个可能为小数的 JSON 数字，
+//     表示自 Unix 纪元（即 1970 年 1 月 1 日 00:00:00 UTC）
+//     以来的秒数（或毫秒、微秒或纳秒数）。
+//     为避免出现小数部分，请将时间戳舍入到相关单位。
+//     否则，如果格式非空，则按原样与 [time.Time.Format] 一起使用。
 //
-//   - A Go [time.Duration] currently has no default representation and
-//     requires an explicit format to be specified.
-//     If the format is "sec", "milli", "micro", or "nano",
-//     then the duration is encoded as a possibly fractional JSON number
-//     of the number of seconds (or milliseconds, microseconds, or nanoseconds).
-//     To avoid a fractional component, round the duration to the relevant unit.
-//     If the format is "units", it is encoded as a JSON string formatted using
-//     [time.Duration.String] (e.g., "1h30m" for 1 hour 30 minutes).
-//     If the format is "iso8601", it is encoded as a JSON string using the
-//     ISO 8601 standard for durations (e.g., "PT1H30M" for 1 hour 30 minutes)
-//     using only accurate units of hours, minutes, and seconds.
+//   - Go [time.Duration] 目前没有默认表示形式，
+//     需要显式指定格式。
+//     如果格式为 "sec"、"milli"、"micro" 或 "nano"，
+//     则时长被编码为一个可能为小数的 JSON 数字，
+//     表示秒数（或毫秒、微秒或纳秒数）。
+//     为避免出现小数部分，请将时长舍入到相关单位。
+//     如果格式为 "units"，则使用 [time.Duration.String]
+//     将其编码为 JSON 字符串（例如 1 小时 30 分钟为 "1h30m"）。
+//     如果格式为 "iso8601"，则使用 ISO 8601 时长标准
+//     将其编码为 JSON 字符串（例如 1 小时 30 分钟为 "PT1H30M"），
+//     仅使用小时、分钟和秒这些精确单位。
 //
-//   - All other Go types (e.g., complex numbers, channels, and functions)
-//     have no default representation and result in a [SemanticError].
+//   - 所有其他 Go 类型（例如复数、通道和函数）
+//     没有默认表示形式，将导致 [SemanticError]。
 //
-// JSON cannot represent cyclic data structures and Marshal does not handle them.
-// Passing cyclic structures will result in an error.
+// JSON 无法表示循环数据结构，Marshal 也不处理它们。
+// 传入循环结构将导致错误。
 func Marshal(in any, opts ...Options) (out []byte, err error) {
 	enc := export.GetBufferedEncoder(opts...)
 	defer export.PutBufferedEncoder(enc)
@@ -180,10 +179,10 @@ func Marshal(in any, opts ...Options) (out []byte, err error) {
 	return bytes.Clone(xe.Buf), err
 }
 
-// MarshalWrite serializes a Go value into an [io.Writer] according to the provided
-// marshal and encode options (while ignoring unmarshal or decode options).
-// It does not terminate the output with a newline.
-// See [Marshal] for details about the conversion of a Go value into JSON.
+// MarshalWrite 根据提供的 marshal 和 encode 选项（同时忽略 unmarshal 或 decode 选项）
+// 将 Go 值序列化到 [io.Writer] 中。
+// 它不会以换行符终止输出。
+// 有关 Go 值转换为 JSON 的细节，参见 [Marshal]。
 func MarshalWrite(out io.Writer, in any, opts ...Options) (err error) {
 	enc := export.GetStreamingEncoder(out, opts...)
 	defer export.PutStreamingEncoder(enc)
@@ -196,14 +195,14 @@ func MarshalWrite(out io.Writer, in any, opts ...Options) (err error) {
 	return err
 }
 
-// MarshalEncode serializes a Go value into an [jsontext.Encoder] according to
-// the provided marshal options (while ignoring unmarshal, encode, or decode options).
-// Any marshal-relevant options already specified on the [jsontext.Encoder]
-// take lower precedence than the set of options provided by the caller.
-// Unlike [Marshal] and [MarshalWrite], encode options are ignored because
-// they must have already been specified on the provided [jsontext.Encoder].
+// MarshalEncode 根据提供的 marshal 选项（同时忽略 unmarshal、encode 或 decode 选项）
+// 将 Go 值序列化到 [jsontext.Encoder] 中。
+// 已在 [jsontext.Encoder] 上指定的任何与 marshal 相关的选项，
+// 其优先级都低于调用方提供的选项集。
+// 与 [Marshal] 和 [MarshalWrite] 不同，encode 选项被忽略，因为
+// 它们必须已经在所提供的 [jsontext.Encoder] 上指定。
 //
-// See [Marshal] for details about the conversion of a Go value into JSON.
+// 有关 Go 值转换为 JSON 的细节，参见 [Marshal]。
 func MarshalEncode(out *jsontext.Encoder, in any, opts ...Options) (err error) {
 	xe := export.Encoder(out)
 	if len(opts) > 0 {
@@ -223,18 +222,18 @@ func marshalEncode(out *jsontext.Encoder, in any, mo *jsonopts.Struct) (err erro
 	if !v.IsValid() || (v.Kind() == reflect.Pointer && v.IsNil()) {
 		return out.WriteToken(jsontext.Null)
 	}
-	// Shallow copy non-pointer values to obtain an addressable value.
-	// It is beneficial to performance to always pass pointers to avoid this.
+	// 浅拷贝非指针值以获得可寻址的值。
+	// 为性能考虑，始终传递指针以避免此操作是有益的。
 	forceAddr := v.Kind() != reflect.Pointer
 	if forceAddr {
 		v2 := reflect.New(v.Type())
 		v2.Elem().Set(v)
 		v = v2
 	}
-	va := addressableValue{v.Elem(), forceAddr} // dereferenced pointer is always addressable
+	va := addressableValue{v.Elem(), forceAddr} // 解引用后的指针始终可寻址
 	t := va.Type()
 
-	// Lookup and call the marshal function for this type.
+	// 查找并调用此类型的 marshal 函数。
 	marshal := lookupArshaler(t).marshal
 	if mo.Marshalers != nil {
 		marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, t)
@@ -248,161 +247,160 @@ func marshalEncode(out *jsontext.Encoder, in any, mo *jsonopts.Struct) (err erro
 	return nil
 }
 
-// Unmarshal decodes a []byte input into a Go value according to the provided
-// unmarshal and decode options (while ignoring marshal or encode options).
-// The input must be a single JSON value with optional whitespace interspersed.
-// The output must be a non-nil pointer.
+// Unmarshal 根据提供的 unmarshal 和 decode 选项（同时忽略 marshal 或 encode 选项）
+// 将 []byte 输入解码为 Go 值。
+// 输入必须是一个单一的 JSON 值，可穿插可选的空白。
+// 输出必须是非 nil 指针。
 //
-// Type-specific unmarshal functions and methods take precedence
-// over the default representation of a value.
-// Functions or methods that operate on *T are only called when decoding
-// a value of type T (by taking its address) or a non-nil value of *T.
-// Unmarshal ensures that a value is always addressable
-// (by boxing it on the heap if necessary) so that
-// these functions and methods can be consistently called.
+// 特定于类型的 unmarshal 函数和方法优先于
+// 值的默认表示形式。
+// 作用于 *T 的函数或方法仅在解码
+// 类型为 T 的值（通过取其地址）或 *T 的非 nil 值时被调用。
+// Unmarshal 确保值始终可寻址
+// （必要时将其装箱到堆上），以便
+// 这些函数和方法能够被一致地调用。
 //
-// The input is decoded into the output according the following rules:
+// 输入按照以下规则解码到输出中：
 //
-//   - If any type-specific functions in a [WithUnmarshalers] option match
-//     the value type, then those functions are called to decode the JSON
-//     value. If all applicable functions return [SkipFunc],
-//     then the input is decoded according to subsequent rules.
+//   - 如果 [WithUnmarshalers] 选项中的任何特定于类型的函数
+//     与该值类型匹配，则调用这些函数来解码该 JSON
+//     值。如果所有适用的函数都返回 [SkipFunc]，
+//     则按照后续规则解码输入。
 //
-//   - If the value type implements [UnmarshalerFrom],
-//     then the UnmarshalJSONFrom method is called to decode the JSON value.
+//   - 如果值类型实现了 [UnmarshalerFrom]，
+//     则调用 UnmarshalJSONFrom 方法来解码该 JSON 值。
 //
-//   - If the value type implements [Unmarshaler],
-//     then the UnmarshalJSON method is called to decode the JSON value.
+//   - 如果值类型实现了 [Unmarshaler]，
+//     则调用 UnmarshalJSON 方法来解码该 JSON 值。
 //
-//   - If the value type implements [encoding.TextUnmarshaler],
-//     then the input is decoded as a JSON string and
-//     the UnmarshalText method is called with the decoded string value.
-//     This fails with a [SemanticError] if the input is not a JSON string.
+//   - 如果值类型实现了 [encoding.TextUnmarshaler]，
+//     则输入被解码为 JSON 字符串，并以解码后的字符串值
+//     调用 UnmarshalText 方法。
+//     如果输入不是 JSON 字符串，则失败并返回 [SemanticError]。
 //
-//   - Otherwise, the JSON value is decoded according to the value's type
-//     as described in detail below.
+//   - 否则，按照值类型解码该 JSON 值，
+//     详细描述如下。
 //
-// Most Go types have a default JSON representation.
-// Certain types support specialized formatting according to
-// a format flag optionally specified in the Go struct tag
-// for the struct field that contains the current value
-// (see the “JSON Representation of Go structs” section for more details).
-// A JSON null may be decoded into every supported Go value where
-// it is equivalent to storing the zero value of the Go value.
-// If the input JSON kind is not handled by the current Go value type,
-// then this fails with a [SemanticError]. Unless otherwise specified,
-// the decoded value replaces any pre-existing value.
+// 大多数 Go 类型都有默认的 JSON 表示形式。
+// 某些类型支持根据 Go 结构体标签中
+// 为包含当前值的结构体字段可选指定的
+// 格式标志进行特殊格式化
+// （更多细节参见“Go 结构体的 JSON 表示”一节）。
+// JSON null 可以被解码到每个受支持的 Go 值中，
+// 在此处它等价于存储该 Go 值的零值。
+// 如果输入 JSON 的种类未被当前 Go 值类型处理，
+// 则失败并返回 [SemanticError]。除非另有说明，
+// 解码后的值会替换任何预先存在的值。
 //
-// The representation of each type is as follows:
+// 各类型的表示形式如下：
 //
-//   - A Go boolean is decoded from a JSON boolean (e.g., true or false).
-//     It does not support any custom format flags.
+//   - Go 布尔值从 JSON 布尔值（例如 true 或 false）解码。
+//     它不支持任何自定义格式标志。
 //
-//   - A Go string is decoded from a JSON string.
-//     It does not support any custom format flags.
+//   - Go 字符串从 JSON 字符串解码。
+//     它不支持任何自定义格式标志。
 //
-//   - A Go []byte or [N]byte is decoded from a JSON string
-//     containing the binary value encoded using RFC 4648.
-//     If the format is "base64" or unspecified, then this uses RFC 4648, section 4.
-//     If the format is "base64url", then this uses RFC 4648, section 5.
-//     If the format is "base32", then this uses RFC 4648, section 6.
-//     If the format is "base32hex", then this uses RFC 4648, section 7.
-//     If the format is "base16" or "hex", then this uses RFC 4648, section 8.
-//     If the format is "array", then the Go slice or array is decoded from a
-//     JSON array where each JSON element is recursively decoded for each byte.
-//     When decoding into a non-nil []byte, the slice length is reset to zero
-//     and the decoded input is appended to it.
-//     When decoding into a [N]byte, the input must decode to exactly N bytes,
-//     otherwise it fails with a [SemanticError].
+//   - Go []byte 或 [N]byte 从 JSON 字符串解码，
+//     该字符串包含使用 RFC 4648 编码的二进制值。
+//     如果格式为 "base64" 或未指定，则使用 RFC 4648 第 4 节。
+//     如果格式为 "base64url"，则使用 RFC 4648 第 5 节。
+//     如果格式为 "base32"，则使用 RFC 4648 第 6 节。
+//     如果格式为 "base32hex"，则使用 RFC 4648 第 7 节。
+//     如果格式为 "base16" 或 "hex"，则使用 RFC 4648 第 8 节。
+//     如果格式为 "array"，则 Go 切片或数组从 JSON 数组解码，
+//     其中每个 JSON 元素被递归地解码为每个字节。
+//     当解码到非 nil 的 []byte 时，切片长度被重置为零，
+//     并将解码后的输入追加到它。
+//     当解码到 [N]byte 时，输入的字节数必须正好为 N，
+//     否则失败并返回 [SemanticError]。
 //
-//   - A Go integer is decoded from a JSON number.
-//     It must be decoded from a JSON string containing a JSON number
-//     if [StringifyNumbers] is specified or decoding a JSON object name.
-//     It fails with a [SemanticError] if the JSON number
-//     has a fractional or exponent component.
-//     It also fails if it overflows the representation of the Go integer type.
-//     It does not support any custom format flags.
+//   - Go 整数从 JSON 数字解码。
+//     如果指定了 [StringifyNumbers] 或正在解码 JSON 对象名称，
+//     则它必须从包含 JSON 数字的 JSON 字符串解码。
+//     如果 JSON 数字包含小数或指数部分，
+//     则失败并返回 [SemanticError]。
+//     如果它溢出 Go 整数类型的表示范围，也会失败。
+//     它不支持任何自定义格式标志。
 //
-//   - A Go float is decoded from a JSON number.
-//     It must be decoded from a JSON string containing a JSON number
-//     if [StringifyNumbers] is specified or decoding a JSON object name.
-//     It fails if it overflows the representation of the Go float type.
-//     If the format is "nonfinite", then the JSON strings
-//     "NaN", "Infinity", and "-Infinity" are decoded as NaN, +Inf, and -Inf.
-//     Otherwise, the presence of such strings results in a [SemanticError].
+//   - Go 浮点数从 JSON 数字解码。
+//     如果指定了 [StringifyNumbers] 或正在解码 JSON 对象名称，
+//     则它必须从包含 JSON 数字的 JSON 字符串解码。
+//     如果它溢出 Go 浮点类型的表示范围，则失败。
+//     如果格式为 "nonfinite"，则 JSON 字符串
+//     "NaN"、"Infinity" 和 "-Infinity" 被解码为 NaN、+Inf 和 -Inf。
+//     否则，出现此类字符串将导致 [SemanticError]。
 //
-//   - A Go map is decoded from a JSON object,
-//     where each JSON object name and value pair is recursively decoded
-//     as the Go map key and value. Maps are not cleared.
-//     If the Go map is nil, then a new map is allocated to decode into.
-//     If the decoded key matches an existing Go map entry, the entry value
-//     is reused by decoding the JSON object value into it.
-//     The formats "emitnull" and "emitempty" have no effect when decoding.
+//   - Go map 从 JSON 对象解码，
+//     其中每个 JSON 对象名称和值对分别被递归地解码
+//     为 Go map 键和值。Map 不会被清空。
+//     如果 Go map 为 nil，则分配一个新 map 用于解码。
+//     如果解码后的键与现有的 Go map 条目匹配，则该条目值
+//     会被复用，将 JSON 对象值解码到其中。
+//     格式 "emitnull" 和 "emitempty" 在解码时没有效果。
 //
-//   - A Go struct is decoded from a JSON object.
-//     See the “JSON Representation of Go structs” section
-//     in the package-level documentation for more details.
+//   - Go 结构体从 JSON 对象解码。
+//     更多细节参见包级文档中的“Go 结构体的 JSON 表示”一节。
 //
-//   - A Go slice is decoded from a JSON array, where each JSON element
-//     is recursively decoded and appended to the Go slice.
-//     Before appending into a Go slice, a new slice is allocated if it is nil,
-//     otherwise the slice length is reset to zero.
-//     The formats "emitnull" and "emitempty" have no effect when decoding.
+//   - Go 切片从 JSON 数组解码，其中每个 JSON 元素
+//     被递归地解码并追加到 Go 切片。
+//     在追加到 Go 切片之前，如果切片为 nil 则分配新切片，
+//     否则将切片长度重置为零。
+//     格式 "emitnull" 和 "emitempty" 在解码时没有效果。
 //
-//   - A Go array is decoded from a JSON array, where each JSON array element
-//     is recursively decoded as each corresponding Go array element.
-//     Each Go array element is zeroed before decoding into it.
-//     It fails with a [SemanticError] if the JSON array does not contain
-//     the exact same number of elements as the Go array.
-//     It does not support any custom format flags.
+//   - Go 数组从 JSON 数组解码，其中每个 JSON 数组元素
+//     被递归地解码为对应的 Go 数组元素。
+//     每个 Go 数组元素在解码到其中之前被置零。
+//     如果 JSON 数组包含的元素数量与 Go 数组不完全相同，
+//     则失败并返回 [SemanticError]。
+//     它不支持任何自定义格式标志。
 //
-//   - A Go pointer is decoded based on the JSON kind and underlying Go type.
-//     If the input is a JSON null, then this stores a nil pointer.
-//     Otherwise, it allocates a new underlying value if the pointer is nil,
-//     and recursively JSON decodes into the underlying value.
-//     Format flags are forwarded to the decoding of the underlying type.
+//   - Go 指针根据 JSON 种类和底层 Go 类型解码。
+//     如果输入为 JSON null，则存储 nil 指针。
+//     否则，如果指针为 nil 则分配新的底层值，
+//     并将 JSON 递归解码到该底层值中。
+//     格式标志被转发到底层类型的解码。
 //
-//   - A Go interface is decoded based on the JSON kind and underlying Go type.
-//     If the input is a JSON null, then this stores a nil interface value.
-//     Otherwise, a nil interface value of an empty interface type is initialized
-//     with a zero Go bool, string, float64, map[string]any, or []any if the
-//     input is a JSON boolean, string, number, object, or array, respectively.
-//     If the interface value is still nil, then this fails with a [SemanticError]
-//     since decoding could not determine an appropriate Go type to decode into.
-//     For example, unmarshaling into a nil io.Reader fails since
-//     there is no concrete type to populate the interface value with.
-//     Otherwise an underlying value exists and it recursively decodes
-//     the JSON input into it. It does not support any custom format flags.
+//   - Go 接口根据 JSON 种类和底层 Go 类型解码。
+//     如果输入为 JSON null，则存储 nil 接口值。
+//     否则，如果输入分别是 JSON 布尔值、字符串、数字、
+//     对象或数组，则空接口类型的 nil 接口值会被初始化为
+//     零值 Go bool、string、float64、map[string]any 或 []any。
+//     如果接口值仍为 nil，则失败并返回 [SemanticError]，
+//     因为解码无法确定要解码到的合适 Go 类型。
+//     例如，将数据反序列化到 nil io.Reader 会失败，因为
+//     没有具体类型来填充该接口值。
+//     否则，存在底层值，它会将 JSON 输入
+//     递归解码到其中。它不支持任何自定义格式标志。
 //
-//   - A Go [time.Time] is decoded from a JSON string containing the time
-//     formatted in RFC 3339 with nanosecond precision.
-//     If the format matches one of the format constants declared in
-//     the time package (e.g., RFC1123), then that format is used for parsing.
-//     If the format is "unix", "unixmilli", "unixmicro", or "unixnano",
-//     then the timestamp is decoded from an optionally fractional JSON number
-//     of the number of seconds (or milliseconds, microseconds, or nanoseconds)
-//     since the Unix epoch, which is January 1st, 1970 at 00:00:00 UTC.
-//     Otherwise, the format is used as-is with [time.Time.Parse] if non-empty.
+//   - Go [time.Time] 从 JSON 字符串解码，该字符串包含
+//     以 RFC 3339、纳秒精度格式化的时间。
+//     如果格式与 time 包中声明的某个格式常量
+//     匹配（例如 RFC1123），则使用该格式进行解析。
+//     如果格式为 "unix"、"unixmilli"、"unixmicro" 或 "unixnano"，
+//     则时间戳从自 Unix 纪元（即 1970 年 1 月 1 日 00:00:00 UTC）
+//     以来的秒数（或毫秒、微秒或纳秒数）的、
+//     可能为小数的 JSON 数字解码。
+//     否则，如果格式非空，则按原样与 [time.Time.Parse] 一起使用。
 //
-//   - A Go [time.Duration] currently has no default representation and
-//     requires an explicit format to be specified.
-//     If the format is "sec", "milli", "micro", or "nano",
-//     then the duration is decoded from an optionally fractional JSON number
-//     of the number of seconds (or milliseconds, microseconds, or nanoseconds).
-//     If the format is "units", it is decoded from a JSON string parsed using
-//     [time.ParseDuration] (e.g., "1h30m" for 1 hour 30 minutes).
-//     If the format is "iso8601", it is decoded from a JSON string using the
-//     ISO 8601 standard for durations (e.g., "PT1H30M" for 1 hour 30 minutes)
-//     accepting only accurate units of hours, minutes, or seconds.
+//   - Go [time.Duration] 目前没有默认表示形式，
+//     需要显式指定格式。
+//     如果格式为 "sec"、"milli"、"micro" 或 "nano"，
+//     则时长从秒数（或毫秒、微秒或纳秒数）的、
+//     可能为小数的 JSON 数字解码。
+//     如果格式为 "units"，则从使用 [time.ParseDuration]
+//     解析的 JSON 字符串解码（例如 1 小时 30 分钟为 "1h30m"）。
+//     如果格式为 "iso8601"，则从使用 ISO 8601 时长标准
+//     的 JSON 字符串解码（例如 1 小时 30 分钟为 "PT1H30M"），
+//     仅接受小时、分钟或秒这些精确单位。
 //
-//   - All other Go types (e.g., complex numbers, channels, and functions)
-//     have no default representation and result in a [SemanticError].
+//   - 所有其他 Go 类型（例如复数、通道和函数）
+//     没有默认表示形式，将导致 [SemanticError]。
 //
-// In general, unmarshaling follows merge semantics (similar to RFC 7396)
-// where the decoded Go value replaces the destination value
-// for any JSON kind other than an object.
-// For JSON objects, the input object is merged into the destination value
-// where matching object members recursively apply merge semantics.
+// 通常，反序列化遵循合并语义（类似于 RFC 7396），
+// 对于除对象以外的任何 JSON 种类，
+// 解码后的 Go 值会替换目标值。
+// 对于 JSON 对象，输入对象被合并到目标值中，
+// 其中匹配的对象成员会递归地应用合并语义。
 func Unmarshal(in []byte, out any, opts ...Options) (err error) {
 	dec := export.GetBufferedDecoder(in, opts...)
 	defer export.PutBufferedDecoder(dec)
@@ -414,12 +412,12 @@ func Unmarshal(in []byte, out any, opts ...Options) (err error) {
 	return err
 }
 
-// UnmarshalRead deserializes a Go value from an [io.Reader] according to the
-// provided unmarshal and decode options (while ignoring marshal or encode options).
-// The input must be a single JSON value with optional whitespace interspersed.
-// It consumes the entirety of [io.Reader] until [io.EOF] is encountered,
-// without reporting an error for EOF. The output must be a non-nil pointer.
-// See [Unmarshal] for details about the conversion of JSON into a Go value.
+// UnmarshalRead 根据提供的 unmarshal 和 decode 选项（同时忽略 marshal 或 encode 选项）
+// 从 [io.Reader] 反序列化一个 Go 值。
+// 输入必须是一个单一的 JSON 值，可穿插可选的空白。
+// 它消费 [io.Reader] 的全部内容直到遇到 [io.EOF]，
+// 且不将 EOF 报告为错误。输出必须是非 nil 指针。
+// 有关 JSON 转换为 Go 值的细节，参见 [Unmarshal]。
 func UnmarshalRead(in io.Reader, out any, opts ...Options) (err error) {
 	dec := export.GetStreamingDecoder(in, opts...)
 	defer export.PutStreamingDecoder(dec)
@@ -431,18 +429,18 @@ func UnmarshalRead(in io.Reader, out any, opts ...Options) (err error) {
 	return err
 }
 
-// UnmarshalDecode deserializes a Go value from a [jsontext.Decoder] according to
-// the provided unmarshal options (while ignoring marshal, encode, or decode options).
-// Any unmarshal options already specified on the [jsontext.Decoder]
-// take lower precedence than the set of options provided by the caller.
-// Unlike [Unmarshal] and [UnmarshalRead], decode options are ignored because
-// they must have already been specified on the provided [jsontext.Decoder].
+// UnmarshalDecode 根据提供的 unmarshal 选项（同时忽略 marshal、encode 或 decode 选项）
+// 从 [jsontext.Decoder] 反序列化一个 Go 值。
+// 已在 [jsontext.Decoder] 上指定的任何 unmarshal 选项，
+// 其优先级都低于调用方提供的选项集。
+// 与 [Unmarshal] 和 [UnmarshalRead] 不同，decode 选项被忽略，因为
+// 它们必须已经在所提供的 [jsontext.Decoder] 上指定。
 //
-// The input may be a stream of zero or more JSON values,
-// where this only unmarshals the next JSON value in the stream.
-// If there are no more top-level JSON values, it reports [io.EOF].
-// The output must be a non-nil pointer.
-// See [Unmarshal] for details about the conversion of JSON into a Go value.
+// 输入可以是零个或多个 JSON 值的流，
+// 此处仅反序列化流中的下一个 JSON 值。
+// 如果没有更多顶层 JSON 值，则报告 [io.EOF]。
+// 输出必须是非 nil 指针。
+// 有关 JSON 转换为 Go 值的细节，参见 [Unmarshal]。
 func UnmarshalDecode(in *jsontext.Decoder, out any, opts ...Options) (err error) {
 	xd := export.Decoder(in)
 	if len(opts) > 0 {
@@ -462,11 +460,11 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct, last bo
 	if v.Kind() != reflect.Pointer || v.IsNil() {
 		return &SemanticError{action: "unmarshal", GoType: reflect.TypeOf(out), Err: internal.ErrNonNilReference}
 	}
-	va := addressableValue{v.Elem(), false} // dereferenced pointer is always addressable
+	va := addressableValue{v.Elem(), false} // 解引用后的指针始终可寻址
 	t := va.Type()
 
-	// In legacy semantics, the entirety of the next JSON value
-	// was validated before attempting to unmarshal it.
+	// 在旧版语义中，下一个 JSON 值的整体
+	// 会在尝试反序列化之前被验证。
 	if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
 		if err := export.Decoder(in).CheckNextValue(last); err != nil {
 			if err == io.EOF && last {
@@ -477,7 +475,7 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct, last bo
 		}
 	}
 
-	// Lookup and call the unmarshal function for this type.
+	// 查找并调用此类型的 unmarshal 函数。
 	unmarshal := lookupArshaler(t).unmarshal
 	if uo.Unmarshalers != nil {
 		unmarshal, _ = uo.Unmarshalers.(*Unmarshalers).lookup(unmarshal, t)
@@ -498,34 +496,34 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct, last bo
 	return nil
 }
 
-// addressableValue is a reflect.Value that is guaranteed to be addressable
-// such that calling the Addr and Set methods do not panic.
+// addressableValue 是一个 reflect.Value，它保证可寻址，
+// 因此调用 Addr 和 Set 方法不会 panic。
 //
-// There is no compile magic that enforces this property,
-// but rather the need to construct this type makes it easier to examine each
-// construction site to ensure that this property is upheld.
+// 没有编译魔法来强制实施这一属性，
+// 而是构造此类型的必要性使得更容易检查每个
+// 构造点，以确保该属性得到维护。
 type addressableValue struct {
 	reflect.Value
 
-	// forcedAddr reports whether this value is addressable
-	// only through the use of [newAddressableValue].
-	// This is only used for [jsonflags.CallMethodsWithLegacySemantics].
+	// forcedAddr 报告此值是否仅通过
+	// 使用 [newAddressableValue] 而可寻址。
+	// 它仅用于 [jsonflags.CallMethodsWithLegacySemantics]。
 	forcedAddr bool
 }
 
-// newAddressableValue constructs a new addressable value of type t.
+// newAddressableValue 构造一个类型为 t 的新可寻址值。
 func newAddressableValue(t reflect.Type) addressableValue {
 	return addressableValue{reflect.New(t).Elem(), true}
 }
 
-// TODO: Remove *jsonopts.Struct argument from [marshaler] and [unmarshaler].
-// This can be directly accessed on the encoder or decoder.
+// TODO: 从 [marshaler] 和 [unmarshaler] 中移除 *jsonopts.Struct 参数。
+// 它可以直接在 encoder 或 decoder 上访问。
 
-// All marshal and unmarshal behavior is implemented using these signatures.
-// The *jsonopts.Struct argument is guaranteed to identical to or at least
-// a strict super-set of the options in Encoder.Struct or Decoder.Struct.
-// It is identical for Marshal, Unmarshal, MarshalWrite, and UnmarshalRead.
-// It is a super-set for MarshalEncode and UnmarshalDecode.
+// 所有 marshal 和 unmarshal 行为都使用这些签名实现。
+// 保证 *jsonopts.Struct 参数与 Encoder.Struct 或 Decoder.Struct 中的选项
+// 相同，或至少是其严格超集。
+// 对于 Marshal、Unmarshal、MarshalWrite 和 UnmarshalRead，它相同。
+// 对于 MarshalEncode 和 UnmarshalDecode，它是超集。
 type (
 	marshaler   = func(*jsontext.Encoder, addressableValue, *jsonopts.Struct) error
 	unmarshaler = func(*jsontext.Decoder, addressableValue, *jsonopts.Struct) error
@@ -548,7 +546,7 @@ func lookupArshaler(t reflect.Type) *arshaler {
 	fncs = makeMethodArshaler(fncs, t)
 	fncs = makeTimeArshaler(fncs, t)
 
-	// Use the last stored so that duplicate arshalers can be garbage collected.
+	// 使用最后存储的那个，以便重复的 arshaler 可以被垃圾回收。
 	v, _ := lookupArshalerCache.LoadOrStore(t, fncs)
 	return v.(*arshaler)
 }
@@ -557,7 +555,7 @@ var stringsPools = &sync.Pool{New: func() any { return new(stringSlice) }}
 
 type stringSlice []string
 
-// getStrings returns a non-nil pointer to a slice with length n.
+// getStrings 返回一个指向长度为 n 的切片的非 nil 指针。
 func getStrings(n int) *stringSlice {
 	s := stringsPools.Get().(*stringSlice)
 	if cap(*s) < n {
@@ -569,8 +567,8 @@ func getStrings(n int) *stringSlice {
 
 func putStrings(s *stringSlice) {
 	if cap(*s) > 1<<10 {
-		*s = nil // avoid pinning arbitrarily large amounts of memory
+		*s = nil // 避免固定任意大的内存量
 	}
-	clear(*s) // avoid pinning a reference to each string
+	clear(*s) // 避免固定对每个字符串的引用
 	stringsPools.Put(s)
 }

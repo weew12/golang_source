@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package xml implements a simple XML 1.0 parser that
-// understands XML name spaces.
+// Package xml 实现了一个简单的 XML 1.0 解析器，
+// 它能理解 XML 命名空间。
 package xml
 
-// References:
-//    Annotated XML spec: https://www.xml.com/axml/testaxml.htm
-//    XML name spaces: https://www.w3.org/TR/REC-xml-names/
+// 参考资料：
+//    带注解的 XML 规范：https://www.xml.com/axml/testaxml.htm
+//    XML 命名空间：https://www.w3.org/TR/REC-xml-names/
 
 import (
 	"bufio"
@@ -22,7 +22,7 @@ import (
 	"unicode/utf8"
 )
 
-// A SyntaxError represents a syntax error in the XML input stream.
+// SyntaxError 表示 XML 输入流中的一个语法错误。
 type SyntaxError struct {
 	Msg  string
 	Line int
@@ -32,32 +32,32 @@ func (e *SyntaxError) Error() string {
 	return "XML syntax error on line " + strconv.Itoa(e.Line) + ": " + e.Msg
 }
 
-// A Name represents an XML name (Local) annotated
-// with a name space identifier (Space).
-// In tokens returned by [Decoder.Token], the Space identifier
-// is given as a canonical URL, not the short prefix used
-// in the document being parsed.
+// Name 表示一个 XML 名称（Local），
+// 并标注了命名空间标识符（Space）。
+// 在 [Decoder.Token] 返回的 token 中，Space 标识符
+// 以规范化 URL 的形式给出，而不是被解析文档中
+// 使用的短前缀。
 type Name struct {
 	Space, Local string
 }
 
-// An Attr represents an attribute in an XML element (Name=Value).
+// Attr 表示 XML 元素中的一个属性（Name=Value）。
 type Attr struct {
 	Name  Name
 	Value string
 }
 
-// A Token is an interface holding one of the token types:
-// [StartElement], [EndElement], [CharData], [Comment], [ProcInst], or [Directive].
+// Token 是一个接口，持有以下 token 类型之一：
+// [StartElement]、[EndElement]、[CharData]、[Comment]、[ProcInst] 或 [Directive]。
 type Token any
 
-// A StartElement represents an XML start element.
+// StartElement 表示一个 XML 起始元素。
 type StartElement struct {
 	Name Name
 	Attr []Attr
 }
 
-// Copy creates a new copy of StartElement.
+// Copy 创建 StartElement 的新副本。
 func (e StartElement) Copy() StartElement {
 	attrs := make([]Attr, len(e.Attr))
 	copy(attrs, e.Attr)
@@ -65,51 +65,51 @@ func (e StartElement) Copy() StartElement {
 	return e
 }
 
-// End returns the corresponding XML end element.
+// End 返回对应的 XML 结束元素。
 func (e StartElement) End() EndElement {
 	return EndElement{e.Name}
 }
 
-// An EndElement represents an XML end element.
+// EndElement 表示一个 XML 结束元素。
 type EndElement struct {
 	Name Name
 }
 
-// A CharData represents XML character data (raw text),
-// in which XML escape sequences have been replaced by
-// the characters they represent.
+// CharData 表示 XML 字符数据（原始文本），
+// 其中的 XML 转义序列已被替换为
+// 它们所代表的字符。
 type CharData []byte
 
-// Copy creates a new copy of CharData.
+// Copy 创建 CharData 的新副本。
 func (c CharData) Copy() CharData { return CharData(bytes.Clone(c)) }
 
-// A Comment represents an XML comment of the form <!--comment-->.
-// The bytes do not include the <!-- and --> comment markers.
+// Comment 表示形如 <!--comment--> 的 XML 注释。
+// 其字节内容不包含 <!-- 和 --> 注释标记。
 type Comment []byte
 
-// Copy creates a new copy of Comment.
+// Copy 创建 Comment 的新副本。
 func (c Comment) Copy() Comment { return Comment(bytes.Clone(c)) }
 
-// A ProcInst represents an XML processing instruction of the form <?target inst?>
+// ProcInst 表示形如 <?target inst?> 的 XML 处理指令。
 type ProcInst struct {
 	Target string
 	Inst   []byte
 }
 
-// Copy creates a new copy of ProcInst.
+// Copy 创建 ProcInst 的新副本。
 func (p ProcInst) Copy() ProcInst {
 	p.Inst = bytes.Clone(p.Inst)
 	return p
 }
 
-// A Directive represents an XML directive of the form <!text>.
-// The bytes do not include the <! and > markers.
+// Directive 表示形如 <!text> 的 XML 指令。
+// 其字节内容不包含 <! 和 > 标记。
 type Directive []byte
 
-// Copy creates a new copy of Directive.
+// Copy 创建 Directive 的新副本。
 func (d Directive) Copy() Directive { return Directive(bytes.Clone(d)) }
 
-// CopyToken returns a copy of a Token.
+// CopyToken 返回 Token 的副本。
 func CopyToken(t Token) Token {
 	switch v := t.(type) {
 	case CharData:
@@ -126,57 +126,53 @@ func CopyToken(t Token) Token {
 	return t
 }
 
-// A TokenReader is anything that can decode a stream of XML tokens, including a
-// [Decoder].
+// TokenReader 是任何能够解码 XML token 流的东西，包括
+// [Decoder]。
 //
-// When Token encounters an error or end-of-file condition after successfully
-// reading a token, it returns the token. It may return the (non-nil) error from
-// the same call or return the error (and a nil token) from a subsequent call.
-// An instance of this general case is that a TokenReader returning a non-nil
-// token at the end of the token stream may return either io.EOF or a nil error.
-// The next Read should return nil, [io.EOF].
+// 当 Token 在成功读取一个 token 之后遇到错误或文件结束（EOF）条件时，
+// 它会返回该 token。它既可能在同一次调用中返回（非 nil 的）错误，
+// 也可能在后续调用中返回该错误（以及一个 nil token）。
+// 这种一般情况的一个例子是：在 token 流末尾返回非 nil token 的
+// TokenReader 可以返回 io.EOF 或 nil 错误。
+// 下一次 Read 应返回 nil、[io.EOF]。
 //
-// Implementations of Token are discouraged from returning a nil token with a
-// nil error. Callers should treat a return of nil, nil as indicating that
-// nothing happened; in particular it does not indicate EOF.
+// 不建议 Token 的实现返回 nil token 搭配 nil 错误。调用者应将
+// 返回 nil、nil 视为未发生任何事；尤其是它并不表示 EOF。
 type TokenReader interface {
 	Token() (Token, error)
 }
 
-// A Decoder represents an XML parser reading a particular input stream.
-// The parser assumes that its input is encoded in UTF-8.
+// Decoder 表示一个读取特定输入流的 XML 解析器。
+// 该解析器假定其输入以 UTF-8 编码。
 type Decoder struct {
-	// Strict defaults to true, enforcing the requirements
-	// of the XML specification.
-	// If set to false, the parser allows input containing common
-	// mistakes:
-	//	* If an element is missing an end tag, the parser invents
-	//	  end tags as necessary to keep the return values from Token
-	//	  properly balanced.
-	//	* In attribute values and character data, unknown or malformed
-	//	  character entities (sequences beginning with &) are left alone.
+	// Strict 默认为 true，强制遵守 XML 规范的要求。
+	// 如果设为 false，解析器允许包含常见错误的输入：
+	//	* 如果某个元素缺少结束标签，解析器会按需虚构
+	//	  结束标签，以使 Token 的返回值保持正确配对。
+	//	* 在属性值和字符数据中，未知或格式错误的
+	//	  字符实体（以 & 开头的序列）将保持原样。
 	//
-	// Setting:
+	// 设置：
 	//
 	//	d.Strict = false
 	//	d.AutoClose = xml.HTMLAutoClose
 	//	d.Entity = xml.HTMLEntity
 	//
-	// creates a parser that can handle typical HTML.
+	// 可创建能处理典型 HTML 的解析器。
 	//
-	// Strict mode does not enforce the requirements of the XML name spaces TR.
-	// In particular it does not reject name space tags using undefined prefixes.
-	// Such tags are recorded with the unknown prefix as the name space URL.
+	// Strict 模式不强制遵守 XML 命名空间 TR 的要求。
+	// 尤其是它不会拒绝使用未定义前缀的命名空间标签。
+	// 这类标签会以未知前缀作为命名空间 URL 记录下来。
 	Strict bool
 
-	// When Strict == false, AutoClose indicates a set of elements to
-	// consider closed immediately after they are opened, regardless
-	// of whether an end element is present.
+	// 当 Strict == false 时，AutoClose 指示一组元素，
+	// 它们在打开之后立即被视为已关闭，无论
+	// 是否存在结束元素。
 	AutoClose []string
 
-	// Entity can be used to map non-standard entity names to string replacements.
-	// The parser behaves as if these standard mappings are present in the map,
-	// regardless of the actual map content:
+	// Entity 可用于将非标准实体名称映射到字符串替换。
+	// 无论该 map 的实际内容如何，解析器的行为都如同
+	// 这些标准映射存在于 map 中：
 	//
 	//	"lt": "<",
 	//	"gt": ">",
@@ -185,16 +181,16 @@ type Decoder struct {
 	//	"quot": `"`,
 	Entity map[string]string
 
-	// CharsetReader, if non-nil, defines a function to generate
-	// charset-conversion readers, converting from the provided
-	// non-UTF-8 charset into UTF-8. If CharsetReader is nil or
-	// returns an error, parsing stops with an error. One of the
-	// CharsetReader's result values must be non-nil.
+	// CharsetReader 若为非 nil，则定义一个函数来生成
+	// 字符集转换读取器，将提供的非 UTF-8 字符集
+	// 转换为 UTF-8。如果 CharsetReader 为 nil 或
+	// 返回错误，解析会以错误停止。CharsetReader 的
+	// 结果值之一必须为非 nil。
 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
 
-	// DefaultSpace sets the default name space used for unadorned tags,
-	// as if the entire XML stream were wrapped in an element containing
-	// the attribute xmlns="DefaultSpace".
+	// DefaultSpace 设置用于无修饰标签的默认命名空间，
+	// 就如同整个 XML 流被包裹在一个包含
+	// 属性 xmlns="DefaultSpace" 的元素中一样。
 	DefaultSpace string
 
 	r              io.ByteReader
@@ -215,9 +211,9 @@ type Decoder struct {
 	unmarshalDepth int
 }
 
-// NewDecoder creates a new XML parser reading from r.
-// If r does not implement [io.ByteReader], NewDecoder will
-// do its own buffering.
+// NewDecoder 创建一个从 r 读取的新的 XML 解析器。
+// 如果 r 未实现 [io.ByteReader]，NewDecoder 将
+// 自行进行缓冲。
 func NewDecoder(r io.Reader) *Decoder {
 	d := &Decoder{
 		ns:       make(map[string]string),
@@ -229,9 +225,9 @@ func NewDecoder(r io.Reader) *Decoder {
 	return d
 }
 
-// NewTokenDecoder creates a new XML parser using an underlying token stream.
+// NewTokenDecoder 使用底层 token 流创建一个新的 XML 解析器。
 func NewTokenDecoder(t TokenReader) *Decoder {
-	// Is it already a Decoder?
+	// 它已经是 Decoder 了吗？
 	if d, ok := t.(*Decoder); ok {
 		return d
 	}
@@ -245,32 +241,29 @@ func NewTokenDecoder(t TokenReader) *Decoder {
 	return d
 }
 
-// Token returns the next XML token in the input stream.
-// At the end of the input stream, Token returns nil, [io.EOF].
+// Token 返回输入流中的下一个 XML token。
+// 在输入流末尾，Token 返回 nil、[io.EOF]。
 //
-// Slices of bytes in the returned token data refer to the
-// parser's internal buffer and remain valid only until the next
-// call to Token. To acquire a copy of the bytes, call [CopyToken]
-// or the token's Copy method.
+// 返回的 token 数据中的字节切片引用解析器的
+// 内部缓冲区，仅在下一次调用 Token 之前有效。
+// 若要获取字节的副本，请调用 [CopyToken]
+// 或该 token 的 Copy 方法。
 //
-// Token expands self-closing elements such as <br>
-// into separate start and end elements returned by successive calls.
+// Token 会将诸如 <br> 这样的自闭合元素
+// 展开为通过连续调用返回的独立起始和结束元素。
 //
-// Token guarantees that the [StartElement] and [EndElement]
-// tokens it returns are properly nested and matched:
-// if Token encounters an unexpected end element
-// or EOF before all expected end elements,
-// it will return an error.
+// Token 保证它返回的 [StartElement] 和 [EndElement]
+// token 正确嵌套且配对：如果 Token 在所有预期的结束元素
+// 之前遇到意外的结束元素或 EOF，它将返回一个错误。
 //
-// If [Decoder.CharsetReader] is called and returns an error,
-// the error is wrapped and returned.
+// 如果调用了 [Decoder.CharsetReader] 并返回错误，
+// 该错误会被包装并返回。
 //
-// Token implements XML name spaces as described by
-// https://www.w3.org/TR/REC-xml-names/. Each of the
-// [Name] structures contained in the Token has the Space
-// set to the URL identifying its name space when known.
-// If Token encounters an unrecognized name space prefix,
-// it uses the prefix as the Space rather than report an error.
+// Token 按 https://www.w3.org/TR/REC-xml-names/ 所述
+// 实现 XML 命名空间。Token 中包含的每个 [Name]
+// 结构在已知时都会将 Space 设置为标识其命名空间的 URL。
+// 如果 Token 遇到无法识别的命名空间前缀，
+// 它会使用该前缀作为 Space，而不是报告错误。
 func (d *Decoder) Token() (Token, error) {
 	var t Token
 	var err error
@@ -287,8 +280,8 @@ func (d *Decoder) Token() (Token, error) {
 			}
 			return nil, err
 		}
-		// We still have a token to process, so clear any
-		// errors (e.g. EOF) and proceed.
+		// 我们还有一个 token 需要处理，因此清除
+		// 任何错误（例如 EOF）并继续。
 		err = nil
 	}
 	if !d.Strict {
@@ -299,10 +292,9 @@ func (d *Decoder) Token() (Token, error) {
 	}
 	switch t1 := t.(type) {
 	case StartElement:
-		// In XML name spaces, the translations listed in the
-		// attributes apply to the element name and
-		// to the other attribute names, so process
-		// the translations first.
+		// 在 XML 命名空间中，属性中列出的翻译
+		// 会应用于元素名称和其他属性名称，
+		// 因此先处理这些翻译。
 		for _, a := range t1.Attr {
 			if a.Name.Space == xmlnsPrefix {
 				v, ok := d.ns[a.Name.Local]
@@ -310,7 +302,7 @@ func (d *Decoder) Token() (Token, error) {
 				d.ns[a.Name.Local] = a.Value
 			}
 			if a.Name.Space == "" && a.Name.Local == xmlnsPrefix {
-				// Default space for untagged names
+				// 无标签名称的默认命名空间
 				v, ok := d.ns[""]
 				d.pushNs("", v, ok)
 				d.ns[""] = a.Value
@@ -339,9 +331,9 @@ const (
 	xmlPrefix   = "xml"
 )
 
-// Apply name space translation to name n.
-// The default name space (for Space=="")
-// applies only to element names, not to attribute names.
+// 对名称 n 应用命名空间翻译。
+// 默认命名空间（Space==""）仅应用于
+// 元素名称，而不应用于属性名称。
 func (d *Decoder) translate(n *Name, isElementName bool) {
 	switch {
 	case n.Space == xmlnsPrefix:
@@ -361,10 +353,10 @@ func (d *Decoder) translate(n *Name, isElementName bool) {
 }
 
 func (d *Decoder) switchToReader(r io.Reader) {
-	// Get efficient byte at a time reader.
-	// Assume that if reader has its own
-	// ReadByte, it's efficient enough.
-	// Otherwise, use bufio.
+	// 获取高效的逐字节读取器。
+	// 假定如果 reader 有自己的
+	// ReadByte，它就足够高效。
+	// 否则使用 bufio。
 	if rb, ok := r.(io.ByteReader); ok {
 		d.r = rb
 	} else {
@@ -372,10 +364,9 @@ func (d *Decoder) switchToReader(r io.Reader) {
 	}
 }
 
-// Parsing state - stack holds old name space translations
-// and the current set of open elements. The translations to pop when
-// ending a given tag are *below* it on the stack, which is
-// more work but forced on us by XML.
+// 解析状态 —— 栈保存旧的命名空间翻译
+// 以及当前打开的元素集合。结束给定标签时需要弹出的翻译
+// 位于栈中该标签的*下方*，这更费事，但这是 XML 强加给我们的。
 type stack struct {
 	next *stack
 	kind int
@@ -412,19 +403,18 @@ func (d *Decoder) pop() *stack {
 	return s
 }
 
-// Record that after the current element is finished
-// (that element is already pushed on the stack)
-// Token should return EOF until popEOF is called.
+// 记录：在当前元素完成之后（该元素已经压入栈），
+// 在调用 popEOF 之前，Token 应返回 EOF。
 func (d *Decoder) pushEOF() {
-	// Walk down stack to find Start.
-	// It might not be the top, because there might be stkNs
-	// entries above it.
+	// 沿栈向下查找 Start。
+	// 它可能不在栈顶，因为其上方可能有
+	// stkNs 条目。
 	start := d.stk
 	for start.kind != stkStart {
 		start = start.next
 	}
-	// The stkNs entries below a start are associated with that
-	// element too; skip over them.
+	// start 下方的 stkNs 条目也与该元素相关联；
+	// 跳过它们。
 	for start.next != nil && start.next.kind == stkNs {
 		start = start.next
 	}
@@ -439,8 +429,8 @@ func (d *Decoder) pushEOF() {
 	start.next = s
 }
 
-// Undo a pushEOF.
-// The element must have been finished, so the EOF should be at the top of the stack.
+// 撤销一次 pushEOF。
+// 该元素必定已经完成，因此 EOF 应位于栈顶。
 func (d *Decoder) popEOF() bool {
 	if d.stk == nil || d.stk.kind != stkEOF {
 		return false
@@ -449,14 +439,14 @@ func (d *Decoder) popEOF() bool {
 	return true
 }
 
-// Record that we are starting an element with the given name.
+// 记录我们正在开始一个具有给定名称的元素。
 func (d *Decoder) pushElement(name Name) {
 	s := d.push(stkStart)
 	s.name = name
 }
 
-// Record that we are changing the value of ns[local].
-// The old value is url, ok.
+// 记录我们正在更改 ns[local] 的值。
+// 旧值为 url、ok。
 func (d *Decoder) pushNs(local string, url string, ok bool) {
 	s := d.push(stkNs)
 	s.name.Local = local
@@ -464,17 +454,17 @@ func (d *Decoder) pushNs(local string, url string, ok bool) {
 	s.ok = ok
 }
 
-// Creates a SyntaxError with the current line number.
+// 使用当前行号创建一个 SyntaxError。
 func (d *Decoder) syntaxError(msg string) error {
 	return &SyntaxError{Msg: msg, Line: d.line}
 }
 
-// Record that we are ending an element with the given name.
-// The name must match the record at the top of the stack,
-// which must be a pushElement record.
-// After popping the element, apply any undo records from
-// the stack to restore the name translations that existed
-// before we saw this element.
+// 记录我们正在结束一个具有给定名称的元素。
+// 该名称必须与栈顶的记录匹配，
+// 该记录必须是 pushElement 记录。
+// 弹出该元素后，应用栈中的任何撤销记录，
+// 以恢复在我们看到此元素之前
+// 存在的名称翻译。
 func (d *Decoder) popElement(t *EndElement) bool {
 	s := d.pop()
 	name := t.Name
@@ -503,8 +493,8 @@ func (d *Decoder) popElement(t *EndElement) bool {
 
 	d.translate(&t.Name, true)
 
-	// Pop stack until a Start or EOF is on the top, undoing the
-	// translations that were associated with the element we just closed.
+	// 弹出栈直到 Start 或 EOF 位于栈顶，同时撤销
+	// 与我们刚刚关闭的元素相关联的翻译。
 	for d.stk != nil && d.stk.kind != stkStart && d.stk.kind != stkEOF {
 		s := d.pop()
 		if s.ok {
@@ -517,15 +507,15 @@ func (d *Decoder) popElement(t *EndElement) bool {
 	return true
 }
 
-// If the top element on the stack is autoclosing and
-// t is not the end tag, invent the end tag.
+// 如果栈顶元素正在自动关闭，
+// 且 t 不是其结束标签，则虚构结束标签。
 func (d *Decoder) autoClose(t Token) (Token, bool) {
 	if d.stk == nil || d.stk.kind != stkStart {
 		return nil, false
 	}
 	for _, s := range d.AutoClose {
 		if strings.EqualFold(s, d.stk.name.Local) {
-			// This one should be auto closed if t doesn't close it.
+			// 如果 t 没有关闭它，则这一个应被自动关闭。
 			et, ok := t.(EndElement)
 			if !ok || !strings.EqualFold(et.Name.Local, d.stk.name.Local) {
 				return EndElement{d.stk.name}, true
@@ -538,9 +528,9 @@ func (d *Decoder) autoClose(t Token) (Token, bool) {
 
 var errRawToken = errors.New("xml: cannot use RawToken from UnmarshalXML method")
 
-// RawToken is like [Decoder.Token] but does not verify that
-// start and end elements match and does not translate
-// name space prefixes to their corresponding URLs.
+// RawToken 类似 [Decoder.Token]，但不验证
+// 起始和结束元素是否匹配，也不将
+// 命名空间前缀翻译为它们对应的 URL。
 func (d *Decoder) RawToken() (Token, error) {
 	if d.unmarshalDepth > 0 {
 		return nil, errRawToken
@@ -556,9 +546,9 @@ func (d *Decoder) rawToken() (Token, error) {
 		return nil, d.err
 	}
 	if d.needClose {
-		// The last element we read was self-closing and
-		// we returned just the StartElement half.
-		// Return the EndElement half now.
+		// 我们读取的最后一个元素是自闭合的，
+		// 我们只返回了 StartElement 那一半。
+		// 现在返回 EndElement 那一半。
 		d.needClose = false
 		return EndElement{d.toClose}, nil
 	}
@@ -569,7 +559,7 @@ func (d *Decoder) rawToken() (Token, error) {
 	}
 
 	if b != '<' {
-		// Text section.
+		// 文本部分。
 		d.ungetc(b)
 		data := d.text(-1, false)
 		if data == nil {
@@ -583,7 +573,7 @@ func (d *Decoder) rawToken() (Token, error) {
 	}
 	switch b {
 	case '/':
-		// </: End element
+		// </：结束元素
 		var name Name
 		if name, ok = d.nsname(); !ok {
 			if d.err == nil {
@@ -602,7 +592,7 @@ func (d *Decoder) rawToken() (Token, error) {
 		return EndElement{name}, nil
 
 	case '?':
-		// <?: Processing instruction.
+		// <?：处理指令。
 		var target string
 		if target, ok = d.name(); !ok {
 			if d.err == nil {
@@ -624,7 +614,7 @@ func (d *Decoder) rawToken() (Token, error) {
 			b0 = b
 		}
 		data := d.buf.Bytes()
-		data = data[0 : len(data)-2] // chop ?>
+		data = data[0 : len(data)-2] // 截掉 ?>
 
 		if target == "xml" {
 			content := string(data)
@@ -653,13 +643,13 @@ func (d *Decoder) rawToken() (Token, error) {
 		return ProcInst{target, data}, nil
 
 	case '!':
-		// <!: Maybe comment, maybe CDATA.
+		// <!：可能是注释，也可能是 CDATA。
 		if b, ok = d.mustgetc(); !ok {
 			return nil, d.err
 		}
 		switch b {
 		case '-': // <!-
-			// Probably <!-- for a comment.
+			// 可能是 <!--，即注释。
 			if b, ok = d.mustgetc(); !ok {
 				return nil, d.err
 			}
@@ -667,7 +657,7 @@ func (d *Decoder) rawToken() (Token, error) {
 				d.err = d.syntaxError("invalid sequence <!- not part of <!--")
 				return nil, d.err
 			}
-			// Look for terminator.
+			// 查找终止符。
 			d.buf.Reset()
 			var b0, b1 byte
 			for {
@@ -686,11 +676,11 @@ func (d *Decoder) rawToken() (Token, error) {
 				b0, b1 = b1, b
 			}
 			data := d.buf.Bytes()
-			data = data[0 : len(data)-3] // chop -->
+			data = data[0 : len(data)-3] // 截掉 -->
 			return Comment(data), nil
 
 		case '[': // <![
-			// Probably <![CDATA[.
+			// 可能是 <![CDATA[。
 			for i := 0; i < 6; i++ {
 				if b, ok = d.mustgetc(); !ok {
 					return nil, d.err
@@ -700,7 +690,7 @@ func (d *Decoder) rawToken() (Token, error) {
 					return nil, d.err
 				}
 			}
-			// Have <![CDATA[.  Read text until ]]>.
+			// 已遇到 <![CDATA[。读取文本直到 ]]>。
 			data := d.text(-1, true)
 			if data == nil {
 				return nil, d.err
@@ -708,9 +698,9 @@ func (d *Decoder) rawToken() (Token, error) {
 			return CharData(data), nil
 		}
 
-		// Probably a directive: <!DOCTYPE ...>, <!ENTITY ...>, etc.
-		// We don't care, but accumulate for caller. Quoted angle
-		// brackets do not count for nesting.
+		// 可能是一条指令：<!DOCTYPE ...>、<!ENTITY ...> 等。
+		// 我们不关心其内容，但会为调用者累积。引号内的尖括号
+		// 不计入嵌套。
 		d.buf.Reset()
 		d.buf.WriteByte(b)
 		inquote := uint8(0)
@@ -729,7 +719,7 @@ func (d *Decoder) rawToken() (Token, error) {
 				inquote = 0
 
 			case inquote != 0:
-				// in quotes, no special action
+				// 在引号内，无特殊操作
 
 			case b == '\'' || b == '"':
 				inquote = b
@@ -738,7 +728,7 @@ func (d *Decoder) rawToken() (Token, error) {
 				depth--
 
 			case b == '<' && inquote == 0:
-				// Look for <!-- to begin comment.
+				// 查找 <!-- 以开始注释。
 				s := "!--"
 				for i := 0; i < len(s); i++ {
 					if b, ok = d.mustgetc(); !ok {
@@ -753,10 +743,10 @@ func (d *Decoder) rawToken() (Token, error) {
 					}
 				}
 
-				// Remove < that was written above.
+				// 移除上面写入的 <。
 				d.buf.Truncate(d.buf.Len() - 1)
 
-				// Look for terminator.
+				// 查找终止符。
 				var b0, b1 byte
 				for {
 					if b, ok = d.mustgetc(); !ok {
@@ -768,17 +758,17 @@ func (d *Decoder) rawToken() (Token, error) {
 					b0, b1 = b1, b
 				}
 
-				// Replace the comment with a space in the returned Directive
-				// body, so that markup parts that were separated by the comment
-				// (like a "<" and a "!") don't get joined when re-encoding the
-				// Directive, taking new semantic meaning.
+				// 在返回的 Directive 主体中用空格替换注释，
+				// 这样被注释分隔的标记部分（例如 "<" 和 "!"）
+				// 在重新编码 Directive 时不会被连接起来
+				// 而产生新的语义。
 				d.buf.WriteByte(' ')
 			}
 		}
 		return Directive(d.buf.Bytes()), nil
 	}
 
-	// Must be an open element like <a href="foo">
+	// 必定是一个打开的元素，如 <a href="foo">
 	d.ungetc(b)
 
 	var (
@@ -855,16 +845,16 @@ func (d *Decoder) attrval() []byte {
 	if !ok {
 		return nil
 	}
-	// Handle quoted attribute values
+	// 处理带引号的属性值
 	if b == '"' || b == '\'' {
 		return d.text(int(b), false)
 	}
-	// Handle unquoted attribute values for strict parsers
+	// 为严格解析器处理不带引号的属性值
 	if d.Strict {
 		d.err = d.syntaxError("unquoted or missing attribute value in element")
 		return nil
 	}
-	// Handle unquoted attribute values for unstrict parsers
+	// 为非严格解析器处理不带引号的属性值
 	d.ungetc(b)
 	d.buf.Reset()
 	for {
@@ -884,7 +874,7 @@ func (d *Decoder) attrval() []byte {
 	return d.buf.Bytes()
 }
 
-// Skip spaces if any
+// 跳过空白（如有）
 func (d *Decoder) space() {
 	for {
 		b, ok := d.getc()
@@ -900,10 +890,10 @@ func (d *Decoder) space() {
 	}
 }
 
-// Read a single byte.
-// If there is no byte to read, return ok==false
-// and leave the error in d.err.
-// Maintain line number.
+// 读取单个字节。
+// 如果没有可读取的字节，返回 ok==false
+// 并将错误留在 d.err 中。
+// 维护行号。
 func (d *Decoder) getc() (b byte, ok bool) {
 	if d.err != nil {
 		return 0, false
@@ -928,22 +918,21 @@ func (d *Decoder) getc() (b byte, ok bool) {
 	return b, true
 }
 
-// InputOffset returns the input stream byte offset of the current decoder position.
-// The offset gives the location of the end of the most recently returned token
-// and the beginning of the next token.
+// InputOffset 返回当前解码器位置在输入流中的字节偏移量。
+// 该偏移量给出最近返回的 token 的结尾
+// 以及下一个 token 的开头的位置。
 func (d *Decoder) InputOffset() int64 {
 	return d.offset
 }
 
-// InputPos returns the line of the current decoder position and the 1 based
-// input position of the line. The position gives the location of the end of the
-// most recently returned token.
+// InputPos 返回当前解码器位置所在的行以及该行内从 1 开始的
+// 输入位置。该位置给出最近返回的 token 的结尾位置。
 func (d *Decoder) InputPos() (line, column int) {
 	return d.line, int(d.offset-d.linestart) + 1
 }
 
-// Return saved offset.
-// If we did ungetc (nextByte >= 0), have to back up one.
+// 返回已保存的偏移量。
+// 如果我们执行过 ungetc（nextByte >= 0），则必须回退一个。
 func (d *Decoder) savedOffset() int {
 	n := d.saved.Len()
 	if d.nextByte >= 0 {
@@ -952,10 +941,10 @@ func (d *Decoder) savedOffset() int {
 	return n
 }
 
-// Must read a single byte.
-// If there is no byte to read,
-// set d.err to SyntaxError("unexpected EOF")
-// and return ok==false
+// 必须读取单个字节。
+// 如果没有可读取的字节，
+// 将 d.err 设为 SyntaxError("unexpected EOF")
+// 并返回 ok==false
 func (d *Decoder) mustgetc() (b byte, ok bool) {
 	if b, ok = d.getc(); !ok {
 		if d.err == io.EOF {
@@ -965,7 +954,7 @@ func (d *Decoder) mustgetc() (b byte, ok bool) {
 	return
 }
 
-// Unread a single byte.
+// 撤销读取一个字节。
 func (d *Decoder) ungetc(b byte) {
 	if b == '\n' {
 		d.line--
@@ -982,10 +971,10 @@ var entity = map[string]rune{
 	"quot": '"',
 }
 
-// Read plain text section (XML calls it character data).
-// If quote >= 0, we are in a quoted string and need to find the matching quote.
-// If cdata == true, we are in a <![CDATA[ section and need to find ]]>.
-// On failure return nil and leave the error in d.err.
+// 读取纯文本部分（XML 称之为字符数据）。
+// 如果 quote >= 0，我们处于带引号的字符串中，需要找到匹配的引号。
+// 如果 cdata == true，我们处于 <![CDATA[ 区段中，需要找到 ]]>。
+// 失败时返回 nil 并将错误留在 d.err 中。
 func (d *Decoder) text(quote int, cdata bool) []byte {
 	var b0, b1 byte
 	var trunc int
@@ -1003,9 +992,9 @@ Input:
 			break Input
 		}
 
-		// <![CDATA[ section ends with ]]>.
-		// It is an error for ]]> to appear in ordinary text,
-		// but it is allowed in quoted strings.
+		// <![CDATA[ 区段以 ]]> 结束。
+		// ]]> 出现在普通文本中是错误，
+		// 但在带引号的字符串中是允许的。
 		if quote < 0 && b0 == ']' && b1 == ']' && b == '>' {
 			if cdata {
 				trunc = 2
@@ -1015,7 +1004,7 @@ Input:
 			return nil
 		}
 
-		// Stop reading text if we see a <.
+		// 如果看到 <，则停止读取文本。
 		if b == '<' && !cdata {
 			if quote >= 0 {
 				d.err = d.syntaxError("unescaped < inside quoted string")
@@ -1028,11 +1017,11 @@ Input:
 			break Input
 		}
 		if b == '&' && !cdata {
-			// Read escaped character expression up to semicolon.
-			// XML in all its glory allows a document to define and use
-			// its own character names with <!ENTITY ...> directives.
-			// Parsers are required to recognize lt, gt, amp, apos, and quot
-			// even if they have not been declared.
+			// 读取转义字符表达式直到分号。
+			// XML 的“全部荣耀”在于允许文档通过 <!ENTITY ...> 指令
+			// 定义并使用自己的字符名称。
+			// 解析器必须能识别 lt、gt、amp、apos 和 quot，
+			// 即使它们未被声明。
 			before := d.buf.Len()
 			d.buf.WriteByte('&')
 			var ok bool
@@ -1119,11 +1108,11 @@ Input:
 			return nil
 		}
 
-		// We must rewrite unescaped \r and \r\n into \n.
+		// 我们必须将未转义的 \r 和 \r\n 重写为 \n。
 		if b == '\r' {
 			d.buf.WriteByte('\n')
 		} else if b1 == '\r' && b == '\n' {
-			// Skip \r\n--we already wrote \n.
+			// 跳过 \r\n —— 我们已经写入了 \n。
 		} else {
 			d.buf.WriteByte(b)
 		}
@@ -1133,7 +1122,7 @@ Input:
 	data := d.buf.Bytes()
 	data = data[0 : len(data)-trunc]
 
-	// Inspect each rune for being a disallowed character.
+	// 检查每个 rune 是否为不允许的字符。
 	buf := data
 	for len(buf) > 0 {
 		r, size := utf8.DecodeRune(buf)
@@ -1151,9 +1140,9 @@ Input:
 	return data
 }
 
-// Decide whether the given rune is in the XML Character Range, per
-// the Char production of https://www.xml.com/axml/testaxml.htm,
-// Section 2.2 Characters.
+// 根据 https://www.xml.com/axml/testaxml.htm 中
+// 第 2.2 节 Characters 的 Char 产生式，
+// 判断给定 rune 是否位于 XML 字符范围内。
 func isInCharacterRange(r rune) (inrange bool) {
 	return r == 0x09 ||
 		r == 0x0A ||
@@ -1163,8 +1152,8 @@ func isInCharacterRange(r rune) (inrange bool) {
 		r >= 0x10000 && r <= 0x10FFFF
 }
 
-// Get name space name: name with a : stuck in the middle.
-// The part before the : is the name space identifier.
+// 获取命名空间名称：中间带有 : 的名称。
+// : 之前的部分是命名空间标识符。
 func (d *Decoder) nsname() (name Name, ok bool) {
 	s, ok := d.name()
 	if !ok {
@@ -1181,16 +1170,16 @@ func (d *Decoder) nsname() (name Name, ok bool) {
 	return name, true
 }
 
-// Get name: /first(first|second)*/
-// Do not set d.err if the name is missing (unless unexpected EOF is received):
-// let the caller provide better context.
+// 获取名称：/first(first|second)*/
+// 如果名称缺失，不要设置 d.err（除非收到意外的 EOF）：
+// 让调用者提供更好的上下文。
 func (d *Decoder) name() (s string, ok bool) {
 	d.buf.Reset()
 	if !d.readName() {
 		return "", false
 	}
 
-	// Now we check the characters.
+	// 现在我们检查这些字符。
 	b := d.buf.Bytes()
 	if !isName(b) {
 		d.err = d.syntaxError("invalid XML name: " + string(b))
@@ -1199,9 +1188,9 @@ func (d *Decoder) name() (s string, ok bool) {
 	return string(b), true
 }
 
-// Read a name and append its bytes to d.buf.
-// The name is delimited by any single-byte character not valid in names.
-// All multi-byte characters are accepted; the caller must check their validity.
+// 读取一个名称并将其字节追加到 d.buf。
+// 该名称由任何在名称中无效的单字节字符分隔。
+// 所有多字节字符都会被接受；调用者必须检查它们的有效性。
 func (d *Decoder) readName() (ok bool) {
 	var b byte
 	if b, ok = d.mustgetc(); !ok {
@@ -1281,10 +1270,10 @@ func isNameString(s string) bool {
 	return true
 }
 
-// These tables were generated by cut and paste from Appendix B of
-// the XML spec at https://www.xml.com/axml/testaxml.htm
-// and then reformatting. First corresponds to (Letter | '_' | ':')
-// and second corresponds to NameChar.
+// 这些表是通过从 https://www.xml.com/axml/testaxml.htm 处
+// XML 规范附录 B 剪切粘贴并重新格式化生成的。
+// first 对应 (Letter | '_' | ':')，
+// second 对应 NameChar。
 
 var first = &unicode.RangeTable{
 	R16: []unicode.Range16{
@@ -1598,10 +1587,10 @@ var second = &unicode.RangeTable{
 	},
 }
 
-// HTMLEntity is an entity map containing translations for the
-// standard HTML entity characters.
+// HTMLEntity 是一个实体映射，包含标准 HTML 实体字符的
+// 翻译。
 //
-// See the [Decoder.Strict] and [Decoder.Entity] fields' documentation.
+// 参见 [Decoder.Strict] 和 [Decoder.Entity] 字段的文档。
 var HTMLEntity map[string]string = htmlEntity
 
 var htmlEntity = map[string]string{
@@ -1867,10 +1856,10 @@ var htmlEntity = map[string]string{
 	"euro":     "\u20AC",
 }
 
-// HTMLAutoClose is the set of HTML elements that
-// should be considered to close automatically.
+// HTMLAutoClose 是一组 HTML 元素，
+// 它们应被视为自动关闭。
 //
-// See the [Decoder.Strict] and [Decoder.Entity] fields' documentation.
+// 参见 [Decoder.Strict] 和 [Decoder.Entity] 字段的文档。
 var HTMLAutoClose []string = htmlAutoClose
 
 var htmlAutoClose = []string{
@@ -1894,26 +1883,26 @@ var htmlAutoClose = []string{
 }
 
 var (
-	escQuot = []byte("&#34;") // shorter than "&quot;"
-	escApos = []byte("&#39;") // shorter than "&apos;"
+	escQuot = []byte("&#34;") // 比 "&quot;" 短
+	escApos = []byte("&#39;") // 比 "&apos;" 短
 	escAmp  = []byte("&amp;")
 	escLT   = []byte("&lt;")
 	escGT   = []byte("&gt;")
 	escTab  = []byte("&#x9;")
 	escNL   = []byte("&#xA;")
 	escCR   = []byte("&#xD;")
-	escFFFD = []byte("\uFFFD") // Unicode replacement character
+	escFFFD = []byte("\uFFFD") // Unicode 替换字符
 )
 
-// EscapeText writes to w the properly escaped XML equivalent
-// of the plain text data s.
+// EscapeText 将纯文本数据 s 的正确转义后的 XML 等价形式
+// 写入 w。
 func EscapeText(w io.Writer, s []byte) error {
 	return escapeText(w, s, true)
 }
 
-// escapeText writes to w the properly escaped XML equivalent
-// of the plain text data s. If escapeNewline is true, newline
-// characters will be escaped.
+// escapeText 将纯文本数据 s 的正确转义后的 XML 等价形式
+// 写入 w。如果 escapeNewline 为 true，换行
+// 字符将被转义。
 func escapeText(w io.Writer, s []byte, escapeNewline bool) error {
 	var esc []byte
 	last := 0
@@ -1959,8 +1948,8 @@ func escapeText(w io.Writer, s []byte, escapeNewline bool) error {
 	return err
 }
 
-// EscapeString writes to p the properly escaped XML equivalent
-// of the plain text data s.
+// EscapeString 将纯文本数据 s 的正确转义后的 XML 等价形式
+// 写入 p。
 func (p *printer) EscapeString(s string) {
 	var esc []byte
 	last := 0
@@ -1998,9 +1987,9 @@ func (p *printer) EscapeString(s string) {
 	p.WriteString(s[last:])
 }
 
-// Escape is like [EscapeText] but omits the error return value.
-// It is provided for backwards compatibility with Go 1.0.
-// Code targeting Go 1.1 or later should use [EscapeText].
+// Escape 类似 [EscapeText]，但省略错误返回值。
+// 提供它是为了与 Go 1.0 向后兼容。
+// 面向 Go 1.1 及更高版本的代码应使用 [EscapeText]。
 func Escape(w io.Writer, s []byte) {
 	EscapeText(w, s)
 }
@@ -2011,8 +2000,8 @@ var (
 	cdataEscape = []byte("]]]]><![CDATA[>")
 )
 
-// emitCDATA writes to w the CDATA-wrapped plain text data s.
-// It escapes CDATA directives nested in s.
+// emitCDATA 将以 CDATA 包裹的纯文本数据 s 写入 w。
+// 它会转义嵌套在 s 中的 CDATA 指令。
 func emitCDATA(w io.Writer, s []byte) error {
 	if len(s) == 0 {
 		return nil
@@ -2026,7 +2015,7 @@ func emitCDATA(w io.Writer, s []byte) error {
 		if !ok {
 			break
 		}
-		// Found a nested CDATA directive end.
+		// 找到嵌套的 CDATA 指令结尾。
 		if _, err := w.Write(before); err != nil {
 			return err
 		}
@@ -2044,11 +2033,11 @@ func emitCDATA(w io.Writer, s []byte) error {
 	return err
 }
 
-// procInst parses the `param="..."` or `param='...'`
-// value out of the provided string, returning "" if not found.
+// procInst 从提供的字符串中解析出 `param="..."` 或 `param='...'`
+// 的值，如果未找到则返回 ""。
 func procInst(param, s string) string {
-	// TODO: this parsing is somewhat lame and not exact.
-	// It works for all actual cases, though.
+	// TODO：这种解析有些简陋且不精确。
+	// 不过它对所有实际情况都有效。
 	param = param + "="
 	lenp := len(param)
 	i := 0

@@ -49,7 +49,7 @@ var encSliceHelper = map[reflect.Kind]encHelper{
 }
 
 func encBoolArray(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -59,7 +59,7 @@ func encBoolArray(state *encoderState, v reflect.Value) bool {
 func encBoolSlice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]bool](v)
 	if !ok {
-		// It is kind bool but not type bool. TODO: We can handle this unsafely.
+		// 它是 bool 种类但不是 bool 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -75,7 +75,7 @@ func encBoolSlice(state *encoderState, v reflect.Value) bool {
 }
 
 func encComplex64Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -85,7 +85,7 @@ func encComplex64Array(state *encoderState, v reflect.Value) bool {
 func encComplex64Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]complex64](v)
 	if !ok {
-		// It is kind complex64 but not type complex64. TODO: We can handle this unsafely.
+		// 它是 complex64 种类但不是 complex64 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -100,7 +100,7 @@ func encComplex64Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encComplex128Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -110,7 +110,7 @@ func encComplex128Array(state *encoderState, v reflect.Value) bool {
 func encComplex128Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]complex128](v)
 	if !ok {
-		// It is kind complex128 but not type complex128. TODO: We can handle this unsafely.
+		// 它是 complex128 种类但不是 complex128 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -125,7 +125,7 @@ func encComplex128Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encFloat32Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -135,7 +135,7 @@ func encFloat32Array(state *encoderState, v reflect.Value) bool {
 func encFloat32Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]float32](v)
 	if !ok {
-		// It is kind float32 but not type float32. TODO: We can handle this unsafely.
+		// 它是 float32 种类但不是 float32 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -148,7 +148,7 @@ func encFloat32Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encFloat64Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -158,7 +158,7 @@ func encFloat64Array(state *encoderState, v reflect.Value) bool {
 func encFloat64Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]float64](v)
 	if !ok {
-		// It is kind float64 but not type float64. TODO: We can handle this unsafely.
+		// 它是 float64 种类但不是 float64 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -171,7 +171,7 @@ func encFloat64Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encIntArray(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -181,7 +181,7 @@ func encIntArray(state *encoderState, v reflect.Value) bool {
 func encIntSlice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]int](v)
 	if !ok {
-		// It is kind int but not type int. TODO: We can handle this unsafely.
+		// 它是 int 种类但不是 int 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -193,7 +193,7 @@ func encIntSlice(state *encoderState, v reflect.Value) bool {
 }
 
 func encInt16Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -203,7 +203,7 @@ func encInt16Array(state *encoderState, v reflect.Value) bool {
 func encInt16Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]int16](v)
 	if !ok {
-		// It is kind int16 but not type int16. TODO: We can handle this unsafely.
+		// 它是 int16 种类但不是 int16 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -215,7 +215,7 @@ func encInt16Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encInt32Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -225,7 +225,7 @@ func encInt32Array(state *encoderState, v reflect.Value) bool {
 func encInt32Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]int32](v)
 	if !ok {
-		// It is kind int32 but not type int32. TODO: We can handle this unsafely.
+		// 它是 int32 种类但不是 int32 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -237,7 +237,7 @@ func encInt32Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encInt64Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -247,7 +247,7 @@ func encInt64Array(state *encoderState, v reflect.Value) bool {
 func encInt64Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]int64](v)
 	if !ok {
-		// It is kind int64 but not type int64. TODO: We can handle this unsafely.
+		// 它是 int64 种类但不是 int64 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -259,7 +259,7 @@ func encInt64Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encInt8Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -269,7 +269,7 @@ func encInt8Array(state *encoderState, v reflect.Value) bool {
 func encInt8Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]int8](v)
 	if !ok {
-		// It is kind int8 but not type int8. TODO: We can handle this unsafely.
+		// 它是 int8 种类但不是 int8 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -281,7 +281,7 @@ func encInt8Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encStringArray(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -291,7 +291,7 @@ func encStringArray(state *encoderState, v reflect.Value) bool {
 func encStringSlice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]string](v)
 	if !ok {
-		// It is kind string but not type string. TODO: We can handle this unsafely.
+		// 它是 string 种类但不是 string 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -304,7 +304,7 @@ func encStringSlice(state *encoderState, v reflect.Value) bool {
 }
 
 func encUintArray(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -314,7 +314,7 @@ func encUintArray(state *encoderState, v reflect.Value) bool {
 func encUintSlice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]uint](v)
 	if !ok {
-		// It is kind uint but not type uint. TODO: We can handle this unsafely.
+		// 它是 uint 种类但不是 uint 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -326,7 +326,7 @@ func encUintSlice(state *encoderState, v reflect.Value) bool {
 }
 
 func encUint16Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -336,7 +336,7 @@ func encUint16Array(state *encoderState, v reflect.Value) bool {
 func encUint16Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]uint16](v)
 	if !ok {
-		// It is kind uint16 but not type uint16. TODO: We can handle this unsafely.
+		// 它是 uint16 种类但不是 uint16 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -348,7 +348,7 @@ func encUint16Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encUint32Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -358,7 +358,7 @@ func encUint32Array(state *encoderState, v reflect.Value) bool {
 func encUint32Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]uint32](v)
 	if !ok {
-		// It is kind uint32 but not type uint32. TODO: We can handle this unsafely.
+		// 它是 uint32 种类但不是 uint32 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -370,7 +370,7 @@ func encUint32Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encUint64Array(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -380,7 +380,7 @@ func encUint64Array(state *encoderState, v reflect.Value) bool {
 func encUint64Slice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]uint64](v)
 	if !ok {
-		// It is kind uint64 but not type uint64. TODO: We can handle this unsafely.
+		// 它是 uint64 种类但不是 uint64 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {
@@ -392,7 +392,7 @@ func encUint64Slice(state *encoderState, v reflect.Value) bool {
 }
 
 func encUintptrArray(state *encoderState, v reflect.Value) bool {
-	// Can only slice if it is addressable.
+	// 只有当它可寻址时才能切片。
 	if !v.CanAddr() {
 		return false
 	}
@@ -402,7 +402,7 @@ func encUintptrArray(state *encoderState, v reflect.Value) bool {
 func encUintptrSlice(state *encoderState, v reflect.Value) bool {
 	slice, ok := reflect.TypeAssert[[]uintptr](v)
 	if !ok {
-		// It is kind uintptr but not type uintptr. TODO: We can handle this unsafely.
+		// 它是 uintptr 种类但不是 uintptr 类型。TODO：我们可以不安全地处理这种情况。
 		return false
 	}
 	for _, x := range slice {

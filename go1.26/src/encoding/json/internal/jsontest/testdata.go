@@ -4,7 +4,7 @@
 
 //go:build goexperiment.jsonv2
 
-// Package jsontest contains functionality to assist in testing JSON.
+// Package jsontest 包含用于辅助测试 JSON 的功能。
 package jsontest
 
 import (
@@ -21,9 +21,8 @@ import (
 	"time"
 )
 
-// Embed the testdata directory as a fs.FS because this package is imported
-// by other packages such that the location of testdata may change relative
-// to the working directory of the test itself.
+// 将 testdata 目录作为 fs.FS 嵌入，因为该包会被其他包导入，
+// 使得 testdata 的位置相对于测试自身的工作目录可能会发生变化。
 //
 //go:embed testdata/*.json.zst
 var testdataFS embed.FS
@@ -31,7 +30,7 @@ var testdataFS embed.FS
 type Entry struct {
 	Name string
 	Data func() []byte
-	New  func() any // nil if there is no concrete type for this
+	New  func() any // 如果没有具体类型则为 nil
 }
 
 func mustGet[T any](v T, err error) T {
@@ -41,21 +40,21 @@ func mustGet[T any](v T, err error) T {
 	return v
 }
 
-// Data is a list of JSON testdata.
+// Data 是 JSON 测试数据的列表。
 var Data = func() (entries []Entry) {
 	fis := mustGet(fs.ReadDir(testdataFS, "testdata"))
 	slices.SortFunc(fis, func(x, y fs.DirEntry) int { return strings.Compare(x.Name(), y.Name()) })
 	for _, fi := range fis {
 		var entry Entry
 
-		// Convert snake_case file name to CamelCase.
+		// 将 snake_case 文件名转换为 CamelCase。
 		words := strings.Split(strings.TrimSuffix(fi.Name(), ".json.zst"), "_")
 		for i := range words {
 			words[i] = strings.Title(words[i])
 		}
 		entry.Name = strings.Join(words, "")
 
-		// Lazily read and decompress the test data.
+		// 延迟读取并解压测试数据。
 		entry.Data = sync.OnceValue(func() []byte {
 			filePath := path.Join("testdata", fi.Name())
 			b := mustGet(fs.ReadFile(testdataFS, filePath))
@@ -63,7 +62,7 @@ var Data = func() (entries []Entry) {
 			return mustGet(io.ReadAll(zr))
 		})
 
-		// Check whether there is a concrete type for this data.
+		// 检查此数据是否存在具体类型。
 		switch entry.Name {
 		case "CanadaGeometry":
 			entry.New = func() any { return new(canadaRoot) }
@@ -588,7 +587,7 @@ type (
 	}
 )
 
-// rawValue is the raw encoded JSON value.
+// rawValue 是原始编码的 JSON 值。
 type rawValue []byte
 
 func (v rawValue) MarshalJSON() ([]byte, error) {

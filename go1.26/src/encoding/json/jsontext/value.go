@@ -17,14 +17,14 @@ import (
 	"encoding/json/internal/jsonwire"
 )
 
-// NOTE: Value is analogous to v1 json.RawMessage.
+// 注意：Value 类似于 v1 的 json.RawMessage。
 
-// AppendFormat formats the JSON value in src and appends it to dst
-// according to the specified options.
-// See [Value.Format] for more details about the formatting behavior.
+// AppendFormat 根据指定的选项对 src 中的 JSON 值进行格式化，
+// 并将其追加到 dst。
+// 有关格式化行为的更多细节，请参见 [Value.Format]。
 //
-// The dst and src may overlap.
-// If an error is reported, then the entirety of src is appended to dst.
+// dst 和 src 可能重叠。
+// 如果报告了错误，那么 src 的全部内容都会被追加到 dst。
 func AppendFormat(dst, src []byte, opts ...Options) ([]byte, error) {
 	e := getBufferedEncoder(opts...)
 	defer putBufferedEncoder(e)
@@ -35,23 +35,23 @@ func AppendFormat(dst, src []byte, opts ...Options) ([]byte, error) {
 	return append(dst, e.s.Buf...), nil
 }
 
-// Value represents a single raw JSON value, which may be one of the following:
-//   - a JSON literal (i.e., null, true, or false)
-//   - a JSON string (e.g., "hello, world!")
-//   - a JSON number (e.g., 123.456)
-//   - an entire JSON object (e.g., {"fizz":"buzz"} )
-//   - an entire JSON array (e.g., [1,2,3] )
+// Value 表示单个原始 JSON 值，它可以是以下之一：
+//   - JSON 字面量（即 null、true 或 false）
+//   - JSON 字符串（例如 "hello, world!"）
+//   - JSON 数字（例如 123.456）
+//   - 整个 JSON 对象（例如 {"fizz":"buzz"} ）
+//   - 整个 JSON 数组（例如 [1,2,3] ）
 //
-// Value can represent entire array or object values, while [Token] cannot.
-// Value may contain leading and/or trailing whitespace.
+// Value 可以表示整个数组或对象值，而 [Token] 不能。
+// Value 可能包含前导和/或尾随空白。
 type Value []byte
 
-// Clone returns a copy of v.
+// Clone 返回 v 的副本。
 func (v Value) Clone() Value {
 	return bytes.Clone(v)
 }
 
-// String returns the string formatting of v.
+// String 返回 v 的字符串格式化结果。
 func (v Value) String() string {
 	if v == nil {
 		return "null"
@@ -59,23 +59,22 @@ func (v Value) String() string {
 	return string(v)
 }
 
-// IsValid reports whether the raw JSON value is syntactically valid
-// according to the specified options.
+// IsValid 报告原始 JSON 值是否根据指定的选项在语法上有效。
 //
-// By default (if no options are specified), it validates according to RFC 7493.
-// It verifies whether the input is properly encoded as UTF-8,
-// that escape sequences within strings decode to valid Unicode codepoints, and
-// that all names in each object are unique.
-// It does not verify whether numbers are representable within the limits
-// of any common numeric type (e.g., float64, int64, or uint64).
+// 默认情况下（如果未指定任何选项），它根据 RFC 7493 进行校验。
+// 它验证输入是否正确编码为 UTF-8、
+// 字符串内的转义序列是否解码为有效的 Unicode 码点，以及
+// 每个对象中的所有名称是否唯一。
+// 它不验证数字是否可在任何常见数值类型（例如 float64、int64 或 uint64）
+// 的范围内表示。
 //
-// Relevant options include:
+// 相关选项包括：
 //   - [AllowDuplicateNames]
 //   - [AllowInvalidUTF8]
 //
-// All other options are ignored.
+// 所有其他选项均被忽略。
 func (v Value) IsValid(opts ...Options) bool {
-	// TODO: Document support for [WithByteLimit] and [WithDepthLimit].
+	// TODO: 说明对 [WithByteLimit] 和 [WithDepthLimit] 的支持。
 	d := getBufferedDecoder(v, opts...)
 	defer putBufferedDecoder(d)
 	_, errVal := d.ReadValue()
@@ -83,13 +82,13 @@ func (v Value) IsValid(opts ...Options) bool {
 	return errVal == nil && errEOF == io.EOF
 }
 
-// Format formats the raw JSON value in place.
+// Format 就地对原始 JSON 值进行格式化。
 //
-// By default (if no options are specified), it validates according to RFC 7493
-// and produces the minimal JSON representation, where
-// all whitespace is elided and JSON strings use the shortest encoding.
+// 默认情况下（如果未指定任何选项），它根据 RFC 7493 进行校验，
+// 并生成最简 JSON 表示，其中
+// 所有空白都被省略，JSON 字符串使用最短的编码。
 //
-// Relevant options include:
+// 相关选项包括：
 //   - [AllowDuplicateNames]
 //   - [AllowInvalidUTF8]
 //   - [EscapeForHTML]
@@ -104,17 +103,17 @@ func (v Value) IsValid(opts ...Options) bool {
 //   - [WithIndent]
 //   - [WithIndentPrefix]
 //
-// All other options are ignored.
+// 所有其他选项均被忽略。
 //
-// It is guaranteed to succeed if the value is valid according to the same options.
-// If the value is already formatted, then the buffer is not mutated.
+// 如果该值根据相同的选项有效，则保证成功。
+// 如果该值已经格式化，则缓冲区不会被修改。
 func (v *Value) Format(opts ...Options) error {
-	// TODO: Document support for [WithByteLimit] and [WithDepthLimit].
+	// TODO: 说明对 [WithByteLimit] 和 [WithDepthLimit] 的支持。
 	return v.format(opts, nil)
 }
 
-// format accepts two []Options to avoid the allocation appending them together.
-// It is equivalent to v.Format(append(opts1, opts2...)...).
+// format 接受两个 []Options，以避免将它们拼接时产生分配。
+// 它等价于 v.Format(append(opts1, opts2...)...)。
 func (v *Value) format(opts1, opts2 []Options) error {
 	e := getBufferedEncoder(opts1...)
 	defer putBufferedEncoder(e)
@@ -129,19 +128,19 @@ func (v *Value) format(opts1, opts2 []Options) error {
 	return nil
 }
 
-// Compact removes all whitespace from the raw JSON value.
+// Compact 从原始 JSON 值中移除所有空白。
 //
-// It does not reformat JSON strings or numbers to use any other representation.
-// To maximize the set of JSON values that can be formatted,
-// this permits values with duplicate names and invalid UTF-8.
+// 它不会重新格式化 JSON 字符串或数字以使用任何其他表示。
+// 为了最大化可格式化的 JSON 值集合，
+// 它允许包含重复名称和无效 UTF-8 的值。
 //
-// Compact is equivalent to calling [Value.Format] with the following options:
+// Compact 等价于使用以下选项调用 [Value.Format]：
 //   - [AllowDuplicateNames](true)
 //   - [AllowInvalidUTF8](true)
 //   - [PreserveRawStrings](true)
 //
-// Any options specified by the caller are applied after the initial set
-// and may deliberately override prior options.
+// 调用方指定的任何选项都会在初始选项集之后应用，
+// 并且可以有意覆盖先前的选项。
 func (v *Value) Compact(opts ...Options) error {
 	return v.format([]Options{
 		AllowDuplicateNames(true),
@@ -150,21 +149,21 @@ func (v *Value) Compact(opts ...Options) error {
 	}, opts)
 }
 
-// Indent reformats the whitespace in the raw JSON value so that each element
-// in a JSON object or array begins on a indented line according to the nesting.
+// Indent 重新格式化原始 JSON 值中的空白，使
+// JSON 对象或数组中的每个元素根据嵌套层级从缩进的新行开始。
 //
-// It does not reformat JSON strings or numbers to use any other representation.
-// To maximize the set of JSON values that can be formatted,
-// this permits values with duplicate names and invalid UTF-8.
+// 它不会重新格式化 JSON 字符串或数字以使用任何其他表示。
+// 为了最大化可格式化的 JSON 值集合，
+// 它允许包含重复名称和无效 UTF-8 的值。
 //
-// Indent is equivalent to calling [Value.Format] with the following options:
+// Indent 等价于使用以下选项调用 [Value.Format]：
 //   - [AllowDuplicateNames](true)
 //   - [AllowInvalidUTF8](true)
 //   - [PreserveRawStrings](true)
 //   - [Multiline](true)
 //
-// Any options specified by the caller are applied after the initial set
-// and may deliberately override prior options.
+// 调用方指定的任何选项都会在初始选项集之后应用，
+// 并且可以有意覆盖先前的选项。
 func (v *Value) Indent(opts ...Options) error {
 	return v.format([]Options{
 		AllowDuplicateNames(true),
@@ -174,35 +173,34 @@ func (v *Value) Indent(opts ...Options) error {
 	}, opts)
 }
 
-// Canonicalize canonicalizes the raw JSON value according to the
-// JSON Canonicalization Scheme (JCS) as defined by RFC 8785
-// where it produces a stable representation of a JSON value.
+// Canonicalize 根据 RFC 8785 定义的
+// JSON 规范化方案（JCS）对原始 JSON 值进行规范化，
+// 其中它会生成 JSON 值的稳定表示。
 //
-// JSON strings are formatted to use their minimal representation,
-// JSON numbers are formatted as double precision numbers according
-// to some stable serialization algorithm.
-// JSON object members are sorted in ascending order by name.
-// All whitespace is removed.
+// JSON 字符串被格式化为使用其最简表示，
+// JSON 数字根据某种稳定的序列化算法被格式化为双精度数字。
+// JSON 对象成员按名称升序排序。
+// 所有空白都被移除。
 //
-// The output stability is dependent on the stability of the application data
-// (see RFC 8785, Appendix E). It cannot produce stable output from
-// fundamentally unstable input. For example, if the JSON value
-// contains ephemeral data (e.g., a frequently changing timestamp),
-// then the value is still unstable regardless of whether this is called.
+// 输出的稳定性取决于应用数据的稳定性
+// （参见 RFC 8785 附录 E）。它无法从
+// 本质上不稳定的输入产生稳定的输出。例如，如果 JSON 值
+// 包含短暂数据（例如频繁变化的时间戳），
+// 那么无论是否调用此方法，该值仍然是不稳定的。
 //
-// Canonicalize is equivalent to calling [Value.Format] with the following options:
+// Canonicalize 等价于使用以下选项调用 [Value.Format]：
 //   - [CanonicalizeRawInts](true)
 //   - [CanonicalizeRawFloats](true)
 //   - [ReorderRawObjects](true)
 //
-// Any options specified by the caller are applied after the initial set
-// and may deliberately override prior options.
+// 调用方指定的任何选项都会在初始选项集之后应用，
+// 并且可以有意覆盖先前的选项。
 //
-// Note that JCS treats all JSON numbers as IEEE 754 double precision numbers.
-// Any numbers with precision beyond what is representable by that form
-// will lose their precision when canonicalized. For example, integer values
-// beyond ±2⁵³ will lose their precision. To preserve the original representation
-// of JSON integers, additionally set [CanonicalizeRawInts] to false:
+// 请注意，JCS 将所有 JSON 数字视为 IEEE 754 双精度数字。
+// 任何精度超出该形式可表示范围的数字
+// 在规范化时都会丢失精度。例如，超出 ±2⁵³ 的
+// 整数值将丢失其精度。要保留 JSON 整数的原始表示，
+// 可额外将 [CanonicalizeRawInts] 设置为 false：
 //
 //	v.Canonicalize(jsontext.CanonicalizeRawInts(false))
 func (v *Value) Canonicalize(opts ...Options) error {
@@ -213,21 +211,21 @@ func (v *Value) Canonicalize(opts ...Options) error {
 	}, opts)
 }
 
-// MarshalJSON returns v as the JSON encoding of v.
-// It returns the stored value as the raw JSON output without any validation.
-// If v is nil, then this returns a JSON null.
+// MarshalJSON 返回 v 作为 v 的 JSON 编码。
+// 它将存储的值作为原始 JSON 输出返回，不做任何校验。
+// 如果 v 为 nil，则返回 JSON null。
 func (v Value) MarshalJSON() ([]byte, error) {
-	// NOTE: This matches the behavior of v1 json.RawMessage.MarshalJSON.
+	// 注意：这与 v1 的 json.RawMessage.MarshalJSON 行为一致。
 	if v == nil {
 		return []byte("null"), nil
 	}
 	return v, nil
 }
 
-// UnmarshalJSON sets v as the JSON encoding of b.
-// It stores a copy of the provided raw JSON input without any validation.
+// UnmarshalJSON 将 v 设置为 b 的 JSON 编码。
+// 它存储所提供原始 JSON 输入的副本，不做任何校验。
 func (v *Value) UnmarshalJSON(b []byte) error {
-	// NOTE: This matches the behavior of v1 json.RawMessage.UnmarshalJSON.
+	// 注意：这与 v1 的 json.RawMessage.UnmarshalJSON 行为一致。
 	if v == nil {
 		return errors.New("jsontext.Value: UnmarshalJSON on nil pointer")
 	}
@@ -235,8 +233,8 @@ func (v *Value) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// Kind returns the starting token kind.
-// For a valid value, this will never include [KindEndObject] or [KindEndArray].
+// Kind 返回起始令牌的种类。
+// 对于有效的值，它绝不会包含 [KindEndObject] 或 [KindEndArray]。
 func (v Value) Kind() Kind {
 	if v := v[jsonwire.ConsumeWhitespace(v):]; len(v) > 0 {
 		return Kind(v[0]).normalize()
@@ -247,20 +245,20 @@ func (v Value) Kind() Kind {
 const commaAndWhitespace = ", \n\r\t"
 
 type objectMember struct {
-	// name is the unquoted name.
-	name []byte // e.g., "name"
-	// buffer is the entirety of the raw JSON object member
-	// starting from right after the previous member (or opening '{')
-	// until right after the member value.
-	buffer []byte // e.g., `, \n\r\t"name": "value"`
+	// name 是未加引号的名称。
+	name []byte // 例如 "name"
+	// buffer 是原始 JSON 对象成员的全部内容，
+	// 从上一个成员之后（或起始 '{' 之后）开始，
+	// 直到该成员值之后结束。
+	buffer []byte // 例如 `, \n\r\t"name": "value"`
 }
 
 func (x objectMember) Compare(y objectMember) int {
 	if c := jsonwire.CompareUTF16(x.name, y.name); c != 0 {
 		return c
 	}
-	// With [AllowDuplicateNames] or [AllowInvalidUTF8],
-	// names could be identical, so also sort using the member value.
+	// 在启用 [AllowDuplicateNames] 或 [AllowInvalidUTF8] 时，
+	// 名称可能相同，因此还要使用成员值进行排序。
 	return jsonwire.CompareUTF16(
 		bytes.TrimLeft(x.buffer, commaAndWhitespace),
 		bytes.TrimLeft(y.buffer, commaAndWhitespace))
@@ -275,50 +273,50 @@ func getObjectMembers() *[]objectMember {
 }
 func putObjectMembers(ns *[]objectMember) {
 	if cap(*ns) < 1<<10 {
-		clear(*ns) // avoid pinning name and buffer
+		clear(*ns) // 避免固定 name 和 buffer
 		objectMemberPool.Put(ns)
 	}
 }
 
-// mustReorderObjects reorders in-place all object members in a JSON value,
-// which must be valid otherwise it panics.
+// mustReorderObjects 就地对 JSON 值中的所有对象成员重新排序，
+// 该值必须有效，否则会 panic。
 func mustReorderObjects(b []byte) {
-	// Obtain a buffered encoder just to use its internal buffer as
-	// a scratch buffer for reordering object members.
+	// 获取一个带缓冲的编码器，仅为了将其内部缓冲区用作
+	// 重新排序对象成员的临时缓冲区。
 	e2 := getBufferedEncoder()
 	defer putBufferedEncoder(e2)
 
-	// Disable unnecessary checks to syntactically parse the JSON value.
+	// 禁用不必要的检查，以便对 JSON 值进行语法解析。
 	d := getBufferedDecoder(b)
 	defer putBufferedDecoder(d)
 	d.s.Flags.Set(jsonflags.AllowDuplicateNames | jsonflags.AllowInvalidUTF8 | 1)
-	mustReorderObjectsFromDecoder(d, &e2.s.Buf) // per RFC 8785, section 3.2.3
+	mustReorderObjectsFromDecoder(d, &e2.s.Buf) // 依据 RFC 8785 第 3.2.3 节
 }
 
-// mustReorderObjectsFromDecoder recursively reorders all object members in place
-// according to the ordering specified in RFC 8785, section 3.2.3.
+// mustReorderObjectsFromDecoder 就地递归地重新排序所有对象成员，
+// 依据 RFC 8785 第 3.2.3 节中指定的顺序。
 //
-// Pre-conditions:
-//   - The value is valid (i.e., no decoder errors should ever occur).
-//   - Initial call is provided a Decoder reading from the start of v.
+// 前置条件：
+//   - 该值有效（即绝不应发生解码器错误）。
+//   - 初次调用时传入的 Decoder 从 v 的开头读取。
 //
-// Post-conditions:
-//   - Exactly one JSON value is read from the Decoder.
-//   - All fully-parsed JSON objects are reordered by directly moving
-//     the members in the value buffer.
+// 后置条件：
+//   - 从 Decoder 中恰好读取一个 JSON 值。
+//   - 所有完全解析的 JSON 对象都通过在值缓冲区中直接移动
+//     成员来完成重新排序。
 //
-// The runtime is approximately O(n·log(n)) + O(m·log(m)),
-// where n is len(v) and m is the total number of object members.
+// 运行时间约为 O(n·log(n)) + O(m·log(m))，
+// 其中 n 是 len(v)，m 是对象成员的总数。
 func mustReorderObjectsFromDecoder(d *Decoder, scratch *[]byte) {
 	switch tok, err := d.ReadToken(); tok.Kind() {
 	case '{':
-		// Iterate and collect the name and offsets for every object member.
+		// 遍历并收集每个对象成员的名称和偏移量。
 		members := getObjectMembers()
 		defer putObjectMembers(members)
 		var prevMember objectMember
 		isSorted := true
 
-		beforeBody := d.InputOffset() // offset after '{'
+		beforeBody := d.InputOffset() // '{' 之后的偏移量
 		for d.PeekKind() != '}' {
 			beforeName := d.InputOffset()
 			var flags jsonwire.ValueFlags
@@ -334,10 +332,10 @@ func mustReorderObjectsFromDecoder(d *Decoder, scratch *[]byte) {
 			*members = append(*members, currMember)
 			prevMember = currMember
 		}
-		afterBody := d.InputOffset() // offset before '}'
+		afterBody := d.InputOffset() // '}' 之前的偏移量
 		d.ReadToken()
 
-		// Sort the members; return early if it's already sorted.
+		// 对成员排序；如果已经有序则提前返回。
 		if isSorted {
 			return
 		}
@@ -345,13 +343,13 @@ func mustReorderObjectsFromDecoder(d *Decoder, scratch *[]byte) {
 		slices.SortFunc(*members, objectMember.Compare)
 		firstBufferAfterSorting := (*members)[0].buffer
 
-		// Append the reordered members to a new buffer,
-		// then copy the reordered members back over the original members.
-		// Avoid swapping in place since each member may be a different size
-		// where moving a member over a smaller member may corrupt the data
-		// for subsequent members before they have been moved.
+		// 将重新排序后的成员追加到新缓冲区中，
+		// 然后将重新排序后的成员复制回原成员之上。
+		// 避免就地交换，因为每个成员的大小可能不同，
+		// 将成员移动到较小成员之上时，可能会在后续成员
+		// 被移动之前破坏它们的数据。
 		//
-		// The following invariant must hold:
+		// 以下不变式必须成立：
 		//	sum([m.after-m.before for m in members]) == afterBody-beforeBody
 		commaAndWhitespacePrefix := func(b []byte) []byte {
 			return b[:len(b)-len(bytes.TrimLeft(b, commaAndWhitespace))]
@@ -360,13 +358,13 @@ func mustReorderObjectsFromDecoder(d *Decoder, scratch *[]byte) {
 		for i, member := range *members {
 			switch {
 			case i == 0 && &member.buffer[0] != &firstBufferBeforeSorting[0]:
-				// First member after sorting is not the first member before sorting,
-				// so use the prefix of the first member before sorting.
+				// 排序后的第一个成员不是排序前的第一个成员，
+				// 因此使用排序前第一个成员的前缀。
 				sorted = append(sorted, commaAndWhitespacePrefix(firstBufferBeforeSorting)...)
 				sorted = append(sorted, bytes.TrimLeft(member.buffer, commaAndWhitespace)...)
 			case i != 0 && &member.buffer[0] == &firstBufferBeforeSorting[0]:
-				// Later member after sorting is the first member before sorting,
-				// so use the prefix of the first member after sorting.
+				// 排序后的后续成员是排序前的第一个成员，
+				// 因此使用排序后第一个成员的前缀。
 				sorted = append(sorted, commaAndWhitespacePrefix(firstBufferAfterSorting)...)
 				sorted = append(sorted, bytes.TrimLeft(member.buffer, commaAndWhitespace)...)
 			default:
@@ -378,7 +376,7 @@ func mustReorderObjectsFromDecoder(d *Decoder, scratch *[]byte) {
 		}
 		copy(d.s.buf[beforeBody:afterBody], sorted)
 
-		// Update scratch buffer to the largest amount ever used.
+		// 将临时缓冲区更新为有史以来使用的最大量。
 		if len(sorted) > len(*scratch) {
 			*scratch = sorted
 		}

@@ -20,14 +20,14 @@ import (
 	"encoding/json/jsontext"
 )
 
-// This file contains an optimized marshal and unmarshal implementation
-// for the any type. This type is often used when the Go program has
-// no knowledge of the JSON schema. This is a common enough occurrence
-// to justify the complexity of adding logic for this.
+// 此文件包含针对 any 类型的优化版 marshal 和 unmarshal
+// 实现。当 Go 程序对 JSON schema
+// 一无所知时，经常会使用此类型。这种情况足够常见，
+// 以至于值得为它增加逻辑的复杂性。
 
-// marshalValueAny marshals a Go any as a JSON value.
-// This assumes that there are no special formatting directives
-// for any possible nested value.
+// marshalValueAny 将 Go any 序列化为 JSON 值。
+// 它假定对于任何可能存在的嵌套值
+// 都没有特殊的格式化指令。
 func marshalValueAny(enc *jsontext.Encoder, val any, mo *jsonopts.Struct) error {
 	switch val := val.(type) {
 	case nil:
@@ -38,7 +38,7 @@ func marshalValueAny(enc *jsontext.Encoder, val any, mo *jsonopts.Struct) error 
 		return enc.WriteToken(jsontext.String(val))
 	case float64:
 		if math.IsNaN(val) || math.IsInf(val, 0) {
-			break // use default logic below
+			break // 使用下面的默认逻辑
 		}
 		return enc.WriteToken(jsontext.Float(val))
 	case map[string]any:
@@ -56,10 +56,10 @@ func marshalValueAny(enc *jsontext.Encoder, val any, mo *jsonopts.Struct) error 
 	return marshal(enc, v, mo)
 }
 
-// unmarshalValueAny unmarshals a JSON value as a Go any.
-// This assumes that there are no special formatting directives
-// for any possible nested value.
-// Duplicate names must be rejected since this does not implement merging.
+// unmarshalValueAny 将 JSON 值反序列化为 Go any。
+// 它假定对于任何可能存在的嵌套值
+// 都没有特殊的格式化指令。
+// 由于它不实现合并，因此必须拒绝重复名称。
 func unmarshalValueAny(dec *jsontext.Decoder, uo *jsonopts.Struct) (any, error) {
 	switch k := dec.PeekKind(); k {
 	case '{':
@@ -101,10 +101,10 @@ func unmarshalValueAny(dec *jsontext.Decoder, uo *jsonopts.Struct) (any, error) 
 	}
 }
 
-// marshalObjectAny marshals a Go map[string]any as a JSON object
-// (or as a JSON null if nil and [jsonflags.FormatNilMapAsNull]).
+// marshalObjectAny 将 Go map[string]any 序列化为 JSON 对象
+// （或者如果为 nil 且指定了 [jsonflags.FormatNilMapAsNull]，则序列化为 JSON null）。
 func marshalObjectAny(enc *jsontext.Encoder, obj map[string]any, mo *jsonopts.Struct) error {
-	// Check for cycles.
+	// 检查循环。
 	xe := export.Encoder(enc)
 	if xe.Tokens.Depth() > startDetectingCyclesAfter {
 		v := reflect.ValueOf(obj)
@@ -114,12 +114,12 @@ func marshalObjectAny(enc *jsontext.Encoder, obj map[string]any, mo *jsonopts.St
 		defer leavePointer(&xe.SeenPointers, v)
 	}
 
-	// Handle empty maps.
+	// 处理空 map。
 	if len(obj) == 0 {
 		if mo.Flags.Get(jsonflags.FormatNilMapAsNull) && obj == nil {
 			return enc.WriteToken(jsontext.Null)
 		}
-		// Optimize for marshaling an empty map without any preceding whitespace.
+		// 优化在前面没有任何空白的情况下序列化空 map。
 		if !mo.Flags.Get(jsonflags.AnyWhitespace) && !xe.Tokens.Last.NeedObjectName() {
 			xe.Buf = append(xe.Tokens.MayAppendDelim(xe.Buf, '{'), "{}"...)
 			xe.Tokens.Last.Increment()
@@ -133,8 +133,8 @@ func marshalObjectAny(enc *jsontext.Encoder, obj map[string]any, mo *jsonopts.St
 	if err := enc.WriteToken(jsontext.BeginObject); err != nil {
 		return err
 	}
-	// A Go map guarantees that each entry has a unique key
-	// The only possibility of duplicates is due to invalid UTF-8.
+	// Go map 保证每个条目的键都是唯一的
+	// 唯一可能出现重复的情况是由于无效的 UTF-8。
 	if !mo.Flags.Get(jsonflags.AllowInvalidUTF8) {
 		xe.Tokens.Last.DisableNamespace()
 	}
@@ -171,8 +171,8 @@ func marshalObjectAny(enc *jsontext.Encoder, obj map[string]any, mo *jsonopts.St
 	return nil
 }
 
-// unmarshalObjectAny unmarshals a JSON object as a Go map[string]any.
-// It panics if not decoding a JSON object.
+// unmarshalObjectAny 将 JSON 对象反序列化为 Go map[string]any。
+// 如果解码的不是 JSON 对象，它会 panic。
 func unmarshalObjectAny(dec *jsontext.Decoder, uo *jsonopts.Struct) (map[string]any, error) {
 	switch tok, err := dec.ReadToken(); {
 	case err != nil:
@@ -181,8 +181,8 @@ func unmarshalObjectAny(dec *jsontext.Decoder, uo *jsonopts.Struct) (map[string]
 		panic("BUG: invalid kind: " + tok.Kind().String())
 	}
 	obj := make(map[string]any)
-	// A Go map guarantees that each entry has a unique key
-	// The only possibility of duplicates is due to invalid UTF-8.
+	// Go map 保证每个条目的键都是唯一的
+	// 唯一可能出现重复的情况是由于无效的 UTF-8。
 	if !uo.Flags.Get(jsonflags.AllowInvalidUTF8) {
 		export.Decoder(dec).Tokens.Last.DisableNamespace()
 	}
@@ -194,9 +194,9 @@ func unmarshalObjectAny(dec *jsontext.Decoder, uo *jsonopts.Struct) (map[string]
 		}
 		name := tok.String()
 
-		// Manually check for duplicate names.
+		// 手动检查重复名称。
 		if _, ok := obj[name]; ok {
-			// TODO: Unread the object name.
+			// TODO: 回退对象名称。
 			name := export.Decoder(dec).PreviousTokenOrValue()
 			err := newDuplicateNameError(dec.StackPointer(), nil, dec.InputOffset()-len64(name))
 			return obj, err
@@ -217,10 +217,10 @@ func unmarshalObjectAny(dec *jsontext.Decoder, uo *jsonopts.Struct) (map[string]
 	return obj, errUnmarshal
 }
 
-// marshalArrayAny marshals a Go []any as a JSON array
-// (or as a JSON null if nil and [jsonflags.FormatNilSliceAsNull]).
+// marshalArrayAny 将 Go []any 序列化为 JSON 数组
+// （或者如果为 nil 且指定了 [jsonflags.FormatNilSliceAsNull]，则序列化为 JSON null）。
 func marshalArrayAny(enc *jsontext.Encoder, arr []any, mo *jsonopts.Struct) error {
-	// Check for cycles.
+	// 检查循环。
 	xe := export.Encoder(enc)
 	if xe.Tokens.Depth() > startDetectingCyclesAfter {
 		v := reflect.ValueOf(arr)
@@ -230,12 +230,12 @@ func marshalArrayAny(enc *jsontext.Encoder, arr []any, mo *jsonopts.Struct) erro
 		defer leavePointer(&xe.SeenPointers, v)
 	}
 
-	// Handle empty slices.
+	// 处理空切片。
 	if len(arr) == 0 {
 		if mo.Flags.Get(jsonflags.FormatNilSliceAsNull) && arr == nil {
 			return enc.WriteToken(jsontext.Null)
 		}
-		// Optimize for marshaling an empty slice without any preceding whitespace.
+		// 优化在前面没有任何空白的情况下序列化空切片。
 		if !mo.Flags.Get(jsonflags.AnyWhitespace) && !xe.Tokens.Last.NeedObjectName() {
 			xe.Buf = append(xe.Tokens.MayAppendDelim(xe.Buf, '['), "[]"...)
 			xe.Tokens.Last.Increment()
@@ -260,8 +260,8 @@ func marshalArrayAny(enc *jsontext.Encoder, arr []any, mo *jsonopts.Struct) erro
 	return nil
 }
 
-// unmarshalArrayAny unmarshals a JSON array as a Go []any.
-// It panics if not decoding a JSON array.
+// unmarshalArrayAny 将 JSON 数组反序列化为 Go []any。
+// 如果解码的不是 JSON 数组，它会 panic。
 func unmarshalArrayAny(dec *jsontext.Decoder, uo *jsonopts.Struct) ([]any, error) {
 	switch tok, err := dec.ReadToken(); {
 	case err != nil:

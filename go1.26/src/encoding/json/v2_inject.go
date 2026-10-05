@@ -17,7 +17,7 @@ import (
 	jsonv2 "encoding/json/v2"
 )
 
-// Inject functionality into v2 to properly handle v1 types.
+// 将功能注入到 v2 中，以正确处理 v1 类型。
 func init() {
 	internal.TransformMarshalError = transformMarshalError
 	internal.TransformUnmarshalError = transformUnmarshalError
@@ -30,22 +30,22 @@ func init() {
 }
 
 func transformMarshalError(root any, err error) error {
-	// Historically, errors returned from Marshal methods were wrapped
-	// in a [MarshalerError]. This is directly performed by the v2 package
-	// via the injected [internal.NewMarshalerError] constructor
-	// while operating under [ReportErrorsWithLegacySemantics].
-	// Note that errors from a Marshal method were always wrapped,
-	// even if wrapped for multiple layers.
+	// 历史上，从 Marshal 方法返回的错误会被包装在
+	// [MarshalerError] 中。这是由 v2 包通过
+	// 在 [ReportErrorsWithLegacySemantics] 下运行时注入的
+	// [internal.NewMarshalerError] 构造函数直接执行的。
+	// 请注意，来自 Marshal 方法的错误总是被包装，
+	// 即使被包装了多层。
 	if err, ok := err.(*jsonv2.SemanticError); err != nil {
 		if err.Err == nil {
-			// Historically, this was only reported for unserializable types
-			// like complex numbers, channels, functions, and unsafe.Pointers.
+			// 历史上，这仅针对不可序列化的类型报告，
+			// 如复数、channel、函数和 unsafe.Pointer。
 			return &UnsupportedTypeError{Type: err.GoType}
 		} else {
-			// Historically, this was only reported for NaN or ±Inf values
-			// and cycles detected in the value.
-			// The Val used to be populated with the reflect.Value,
-			// but this is no longer supported.
+			// 历史上，这仅针对 NaN 或 ±Inf 值
+			// 以及值中检测到的循环报告。
+			// Val 过去会填充为 reflect.Value，
+			// 但现在已不再支持。
 			errStr := err.Err.Error()
 			if err.Err == internal.ErrCycle && err.GoType != nil {
 				errStr += " via " + err.GoType.String()
@@ -64,8 +64,8 @@ func transformMarshalError(root any, err error) error {
 }
 
 func transformUnmarshalError(root any, err error) error {
-	// Historically, errors from Unmarshal methods were never wrapped and
-	// returned verbatim while operating under [ReportErrorsWithLegacySemantics].
+	// 历史上，在 [ReportErrorsWithLegacySemantics] 下运行时，
+	// 来自 Unmarshal 方法的错误永远不会被包装，而是原样返回。
 	if err, ok := err.(*jsonv2.SemanticError); err != nil {
 		if err.Err == internal.ErrNonNilReference {
 			return &InvalidUnmarshalError{err.GoType}
@@ -74,29 +74,29 @@ func transformUnmarshalError(root any, err error) error {
 			return fmt.Errorf("json: unknown field %q", err.JSONPointer.LastToken())
 		}
 		if err.Err == internal.ErrNilInterface {
-			err.Err = nil // non-descriptive for historical reasons
+			err.Err = nil // 出于历史原因不具描述性
 		}
 
-		// Historically, UnmarshalTypeError has always been inconsistent
-		// about how it reported position information.
+		// 历史上，UnmarshalTypeError 在如何报告
+		// 位置信息方面一直不一致。
 		//
-		// The Struct field now points to the root type,
-		// rather than some intermediate struct in the path.
-		// This better matches the original intent of the field based
-		// on how the Error message was formatted.
+		// Struct 字段现在指向根类型，
+		// 而不是路径中的某个中间结构体。
+		// 这更好地匹配了该字段基于 Error 消息
+		// 格式化方式的原始意图。
 		//
-		// For a representation closer to the historical representation,
-		// we switch the '/'-delimited representation of a JSON pointer
-		// to use a '.'-delimited representation. This may be ambiguous,
-		// but the prior representation was always ambiguous as well.
-		// Users that care about precise positions should use v2 errors
-		// by disabling [ReportErrorsWithLegacySemantics].
+		// 为了更接近历史表示，
+		// 我们将 JSON 指针的 '/' 分隔表示
+		// 切换为使用 '.' 分隔表示。这可能有歧义，
+		// 但之前的表示也总是有歧义。
+		// 关心精确位置的用户应通过禁用
+		// [ReportErrorsWithLegacySemantics] 来使用 v2 错误。
 		//
-		// The introduction of a Err field is new to the v1-to-v2 migration
-		// and allows us to preserve stronger error information
-		// that may be surfaced by the v2 package.
+		// Err 字段的引入是 v1 到 v2 迁移的新内容，
+		// 使我们能够保留可能由 v2 包
+		// 暴露的更强错误信息。
 		//
-		// See https://go.dev/issue/43126
+		// 参见 https://go.dev/issue/43126
 		var value string
 		switch err.JSONKind {
 		case 'n', '"', '0':

@@ -11,13 +11,13 @@ import (
 	"sync"
 )
 
-// typeInfo holds details for the xml representation of a type.
+// typeInfo 保存某个类型的 xml 表示的详细信息。
 type typeInfo struct {
 	xmlname *fieldInfo
 	fields  []fieldInfo
 }
 
-// fieldInfo holds details for the xml representation of a single field.
+// fieldInfo 保存单个字段的 xml 表示的详细信息。
 type fieldInfo struct {
 	idx     []int
 	name    string
@@ -48,8 +48,8 @@ var tinfoMap sync.Map // map[reflect.Type]*typeInfo
 
 var nameType = reflect.TypeFor[Name]()
 
-// getTypeInfo returns the typeInfo structure with details necessary
-// for marshaling and unmarshaling typ.
+// getTypeInfo 返回类型 typ 的 typeInfo 结构，
+// 其中包含封送（marshal）和反封送（unmarshal）所需的详细信息。
 func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 	if ti, ok := tinfoMap.Load(typ); ok {
 		return ti.(*typeInfo), nil
@@ -61,10 +61,10 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 		for i := 0; i < n; i++ {
 			f := typ.Field(i)
 			if (!f.IsExported() && !f.Anonymous) || f.Tag.Get("xml") == "-" {
-				continue // Private field
+				continue // 私有字段
 			}
 
-			// For embedded structs, embed its fields.
+			// 对于嵌入的结构体，嵌入其字段。
 			if f.Anonymous {
 				t := f.Type
 				if t.Kind() == reflect.Pointer {
@@ -98,7 +98,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 				continue
 			}
 
-			// Add the field if it doesn't conflict with other fields.
+			// 如果该字段与其他字段不冲突，则添加它。
 			if err := addFieldInfo(typ, tinfo, finfo); err != nil {
 				return nil, err
 			}
@@ -109,17 +109,17 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
 	return ti.(*typeInfo), nil
 }
 
-// structFieldInfo builds and returns a fieldInfo for f.
+// structFieldInfo 为 f 构建并返回一个 fieldInfo。
 func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, error) {
 	finfo := &fieldInfo{idx: f.Index}
 
-	// Split the tag from the xml namespace if necessary.
+	// 如有必要，从 xml 命名空间中拆出标签。
 	tag := f.Tag.Get("xml")
 	if ns, t, ok := strings.Cut(tag, " "); ok {
 		finfo.xmlns, tag = ns, t
 	}
 
-	// Parse flags.
+	// 解析标志。
 	tokens := strings.Split(tag, ",")
 	if len(tokens) == 1 {
 		finfo.flags = fElement
@@ -144,7 +144,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 			}
 		}
 
-		// Validate the flags used.
+		// 校验所用的标志。
 		valid := true
 		switch mode := finfo.flags & fMode; mode {
 		case 0:
@@ -154,7 +154,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 				valid = false
 			}
 		default:
-			// This will also catch multiple modes in a single field.
+			// 这也会捕获单个字段中的多个模式。
 			valid = false
 		}
 		if finfo.flags&fMode == fAny {
@@ -169,24 +169,24 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		}
 	}
 
-	// Use of xmlns without a name is not allowed.
+	// 不允许在无名称的情况下使用 xmlns。
 	if finfo.xmlns != "" && tag == "" {
 		return nil, fmt.Errorf("xml: namespace without name in field %s of type %s: %q",
 			f.Name, typ, f.Tag.Get("xml"))
 	}
 
 	if f.Name == xmlName {
-		// The XMLName field records the XML element name. Don't
-		// process it as usual because its name should default to
-		// empty rather than to the field name.
+		// XMLName 字段记录 XML 元素名称。不要
+		// 像往常一样处理它，因为它的名称应默认为
+		// 空，而不是字段名。
 		finfo.name = tag
 		return finfo, nil
 	}
 
 	if tag == "" {
-		// If the name part of the tag is completely empty, get
-		// default from XMLName of underlying struct if feasible,
-		// or field name otherwise.
+		// 如果标签的名称部分完全为空，则在可行时
+		// 从底层结构体的 XMLName 获取默认值，
+		// 否则使用字段名。
 		if xmlname := lookupXMLName(f.Type); xmlname != nil {
 			finfo.xmlns, finfo.name = xmlname.xmlns, xmlname.name
 		} else {
@@ -195,7 +195,7 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		return finfo, nil
 	}
 
-	// Prepare field name and parents.
+	// 准备字段名和父级。
 	parents := strings.Split(tag, ">")
 	if parents[0] == "" {
 		parents[0] = f.Name
@@ -211,9 +211,9 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 		finfo.parents = parents[:len(parents)-1]
 	}
 
-	// If the field type has an XMLName field, the names must match
-	// so that the behavior of both marshaling and unmarshaling
-	// is straightforward and unambiguous.
+	// 如果字段类型有 XMLName 字段，则名称必须匹配，
+	// 这样封送和反封送的行为都
+	// 直接且无歧义。
 	if finfo.flags&fElement != 0 {
 		ftyp := f.Type
 		xmlname := lookupXMLName(ftyp)
@@ -225,9 +225,9 @@ func structFieldInfo(typ reflect.Type, f *reflect.StructField) (*fieldInfo, erro
 	return finfo, nil
 }
 
-// lookupXMLName returns the fieldInfo for typ's XMLName field
-// in case it exists and has a valid xml field tag, otherwise
-// it returns nil.
+// lookupXMLName 返回 typ 的 XMLName 字段（如果存在且具有
+// 有效的 xml 字段标签）对应的 fieldInfo，否则
+// 返回 nil。
 func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
 	for typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
@@ -244,24 +244,23 @@ func lookupXMLName(typ reflect.Type) (xmlname *fieldInfo) {
 		if err == nil && finfo.name != "" {
 			return finfo
 		}
-		// Also consider errors as a non-existent field tag
-		// and let getTypeInfo itself report the error.
+		// 也把错误视为不存在的字段标签，
+		// 并让 getTypeInfo 自身报告该错误。
 		break
 	}
 	return nil
 }
 
-// addFieldInfo adds finfo to tinfo.fields if there are no
-// conflicts, or if conflicts arise from previous fields that were
-// obtained from deeper embedded structures than finfo. In the latter
-// case, the conflicting entries are dropped.
-// A conflict occurs when the path (parent + name) to a field is
-// itself a prefix of another path, or when two paths match exactly.
-// It is okay for field paths to share a common, shorter prefix.
+// 如果没有冲突，addFieldInfo 会将 finfo 添加到 tinfo.fields；
+// 或者如果冲突来自比 finfo 更深层嵌入结构中获取的先前字段，
+// 也会添加 finfo。在后一种情况下，冲突的条目会被丢弃。
+// 当某个字段的路径（父级 + 名称）本身是另一条路径的前缀，
+// 或者两条路径完全匹配时，就发生冲突。
+// 字段路径共享一个共同的、较短的前缀是允许的。
 func addFieldInfo(typ reflect.Type, tinfo *typeInfo, newf *fieldInfo) error {
 	var conflicts []int
 Loop:
-	// First, figure all conflicts. Most working code will have none.
+	// 首先，找出所有冲突。大多数能正常工作的代码都不会有冲突。
 	for i := range tinfo.fields {
 		oldf := &tinfo.fields[i]
 		if oldf.flags&fMode != newf.flags&fMode {
@@ -290,21 +289,21 @@ Loop:
 			}
 		}
 	}
-	// Without conflicts, add the new field and return.
+	// 没有冲突，则添加新字段并返回。
 	if conflicts == nil {
 		tinfo.fields = append(tinfo.fields, *newf)
 		return nil
 	}
 
-	// If any conflict is shallower, ignore the new field.
-	// This matches the Go field resolution on embedding.
+	// 如果任何冲突更浅，则忽略新字段。
+	// 这与嵌入时 Go 的字段解析规则一致。
 	for _, i := range conflicts {
 		if len(tinfo.fields[i].idx) < len(newf.idx) {
 			return nil
 		}
 	}
 
-	// Otherwise, if any of them is at the same depth level, it's an error.
+	// 否则，如果它们中有任何一个处于相同深度层级，则视为错误。
 	for _, i := range conflicts {
 		oldf := &tinfo.fields[i]
 		if len(oldf.idx) == len(newf.idx) {
@@ -314,8 +313,8 @@ Loop:
 		}
 	}
 
-	// Otherwise, the new field is shallower, and thus takes precedence,
-	// so drop the conflicting fields from tinfo and append the new one.
+	// 否则，新字段更浅，因此优先级更高，
+	// 于是从 tinfo 中丢弃冲突字段，并追加新字段。
 	for c := len(conflicts) - 1; c >= 0; c-- {
 		i := conflicts[c]
 		copy(tinfo.fields[i:], tinfo.fields[i+1:])
@@ -325,8 +324,8 @@ Loop:
 	return nil
 }
 
-// A TagPathError represents an error in the unmarshaling process
-// caused by the use of field tags with conflicting paths.
+// TagPathError 表示反封送过程中因使用了路径冲突的
+// 字段标签而导致的错误。
 type TagPathError struct {
 	Struct       reflect.Type
 	Field1, Tag1 string
@@ -342,11 +341,11 @@ const (
 	dontInitNilPointers = false
 )
 
-// value returns v's field value corresponding to finfo.
-// It's equivalent to v.FieldByIndex(finfo.idx), but when passed
-// initNilPointers, it initializes and dereferences pointers as necessary.
-// When passed dontInitNilPointers and a nil pointer is reached, the function
-// returns a zero reflect.Value.
+// value 返回 v 中与 finfo 对应的字段值。
+// 它等价于 v.FieldByIndex(finfo.idx)，但当传入
+// initNilPointers 时，它会按需初始化并解引用指针。
+// 当传入 dontInitNilPointers 且遇到 nil 指针时，该函数
+// 返回一个零值 reflect.Value。
 func (finfo *fieldInfo) value(v reflect.Value, shouldInitNilPointers bool) reflect.Value {
 	for i, x := range finfo.idx {
 		if i > 0 {

@@ -2,22 +2,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package asn1 implements parsing of DER-encoded ASN.1 data structures,
-// as defined in ITU-T Rec X.690.
+// Package asn1 实现 DER 编码的 ASN.1 数据结构的解析，
+// 其定义见 ITU-T Rec X.690。
 //
-// See also “A Layman's Guide to a Subset of ASN.1, BER, and DER,”
-// http://luca.ntop.org/Teaching/Appunti/asn1.html.
+// 另见 “A Layman's Guide to a Subset of ASN.1, BER, and DER,”
+// http://luca.ntop.org/Teaching/Appunti/asn1.html。
 package asn1
 
-// ASN.1 is a syntax for specifying abstract objects and BER, DER, PER, XER etc
-// are different encoding formats for those objects. Here, we'll be dealing
-// with DER, the Distinguished Encoding Rules. DER is used in X.509 because
-// it's fast to parse and, unlike BER, has a unique encoding for every object.
-// When calculating hashes over objects, it's important that the resulting
-// bytes be the same at both ends and DER removes this margin of error.
+// ASN.1 是一种用于描述抽象对象的语法，而 BER、DER、PER、XER 等
+// 是这些对象的不同编码格式。这里我们将处理的是 DER，
+// 即区分编码规则（Distinguished Encoding Rules）。DER 用于 X.509，
+// 因为它解析速度快，而且与 BER 不同，它对每个对象都有唯一的编码。
+// 在计算对象的哈希时，两端生成的字节必须相同，这一点很重要，
+// 而 DER 消除了这种误差余地。
 //
-// ASN.1 is very complex and this package doesn't attempt to implement
-// everything by any means.
+// ASN.1 非常复杂，本包无论如何都不打算实现全部内容。
 
 import (
 	"errors"
@@ -34,22 +33,21 @@ import (
 	"unicode/utf8"
 )
 
-// A StructuralError suggests that the ASN.1 data is valid, but the Go type
-// which is receiving it doesn't match.
+// StructuralError 表明 ASN.1 数据是有效的，但接收它的 Go 类型不匹配。
 type StructuralError struct {
 	Msg string
 }
 
 func (e StructuralError) Error() string { return "asn1: structure error: " + e.Msg }
 
-// A SyntaxError suggests that the ASN.1 data is invalid.
+// SyntaxError 表明 ASN.1 数据无效。
 type SyntaxError struct {
 	Msg string
 }
 
 func (e SyntaxError) Error() string { return "asn1: syntax error: " + e.Msg }
 
-// We start by dealing with each of the primitive types in turn.
+// 我们首先逐一处理各个原始类型。
 
 // BOOLEAN
 
@@ -59,9 +57,9 @@ func parseBool(bytes []byte) (ret bool, err error) {
 		return
 	}
 
-	// DER demands that "If the encoding represents the boolean value TRUE,
-	// its single contents octet shall have all eight bits set to one."
-	// Thus only 0 and 255 are valid encoded values.
+	// DER 要求“如果编码表示布尔值 TRUE，
+	// 则其单个内容八位组的所有八个位都应设置为 1。”
+	// 因此只有 0 和 255 是有效的编码值。
 	switch bytes[0] {
 	case 0:
 		ret = false
@@ -76,8 +74,8 @@ func parseBool(bytes []byte) (ret bool, err error) {
 
 // INTEGER
 
-// checkInteger returns nil if the given bytes are a valid DER-encoded
-// INTEGER and an error otherwise.
+// 如果给定字节是有效的 DER 编码 INTEGER，checkInteger 返回 nil，
+// 否则返回错误。
 func checkInteger(bytes []byte) error {
 	if len(bytes) == 0 {
 		return StructuralError{"empty integer"}
@@ -91,15 +89,14 @@ func checkInteger(bytes []byte) error {
 	return nil
 }
 
-// parseInt64 treats the given bytes as a big-endian, signed integer and
-// returns the result.
+// parseInt64 将给定字节视为大端序有符号整数并返回结果。
 func parseInt64(bytes []byte) (ret int64, err error) {
 	err = checkInteger(bytes)
 	if err != nil {
 		return
 	}
 	if len(bytes) > 8 {
-		// We'll overflow an int64 in this case.
+		// 在这种情况下，int64 会溢出。
 		err = StructuralError{"integer too large"}
 		return
 	}
@@ -108,14 +105,13 @@ func parseInt64(bytes []byte) (ret int64, err error) {
 		ret |= int64(bytes[bytesRead])
 	}
 
-	// Shift up and down in order to sign extend the result.
+	// 上下移位以对结果进行符号扩展。
 	ret <<= 64 - uint8(len(bytes))*8
 	ret >>= 64 - uint8(len(bytes))*8
 	return
 }
 
-// parseInt32 treats the given bytes as a big-endian, signed integer and returns
-// the result.
+// parseInt32 将给定字节视为大端序有符号整数并返回结果。
 func parseInt32(bytes []byte) (int32, error) {
 	if err := checkInteger(bytes); err != nil {
 		return 0, err
@@ -132,15 +128,14 @@ func parseInt32(bytes []byte) (int32, error) {
 
 var bigOne = big.NewInt(1)
 
-// parseBigInt treats the given bytes as a big-endian, signed integer and returns
-// the result.
+// parseBigInt 将给定字节视为大端序有符号整数并返回结果。
 func parseBigInt(bytes []byte) (*big.Int, error) {
 	if err := checkInteger(bytes); err != nil {
 		return nil, err
 	}
 	ret := new(big.Int)
 	if len(bytes) > 0 && bytes[0]&0x80 == 0x80 {
-		// This is a negative number.
+		// 这是一个负数。
 		notBytes := make([]byte, len(bytes))
 		for i := range notBytes {
 			notBytes[i] = ^bytes[i]
@@ -156,16 +151,15 @@ func parseBigInt(bytes []byte) (*big.Int, error) {
 
 // BIT STRING
 
-// BitString is the structure to use when you want an ASN.1 BIT STRING type. A
-// bit string is padded up to the nearest byte in memory and the number of
-// valid bits is recorded. Padding bits will be zero.
+// BitString 是当你需要 ASN.1 BIT STRING 类型时要使用的结构体。
+// 位字符串在内存中补齐到最近的字节，并记录有效位的数量。
+// 填充位为零。
 type BitString struct {
-	Bytes     []byte // bits packed into bytes.
-	BitLength int    // length in bits.
+	Bytes     []byte // 打包成字节的位。
+	BitLength int    // 以位为单位的长度。
 }
 
-// At returns the bit at the given index. If the index is out of range it
-// returns 0.
+// At 返回给定索引处的位。如果索引超出范围，它返回 0。
 func (b BitString) At(i int) int {
 	if i < 0 || i >= b.BitLength {
 		return 0
@@ -175,8 +169,8 @@ func (b BitString) At(i int) int {
 	return int(b.Bytes[x]>>y) & 1
 }
 
-// RightAlign returns a slice where the padding bits are at the beginning. The
-// slice may share memory with the BitString.
+// RightAlign 返回一个将填充位移到开头的切片。
+// 该切片可能与 BitString 共享内存。
 func (b BitString) RightAlign() []byte {
 	shift := uint(8 - (b.BitLength % 8))
 	if shift == 8 || len(b.Bytes) == 0 {
@@ -193,7 +187,7 @@ func (b BitString) RightAlign() []byte {
 	return a
 }
 
-// parseBitString parses an ASN.1 bit string from the given byte slice and returns it.
+// parseBitString 从给定字节切片解析 ASN.1 位字符串并返回它。
 func parseBitString(bytes []byte) (ret BitString, err error) {
 	if len(bytes) == 0 {
 		err = SyntaxError{"zero length BIT STRING"}
@@ -213,18 +207,18 @@ func parseBitString(bytes []byte) (ret BitString, err error) {
 
 // NULL
 
-// NullRawValue is a [RawValue] with its Tag set to the ASN.1 NULL type tag (5).
+// NullRawValue 是一个 [RawValue]，其 Tag 被设置为 ASN.1 NULL 类型标签 (5)。
 var NullRawValue = RawValue{Tag: TagNull}
 
-// NullBytes contains bytes representing the DER-encoded ASN.1 NULL type.
+// NullBytes 包含表示 DER 编码的 ASN.1 NULL 类型的字节。
 var NullBytes = []byte{TagNull, 0}
 
 // OBJECT IDENTIFIER
 
-// An ObjectIdentifier represents an ASN.1 OBJECT IDENTIFIER.
+// ObjectIdentifier 表示一个 ASN.1 OBJECT IDENTIFIER。
 type ObjectIdentifier []int
 
-// Equal reports whether oi and other represent the same identifier.
+// Equal 报告 oi 和 other 是否表示相同的标识符。
 func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
 	return slices.Equal(oi, other)
 }
@@ -244,23 +238,22 @@ func (oi ObjectIdentifier) String() string {
 	return s.String()
 }
 
-// parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
-// returns it. An object identifier is a sequence of variable length integers
-// that are assigned in a hierarchy.
+// parseObjectIdentifier 从给定字节解析 OBJECT IDENTIFIER 并返回它。
+// 对象标识符是按层级分配的变长整数序列。
 func parseObjectIdentifier(bytes []byte) (s ObjectIdentifier, err error) {
 	if len(bytes) == 0 {
 		err = SyntaxError{"zero length OBJECT IDENTIFIER"}
 		return
 	}
 
-	// In the worst case, we get two elements from the first byte (which is
-	// encoded differently) and then every varint is a single byte long.
+	// 在最坏情况下，我们从第一个字节（其编码方式不同）得到两个元素，
+	// 然后每个 varint 都是一个字节长。
 	s = make([]int, len(bytes)+1)
 
-	// The first varint is 40*value1 + value2:
-	// According to this packing, value1 can take the values 0, 1 and 2 only.
-	// When value1 = 0 or value1 = 1, then value2 is <= 39. When value1 = 2,
-	// then there are no restrictions on value2.
+	// 第一个 varint 是 40*value1 + value2：
+	// 按照这种打包方式，value1 只能取 0、1 和 2。
+	// 当 value1 = 0 或 value1 = 1 时，value2 <= 39。当 value1 = 2 时，
+	// value2 没有限制。
 	v, offset, err := parseBase128Int(bytes, 0)
 	if err != nil {
 		return
@@ -287,30 +280,30 @@ func parseObjectIdentifier(bytes []byte) (s ObjectIdentifier, err error) {
 
 // ENUMERATED
 
-// An Enumerated is represented as a plain int.
+// Enumerated 以普通的 int 表示。
 type Enumerated int
 
 // FLAG
 
-// A Flag accepts any data and is set to true if present.
+// Flag 接受任意数据，如果存在则被设置为 true。
 type Flag bool
 
-// parseBase128Int parses a base-128 encoded int from the given offset in the
-// given byte slice. It returns the value and the new offset.
+// parseBase128Int 从给定字节切片中的给定偏移量解析 base-128 编码的 int。
+// 它返回值以及新的偏移量。
 func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) {
 	offset = initOffset
 	var ret64 int64
 	for shifted := 0; offset < len(bytes); shifted++ {
-		// 5 * 7 bits per byte == 35 bits of data
-		// Thus the representation is either non-minimal or too large for an int32
+		// 每字节 5 * 7 位 == 35 位数据
+		// 因此该表示要么非最简，要么对 int32 来说过大
 		if shifted == 5 {
 			err = StructuralError{"base 128 integer too large"}
 			return
 		}
 		ret64 <<= 7
 		b := bytes[offset]
-		// integers should be minimally encoded, so the leading octet should
-		// never be 0x80
+		// 整数应采用最小化编码，因此前导八位组
+		// 永远不应是 0x80
 		if shifted == 0 && b == 0x80 {
 			err = SyntaxError{"integer is not minimally encoded"}
 			return
@@ -319,7 +312,7 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error) 
 		offset++
 		if b&0x80 == 0 {
 			ret = int(ret64)
-			// Ensure that the returned value fits in an int on all platforms
+			// 确保返回的值在所有平台上都能放进 int
 			if ret64 > math.MaxInt32 {
 				err = StructuralError{"base 128 integer too large"}
 			}
@@ -351,15 +344,15 @@ func parseUTCTime(bytes []byte) (ret time.Time, err error) {
 	}
 
 	if ret.Year() >= 2050 {
-		// UTCTime only encodes times prior to 2050. See https://tools.ietf.org/html/rfc5280#section-4.1.2.5.1
+		// UTCTime 只编码 2050 年之前的时间。参见 https://tools.ietf.org/html/rfc5280#section-4.1.2.5.1
 		ret = ret.AddDate(-100, 0, 0)
 	}
 
 	return
 }
 
-// parseGeneralizedTime parses the GeneralizedTime from the given byte slice
-// and returns the resulting time.
+// parseGeneralizedTime 从给定字节切片解析 GeneralizedTime
+// 并返回得到的时间。
 func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
 	const formatStr = "20060102150405.999999999Z0700"
 	s := string(bytes)
@@ -377,8 +370,7 @@ func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
 
 // NumericString
 
-// parseNumericString parses an ASN.1 NumericString from the given byte array
-// and returns it.
+// parseNumericString 从给定字节数组解析 ASN.1 NumericString 并返回它。
 func parseNumericString(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
 		if !isNumeric(b) {
@@ -388,7 +380,7 @@ func parseNumericString(bytes []byte) (ret string, err error) {
 	return string(bytes), nil
 }
 
-// isNumeric reports whether the given b is in the ASN.1 NumericString set.
+// isNumeric 报告给定字节 b 是否属于 ASN.1 NumericString 字符集。
 func isNumeric(b byte) bool {
 	return '0' <= b && b <= '9' ||
 		b == ' '
@@ -396,8 +388,7 @@ func isNumeric(b byte) bool {
 
 // PrintableString
 
-// parsePrintableString parses an ASN.1 PrintableString from the given byte
-// array and returns it.
+// parsePrintableString 从给定字节数组解析 ASN.1 PrintableString 并返回它。
 func parsePrintableString(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
 		if !isPrintable(b, allowAsterisk, allowAmpersand) {
@@ -420,9 +411,9 @@ const (
 	rejectAmpersand ampersandFlag = false
 )
 
-// isPrintable reports whether the given b is in the ASN.1 PrintableString set.
-// If asterisk is allowAsterisk then '*' is also allowed, reflecting existing
-// practice. If ampersand is allowAmpersand then '&' is allowed as well.
+// isPrintable 报告给定字节 b 是否属于 ASN.1 PrintableString 字符集。
+// 如果 asterisk 为 allowAsterisk，则也允许 '*'，这反映了现有实践。
+// 如果 ampersand 为 allowAmpersand，则 '&' 也被允许。
 func isPrintable(b byte, asterisk asteriskFlag, ampersand ampersandFlag) bool {
 	return 'a' <= b && b <= 'z' ||
 		'A' <= b && b <= 'Z' ||
@@ -433,21 +424,19 @@ func isPrintable(b byte, asterisk asteriskFlag, ampersand ampersandFlag) bool {
 		b == ':' ||
 		b == '=' ||
 		b == '?' ||
-		// This is technically not allowed in a PrintableString.
-		// However, x509 certificates with wildcard strings don't
-		// always use the correct string type so we permit it.
+		// 从技术上讲，这在 PrintableString 中是不允许的。
+		// 然而，带有通配符字符串的 x509 证书并不总是
+		// 使用正确的字符串类型，因此我们允许它。
 		(bool(asterisk) && b == '*') ||
-		// This is not technically allowed either. However, not
-		// only is it relatively common, but there are also a
-		// handful of CA certificates that contain it. At least
-		// one of which will not expire until 2027.
+		// 从技术上讲，这也不允许。然而，它不仅相当
+		// 常见，而且还有少数 CA 证书包含它。其中至少
+		// 有一个要到 2027 年才会过期。
 		(bool(ampersand) && b == '&')
 }
 
 // IA5String
 
-// parseIA5String parses an ASN.1 IA5String (ASCII string) from the given
-// byte slice and returns it.
+// parseIA5String 从给定字节切片解析 ASN.1 IA5String（ASCII 字符串）并返回它。
 func parseIA5String(bytes []byte) (ret string, err error) {
 	for _, b := range bytes {
 		if b >= utf8.RuneSelf {
@@ -461,21 +450,18 @@ func parseIA5String(bytes []byte) (ret string, err error) {
 
 // T61String
 
-// parseT61String parses an ASN.1 T61String (8-bit clean string) from the given
-// byte slice and returns it.
+// parseT61String 从给定字节切片解析 ASN.1 T61String（8 位无损字符串）并返回它。
 func parseT61String(bytes []byte) (ret string, err error) {
-	// T.61 is a defunct ITU 8-bit character encoding which preceded Unicode.
-	// T.61 uses a code page layout that _almost_ exactly maps to the code
-	// page layout of the ISO 8859-1 (Latin-1) character encoding, with the
-	// exception that a number of characters in Latin-1 are not present
-	// in T.61.
+	// T.61 是早于 Unicode 的一种已废弃的 ITU 8 位字符编码。
+	// T.61 使用的代码页布局几乎与 ISO 8859-1（Latin-1）字符编码的代码页
+	// 布局完全对应，只是 Latin-1 中有若干字符在 T.61 中不存在。
 	//
-	// Instead of mapping which characters are present in Latin-1 but not T.61,
-	// we just treat these strings as being encoded using Latin-1. This matches
-	// what most of the world does, including BoringSSL.
+	// 与其去映射 Latin-1 中存在但 T.61 中不存在的字符，
+	// 我们干脆将这些字符串视为使用 Latin-1 编码。这与世界上
+	// 大多数实现（包括 BoringSSL）的做法一致。
 	buf := make([]byte, 0, len(bytes))
 	for _, v := range bytes {
-		// All the 1-byte UTF-8 runes map 1-1 with Latin-1.
+		// 所有 1 字节的 UTF-8 rune 与 Latin-1 一一对应。
 		buf = utf8.AppendRune(buf, rune(v))
 	}
 	return string(buf), nil
@@ -483,8 +469,7 @@ func parseT61String(bytes []byte) (ret string, err error) {
 
 // UTF8String
 
-// parseUTF8String parses an ASN.1 UTF8String (raw UTF-8) from the given byte
-// array and returns it.
+// parseUTF8String 从给定字节数组解析 ASN.1 UTF8String（原始 UTF-8）并返回它。
 func parseUTF8String(bytes []byte) (ret string, err error) {
 	if !utf8.Valid(bytes) {
 		return "", errors.New("asn1: invalid UTF-8 string")
@@ -494,22 +479,21 @@ func parseUTF8String(bytes []byte) (ret string, err error) {
 
 // BMPString
 
-// parseBMPString parses an ASN.1 BMPString (Basic Multilingual Plane of
-// ISO/IEC/ITU 10646-1) from the given byte slice and returns it.
+// parseBMPString 从给定字节切片解析 ASN.1 BMPString
+// （ISO/IEC/ITU 10646-1 的基本多文种平面）并返回它。
 func parseBMPString(bmpString []byte) (string, error) {
-	// BMPString uses the defunct UCS-2 16-bit character encoding, which
-	// covers the Basic Multilingual Plane (BMP). UTF-16 was an extension of
-	// UCS-2, containing all of the same code points, but also including
-	// multi-code point characters (by using surrogate code points). We can
-	// treat a UCS-2 encoded string as a UTF-16 encoded string, as long as
-	// we reject out the UTF-16 specific code points. This matches the
-	// BoringSSL behavior.
+	// BMPString 使用已废弃的 UCS-2 16 位字符编码，
+	// 它涵盖基本多文种平面（BMP）。UTF-16 是 UCS-2 的扩展，
+	// 包含所有相同的码点，但也包括多码点字符（通过使用代理码点）。
+	// 只要排除 UTF-16 特有的码点，我们就可以
+	// 将 UCS-2 编码的字符串当作 UTF-16 编码的字符串处理。
+	// 这与 BoringSSL 的行为一致。
 
 	if len(bmpString)%2 != 0 {
 		return "", errors.New("invalid BMPString")
 	}
 
-	// Strip terminator if present.
+	// 如果存在终止符，则将其去除。
 	if l := len(bmpString); l >= 2 && bmpString[l-1] == 0 && bmpString[l-2] == 0 {
 		bmpString = bmpString[:l-2]
 	}
@@ -517,9 +501,8 @@ func parseBMPString(bmpString []byte) (string, error) {
 	s := make([]uint16, 0, len(bmpString)/2)
 	for len(bmpString) > 0 {
 		point := uint16(bmpString[0])<<8 + uint16(bmpString[1])
-		// Reject UTF-16 code points that are permanently reserved
-		// noncharacters (0xfffe, 0xffff, and 0xfdd0-0xfdef) and surrogates
-		// (0xd800-0xdfff).
+		// 拒绝永久保留的非字符（0xfffe、0xffff 和 0xfdd0-0xfdef）
+		// 以及代理项（0xd800-0xdfff）这些 UTF-16 码点。
 		if point == 0xfffe || point == 0xffff ||
 			(point >= 0xfdd0 && point <= 0xfdef) ||
 			(point >= 0xd800 && point <= 0xdfff) {
@@ -532,29 +515,29 @@ func parseBMPString(bmpString []byte) (string, error) {
 	return string(utf16.Decode(s)), nil
 }
 
-// A RawValue represents an undecoded ASN.1 object.
+// RawValue 表示一个未解码的 ASN.1 对象。
 type RawValue struct {
 	Class, Tag int
 	IsCompound bool
 	Bytes      []byte
-	FullBytes  []byte // includes the tag and length
+	FullBytes  []byte // 包含标签和长度
 }
 
-// RawContent is used to signal that the undecoded, DER data needs to be
-// preserved for a struct. To use it, the first field of the struct must have
-// this type. It's an error for any of the other fields to have this type.
+// RawContent 用于表示需要为结构体保留未解码的 DER 数据。
+// 要使用它，结构体的第一个字段必须是此类型。
+// 其他任何字段使用此类型都是错误的。
 type RawContent []byte
 
-// Tagging
+// 标记
 
-// parseTagAndLength parses an ASN.1 tag and length pair from the given offset
-// into a byte slice. It returns the parsed data and the new offset. SET and
-// SET OF (tag 17) are mapped to SEQUENCE and SEQUENCE OF (tag 16) since we
-// don't distinguish between ordered and unordered objects in this code.
+// parseTagAndLength 从字节切片中的给定偏移量解析一对 ASN.1 标签和长度。
+// 它返回解析出的数据以及新的偏移量。SET 和 SET OF（标签 17）被映射为
+// SEQUENCE 和 SEQUENCE OF（标签 16），因为在这段代码中
+// 我们不区分有序对象和无序对象。
 func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset int, err error) {
 	offset = initOffset
-	// parseTagAndLength should not be called without at least a single
-	// byte to read. Thus this check is for robustness:
+	// 调用 parseTagAndLength 时至少应有一个字节可读。
+	// 因此这项检查是为了稳健性：
 	if offset >= len(bytes) {
 		err = errors.New("asn1: internal error in parseTagAndLength")
 		return
@@ -565,14 +548,14 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 	ret.isCompound = b&0x20 == 0x20
 	ret.tag = int(b & 0x1f)
 
-	// If the bottom five bits are set, then the tag number is actually base 128
-	// encoded afterwards
+	// 如果低五位被设置，那么标签编号实际上是其后
+	// 用 base 128 编码的
 	if ret.tag == 0x1f {
 		ret.tag, offset, err = parseBase128Int(bytes, offset)
 		if err != nil {
 			return
 		}
-		// Tags should be encoded in minimal form.
+		// 标签应采用最小形式编码。
 		if ret.tag < 0x1f {
 			err = SyntaxError{"non-minimal tag"}
 			return
@@ -585,10 +568,10 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 	b = bytes[offset]
 	offset++
 	if b&0x80 == 0 {
-		// The length is encoded in the bottom 7 bits.
+		// 长度编码在低 7 位中。
 		ret.length = int(b & 0x7f)
 	} else {
-		// Bottom 7 bits give the number of length bytes to follow.
+		// 低 7 位给出随后长度字节的数量。
 		numBytes := int(b & 0x7f)
 		if numBytes == 0 {
 			err = SyntaxError{"indefinite length found (not DER)"}
@@ -603,20 +586,20 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 			b = bytes[offset]
 			offset++
 			if ret.length >= 1<<23 {
-				// We can't shift ret.length up without
-				// overflowing.
+				// 我们无法在不溢出的情况下
+				// 左移 ret.length。
 				err = StructuralError{"length too large"}
 				return
 			}
 			ret.length <<= 8
 			ret.length |= int(b)
 			if ret.length == 0 {
-				// DER requires that lengths be minimal.
+				// DER 要求长度必须是最简的。
 				err = StructuralError{"superfluous leading zeros in length"}
 				return
 			}
 		}
-		// Short lengths must be encoded in short form.
+		// 短长度必须以短形式编码。
 		if ret.length < 0x80 {
 			err = StructuralError{"non-minimal length"}
 			return
@@ -626,9 +609,8 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 	return
 }
 
-// parseSequenceOf is used for SEQUENCE OF and SET OF values. It tries to parse
-// a number of ASN.1 values from the given byte slice and returns them as a
-// slice of Go values of the given type.
+// parseSequenceOf 用于 SEQUENCE OF 和 SET OF 值。它尝试从给定字节切片
+// 解析若干个 ASN.1 值，并将它们作为给定类型的 Go 值切片返回。
 func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type) (ret reflect.Value, err error) {
 	matchAny, expectedTag, compoundType, ok := getUniversalType(elemType)
 	if !ok {
@@ -636,8 +618,8 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 		return
 	}
 
-	// First we iterate over the input and count the number of elements,
-	// checking that the types are correct in each case.
+	// 首先我们遍历输入并统计元素数量，
+	// 同时检查每种情况下类型是否正确。
 	numElements := 0
 	for offset := 0; offset < len(bytes); {
 		var t tagAndLength
@@ -647,12 +629,12 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 		}
 		switch t.tag {
 		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString, TagBMPString:
-			// We pretend that various other string types are
-			// PRINTABLE STRINGs so that a sequence of them can be
-			// parsed into a []string.
+			// 我们假装各种其他字符串类型都是
+			// PRINTABLE STRING，这样它们的序列就可以
+			// 解析为 []string。
 			t.tag = TagPrintableString
 		case TagGeneralizedTime, TagUTCTime:
-			// Likewise, both time types are treated the same.
+			// 同样，两种时间类型被同等对待。
 			t.tag = TagUTCTime
 		}
 
@@ -697,20 +679,19 @@ var (
 	bigIntType           = reflect.TypeFor[*big.Int]()
 )
 
-// invalidLength reports whether offset + length > sliceLength, or if the
-// addition would overflow.
+// invalidLength 报告 offset + length > sliceLength 是否成立，
+// 或者该加法是否会溢出。
 func invalidLength(offset, length, sliceLength int) bool {
 	return offset+length < offset || offset+length > sliceLength
 }
 
-// parseField is the main parsing function. Given a byte slice and an offset
-// into the array, it will try to parse a suitable ASN.1 value out and store it
-// in the given Value.
+// parseField 是主要的解析函数。给定一个字节切片和数组中的偏移量，
+// 它会尝试解析出合适的 ASN.1 值并将其存储到给定的 Value 中。
 func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParameters) (offset int, err error) {
 	offset = initOffset
 	fieldType := v.Type()
 
-	// If we have run out of data, it may be that there are optional elements at the end.
+	// 如果数据已经耗尽，可能是末尾还有可选元素。
 	if offset == len(bytes) {
 		if !setDefaultValue(v, params) {
 			err = SyntaxError{"sequence truncated"}
@@ -718,7 +699,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	}
 
-	// Deal with the ANY type.
+	// 处理 ANY 类型。
 	if ifaceType := fieldType; ifaceType.Kind() == reflect.Interface && ifaceType.NumMethod() == 0 {
 		var t tagAndLength
 		t, offset, err = parseTagAndLength(bytes, offset)
@@ -760,7 +741,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			case TagBMPString:
 				result, err = parseBMPString(innerBytes)
 			default:
-				// If we don't know how to handle the type, we just leave Value as nil.
+				// 如果我们不知道如何处理该类型，就保持 Value 为 nil。
 			}
 		}
 		offset += t.length
@@ -788,7 +769,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 		if t.class == expectedClass && t.tag == *params.tag && (t.length == 0 || t.isCompound) {
 			if fieldType == rawValueType {
-				// The inner element should not be parsed for RawValues.
+				// 对于 RawValue，不应解析内部元素。
 			} else if t.length > 0 {
 				t, offset, err = parseTagAndLength(bytes, offset)
 				if err != nil {
@@ -803,7 +784,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				return
 			}
 		} else {
-			// The tags didn't match, it might be an optional element.
+			// 标签不匹配，它可能是一个可选元素。
 			ok := setDefaultValue(v, params)
 			if ok {
 				offset = initOffset
@@ -820,10 +801,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		return
 	}
 
-	// Special case for strings: all the ASN.1 string types map to the Go
-	// type string. getUniversalType returns the tag for PrintableString
-	// when it sees a string, so if we see a different string type on the
-	// wire, we change the universal type to match.
+	// 字符串的特殊情况：所有 ASN.1 字符串类型都映射到 Go 的 string 类型。
+	// getUniversalType 在遇到 string 时返回 PrintableString 的标签，
+	// 因此如果我们在传输中看到不同的字符串类型，
+	// 就改变通用类型以与之匹配。
 	if universalTag == TagPrintableString {
 		if t.class == ClassUniversal {
 			switch t.tag {
@@ -835,11 +816,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		}
 	}
 
-	// Special case for time: UTCTime and GeneralizedTime both map to the
-	// Go type time.Time. getUniversalType returns the tag for UTCTime when
-	// it sees a time.Time, so if we see a different time type on the wire,
-	// or the field is tagged with a different type, we change the universal
-	// type to match.
+	// 时间的特殊情况：UTCTime 和 GeneralizedTime 都映射到
+	// Go 的 time.Time 类型。getUniversalType 在遇到 time.Time 时返回
+	// UTCTime 的标签，因此如果我们在传输中看到不同的时间类型，
+	// 或者该字段被标记为不同的类型，我们就改变通用类型以与之匹配。
 	if universalTag == TagUTCTime {
 		if t.class == ClassUniversal {
 			if t.tag == TagGeneralizedTime {
@@ -876,10 +856,10 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		matchAnyClassAndTag = false
 	}
 
-	// We have unwrapped any explicit tagging at this point.
+	// 此时我们已经展开了任何显式标记。
 	if !matchAnyClassAndTag && (t.class != expectedClass || t.tag != expectedTag) ||
 		(!matchAny && t.isCompound != compoundType) {
-		// Tags don't match. Again, it could be an optional element.
+		// 标签不匹配。同样，它可能是一个可选元素。
 		ok := setDefaultValue(v, params)
 		if ok {
 			offset = initOffset
@@ -895,7 +875,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	innerBytes := bytes[offset : offset+t.length]
 	offset += t.length
 
-	// We deal with the structures defined in this package first.
+	// 我们首先处理本包中定义的结构体。
 	switch v := v.Addr().Interface().(type) {
 	case *RawValue:
 		*v = RawValue{t.class, t.tag, t.isCompound, innerBytes, bytes[initOffset:offset]}
@@ -954,7 +934,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 			err = err1
 		}
 		return
-	// TODO(dfc) Add support for the remaining integer types
+	// TODO(dfc) 添加对剩余整数类型的支持
 	case reflect.Struct:
 		structType := fieldType
 
@@ -982,9 +962,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 				return
 			}
 		}
-		// We allow extra bytes at the end of the SEQUENCE because
-		// adding elements to the end has been used in X.509 as the
-		// version numbers have increased.
+		// 我们允许 SEQUENCE 末尾有多余字节，因为
+		// 随着版本号增加，X.509 中曾使用过在末尾
+		// 添加元素的做法。
 		return
 	case reflect.Slice:
 		sliceType := fieldType
@@ -1013,10 +993,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 		case TagUTF8String:
 			v, err = parseUTF8String(innerBytes)
 		case TagGeneralString:
-			// GeneralString is specified in ISO-2022/ECMA-35,
-			// A brief review suggests that it includes structures
-			// that allow the encoding to change midstring and
-			// such. We give up and pass it as an 8-bit string.
+			// GeneralString 在 ISO-2022/ECMA-35 中规定，
+			// 简要审视表明它包含允许编码在字符串中途改变
+			// 等结构。我们放弃处理，将其作为 8 位字符串传递。
 			v, err = parseT61String(innerBytes)
 		case TagBMPString:
 			v, err = parseBMPString(innerBytes)
@@ -1033,8 +1012,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
 	return
 }
 
-// canHaveDefaultValue reports whether k is a Kind that we will set a default
-// value for. (A signed integer, essentially.)
+// canHaveDefaultValue 报告 k 是否是我们会为其设置默认值的 Kind。
+// （本质上是有符号整数。）
 func canHaveDefaultValue(k reflect.Kind) bool {
 	switch k {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
@@ -1044,9 +1023,9 @@ func canHaveDefaultValue(k reflect.Kind) bool {
 	return false
 }
 
-// setDefaultValue is used to install a default value, from a tag string, into
-// a Value. It is successful if the field was optional, even if a default value
-// wasn't provided or it failed to install it into the Value.
+// setDefaultValue 用于将来自标签字符串的默认值安装到 Value 中。
+// 只要字段是可选的，它就成功，即使未提供默认值
+// 或未能将其安装到 Value 中。
 func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 	if !params.optional {
 		return
@@ -1061,88 +1040,88 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
 	return
 }
 
-// Unmarshal parses the DER-encoded ASN.1 data structure b
-// and uses the reflect package to fill in an arbitrary value pointed at by val.
-// Because Unmarshal uses the reflect package, the structs
-// being written to must use upper case field names. If val
-// is nil or not a pointer, Unmarshal returns an error.
+// Unmarshal 解析 DER 编码的 ASN.1 数据结构 b，
+// 并使用 reflect 包填充 val 所指向的任意值。
+// 由于 Unmarshal 使用 reflect 包，被写入的结构体
+// 必须使用大写字段名。如果 val 为 nil 或不是指针，
+// Unmarshal 返回错误。
 //
-// After parsing b, any bytes that were leftover and not used to fill
-// val will be returned in rest. When parsing a SEQUENCE into a struct,
-// any trailing elements of the SEQUENCE that do not have matching
-// fields in val will not be included in rest, as these are considered
-// valid elements of the SEQUENCE and not trailing data.
+// 解析完 b 之后，任何剩余且未用于填充 val 的字节
+// 将在 rest 中返回。当将一个 SEQUENCE 解析到结构体时，
+// SEQUENCE 中任何在 val 里没有匹配字段的尾部元素
+// 都不会包含在 rest 中，因为它们被视为
+// SEQUENCE 的合法元素而非尾部数据。
 //
-//   - An ASN.1 INTEGER can be written to an int, int32, int64,
-//     or *[big.Int].
-//     If the encoded value does not fit in the Go type,
-//     Unmarshal returns a parse error.
+//   - ASN.1 INTEGER 可以写入 int、int32、int64
+//     或 *[big.Int]。
+//     如果编码后的值无法放入该 Go 类型，
+//     Unmarshal 返回解析错误。
 //
-//   - An ASN.1 BIT STRING can be written to a [BitString].
+//   - ASN.1 BIT STRING 可以写入 [BitString]。
 //
-//   - An ASN.1 OCTET STRING can be written to a []byte.
+//   - ASN.1 OCTET STRING 可以写入 []byte。
 //
-//   - An ASN.1 OBJECT IDENTIFIER can be written to an [ObjectIdentifier].
+//   - ASN.1 OBJECT IDENTIFIER 可以写入 [ObjectIdentifier]。
 //
-//   - An ASN.1 ENUMERATED can be written to an [Enumerated].
+//   - ASN.1 ENUMERATED 可以写入 [Enumerated]。
 //
-//   - An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a [time.Time].
+//   - ASN.1 UTCTIME 或 GENERALIZEDTIME 可以写入 [time.Time]。
 //
-//   - An ASN.1 PrintableString, IA5String, or NumericString can be written to a string.
+//   - ASN.1 PrintableString、IA5String 或 NumericString 可以写入 string。
 //
-//   - Any of the above ASN.1 values can be written to an interface{}.
-//     The value stored in the interface has the corresponding Go type.
-//     For integers, that type is int64.
+//   - 上述任何 ASN.1 值都可以写入 interface{}。
+//     存储在接口中的值具有对应的 Go 类型。
+//     对于整数，该类型为 int64。
 //
-//   - An ASN.1 SEQUENCE OF x or SET OF x can be written
-//     to a slice if an x can be written to the slice's element type.
+//   - ASN.1 SEQUENCE OF x 或 SET OF x 可以写入
+//     切片，前提是 x 可以写入该切片的元素类型。
 //
-//   - An ASN.1 SEQUENCE or SET can be written to a struct
-//     if each of the elements in the sequence can be
-//     written to the corresponding element in the struct.
+//   - ASN.1 SEQUENCE 或 SET 可以写入结构体，
+//     前提是序列中的每个元素都可以
+//     写入结构体中对应的元素。
 //
-// The following tags on struct fields have special meaning to Unmarshal:
+// 结构体字段上的以下标签对 Unmarshal 有特殊含义：
 //
-//	application specifies that an APPLICATION tag is used
-//	private     specifies that a PRIVATE tag is used
-//	default:x   sets the default value for optional integer fields (only used if optional is also present)
-//	explicit    specifies that an additional, explicit tag wraps the implicit one
-//	optional    marks the field as ASN.1 OPTIONAL
-//	set         causes a SET, rather than a SEQUENCE type to be expected
-//	tag:x       specifies the ASN.1 tag number; implies ASN.1 CONTEXT SPECIFIC
+//	application 指定使用 APPLICATION 标签
+//	private     指定使用 PRIVATE 标签
+//	default:x   为可选整数字段设置默认值（仅在同时存在 optional 时使用）
+//	explicit    指定用一个附加的显式标签包裹隐式标签
+//	optional    将该字段标记为 ASN.1 OPTIONAL
+//	set         使期望的类型为 SET 而非 SEQUENCE
+//	tag:x       指定 ASN.1 标签编号；隐含 ASN.1 CONTEXT SPECIFIC
 //
-// When decoding an ASN.1 value with an IMPLICIT tag into a string field,
-// Unmarshal will default to a PrintableString, which doesn't support
-// characters such as '@' and '&'. To force other encodings, use the following
-// tags:
+// 当将以 IMPLICIT 标签标记的 ASN.1 值解码到字符串字段时，
+// Unmarshal 默认使用 PrintableString，它不支持
+// '@' 和 '&' 等字符。要强制使用其他编码，请使用以下
+// 标签：
 //
-//	ia5     causes strings to be unmarshaled as ASN.1 IA5String values
-//	numeric causes strings to be unmarshaled as ASN.1 NumericString values
-//	utf8    causes strings to be unmarshaled as ASN.1 UTF8String values
+//	ia5     使字符串按 ASN.1 IA5String 值反编组
+//	numeric 使字符串按 ASN.1 NumericString 值反编组
+//	utf8    使字符串按 ASN.1 UTF8String 值反编组
 //
-// When decoding an ASN.1 value with an IMPLICIT tag into a time.Time field,
-// Unmarshal will default to a UTCTime, which doesn't support time zones or
-// fractional seconds. To force usage of GeneralizedTime, use the following
-// tag:
+// 当将以 IMPLICIT 标签标记的 ASN.1 值解码到 time.Time 字段时，
+// Unmarshal 默认使用 UTCTime，它不支持时区或
+// 小数秒。要强制使用 GeneralizedTime，请使用以下
+// 标签：
 //
-//	generalized causes time.Times to be unmarshaled as ASN.1 GeneralizedTime values
+//	generalized 使 time.Time 按 ASN.1 GeneralizedTime 值反编组
 //
-// If the type of the first field of a structure is RawContent then the raw
-// ASN1 contents of the struct will be stored in it.
+// 如果结构体第一个字段的类型是 RawContent，那么该结构体的原始
+// ASN1 内容将存储在其中。
 //
-// If the name of a slice type ends with "SET" then it's treated as if
-// the "set" tag was set on it. This results in interpreting the type as a
-// SET OF x rather than a SEQUENCE OF x. This can be used with nested slices
-// where a struct tag cannot be given.
+// 如果切片类型的名称以 "SET" 结尾，那么它就被视为
+// 设置了 "set" 标签。这导致将该类型解释为
+// SET OF x 而非 SEQUENCE OF x。这可用于嵌套切片
+// 无法给出结构体标签的场景。
 //
-// Other ASN.1 types are not supported; if it encounters them,
-// Unmarshal returns a parse error.
+// 不支持其他 ASN.1 类型；如果遇到它们，
+// Unmarshal 返回解析错误。
 func Unmarshal(b []byte, val any) (rest []byte, err error) {
 	return UnmarshalWithParams(b, val, "")
 }
 
-// An invalidUnmarshalError describes an invalid argument passed to Unmarshal.
-// (The argument to Unmarshal must be a non-nil pointer.)
+// invalidUnmarshalError 描述传给 Unmarshal 的无效参数。
+// （传给 Unmarshal 的参数必须是非 nil 指针。）
 type invalidUnmarshalError struct {
 	Type reflect.Type
 }
@@ -1158,8 +1137,8 @@ func (e *invalidUnmarshalError) Error() string {
 	return "asn1: Unmarshal recipient value is nil " + e.Type.String()
 }
 
-// UnmarshalWithParams allows field parameters to be specified for the
-// top-level element. The form of the params is the same as the field tags.
+// UnmarshalWithParams 允许为顶层元素指定字段参数。
+// params 的形式与字段标签相同。
 func UnmarshalWithParams(b []byte, val any, params string) (rest []byte, err error) {
 	v := reflect.ValueOf(val)
 	if v.Kind() != reflect.Pointer || v.IsNil() {

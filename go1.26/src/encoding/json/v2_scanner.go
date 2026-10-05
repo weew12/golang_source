@@ -16,10 +16,10 @@ import (
 	"encoding/json/jsontext"
 )
 
-// export exposes internal functionality of the "jsontext" package.
+// export 暴露 "jsontext" 包的内部功能。
 var export = jsontext.Internal.Export(&internal.AllowInternalUse)
 
-// Valid reports whether data is a valid JSON encoding.
+// Valid 报告 data 是否是有效的 JSON 编码。
 func Valid(data []byte) bool {
 	return checkValid(data) == nil
 }
@@ -42,11 +42,11 @@ func checkValid(data []byte) error {
 	return nil
 }
 
-// A SyntaxError is a description of a JSON syntax error.
-// [Unmarshal] will return a SyntaxError if the JSON can't be parsed.
+// SyntaxError 是对 JSON 语法错误的描述。
+// 如果 JSON 无法被解析，[Unmarshal] 将返回 SyntaxError。
 type SyntaxError struct {
-	msg    string // description of error
-	Offset int64  // error occurred after reading Offset bytes
+	msg    string // 错误描述
+	Offset int64  // 错误发生在读取 Offset 个字节之后
 }
 
 func (e *SyntaxError) Error() string { return e.msg }
@@ -67,16 +67,16 @@ func transformSyntacticError(err error) error {
 	case ok:
 		return (*SyntaxError)(nil)
 	case export.IsIOError(err):
-		return errors.Unwrap(err) // v1 historically did not wrap IO errors
+		return errors.Unwrap(err) // v1 历史上不包装 IO 错误
 	default:
 		return err
 	}
 }
 
-// syntaxErrorReplacer replaces certain string literals in the v2 error
-// to better match the historical string rendering of syntax errors.
-// In particular, v2 uses the terminology "object name" to match RFC 8259,
-// while v1 uses "object key", which is not a term found in JSON literature.
+// syntaxErrorReplacer 替换 v2 错误中的某些字符串字面量，
+// 以更好地匹配语法错误的历史字符串呈现。
+// 特别是，v2 使用术语 "object name" 以匹配 RFC 8259，
+// 而 v1 使用 "object key"，这不是 JSON 文献中的术语。
 var syntaxErrorReplacer = strings.NewReplacer(
 	"object name", "object key",
 	"at start of value", "looking for beginning of value",

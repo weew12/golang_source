@@ -16,22 +16,22 @@ import (
 	"encoding/json/internal/jsonflags"
 )
 
-// escapeASCII reports whether the ASCII character needs to be escaped.
-// It conservatively assumes EscapeForHTML.
+// escapeASCII 报告该 ASCII 字符是否需要转义。
+// 它保守地假定启用了 EscapeForHTML。
 var escapeASCII = [...]uint8{
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // escape control characters
-	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // escape control characters
-	0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, // escape '"' and '&'
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, // escape '<' and '>'
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 转义控制字符
+	1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 转义控制字符
+	0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 转义 '"' 和 '&'
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, // 转义 '<' 和 '>'
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, // escape '\\'
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, // 转义 '\\'
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 }
 
-// NeedEscape reports whether src needs escaping of any characters.
-// It conservatively assumes EscapeForHTML and EscapeForJS.
-// It reports true for inputs with invalid UTF-8.
+// NeedEscape 报告 src 是否有任何字符需要转义。
+// 它保守地假定启用了 EscapeForHTML 和 EscapeForJS。
+// 对于包含无效 UTF-8 的输入，它报告 true。
 func NeedEscape[Bytes ~[]byte | ~string](src Bytes) bool {
 	var i int
 	for uint(len(src)) > uint(i) {
@@ -51,17 +51,17 @@ func NeedEscape[Bytes ~[]byte | ~string](src Bytes) bool {
 	return false
 }
 
-// AppendQuote appends src to dst as a JSON string per RFC 7159, section 7.
+// AppendQuote 按 RFC 7159 第 7 节将 src 作为 JSON 字符串追加到 dst。
 //
-// It takes in flags and respects the following:
-//   - EscapeForHTML escapes '<', '>', and '&'.
-//   - EscapeForJS escapes '\u2028' and '\u2029'.
-//   - AllowInvalidUTF8 avoids reporting an error for invalid UTF-8.
+// 它接收 flags 并遵循以下规则：
+//   - EscapeForHTML 转义 '<'、'>' 和 '&'。
+//   - EscapeForJS 转义 '\u2028' 和 '\u2029'。
+//   - AllowInvalidUTF8 避免对无效 UTF-8 报告错误。
 //
-// Regardless of whether AllowInvalidUTF8 is specified,
-// invalid bytes are replaced with the Unicode replacement character ('\ufffd').
-// If no escape flags are set, then the shortest representable form is used,
-// which is also the canonical form for strings (RFC 8785, section 3.2.2.2).
+// 无论是否指定 AllowInvalidUTF8，
+// 无效字节都会被替换为 Unicode 替换字符（'\ufffd'）。
+// 如果未设置任何转义标志，则使用最短的可表示形式，
+// 这也正是字符串的规范形式（RFC 8785 第 3.2.2.2 节）。
 func AppendQuote[Bytes ~[]byte | ~string](dst []byte, src Bytes, flags *jsonflags.Flags) ([]byte, error) {
 	var i, n int
 	var hasInvalidUTF8 bool
@@ -69,25 +69,25 @@ func AppendQuote[Bytes ~[]byte | ~string](dst []byte, src Bytes, flags *jsonflag
 	dst = append(dst, '"')
 	for uint(len(src)) > uint(n) {
 		if c := src[n]; c < utf8.RuneSelf {
-			// Handle single-byte ASCII.
+			// 处理单字节 ASCII。
 			n++
 			if escapeASCII[c] == 0 {
-				continue // no escaping possibly needed
+				continue // 可能不需要转义
 			}
-			// Handle escaping of single-byte ASCII.
+			// 处理单字节 ASCII 的转义。
 			if !(c == '<' || c == '>' || c == '&') || flags.Get(jsonflags.EscapeForHTML) {
 				dst = append(dst, src[i:n-1]...)
 				dst = appendEscapedASCII(dst, c)
 				i = n
 			}
 		} else {
-			// Handle multi-byte Unicode.
+			// 处理多字节 Unicode。
 			r, rn := utf8.DecodeRuneInString(string(truncateMaxUTF8(src[n:])))
 			n += rn
 			if r != utf8.RuneError && r != '\u2028' && r != '\u2029' {
-				continue // no escaping possibly needed
+				continue // 可能不需要转义
 			}
-			// Handle escaping of multi-byte Unicode.
+			// 处理多字节 Unicode 的转义。
 			switch {
 			case isInvalidUTF8(r, rn):
 				hasInvalidUTF8 = true
@@ -144,29 +144,29 @@ func appendEscapedUTF16(dst []byte, x uint16) []byte {
 	return append(dst, '\\', 'u', hex[(x>>12)&0xf], hex[(x>>8)&0xf], hex[(x>>4)&0xf], hex[(x>>0)&0xf])
 }
 
-// ReformatString consumes a JSON string from src and appends it to dst,
-// reformatting it if necessary according to the specified flags.
-// It returns the appended output and the number of consumed input bytes.
+// ReformatString 从 src 消费一个 JSON 字符串并将其追加到 dst，
+// 必要时根据指定的 flags 对其进行重新格式化。
+// 它返回追加后的输出以及已消费的输入字节数。
 func ReformatString(dst, src []byte, flags *jsonflags.Flags) ([]byte, int, error) {
-	// TODO: Should this update ValueFlags as input?
+	// TODO: 这里是否应该更新 ValueFlags 作为输入？
 	var valFlags ValueFlags
 	n, err := ConsumeString(&valFlags, src, !flags.Get(jsonflags.AllowInvalidUTF8))
 	if err != nil {
 		return dst, n, err
 	}
 
-	// If the output requires no special escapes, and the input
-	// is already in canonical form or should be preserved verbatim,
-	// then directly copy the input to the output.
+	// 如果输出不需要特殊的转义，并且输入
+	// 已经处于规范形式或应被逐字保留，
+	// 那么就直接把输入复制到输出。
 	if !flags.Get(jsonflags.AnyEscape) &&
 		(valFlags.IsCanonical() || flags.Get(jsonflags.PreserveRawStrings)) {
-		dst = append(dst, src[:n]...) // copy the string verbatim
+		dst = append(dst, src[:n]...) // 逐字复制该字符串
 		return dst, n, nil
 	}
 
-	// Under [jsonflags.PreserveRawStrings], any pre-escaped sequences
-	// remain escaped, however we still need to respect the
-	// [jsonflags.EscapeForHTML] and [jsonflags.EscapeForJS] options.
+	// 在 [jsonflags.PreserveRawStrings] 下，任何预先转义的序列
+	// 保持转义状态，但我们仍然需要遵循
+	// [jsonflags.EscapeForHTML] 和 [jsonflags.EscapeForJS] 选项。
 	if flags.Get(jsonflags.PreserveRawStrings) {
 		var i, lastAppendIndex int
 		for i < n {
@@ -190,26 +190,26 @@ func ReformatString(dst, src []byte, flags *jsonflags.Flags) ([]byte, int, error
 		return append(dst, src[lastAppendIndex:n]...), n, nil
 	}
 
-	// The input contains characters that might need escaping,
-	// unnecessary escape sequences, or invalid UTF-8.
-	// Perform a round-trip unquote and quote to properly reformat
-	// these sequences according the current flags.
+	// 输入包含可能需要转义的字符、
+	// 不必要的转义序列，或无效的 UTF-8。
+	// 执行一次往返的去引号和加引号，以根据当前 flags
+	// 正确重新格式化这些序列。
 	b, _ := AppendUnquote(nil, src[:n])
 	dst, _ = AppendQuote(dst, b, flags)
 	return dst, n, nil
 }
 
-// AppendFloat appends src to dst as a JSON number per RFC 7159, section 6.
-// It formats numbers similar to the ES6 number-to-string conversion.
-// See https://go.dev/issue/14135.
+// AppendFloat 按 RFC 7159 第 6 节将 src 作为 JSON 数字追加到 dst。
+// 它格式化数字的方式类似于 ES6 的数字到字符串转换。
+// 参见 https://go.dev/issue/14135。
 //
-// The output is identical to ECMA-262, 6th edition, section 7.1.12.1 and with
-// RFC 8785, section 3.2.2.3 for 64-bit floating-point numbers except for -0,
-// which is formatted as -0 instead of just 0.
+// 对于 64 位浮点数，输出与 ECMA-262 第 6 版 7.1.12.1 节以及
+// RFC 8785 第 3.2.2.3 节一致，但 -0 除外，
+// 它被格式化为 -0 而不是仅仅 0。
 //
-// For 32-bit floating-point numbers,
-// the output is a 32-bit equivalent of the algorithm.
-// Note that ECMA-262 specifies no algorithm for 32-bit numbers.
+// 对于 32 位浮点数，
+// 输出是该算法对应的 32 位版本。
+// 注意 ECMA-262 并未为 32 位数字指定任何算法。
 func AppendFloat(dst []byte, src float64, bits int) []byte {
 	if bits == 32 {
 		src = float64(float32(src))
@@ -225,7 +225,7 @@ func AppendFloat(dst []byte, src float64, bits int) []byte {
 	}
 	dst = strconv.AppendFloat(dst, src, fmt, -1, bits)
 	if fmt == 'e' {
-		// Clean up e-09 to e-9.
+		// 将 e-09 清理为 e-9。
 		n := len(dst)
 		if n >= 4 && dst[n-4] == 'e' && dst[n-3] == '-' && dst[n-2] == '0' {
 			dst[n-2] = dst[n-1]
@@ -235,52 +235,52 @@ func AppendFloat(dst []byte, src float64, bits int) []byte {
 	return dst
 }
 
-// ReformatNumber consumes a JSON string from src and appends it to dst,
-// canonicalizing it if specified.
-// It returns the appended output and the number of consumed input bytes.
+// ReformatNumber 从 src 消费一个 JSON 数字并将其追加到 dst，
+// 如果指定了则对其进行规范化。
+// 它返回追加后的输出以及已消费的输入字节数。
 func ReformatNumber(dst, src []byte, flags *jsonflags.Flags) ([]byte, int, error) {
 	n, err := ConsumeNumber(src)
 	if err != nil {
 		return dst, n, err
 	}
 	if !flags.Get(jsonflags.CanonicalizeNumbers) {
-		dst = append(dst, src[:n]...) // copy the number verbatim
+		dst = append(dst, src[:n]...) // 逐字复制该数字
 		return dst, n, nil
 	}
 
-	// Identify the kind of number.
+	// 识别数字的种类。
 	var isFloat bool
 	for _, c := range src[:n] {
 		if c == '.' || c == 'e' || c == 'E' {
-			isFloat = true // has fraction or exponent
+			isFloat = true // 含小数部分或指数
 			break
 		}
 	}
 
-	// Check if need to canonicalize this kind of number.
+	// 检查是否需要对此类数字进行规范化。
 	switch {
 	case string(src[:n]) == "-0":
-		break // canonicalize -0 as 0 regardless of kind
+		break // 无论何种类型，都将 -0 规范化为 0
 	case isFloat:
 		if !flags.Get(jsonflags.CanonicalizeRawFloats) {
-			dst = append(dst, src[:n]...) // copy the number verbatim
+			dst = append(dst, src[:n]...) // 逐字复制该数字
 			return dst, n, nil
 		}
 	default:
-		// As an optimization, we can copy integer numbers below 2⁵³ verbatim
-		// since the canonical form is always identical.
+		// 作为优化，我们可以逐字复制小于 2⁵³ 的整数，
+		// 因为其规范形式始终相同。
 		const maxExactIntegerDigits = 16 // len(strconv.AppendUint(nil, 1<<53, 10))
 		if !flags.Get(jsonflags.CanonicalizeRawInts) || n < maxExactIntegerDigits {
-			dst = append(dst, src[:n]...) // copy the number verbatim
+			dst = append(dst, src[:n]...) // 逐字复制该数字
 			return dst, n, nil
 		}
 	}
 
-	// Parse and reformat the number (which uses a canonical format).
+	// 解析并重新格式化该数字（使用规范格式）。
 	fv, _ := strconv.ParseFloat(string(src[:n]), 64)
 	switch {
 	case fv == 0:
-		fv = 0 // normalize negative zero as just zero
+		fv = 0 // 将负零规范化为零
 	case math.IsInf(fv, +1):
 		fv = +math.MaxFloat64
 	case math.IsInf(fv, -1):

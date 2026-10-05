@@ -12,15 +12,15 @@ import (
 	"encoding/json/internal"
 )
 
-// Internal is for internal use only.
-// This is exempt from the Go compatibility agreement.
+// Internal 仅供内部使用。
+// 它不受 Go 兼容性约定的约束。
 var Internal exporter
 
 type exporter struct{}
 
-// Export exposes internal functionality from "jsontext" to "json".
-// This cannot be dynamically called by other packages since
-// they cannot obtain a reference to the internal.AllowInternalUse value.
+// Export 将 "jsontext" 的内部功能暴露给 "json"。
+// 其他包无法动态调用它，因为
+// 它们无法获得对 internal.AllowInternalUse 值的引用。
 func (exporter) Export(p *internal.NotForPublicUse) export {
 	if p != &internal.AllowInternalUse {
 		panic("unauthorized call to Export")
@@ -28,19 +28,19 @@ func (exporter) Export(p *internal.NotForPublicUse) export {
 	return export{}
 }
 
-// The export type exposes functionality to packages with visibility to
-// the internal.AllowInternalUse variable. The "json" package uses this
-// to modify low-level state in the Encoder and Decoder types.
-// It mutates the state directly instead of calling ReadToken or WriteToken
-// since this is more performant. The public APIs need to track state to ensure
-// that users are constructing a valid JSON value, but the "json" implementation
-// guarantees that it emits valid JSON by the structure of the code itself.
+// export 类型将功能暴露给对
+// internal.AllowInternalUse 变量可见的包。"json" 包使用它
+// 来修改 Encoder 和 Decoder 类型中的底层状态。
+// 它直接修改状态，而不是调用 ReadToken 或 WriteToken，
+// 因为这样性能更高。公开的 API 需要跟踪状态以确保
+// 用户构造出有效的 JSON 值，而 "json" 实现
+// 通过代码本身的结构保证它会生成有效的 JSON。
 type export struct{}
 
-// Encoder returns a pointer to the underlying encoderState.
+// Encoder 返回指向底层 encoderState 的指针。
 func (export) Encoder(e *Encoder) *encoderState { return &e.s }
 
-// Decoder returns a pointer to the underlying decoderState.
+// Decoder 返回指向底层 decoderState 的指针。
 func (export) Decoder(d *Decoder) *decoderState { return &d.s }
 
 func (export) GetBufferedEncoder(o ...Options) *Encoder {

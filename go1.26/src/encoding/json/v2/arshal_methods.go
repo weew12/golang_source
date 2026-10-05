@@ -21,7 +21,7 @@ import (
 
 var errNonStringValue = errors.New("JSON value must be string type")
 
-// Interfaces for custom serialization.
+// 用于自定义序列化的接口。
 var (
 	jsonMarshalerType       = reflect.TypeFor[Marshaler]()
 	jsonMarshalerToType     = reflect.TypeFor[MarshalerTo]()
@@ -36,88 +36,87 @@ var (
 	allMethodTypes      = append(allMarshalerTypes, allUnmarshalerTypes...)
 )
 
-// Marshaler is implemented by types that can marshal themselves.
-// It is recommended that types implement [MarshalerTo] unless the implementation
-// is trying to avoid a hard dependency on the "jsontext" package.
+// Marshaler 由能够 marshal 自身的类型实现。
+// 除非实现方试图避免对 "jsontext" 包的硬依赖，
+// 否则建议类型实现 [MarshalerTo]。
 //
-// It is recommended that implementations return a buffer that is safe
-// for the caller to retain and potentially mutate.
+// 建议实现方返回一个缓冲区，调用者可以安全地保留并可能修改它。
 //
-// If the returned error is a [SemanticError], then unpopulated fields
-// of the error may be populated by [json] with additional context.
-// Errors of other types are wrapped within a [SemanticError].
+// 如果返回的错误是 [SemanticError]，那么
+// 该错误中未填充的字段可能会被 [json] 用额外的上下文填充。
+// 其他类型的错误会被包装在 [SemanticError] 中。
 type Marshaler interface {
 	MarshalJSON() ([]byte, error)
 }
 
-// MarshalerTo is implemented by types that can marshal themselves.
-// It is recommended that types implement MarshalerTo instead of [Marshaler]
-// since this is both more performant and flexible.
-// If a type implements both Marshaler and MarshalerTo,
-// then MarshalerTo takes precedence. In such a case, both implementations
-// should aim to have equivalent behavior for the default marshal options.
+// MarshalerTo 由能够 marshal 自身的类型实现。
+// 建议类型实现 MarshalerTo 而非 [Marshaler]，
+// 因为这既更高效也更灵活。
+// 如果一个类型同时实现了 Marshaler 和 MarshalerTo，
+// 那么 MarshalerTo 优先。在这种情况下，两种实现
+// 都应力求在默认 marshal 选项下具有等效的行为。
 //
-// The implementation must write only one JSON value to the Encoder and
-// must not retain the pointer to [jsontext.Encoder].
+// 实现必须向 Encoder 写入恰好一个 JSON 值，
+// 且不得保留指向 [jsontext.Encoder] 的指针。
 //
-// If the returned error is a [SemanticError], then unpopulated fields
-// of the error may be populated by [json] with additional context.
-// Errors of other types are wrapped within a [SemanticError],
-// unless it is an IO error.
+// 如果返回的错误是 [SemanticError]，那么
+// 该错误中未填充的字段可能会被 [json] 用额外的上下文填充。
+// 其他类型的错误会被包装在 [SemanticError] 中，
+// 除非它是 IO 错误。
 type MarshalerTo interface {
 	MarshalJSONTo(*jsontext.Encoder) error
 
-	// TODO: Should users call the MarshalEncode function or
-	// should/can they call this method directly? Does it matter?
+	// TODO: 用户应该调用 MarshalEncode 函数，
+	// 还是应该/能够直接调用此方法？这有关系吗？
 }
 
-// Unmarshaler is implemented by types that can unmarshal themselves.
-// It is recommended that types implement [UnmarshalerFrom] unless the implementation
-// is trying to avoid a hard dependency on the "jsontext" package.
+// Unmarshaler 由能够 unmarshal 自身的类型实现。
+// 除非实现方试图避免对 "jsontext" 包的硬依赖，
+// 否则建议类型实现 [UnmarshalerFrom]。
 //
-// The input can be assumed to be a valid encoding of a JSON value
-// if called from unmarshal functionality in this package.
-// UnmarshalJSON must copy the JSON data if it is retained after returning.
-// It is recommended that UnmarshalJSON implement merge semantics when
-// unmarshaling into a pre-populated value.
+// 如果从本包中的 unmarshal 功能调用，
+// 可以假定输入是 JSON 值的有效编码。
+// 如果 UnmarshalJSON 在返回后仍保留 JSON 数据，则必须复制它。
+// 建议 UnmarshalJSON 在 unmarshal 到已预先填充的值时
+// 实现合并语义。
 //
-// Implementations must not retain or mutate the input []byte.
+// 实现不得保留或修改输入的 []byte。
 //
-// If the returned error is a [SemanticError], then unpopulated fields
-// of the error may be populated by [json] with additional context.
-// Errors of other types are wrapped within a [SemanticError].
+// 如果返回的错误是 [SemanticError]，那么
+// 该错误中未填充的字段可能会被 [json] 用额外的上下文填充。
+// 其他类型的错误会被包装在 [SemanticError] 中。
 type Unmarshaler interface {
 	UnmarshalJSON([]byte) error
 }
 
-// UnmarshalerFrom is implemented by types that can unmarshal themselves.
-// It is recommended that types implement UnmarshalerFrom instead of [Unmarshaler]
-// since this is both more performant and flexible.
-// If a type implements both Unmarshaler and UnmarshalerFrom,
-// then UnmarshalerFrom takes precedence. In such a case, both implementations
-// should aim to have equivalent behavior for the default unmarshal options.
+// UnmarshalerFrom 由能够 unmarshal 自身的类型实现。
+// 建议类型实现 UnmarshalerFrom 而非 [Unmarshaler]，
+// 因为这既更高效也更灵活。
+// 如果一个类型同时实现了 Unmarshaler 和 UnmarshalerFrom，
+// 那么 UnmarshalerFrom 优先。在这种情况下，两种实现
+// 都应力求在默认 unmarshal 选项下具有等效的行为。
 //
-// The implementation must read only one JSON value from the Decoder.
-// It is recommended that UnmarshalJSONFrom implement merge semantics when
-// unmarshaling into a pre-populated value.
+// 实现必须从 Decoder 读取恰好一个 JSON 值。
+// 建议 UnmarshalJSONFrom 在 unmarshal 到已预先填充的值时
+// 实现合并语义。
 //
-// Implementations must not retain the pointer to [jsontext.Decoder].
+// 实现不得保留指向 [jsontext.Decoder] 的指针。
 //
-// If the returned error is a [SemanticError], then unpopulated fields
-// of the error may be populated by [json] with additional context.
-// Errors of other types are wrapped within a [SemanticError],
-// unless it is a [jsontext.SyntacticError] or an IO error.
+// 如果返回的错误是 [SemanticError]，那么
+// 该错误中未填充的字段可能会被 [json] 用额外的上下文填充。
+// 其他类型的错误会被包装在 [SemanticError] 中，
+// 除非它是 [jsontext.SyntacticError] 或 IO 错误。
 type UnmarshalerFrom interface {
 	UnmarshalJSONFrom(*jsontext.Decoder) error
 
-	// TODO: Should users call the UnmarshalDecode function or
-	// should/can they call this method directly? Does it matter?
+	// TODO: 用户应该调用 UnmarshalDecode 函数，
+	// 还是应该/能够直接调用此方法？这有关系吗？
 }
 
 func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
-	// Avoid injecting method arshaler on the pointer or interface version
-	// to avoid ever calling the method on a nil pointer or interface receiver.
-	// Let it be injected on the value receiver (which is always addressable).
+	// 避免在指针或接口版本上注入方法 arshaler，
+	// 以避免在 nil 指针或接口接收者上调用该方法。
+	// 让它注入到值接收者上（值接收者总是可寻址的）。
 	if t.Kind() == reflect.Pointer || t.Kind() == reflect.Interface {
 		return fncs
 	}
@@ -137,7 +136,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			}); err != nil {
 				err = wrapSkipFunc(err, "marshal method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalText") // unlike unmarshal, always wrapped
+					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalText") // 与 unmarshal 不同，总是被包装
 				}
 				if !isSemanticError(err) && !export.IsIOError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -160,7 +159,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			if err := export.Encoder(enc).AppendRaw('"', false, appender.AppendText); err != nil {
 				err = wrapSkipFunc(err, "append method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "AppendText") // unlike unmarshal, always wrapped
+					return internal.NewMarshalerError(va.Addr().Interface(), err, "AppendText") // 与 unmarshal 不同，总是被包装
 				}
 				if !isSemanticError(err) && !export.IsIOError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -184,14 +183,14 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			if err != nil {
 				err = wrapSkipFunc(err, "marshal method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
+					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // 与 unmarshal 不同，总是被包装
 				}
 				err = newMarshalErrorBefore(enc, t, err)
 				return collapseSemanticErrors(err)
 			}
 			if err := enc.WriteValue(val); err != nil {
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
+					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // 与 unmarshal 不同，总是被包装
 				}
 				if isSyntacticError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -223,7 +222,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			if err != nil {
 				err = wrapSkipFunc(err, "marshal method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSONTo") // unlike unmarshal, always wrapped
+					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSONTo") // 与 unmarshal 不同，总是被包装
 				}
 				if !export.IsIOError(err) {
 					err = newSemanticErrorWithPosition(enc, t, prevDepth, prevLength, err)
@@ -241,7 +240,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			var flags jsonwire.ValueFlags
 			val, err := xd.ReadValue(&flags)
 			if err != nil {
-				return err // must be a syntactic or I/O error
+				return err // 必须是语法错误或 I/O 错误
 			}
 			if val.Kind() == 'n' {
 				if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
@@ -257,7 +256,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			if err := unmarshaler.UnmarshalText(s); err != nil {
 				err = wrapSkipFunc(err, "unmarshal method")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return err // unlike marshal, never wrapped
+					return err // 与 marshal 不同，从不被包装
 				}
 				if !isSemanticError(err) && !isSyntacticError(err) && !export.IsIOError(err) {
 					err = newUnmarshalErrorAfter(dec, t, err)
@@ -278,13 +277,13 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			}
 			val, err := dec.ReadValue()
 			if err != nil {
-				return err // must be a syntactic or I/O error
+				return err // 必须是语法错误或 I/O 错误
 			}
 			unmarshaler, _ := reflect.TypeAssert[Unmarshaler](va.Addr())
 			if err := unmarshaler.UnmarshalJSON(val); err != nil {
 				err = wrapSkipFunc(err, "unmarshal method")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return err // unlike marshal, never wrapped
+					return err // 与 marshal 不同，从不被包装
 				}
 				err = newUnmarshalErrorAfter(dec, t, err)
 				return collapseSemanticErrors(err)
@@ -304,7 +303,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 			xd := export.Decoder(dec)
 			prevDepth, prevLength := xd.Tokens.DepthLength()
 			if prevDepth == 1 && xd.AtEOF() {
-				return io.EOF // check EOF early to avoid fn reporting an EOF
+				return io.EOF // 尽早检查 EOF，以避免 fn 报告 EOF
 			}
 			xd.Flags.Set(jsonflags.WithinArshalCall | 1)
 			unmarshaler, _ := reflect.TypeAssert[UnmarshalerFrom](va.Addr())
@@ -320,7 +319,7 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 					if err2 := xd.SkipUntil(prevDepth, prevLength+1); err2 != nil {
 						return err2
 					}
-					return err // unlike marshal, never wrapped
+					return err // 与 marshal 不同，从不被包装
 				}
 				if !isSyntacticError(err) && !export.IsIOError(err) {
 					err = newSemanticErrorWithPosition(dec, t, prevDepth, prevLength, err)
@@ -334,8 +333,8 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 	return fncs
 }
 
-// implementsAny is like t.Implements(ifaceType) for a list of interfaces,
-// but checks whether either t or reflect.PointerTo(t) implements the interface.
+// implementsAny 类似于针对一组接口的 t.Implements(ifaceType)，
+// 但检查的是 t 或 reflect.PointerTo(t) 是否实现了该接口。
 func implementsAny(t reflect.Type, ifaceTypes ...reflect.Type) bool {
 	for _, ifaceType := range ifaceTypes {
 		if _, ok := implements(t, ifaceType); ok {
@@ -345,10 +344,10 @@ func implementsAny(t reflect.Type, ifaceTypes ...reflect.Type) bool {
 	return false
 }
 
-// implements is like t.Implements(ifaceType) but checks whether
-// either t or reflect.PointerTo(t) implements the interface.
-// It also reports whether the value needs to be addressed
-// in order to satisfy the interface.
+// implements 类似于 t.Implements(ifaceType)，
+// 但检查的是 t 或 reflect.PointerTo(t) 是否实现了该接口。
+// 它还报告是否需要对该值取地址
+// 才能满足该接口。
 func implements(t, ifaceType reflect.Type) (needAddr, ok bool) {
 	switch {
 	case t.Implements(ifaceType):

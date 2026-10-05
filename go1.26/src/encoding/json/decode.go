@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Represents JSON data structure using native Go types: booleans, floats,
-// strings, arrays, and maps.
+// 使用原生 Go 类型（布尔、浮点、字符串、数组和映射）表示 JSON 数据结构。
 
 //go:build !goexperiment.jsonv2
 
@@ -19,90 +18,71 @@ import (
 	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
-	_ "unsafe" // for linkname
+	_ "unsafe" // 用于 linkname
 )
 
-// Unmarshal parses the JSON-encoded data and stores the result
-// in the value pointed to by v. If v is nil or not a pointer,
-// Unmarshal returns an [InvalidUnmarshalError].
+// Unmarshal 解析 JSON 编码的数据，并将结果存储在 v 所指向的值中。
+// 如果 v 为 nil 或不是指针，Unmarshal 返回一个 [InvalidUnmarshalError]。
 //
-// Unmarshal uses the inverse of the encodings that
-// [Marshal] uses, allocating maps, slices, and pointers as necessary,
-// with the following additional rules:
+// Unmarshal 使用 [Marshal] 所用编码的逆过程，根据需要分配映射、切片和指针，
+// 并遵循以下附加规则：
 //
-// To unmarshal JSON into a pointer, Unmarshal first handles the case of
-// the JSON being the JSON literal null. In that case, Unmarshal sets
-// the pointer to nil. Otherwise, Unmarshal unmarshals the JSON into
-// the value pointed at by the pointer. If the pointer is nil, Unmarshal
-// allocates a new value for it to point to.
+// 将 JSON 反序列化到指针时，Unmarshal 首先处理 JSON 为字面量 null 的情况。
+// 在这种情况下，Unmarshal 将该指针设为 nil。否则，Unmarshal 将 JSON
+// 反序列化到该指针所指向的值中。如果指针为 nil，Unmarshal 会为其分配一个
+// 新值供其指向。
 //
-// To unmarshal JSON into a value implementing [Unmarshaler],
-// Unmarshal calls that value's [Unmarshaler.UnmarshalJSON] method, including
-// when the input is a JSON null.
-// Otherwise, if the value implements [encoding.TextUnmarshaler]
-// and the input is a JSON quoted string, Unmarshal calls
-// [encoding.TextUnmarshaler.UnmarshalText] with the unquoted form of the string.
+// 将 JSON 反序列化到实现了 [Unmarshaler] 的值时，Unmarshal 会调用该值的
+// [Unmarshaler.UnmarshalJSON] 方法，包括输入为 JSON null 的情况。
+// 否则，如果该值实现了 [encoding.TextUnmarshaler] 且输入是一个 JSON
+// 带引号字符串，Unmarshal 会以该字符串去引号后的形式调用
+// [encoding.TextUnmarshaler.UnmarshalText]。
 //
-// To unmarshal JSON into a struct, Unmarshal matches incoming object keys to
-// the keys used by [Marshal] (either the struct field name or its tag),
-// ignoring case. If multiple struct fields match an object key, an exact case
-// match is preferred over a case-insensitive one.
+// 将 JSON 反序列化到结构体时，Unmarshal 会将传入的对象键与 [Marshal] 所用的
+// 键（结构体字段名或其标签）进行匹配，忽略大小写。如果多个结构体字段与某个
+// 对象键匹配，则优先选择大小写完全匹配的字段，而不是不区分大小写匹配的字段。
 //
-// Incoming object members are processed in the order observed. If an object
-// includes duplicate keys, later duplicates will replace or be merged into
-// prior values.
+// 传入的对象成员按观察到的顺序处理。如果对象包含重复的键，后出现的重复项
+// 将替换或合并到先前的值中。
 //
-// To unmarshal JSON into an interface value,
-// Unmarshal stores one of these in the interface value:
+// 将 JSON 反序列化到接口值时，Unmarshal 会在该接口值中存储以下之一：
 //
-//   - bool, for JSON booleans
-//   - float64, for JSON numbers
-//   - string, for JSON strings
-//   - []any, for JSON arrays
-//   - map[string]any, for JSON objects
-//   - nil for JSON null
+//   - bool，对应 JSON 布尔值
+//   - float64，对应 JSON 数字
+//   - string，对应 JSON 字符串
+//   - []any，对应 JSON 数组
+//   - map[string]any，对应 JSON 对象
+//   - nil，对应 JSON null
 //
-// To unmarshal a JSON array into a slice, Unmarshal resets the slice length
-// to zero and then appends each element to the slice.
-// As a special case, to unmarshal an empty JSON array into a slice,
-// Unmarshal replaces the slice with a new empty slice.
+// 将 JSON 数组反序列化到切片时，Unmarshal 会将切片长度重置为零，然后逐个
+// 将元素追加到切片。作为一种特殊情况，将空 JSON 数组反序列化到切片时，
+// Unmarshal 会用一个新的空切片替换该切片。
 //
-// To unmarshal a JSON array into a Go array, Unmarshal decodes
-// JSON array elements into corresponding Go array elements.
-// If the Go array is smaller than the JSON array,
-// the additional JSON array elements are discarded.
-// If the JSON array is smaller than the Go array,
-// the additional Go array elements are set to zero values.
+// 将 JSON 数组反序列化到 Go 数组时，Unmarshal 会将 JSON 数组元素解码到
+// 对应的 Go 数组元素中。如果 Go 数组小于 JSON 数组，多余的 JSON 数组元素
+// 会被丢弃。如果 JSON 数组小于 Go 数组，多余的 Go 数组元素会被设为零值。
 //
-// To unmarshal a JSON object into a map, Unmarshal first establishes a map to
-// use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
-// reuses the existing map, keeping existing entries. Unmarshal then stores
-// key-value pairs from the JSON object into the map. The map's key type must
-// either be any string type, an integer, or implement [encoding.TextUnmarshaler].
+// 将 JSON 对象反序列化到映射时，Unmarshal 首先建立一个要使用的映射。
+// 如果映射为 nil，Unmarshal 会分配一个新映射。否则 Unmarshal 会复用现有
+// 映射，保留已有的条目。然后 Unmarshal 将 JSON 对象中的键值对存储到映射中。
+// 映射的键类型必须为任意字符串类型、整数，或实现了 [encoding.TextUnmarshaler]。
 //
-// If the JSON-encoded data contain a syntax error, Unmarshal returns a [SyntaxError].
+// 如果 JSON 编码的数据包含语法错误，Unmarshal 返回一个 [SyntaxError]。
 //
-// If a JSON value is not appropriate for a given target type,
-// or if a JSON number overflows the target type, Unmarshal
-// skips that field and completes the unmarshaling as best it can.
-// If no more serious errors are encountered, Unmarshal returns
-// an [UnmarshalTypeError] describing the earliest such error. In any
-// case, it's not guaranteed that all the remaining fields following
-// the problematic one will be unmarshaled into the target object.
+// 如果某个 JSON 值不适合给定的目标类型，或者某个 JSON 数字溢出了目标类型，
+// Unmarshal 会跳过该字段并尽可能完成反序列化。如果没有遇到更严重的错误，
+// Unmarshal 会返回一个 [UnmarshalTypeError]，描述最早出现的此类错误。
+// 在任何情况下，都不能保证问题字段之后所有剩余字段都会被反序列化到目标对象中。
 //
-// The JSON null value unmarshals into an interface, map, pointer, or slice
-// by setting that Go value to nil. Because null is often used in JSON to mean
-// “not present,” unmarshaling a JSON null into any other Go type has no effect
-// on the value and produces no error.
+// JSON null 值反序列化到接口、映射、指针或切片时，会将该 Go 值设为 nil。
+// 由于 null 在 JSON 中常用来表示“不存在”，将 JSON null 反序列化到任何其他
+// Go 类型都不会对值产生影响，也不会产生错误。
 //
-// When unmarshaling quoted strings, invalid UTF-8 or
-// invalid UTF-16 surrogate pairs are not treated as an error.
-// Instead, they are replaced by the Unicode replacement
-// character U+FFFD.
+// 反序列化带引号的字符串时，无效的 UTF-8 或无效的 UTF-16 代理对不会被视为
+// 错误。它们会被替换为 Unicode 替换字符 U+FFFD。
 func Unmarshal(data []byte, v any) error {
-	// Check for well-formedness.
-	// Avoids filling out half a data structure
-	// before discovering a JSON syntax error.
+	// 检查格式是否正确。
+	// 避免在发现 JSON 语法错误之前填充了半个数据结构。
 	var d decodeState
 	err := checkValid(data, &d.scan)
 	if err != nil {
@@ -113,23 +93,20 @@ func Unmarshal(data []byte, v any) error {
 	return d.unmarshal(v)
 }
 
-// Unmarshaler is the interface implemented by types
-// that can unmarshal a JSON description of themselves.
-// The input can be assumed to be a valid encoding of
-// a JSON value. UnmarshalJSON must copy the JSON data
-// if it wishes to retain the data after returning.
+// Unmarshaler 是由能够反序列化自身 JSON 描述的类型所实现的接口。
+// 可以假定输入是某个 JSON 值的有效编码。如果 UnmarshalJSON 希望在返回后
+// 保留数据，它必须复制 JSON 数据。
 type Unmarshaler interface {
 	UnmarshalJSON([]byte) error
 }
 
-// An UnmarshalTypeError describes a JSON value that was
-// not appropriate for a value of a specific Go type.
+// UnmarshalTypeError 描述一个不适合某个特定 Go 类型值的 JSON 值。
 type UnmarshalTypeError struct {
-	Value  string       // description of JSON value - "bool", "array", "number -5"
-	Type   reflect.Type // type of Go value it could not be assigned to
-	Offset int64        // error occurred after reading Offset bytes
-	Struct string       // name of the struct type containing the field
-	Field  string       // the full path from root node to the field, include embedded struct
+	Value  string       // JSON 值的描述 - "bool"、"array"、"number -5"
+	Type   reflect.Type // 它无法赋值到的 Go 值的类型
+	Offset int64        // 读取 Offset 字节后发生错误
+	Struct string       // 包含该字段的结构体类型名称
+	Field  string       // 从根节点到该字段的完整路径，包含内嵌结构体
 }
 
 func (e *UnmarshalTypeError) Error() string {
@@ -139,10 +116,9 @@ func (e *UnmarshalTypeError) Error() string {
 	return "json: cannot unmarshal " + e.Value + " into Go value of type " + e.Type.String()
 }
 
-// An UnmarshalFieldError describes a JSON object key that
-// led to an unexported (and therefore unwritable) struct field.
+// UnmarshalFieldError 描述一个导致未导出（因此不可写）结构体字段的 JSON 对象键。
 //
-// Deprecated: No longer used; kept for compatibility.
+// Deprecated: 不再使用；保留仅为保持兼容性。
 type UnmarshalFieldError struct {
 	Key   string
 	Type  reflect.Type
@@ -153,8 +129,8 @@ func (e *UnmarshalFieldError) Error() string {
 	return "json: cannot unmarshal object key " + strconv.Quote(e.Key) + " into unexported field " + e.Field.Name + " of type " + e.Type.String()
 }
 
-// An InvalidUnmarshalError describes an invalid argument passed to [Unmarshal].
-// (The argument to [Unmarshal] must be a non-nil pointer.)
+// InvalidUnmarshalError 描述传递给 [Unmarshal] 的无效参数。
+// （[Unmarshal] 的参数必须是非 nil 指针。）
 type InvalidUnmarshalError struct {
 	Type reflect.Type
 }
@@ -178,8 +154,8 @@ func (d *decodeState) unmarshal(v any) error {
 
 	d.scan.reset()
 	d.scanWhile(scanSkipSpace)
-	// We decode rv not rv.Elem because the Unmarshaler interface
-	// test must be applied at the top level of the value.
+	// 我们解码 rv 而不是 rv.Elem，因为 Unmarshaler 接口的检测
+	// 必须作用于值的顶层。
 	err := d.value(rv)
 	if err != nil {
 		return d.addErrorContext(err)
@@ -187,33 +163,33 @@ func (d *decodeState) unmarshal(v any) error {
 	return d.savedError
 }
 
-// A Number represents a JSON number literal.
+// Number 表示一个 JSON 数字字面量。
 type Number string
 
-// String returns the literal text of the number.
+// String 返回该数字的字面量文本。
 func (n Number) String() string { return string(n) }
 
-// Float64 returns the number as a float64.
+// Float64 将该数字以 float64 返回。
 func (n Number) Float64() (float64, error) {
 	return strconv.ParseFloat(string(n), 64)
 }
 
-// Int64 returns the number as an int64.
+// Int64 将该数字以 int64 返回。
 func (n Number) Int64() (int64, error) {
 	return strconv.ParseInt(string(n), 10, 64)
 }
 
-// An errorContext provides context for type errors during decoding.
+// errorContext 为解码期间的类型错误提供上下文。
 type errorContext struct {
 	Struct     reflect.Type
 	FieldStack []string
 }
 
-// decodeState represents the state while decoding a JSON value.
+// decodeState 表示解码 JSON 值时的状态。
 type decodeState struct {
 	data                  []byte
-	off                   int // next read offset in data
-	opcode                int // last read result
+	off                   int // data 中的下一个读取偏移量
+	opcode                int // 上一次读取的结果
 	scan                  scanner
 	errorContext          *errorContext
 	savedError            error
@@ -221,14 +197,13 @@ type decodeState struct {
 	disallowUnknownFields bool
 }
 
-// readIndex returns the position of the last byte read.
+// readIndex 返回上一次读取的字节的位置。
 func (d *decodeState) readIndex() int {
 	return d.off - 1
 }
 
-// phasePanicMsg is used as a panic message when we end up with something that
-// shouldn't happen. It can indicate a bug in the JSON decoder, or that
-// something is editing the data slice while the decoder executes.
+// phasePanicMsg 用作 panic 消息，当我们遇到本不该发生的情况时使用。
+// 它可能表明 JSON 解码器存在 bug，或者有东西在解码器执行期间修改了 data 切片。
 const phasePanicMsg = "JSON decoder out of sync - data changing underfoot?"
 
 func (d *decodeState) init(data []byte) *decodeState {
@@ -237,21 +212,20 @@ func (d *decodeState) init(data []byte) *decodeState {
 	d.savedError = nil
 	if d.errorContext != nil {
 		d.errorContext.Struct = nil
-		// Reuse the allocated space for the FieldStack slice.
+		// 复用已为 FieldStack 切片分配的空间。
 		d.errorContext.FieldStack = d.errorContext.FieldStack[:0]
 	}
 	return d
 }
 
-// saveError saves the first err it is called with,
-// for reporting at the end of the unmarshal.
+// saveError 保存首次调用时传入的 err，供反序列化结束时报告。
 func (d *decodeState) saveError(err error) {
 	if d.savedError == nil {
 		d.savedError = d.addErrorContext(err)
 	}
 }
 
-// addErrorContext returns a new error enhanced with information from d.errorContext
+// addErrorContext 返回一个用 d.errorContext 中的信息增强的新错误
 func (d *decodeState) addErrorContext(err error) error {
 	if d.errorContext != nil && (d.errorContext.Struct != nil || len(d.errorContext.FieldStack) > 0) {
 		switch err := err.(type) {
@@ -267,7 +241,7 @@ func (d *decodeState) addErrorContext(err error) error {
 	return err
 }
 
-// skip scans to the end of what was started.
+// skip 扫描到已开始解析的内容的末尾。
 func (d *decodeState) skip() {
 	s, data, i := &d.scan, d.data, d.off
 	depth := len(s.parseState)
@@ -282,19 +256,18 @@ func (d *decodeState) skip() {
 	}
 }
 
-// scanNext processes the byte at d.data[d.off].
+// scanNext 处理 d.data[d.off] 处的字节。
 func (d *decodeState) scanNext() {
 	if d.off < len(d.data) {
 		d.opcode = d.scan.step(&d.scan, d.data[d.off])
 		d.off++
 	} else {
 		d.opcode = d.scan.eof()
-		d.off = len(d.data) + 1 // mark processed EOF with len+1
+		d.off = len(d.data) + 1 // 用 len+1 标记已处理 EOF
 	}
 }
 
-// scanWhile processes bytes in d.data[d.off:] until it
-// receives a scan code not equal to op.
+// scanWhile 处理 d.data[d.off:] 中的字节，直到收到不等于 op 的扫描码。
 func (d *decodeState) scanWhile(op int) {
 	s, data, i := &d.scan, d.data, d.off
 	for i < len(data) {
@@ -307,33 +280,31 @@ func (d *decodeState) scanWhile(op int) {
 		}
 	}
 
-	d.off = len(data) + 1 // mark processed EOF with len+1
+	d.off = len(data) + 1 // 用 len+1 标记已处理 EOF
 	d.opcode = d.scan.eof()
 }
 
-// rescanLiteral is similar to scanWhile(scanContinue), but it specialises the
-// common case where we're decoding a literal. The decoder scans the input
-// twice, once for syntax errors and to check the length of the value, and the
-// second to perform the decoding.
+// rescanLiteral 类似于 scanWhile(scanContinue)，但它针对解码字面量这一常见
+// 情况做了特化。解码器会对输入扫描两次，一次用于检查语法错误和值的长度，
+// 第二次用于执行解码。
 //
-// Only in the second step do we use decodeState to tokenize literals, so we
-// know there aren't any syntax errors. We can take advantage of that knowledge,
-// and scan a literal's bytes much more quickly.
+// 只有在第二步中我们才使用 decodeState 对字面量进行分词，因此我们知道不存在
+// 任何语法错误。我们可以利用这一点，更快地扫描字面量的字节。
 func (d *decodeState) rescanLiteral() {
 	data, i := d.data, d.off
 Switch:
 	switch data[i-1] {
-	case '"': // string
+	case '"': // 字符串
 		for ; i < len(data); i++ {
 			switch data[i] {
 			case '\\':
-				i++ // escaped char
+				i++ // 转义字符
 			case '"':
-				i++ // tokenize the closing quote too
+				i++ // 也将结尾引号分词
 				break Switch
 			}
 		}
-	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-': // number
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-': // 数字
 		for ; i < len(data); i++ {
 			switch data[i] {
 			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
@@ -357,9 +328,8 @@ Switch:
 	d.off = i + 1
 }
 
-// value consumes a JSON value from d.data[d.off-1:], decoding into v, and
-// reads the following byte ahead. If v is invalid, the value is discarded.
-// The first byte of the value has been read already.
+// value 从 d.data[d.off-1:] 消费一个 JSON 值，解码到 v 中，并提前读取
+// 后续字节。如果 v 无效，则丢弃该值。值的第一个字节已经被读取。
 func (d *decodeState) value(v reflect.Value) error {
 	switch d.opcode {
 	default:
@@ -386,7 +356,7 @@ func (d *decodeState) value(v reflect.Value) error {
 		d.scanNext()
 
 	case scanBeginLiteral:
-		// All bytes inside literal return scanContinue op code.
+		// 字面量内部的所有字节都返回 scanContinue 操作码。
 		start := d.readIndex()
 		d.rescanLiteral()
 
@@ -401,10 +371,9 @@ func (d *decodeState) value(v reflect.Value) error {
 
 type unquotedValue struct{}
 
-// valueQuoted is like value but decodes a
-// quoted string literal or literal null into an interface value.
-// If it finds anything other than a quoted string literal or null,
-// valueQuoted returns unquotedValue{}.
+// valueQuoted 类似于 value，但会将带引号的字符串字面量或字面量 null 解码到
+// 接口值中。如果它发现除带引号字符串字面量或 null 之外的任何内容，
+// valueQuoted 会返回 unquotedValue{}。
 func (d *decodeState) valueQuoted() any {
 	switch d.opcode {
 	default:
@@ -424,36 +393,31 @@ func (d *decodeState) valueQuoted() any {
 	return unquotedValue{}
 }
 
-// indirect walks down v allocating pointers as needed,
-// until it gets to a non-pointer.
-// If it encounters an Unmarshaler, indirect stops and returns that.
-// If decodingNull is true, indirect stops at the first settable pointer so it
-// can be set to nil.
+// indirect 沿着 v 向下遍历，按需分配指针，直到遇到非指针。
+// 如果遇到 Unmarshaler，indirect 会停止并返回它。
+// 如果 decodingNull 为 true，indirect 会在第一个可设置的指针处停止，
+// 以便可以将其设为 nil。
 func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnmarshaler, reflect.Value) {
-	// Issue #24153 indicates that it is generally not a guaranteed property
-	// that you may round-trip a reflect.Value by calling Value.Addr().Elem()
-	// and expect the value to still be settable for values derived from
-	// unexported embedded struct fields.
+	// Issue #24153 表明，通常并不能保证可以通过调用 Value.Addr().Elem()
+	// 对 reflect.Value 进行往返转换，并期望对于派生自未导出内嵌结构体字段的值
+	// 仍然可设置。
 	//
-	// The logic below effectively does this when it first addresses the value
-	// (to satisfy possible pointer methods) and continues to dereference
-	// subsequent pointers as necessary.
+	// 下面的逻辑在首次对值取地址时（为满足可能的指针方法）有效地做到了这一点，
+	// 并在必要时继续解引用后续指针。
 	//
-	// After the first round-trip, we set v back to the original value to
-	// preserve the original RW flags contained in reflect.Value.
+	// 在首次往返之后，我们将 v 设回原始值，以保留 reflect.Value 中包含的
+	// 原始读写标志。
 	v0 := v
 	haveAddr := false
 
-	// If v is a named type and is addressable,
-	// start with its address, so that if the type has pointer methods,
-	// we find them.
+	// 如果 v 是命名类型且可寻址，则从它的地址开始，
+	// 这样如果该类型有指针方法，我们就能找到它们。
 	if v.Kind() != reflect.Pointer && v.Type().Name() != "" && v.CanAddr() {
 		haveAddr = true
 		v = v.Addr()
 	}
 	for {
-		// Load value from interface, but only if the result will be
-		// usefully addressable.
+		// 从接口加载值，但仅当结果将具有有用的可寻址性时。
 		if v.Kind() == reflect.Interface && !v.IsNil() {
 			e := v.Elem()
 			if e.Kind() == reflect.Pointer && !e.IsNil() && (!decodingNull || e.Elem().Kind() == reflect.Pointer) {
@@ -471,7 +435,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 			break
 		}
 
-		// Prevent infinite loop if v is an interface pointing to its own address:
+		// 防止当 v 是指向自身地址的接口时出现无限循环：
 		//     var v any
 		//     v = &v
 		if v.Elem().Kind() == reflect.Interface && v.Elem().Elem().Equal(v) {
@@ -502,10 +466,10 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
 	return nil, nil, v
 }
 
-// array consumes an array from d.data[d.off-1:], decoding into v.
-// The first byte of the array ('[') has been read already.
+// array 从 d.data[d.off-1:] 消费一个数组，解码到 v 中。
+// 数组的第一个字节（'['）已经被读取。
 func (d *decodeState) array(v reflect.Value) error {
-	// Check for unmarshaler.
+	// 检查 unmarshaler。
 	u, ut, pv := indirect(v, false)
 	if u != nil {
 		start := d.readIndex()
@@ -519,16 +483,16 @@ func (d *decodeState) array(v reflect.Value) error {
 	}
 	v = pv
 
-	// Check type of target.
+	// 检查目标的类型。
 	switch v.Kind() {
 	case reflect.Interface:
 		if v.NumMethod() == 0 {
-			// Decoding into nil interface? Switch to non-reflect code.
+			// 解码到 nil 接口？切换到非反射代码。
 			ai := d.arrayInterface()
 			v.Set(reflect.ValueOf(ai))
 			return nil
 		}
-		// Otherwise it's invalid.
+		// 否则它是无效的。
 		fallthrough
 	default:
 		d.saveError(&UnmarshalTypeError{Value: "array", Type: v.Type(), Offset: int64(d.off)})
@@ -540,13 +504,13 @@ func (d *decodeState) array(v reflect.Value) error {
 
 	i := 0
 	for {
-		// Look ahead for ] - can only happen on first iteration.
+		// 向前查找 ] - 只可能在第一次迭代时发生。
 		d.scanWhile(scanSkipSpace)
 		if d.opcode == scanEndArray {
 			break
 		}
 
-		// Expand slice length, growing the slice if necessary.
+		// 扩展切片长度，必要时增长切片。
 		if v.Kind() == reflect.Slice {
 			if i >= v.Cap() {
 				v.Grow(1)
@@ -557,19 +521,19 @@ func (d *decodeState) array(v reflect.Value) error {
 		}
 
 		if i < v.Len() {
-			// Decode into element.
+			// 解码到元素。
 			if err := d.value(v.Index(i)); err != nil {
 				return err
 			}
 		} else {
-			// Ran out of fixed array: skip.
+			// 固定数组已用尽：跳过。
 			if err := d.value(reflect.Value{}); err != nil {
 				return err
 			}
 		}
 		i++
 
-		// Next token must be , or ].
+		// 下一个标记必须是 , 或 ]。
 		if d.opcode == scanSkipSpace {
 			d.scanWhile(scanSkipSpace)
 		}
@@ -584,10 +548,10 @@ func (d *decodeState) array(v reflect.Value) error {
 	if i < v.Len() {
 		if v.Kind() == reflect.Array {
 			for ; i < v.Len(); i++ {
-				v.Index(i).SetZero() // zero remainder of array
+				v.Index(i).SetZero() // 将数组剩余部分置零
 			}
 		} else {
-			v.SetLen(i) // truncate the slice
+			v.SetLen(i) // 截断切片
 		}
 	}
 	if i == 0 && v.Kind() == reflect.Slice {
@@ -599,10 +563,10 @@ func (d *decodeState) array(v reflect.Value) error {
 var nullLiteral = []byte("null")
 var textUnmarshalerType = reflect.TypeFor[encoding.TextUnmarshaler]()
 
-// object consumes an object from d.data[d.off-1:], decoding into v.
-// The first byte ('{') of the object has been read already.
+// object 从 d.data[d.off-1:] 消费一个对象，解码到 v 中。
+// 对象的第一个字节（'{'）已经被读取。
 func (d *decodeState) object(v reflect.Value) error {
-	// Check for unmarshaler.
+	// 检查 unmarshaler。
 	u, ut, pv := indirect(v, false)
 	if u != nil {
 		start := d.readIndex()
@@ -617,7 +581,7 @@ func (d *decodeState) object(v reflect.Value) error {
 	v = pv
 	t := v.Type()
 
-	// Decoding into nil interface? Switch to non-reflect code.
+	// 解码到 nil 接口？切换到非反射代码。
 	if v.Kind() == reflect.Interface && v.NumMethod() == 0 {
 		oi := d.objectInterface()
 		v.Set(reflect.ValueOf(oi))
@@ -626,14 +590,13 @@ func (d *decodeState) object(v reflect.Value) error {
 
 	var fields structFields
 
-	// Check type of target:
-	//   struct or
-	//   map[T1]T2 where T1 is string, an integer type,
-	//             or an encoding.TextUnmarshaler
+	// 检查目标类型：
+	//   struct 或
+	//   map[T1]T2，其中 T1 是字符串、整数类型，
+	//             或 encoding.TextUnmarshaler
 	switch v.Kind() {
 	case reflect.Map:
-		// Map key must either have string kind, have an integer kind,
-		// or be an encoding.TextUnmarshaler.
+		// 映射键必须具有字符串种类、整数种类，或者是 encoding.TextUnmarshaler。
 		switch t.Key().Kind() {
 		case reflect.String,
 			reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
@@ -650,7 +613,7 @@ func (d *decodeState) object(v reflect.Value) error {
 		}
 	case reflect.Struct:
 		fields = cachedTypeFields(t)
-		// ok
+		// 没问题
 	default:
 		d.saveError(&UnmarshalTypeError{Value: "object", Type: t, Offset: int64(d.off)})
 		d.skip()
@@ -664,17 +627,17 @@ func (d *decodeState) object(v reflect.Value) error {
 	}
 
 	for {
-		// Read opening " of string key or closing }.
+		// 读取字符串键的开头引号 " 或结尾 }。
 		d.scanWhile(scanSkipSpace)
 		if d.opcode == scanEndObject {
-			// closing } - can only happen on first iteration.
+			// closing } - 只能在第一次迭代时发生。
 			break
 		}
 		if d.opcode != scanBeginLiteral {
 			panic(phasePanicMsg)
 		}
 
-		// Read key.
+		// 读取键。
 		start := d.readIndex()
 		d.rescanLiteral()
 		item := d.data[start:d.readIndex()]
@@ -683,9 +646,9 @@ func (d *decodeState) object(v reflect.Value) error {
 			panic(phasePanicMsg)
 		}
 
-		// Figure out field corresponding to key.
+		// 找出与键对应的字段。
 		var subv reflect.Value
-		destring := false // whether the value is wrapped in a string to be decoded first
+		destring := false // 该值是否被包裹在字符串中需要先解码
 
 		if v.Kind() == reflect.Map {
 			elemType := t.Elem()
@@ -709,15 +672,14 @@ func (d *decodeState) object(v reflect.Value) error {
 				for i, ind := range f.index {
 					if subv.Kind() == reflect.Pointer {
 						if subv.IsNil() {
-							// If a struct embeds a pointer to an unexported type,
-							// it is not possible to set a newly allocated value
-							// since the field is unexported.
+							// 如果结构体内嵌了指向未导出类型的指针，
+							// 由于该字段未导出，无法设置新分配的值。
 							//
-							// See https://golang.org/issue/21357
+							// 参见 https://golang.org/issue/21357
 							if !subv.CanSet() {
 								d.saveError(fmt.Errorf("json: cannot set embedded pointer to unexported struct: %v", subv.Type().Elem()))
-								// Invalidate subv to ensure d.value(subv) skips over
-								// the JSON value without assigning it to subv.
+								// 使 subv 失效，以确保 d.value(subv) 跳过该 JSON 值
+								// 而不将其赋给 subv。
 								subv = reflect.Value{}
 								destring = false
 								break
@@ -741,7 +703,7 @@ func (d *decodeState) object(v reflect.Value) error {
 			}
 		}
 
-		// Read : before value.
+		// 读取值之前的 :。
 		if d.opcode == scanSkipSpace {
 			d.scanWhile(scanSkipSpace)
 		}
@@ -769,8 +731,8 @@ func (d *decodeState) object(v reflect.Value) error {
 			}
 		}
 
-		// Write value back to map;
-		// if using struct, subv points into struct already.
+		// 将值写回映射；
+		// 如果使用结构体，subv 已经指向结构体内部。
 		if v.Kind() == reflect.Map {
 			kt := t.Key()
 			var kv reflect.Value
@@ -804,7 +766,7 @@ func (d *decodeState) object(v reflect.Value) error {
 					kv = reflect.New(kt).Elem()
 					kv.SetUint(n)
 				default:
-					panic("json: Unexpected key type") // should never occur
+					panic("json: Unexpected key type") // 不应发生
 				}
 			}
 			if kv.IsValid() {
@@ -812,14 +774,13 @@ func (d *decodeState) object(v reflect.Value) error {
 			}
 		}
 
-		// Next token must be , or }.
+		// 下一个标记必须是 , 或 }。
 		if d.opcode == scanSkipSpace {
 			d.scanWhile(scanSkipSpace)
 		}
 		if d.errorContext != nil {
-			// Reset errorContext to its original state.
-			// Keep the same underlying array for FieldStack, to reuse the
-			// space and avoid unnecessary allocs.
+			// 将 errorContext 重置为其原始状态。
+			// 为 FieldStack 保留相同的底层数组，以复用空间并避免不必要的分配。
 			d.errorContext.FieldStack = d.errorContext.FieldStack[:len(origErrorContext.FieldStack)]
 			d.errorContext.Struct = origErrorContext.Struct
 		}
@@ -833,8 +794,8 @@ func (d *decodeState) object(v reflect.Value) error {
 	return nil
 }
 
-// convertNumber converts the number literal s to a float64 or a Number
-// depending on the setting of d.useNumber.
+// convertNumber 将数字字面量 s 转换为 float64 或 Number，
+// 具体取决于 d.useNumber 的设置。
 func (d *decodeState) convertNumber(s string) (any, error) {
 	if d.useNumber {
 		return Number(s), nil
@@ -848,15 +809,14 @@ func (d *decodeState) convertNumber(s string) (any, error) {
 
 var numberType = reflect.TypeFor[Number]()
 
-// literalStore decodes a literal stored in item into v.
+// literalStore 将存储在 item 中的字面量解码到 v 中。
 //
-// fromQuoted indicates whether this literal came from unwrapping a
-// string from the ",string" struct tag option. this is used only to
-// produce more helpful error messages.
+// fromQuoted 表示该字面量是否来自从 ",string" 结构体标签选项解包出的字符串。
+// 这仅用于生成更有帮助的错误消息。
 func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool) error {
-	// Check for unmarshaler.
+	// 检查 unmarshaler。
 	if len(item) == 0 {
-		// Empty string given.
+		// 给定了空字符串。
 		d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 		return nil
 	}
@@ -895,8 +855,8 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 
 	switch c := item[0]; c {
 	case 'n': // null
-		// The main parser checks that only true and false can reach here,
-		// but if this was a quoted string input, it could be anything.
+		// 主解析器确保只有 true 和 false 能到达这里，
+		// 但如果这是带引号的字符串输入，则可能是任何内容。
 		if fromQuoted && string(item) != "null" {
 			d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 			break
@@ -904,12 +864,12 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		switch v.Kind() {
 		case reflect.Interface, reflect.Pointer, reflect.Map, reflect.Slice:
 			v.SetZero()
-			// otherwise, ignore null for primitives/string
+			// 否则，对基本类型/字符串忽略 null
 		}
 	case 't', 'f': // true, false
 		value := item[0] == 't'
-		// The main parser checks that only true and false can reach here,
-		// but if this was a quoted string input, it could be anything.
+		// 主解析器确保只有 true 和 false 能到达这里，
+		// 但如果这是带引号的字符串输入，则可能是任何内容。
 		if fromQuoted && string(item) != "true" && string(item) != "false" {
 			d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
 			break
@@ -978,8 +938,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 		switch v.Kind() {
 		default:
 			if v.Kind() == reflect.String && v.Type() == numberType {
-				// s must be a valid number, because it's
-				// already been tokenized.
+				// s 必须是有效的数字，因为它已经过词法分析。
 				v.SetString(string(item))
 				break
 			}
@@ -1027,11 +986,10 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
 	return nil
 }
 
-// The xxxInterface routines build up a value to be stored
-// in an empty interface. They are not strictly necessary,
-// but they avoid the weight of reflection in this common case.
+// xxxInterface 系列例程构建要存储在空接口中的值。它们并非严格必要，
+// 但它们在这种常见情况下避免了反射的开销。
 
-// valueInterface is like value but returns any.
+// valueInterface 类似于 value，但返回 any。
 func (d *decodeState) valueInterface() (val any) {
 	switch d.opcode {
 	default:
@@ -1048,11 +1006,11 @@ func (d *decodeState) valueInterface() (val any) {
 	return
 }
 
-// arrayInterface is like array but returns []any.
+// arrayInterface 类似于 array，但返回 []any。
 func (d *decodeState) arrayInterface() []any {
 	var v = make([]any, 0)
 	for {
-		// Look ahead for ] - can only happen on first iteration.
+		// 向前查找 ] - 只可能在第一次迭代时发生。
 		d.scanWhile(scanSkipSpace)
 		if d.opcode == scanEndArray {
 			break
@@ -1060,7 +1018,7 @@ func (d *decodeState) arrayInterface() []any {
 
 		v = append(v, d.valueInterface())
 
-		// Next token must be , or ].
+		// 下一个标记必须是 , 或 ]。
 		if d.opcode == scanSkipSpace {
 			d.scanWhile(scanSkipSpace)
 		}
@@ -1074,21 +1032,21 @@ func (d *decodeState) arrayInterface() []any {
 	return v
 }
 
-// objectInterface is like object but returns map[string]any.
+// objectInterface 类似于 object，但返回 map[string]any。
 func (d *decodeState) objectInterface() map[string]any {
 	m := make(map[string]any)
 	for {
-		// Read opening " of string key or closing }.
+		// 读取字符串键的开头引号 " 或结尾 }。
 		d.scanWhile(scanSkipSpace)
 		if d.opcode == scanEndObject {
-			// closing } - can only happen on first iteration.
+			// closing } - 只能在第一次迭代时发生。
 			break
 		}
 		if d.opcode != scanBeginLiteral {
 			panic(phasePanicMsg)
 		}
 
-		// Read string key.
+		// 读取字符串键。
 		start := d.readIndex()
 		d.rescanLiteral()
 		item := d.data[start:d.readIndex()]
@@ -1097,7 +1055,7 @@ func (d *decodeState) objectInterface() map[string]any {
 			panic(phasePanicMsg)
 		}
 
-		// Read : before value.
+		// 读取值之前的 :。
 		if d.opcode == scanSkipSpace {
 			d.scanWhile(scanSkipSpace)
 		}
@@ -1106,10 +1064,10 @@ func (d *decodeState) objectInterface() map[string]any {
 		}
 		d.scanWhile(scanSkipSpace)
 
-		// Read value.
+		// 读取值。
 		m[key] = d.valueInterface()
 
-		// Next token must be , or }.
+		// 下一个标记必须是 , 或 }。
 		if d.opcode == scanSkipSpace {
 			d.scanWhile(scanSkipSpace)
 		}
@@ -1123,11 +1081,11 @@ func (d *decodeState) objectInterface() map[string]any {
 	return m
 }
 
-// literalInterface consumes and returns a literal from d.data[d.off-1:] and
-// it reads the following byte ahead. The first byte of the literal has been
-// read already (that's how the caller knows it's a literal).
+// literalInterface 从 d.data[d.off-1:] 消费并返回一个字面量，
+// 并提前读取后续字节。字面量的第一个字节已经被读取
+// （调用者正是据此知道它是一个字面量）。
 func (d *decodeState) literalInterface() any {
-	// All bytes inside literal return scanContinue op code.
+	// 字面量内部的所有字节都返回 scanContinue 操作码。
 	start := d.readIndex()
 	d.rescanLiteral()
 
@@ -1159,8 +1117,7 @@ func (d *decodeState) literalInterface() any {
 	}
 }
 
-// getu4 decodes \uXXXX from the beginning of s, returning the hex value,
-// or it returns -1.
+// getu4 从 s 的开头解码 \uXXXX，返回十六进制值，或返回 -1。
 func getu4(s []byte) rune {
 	if len(s) < 6 || s[0] != '\\' || s[1] != 'u' {
 		return -1
@@ -1182,8 +1139,8 @@ func getu4(s []byte) rune {
 	return r
 }
 
-// unquote converts a quoted JSON string literal s into an actual string t.
-// The rules are different than for Go, so cannot use strconv.Unquote.
+// unquote 将带引号的 JSON 字符串字面量 s 转换为实际字符串 t。
+// 其规则与 Go 不同，因此不能使用 strconv.Unquote。
 func unquote(s []byte) (t string, ok bool) {
 	s, ok = unquoteBytes(s)
 	t = string(s)
@@ -1196,9 +1153,8 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 	}
 	s = s[1 : len(s)-1]
 
-	// Check for unusual characters. If there are none,
-	// then no unquoting is needed, so return a slice of the
-	// original bytes.
+	// 检查是否存在不寻常的字符。如果没有，
+	// 则无需去除引号，因此返回原始字节的切片。
 	r := 0
 	for r < len(s) {
 		c := s[r]
@@ -1218,9 +1174,8 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 	b := make([]byte, len(s)+2*utf8.UTFMax)
 	w := copy(b, s[0:r])
 	for r < len(s) {
-		// Out of room? Can only happen if s is full of
-		// malformed UTF-8 and we're replacing each
-		// byte with RuneError.
+		// 空间不足？只有在 s 充满畸形 UTF-8 且我们将
+		// 每个字节都替换为 RuneError 时才会发生。
 		if w >= len(b)-2*utf8.UTFMax {
 			nb := make([]byte, (len(b)+utf8.UTFMax)*2)
 			copy(nb, b[0:w])
@@ -1269,18 +1224,18 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 				if utf16.IsSurrogate(rr) {
 					rr1 := getu4(s[r:])
 					if dec := utf16.DecodeRune(rr, rr1); dec != unicode.ReplacementChar {
-						// A valid pair; consume.
+						// 有效的代理对；消费它。
 						r += 6
 						w += utf8.EncodeRune(b[w:], dec)
 						break
 					}
-					// Invalid surrogate; fall back to replacement rune.
+					// 无效的代理对；回退到替换符文。
 					rr = unicode.ReplacementChar
 				}
 				w += utf8.EncodeRune(b[w:], rr)
 			}
 
-		// Quote, control characters are invalid.
+		// 引号、控制字符是无效的。
 		case c == '"', c < ' ':
 			return
 
@@ -1290,7 +1245,7 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 			r++
 			w++
 
-		// Coerce to well-formed UTF-8.
+		// 强制转换为格式良好的 UTF-8。
 		default:
 			rr, size := utf8.DecodeRune(s[r:])
 			r += size

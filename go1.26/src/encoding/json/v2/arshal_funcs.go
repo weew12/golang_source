@@ -19,32 +19,32 @@ import (
 	"encoding/json/jsontext"
 )
 
-// SkipFunc may be returned by [MarshalToFunc] and [UnmarshalFromFunc] functions.
+// SkipFunc 可由 [MarshalToFunc] 和 [UnmarshalFromFunc] 函数返回。
 //
-// Any function that returns SkipFunc must not cause observable side effects
-// on the provided [jsontext.Encoder] or [jsontext.Decoder].
-// For example, it is permissible to call [jsontext.Decoder.PeekKind],
-// but not permissible to call [jsontext.Decoder.ReadToken] or
-// [jsontext.Encoder.WriteToken] since such methods mutate the state.
+// 任何返回 SkipFunc 的函数都不得对所提供的 [jsontext.Encoder] 或
+// [jsontext.Decoder] 产生可观察的副作用。
+// 例如，允许调用 [jsontext.Decoder.PeekKind]，
+// 但不允许调用 [jsontext.Decoder.ReadToken] 或
+// [jsontext.Encoder.WriteToken]，因为这些方法会改变状态。
 var SkipFunc = errors.New("json: skip function")
 
 var errSkipMutation = errors.New("must not read or write any tokens when skipping")
 var errNonSingularValue = errors.New("must read or write exactly one value")
 
-// Marshalers is a list of functions that may override the marshal behavior
-// of specific types. Populate [WithMarshalers] to use it with
-// [Marshal], [MarshalWrite], or [MarshalEncode].
-// A nil *Marshalers is equivalent to an empty list.
-// There are no exported fields or methods on Marshalers.
+// Marshalers 是可能覆盖特定类型的 marshal 行为的函数列表。
+// 通过填充 [WithMarshalers] 以便与
+// [Marshal]、[MarshalWrite] 或 [MarshalEncode] 一起使用。
+// 为 nil 的 *Marshalers 等价于空列表。
+// Marshalers 上没有导出的字段或方法。
 type Marshalers = typedMarshalers
 
-// JoinMarshalers constructs a flattened list of marshal functions.
-// If multiple functions in the list are applicable for a value of a given type,
-// then those earlier in the list take precedence over those that come later.
-// If a function returns [SkipFunc], then the next applicable function is called,
-// otherwise the default marshaling behavior is used.
+// JoinMarshalers 构造一个扁平化的 marshal 函数列表。
+// 如果列表中有多个函数适用于给定类型的值，
+// 那么列表中靠前的函数优先于靠后的函数。
+// 如果某个函数返回 [SkipFunc]，则调用下一个适用的函数，
+// 否则使用默认的 marshal 行为。
 //
-// For example:
+// 例如：
 //
 //	m1 := JoinMarshalers(f1, f2)
 //	m2 := JoinMarshalers(f0, m1, f3)     // equivalent to m3
@@ -53,20 +53,20 @@ func JoinMarshalers(ms ...*Marshalers) *Marshalers {
 	return newMarshalers(ms...)
 }
 
-// Unmarshalers is a list of functions that may override the unmarshal behavior
-// of specific types. Populate [WithUnmarshalers] to use it with
-// [Unmarshal], [UnmarshalRead], or [UnmarshalDecode].
-// A nil *Unmarshalers is equivalent to an empty list.
-// There are no exported fields or methods on Unmarshalers.
+// Unmarshalers 是可能覆盖特定类型的 unmarshal 行为的函数列表。
+// 通过填充 [WithUnmarshalers] 以便与
+// [Unmarshal]、[UnmarshalRead] 或 [UnmarshalDecode] 一起使用。
+// 为 nil 的 *Unmarshalers 等价于空列表。
+// Unmarshalers 上没有导出的字段或方法。
 type Unmarshalers = typedUnmarshalers
 
-// JoinUnmarshalers constructs a flattened list of unmarshal functions.
-// If multiple functions in the list are applicable for a value of a given type,
-// then those earlier in the list take precedence over those that come later.
-// If a function returns [SkipFunc], then the next applicable function is called,
-// otherwise the default unmarshaling behavior is used.
+// JoinUnmarshalers 构造一个扁平化的 unmarshal 函数列表。
+// 如果列表中有多个函数适用于给定类型的值，
+// 那么列表中靠前的函数优先于靠后的函数。
+// 如果某个函数返回 [SkipFunc]，则调用下一个适用的函数，
+// 否则使用默认的 unmarshal 行为。
 //
-// For example:
+// 例如：
 //
 //	u1 := JoinUnmarshalers(f1, f2)
 //	u2 := JoinUnmarshalers(f0, u1, f3)     // equivalent to u3
@@ -83,15 +83,15 @@ type typedArshalers[Coder any] struct {
 	fncVals  []typedArshaler[Coder]
 	fncCache sync.Map // map[reflect.Type]arshaler
 
-	// fromAny reports whether any of Go types used to represent arbitrary JSON
-	// (i.e., any, bool, string, float64, map[string]any, or []any) matches
-	// any of the provided type-specific arshalers.
+	// fromAny 报告用于表示任意 JSON 的任一 Go 类型
+	// （即 any、bool、string、float64、map[string]any 或 []any）是否
+	// 匹配所提供的任一类型专用的 arshaler。
 	//
-	// This bit of information is needed in arshal_default.go to determine
-	// whether to use the specialized logic in arshal_any.go to handle
-	// the any interface type. The logic in arshal_any.go does not support
-	// type-specific arshal functions, so we must avoid using that logic
-	// if this is true.
+	// arshal_default.go 需要这一信息来确定
+	// 是否使用 arshal_any.go 中的专用逻辑来处理
+	// any 接口类型。arshal_any.go 中的逻辑不支持
+	// 类型专用的 arshal 函数，因此如果此值为 true，
+	// 我们就必须避免使用该逻辑。
 	fromAny bool
 }
 type typedMarshaler = typedArshaler[jsontext.Encoder]
@@ -129,8 +129,8 @@ func (a *typedArshalers[Coder]) lookup(fnc func(*Coder, addressableValue, *jsono
 		return v.(func(*Coder, addressableValue, *jsonopts.Struct) error), true
 	}
 
-	// Collect a list of arshalers that can be called for this type.
-	// This list may be longer than 1 since some arshalers can be skipped.
+	// 收集可为此类型调用的 arshaler 列表。
+	// 此列表可能长于 1，因为某些 arshaler 可以被跳过。
 	var fncs []func(*Coder, addressableValue, *jsonopts.Struct) error
 	for _, fncVal := range a.fncVals {
 		if !castableTo(t, fncVal.typ) {
@@ -138,40 +138,39 @@ func (a *typedArshalers[Coder]) lookup(fnc func(*Coder, addressableValue, *jsono
 		}
 		fncs = append(fncs, fncVal.fnc)
 		if !fncVal.maySkip {
-			break // subsequent arshalers will never be called
+			break // 后续的 arshaler 将永远不会被调用
 		}
 	}
 
 	if len(fncs) == 0 {
-		a.fncCache.Store(t, nil) // nil to indicate that no funcs found
+		a.fncCache.Store(t, nil) // 用 nil 表示没有找到任何函数
 		return fnc, false
 	}
 
-	// Construct an arshaler that may call every applicable arshaler.
+	// 构造一个可以调用每个适用 arshaler 的 arshaler。
 	fncDefault := fnc
 	fnc = func(c *Coder, v addressableValue, o *jsonopts.Struct) error {
 		for _, fnc := range fncs {
 			if err := fnc(c, v, o); err != SkipFunc {
-				return err // may be nil or non-nil
+				return err // 可以为 nil 或非 nil
 			}
 		}
 		return fncDefault(c, v, o)
 	}
 
-	// Use the first stored so duplicate work can be garbage collected.
+	// 使用最先存储的那个，以便重复的工作可以被垃圾回收。
 	v, _ := a.fncCache.LoadOrStore(t, fnc)
 	return v.(func(*Coder, addressableValue, *jsonopts.Struct) error), true
 }
 
-// MarshalFunc constructs a type-specific marshaler that
-// specifies how to marshal values of type T.
-// T can be any type except a named pointer.
-// The function is always provided with a non-nil pointer value
-// if T is an interface or pointer type.
+// MarshalFunc 构造一个类型专用的 marshaler，
+// 它指定如何 marshal 类型 T 的值。
+// T 可以是除命名指针之外的任意类型。
+// 如果 T 是接口或指针类型，函数总是会被提供一个非 nil 的指针值。
 //
-// The function must marshal exactly one JSON value.
-// The value of T must not be retained outside the function call.
-// It may not return [SkipFunc].
+// 该函数必须恰好 marshal 一个 JSON 值。
+// 不得在函数调用之外保留 T 的值。
+// 它不得返回 [SkipFunc]。
 func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 	t := reflect.TypeFor[T]()
 	assertCastableTo(t, true)
@@ -183,14 +182,14 @@ func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 			if err != nil {
 				err = wrapSkipFunc(err, "marshal function of type func(T) ([]byte, error)")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalFunc") // unlike unmarshal, always wrapped
+					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalFunc") // 与 unmarshal 不同，总是被包装
 				}
 				err = newMarshalErrorBefore(enc, t, err)
 				return collapseSemanticErrors(err)
 			}
 			if err := enc.WriteValue(val); err != nil {
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalFunc") // unlike unmarshal, always wrapped
+					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalFunc") // 与 unmarshal 不同，总是被包装
 				}
 				if isSyntacticError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -203,18 +202,18 @@ func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 	return &Marshalers{fncVals: []typedMarshaler{typFnc}, fromAny: castableToFromAny(t)}
 }
 
-// MarshalToFunc constructs a type-specific marshaler that
-// specifies how to marshal values of type T.
-// T can be any type except a named pointer.
-// The function is always provided with a non-nil pointer value
-// if T is an interface or pointer type.
+// MarshalToFunc 构造一个类型专用的 marshaler，
+// 它指定如何 marshal 类型 T 的值。
+// T 可以是除命名指针之外的任意类型。
+// 如果 T 是接口或指针类型，函数总是会被提供一个非 nil 的指针值。
 //
-// The function must marshal exactly one JSON value by calling write methods
-// on the provided encoder. It may return [SkipFunc] such that marshaling can
-// move on to the next marshal function. However, no mutable method calls may
-// be called on the encoder if [SkipFunc] is returned.
-// The pointer to [jsontext.Encoder] and the value of T
-// must not be retained outside the function call.
+// 该函数必须通过对所提供的 encoder 调用写入方法
+// 恰好 marshal 一个 JSON 值。它可以返回 [SkipFunc]，
+// 以便 marshal 可以继续移动到下一个 marshal 函数。
+// 然而，如果返回了 [SkipFunc]，则不得对 encoder
+// 调用任何会改变状态的方法。
+// 不得在函数调用之外保留指向 [jsontext.Encoder] 的指针
+// 和 T 的值。
 func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 	t := reflect.TypeFor[T]()
 	assertCastableTo(t, true)
@@ -239,7 +238,7 @@ func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 					err = errSkipMutation
 				}
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalToFunc") // unlike unmarshal, always wrapped
+					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalToFunc") // 与 unmarshal 不同，总是被包装
 				}
 				if !export.IsIOError(err) {
 					err = newSemanticErrorWithPosition(enc, t, prevDepth, prevLength, err)
@@ -253,15 +252,15 @@ func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 	return &Marshalers{fncVals: []typedMarshaler{typFnc}, fromAny: castableToFromAny(t)}
 }
 
-// UnmarshalFunc constructs a type-specific unmarshaler that
-// specifies how to unmarshal values of type T.
-// T must be an unnamed pointer or an interface type.
-// The function is always provided with a non-nil pointer value.
+// UnmarshalFunc 构造一个类型专用的 unmarshaler，
+// 它指定如何 unmarshal 类型 T 的值。
+// T 必须是未命名指针或接口类型。
+// 函数总是会被提供一个非 nil 的指针值。
 //
-// The function must unmarshal exactly one JSON value.
-// The input []byte must not be mutated.
-// The input []byte and value T must not be retained outside the function call.
-// It may not return [SkipFunc].
+// 该函数必须恰好 unmarshal 一个 JSON 值。
+// 不得修改输入的 []byte。
+// 不得在函数调用之外保留输入的 []byte 和 T 的值。
+// 它不得返回 [SkipFunc]。
 func UnmarshalFunc[T any](fn func([]byte, T) error) *Unmarshalers {
 	t := reflect.TypeFor[T]()
 	assertCastableTo(t, false)
@@ -270,14 +269,14 @@ func UnmarshalFunc[T any](fn func([]byte, T) error) *Unmarshalers {
 		fnc: func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			val, err := dec.ReadValue()
 			if err != nil {
-				return err // must be a syntactic or I/O error
+				return err // 必定是语法错误或 I/O 错误
 			}
 			v, _ := reflect.TypeAssert[T](va.castTo(t))
 			err = fn(val, v)
 			if err != nil {
 				err = wrapSkipFunc(err, "unmarshal function of type func([]byte, T) error")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return err // unlike marshal, never wrapped
+					return err // 与 marshal 不同，从不被包装
 				}
 				err = newUnmarshalErrorAfter(dec, t, err)
 				return collapseSemanticErrors(err)
@@ -288,17 +287,18 @@ func UnmarshalFunc[T any](fn func([]byte, T) error) *Unmarshalers {
 	return &Unmarshalers{fncVals: []typedUnmarshaler{typFnc}, fromAny: castableToFromAny(t)}
 }
 
-// UnmarshalFromFunc constructs a type-specific unmarshaler that
-// specifies how to unmarshal values of type T.
-// T must be an unnamed pointer or an interface type.
-// The function is always provided with a non-nil pointer value.
+// UnmarshalFromFunc 构造一个类型专用的 unmarshaler，
+// 它指定如何 unmarshal 类型 T 的值。
+// T 必须是未命名指针或接口类型。
+// 函数总是会被提供一个非 nil 的指针值。
 //
-// The function must unmarshal exactly one JSON value by calling read methods
-// on the provided decoder. It may return [SkipFunc] such that unmarshaling can
-// move on to the next unmarshal function. However, no mutable method calls may
-// be called on the decoder if [SkipFunc] is returned.
-// The pointer to [jsontext.Decoder] and the value of T
-// must not be retained outside the function call.
+// 该函数必须通过对所提供的 decoder 调用读取方法
+// 恰好 unmarshal 一个 JSON 值。它可以返回 [SkipFunc]，
+// 以便 unmarshal 可以继续移动到下一个 unmarshal 函数。
+// 然而，如果返回了 [SkipFunc]，则不得对 decoder
+// 调用任何会改变状态的方法。
+// 不得在函数调用之外保留指向 [jsontext.Decoder] 的指针
+// 和 T 的值。
 func UnmarshalFromFunc[T any](fn func(*jsontext.Decoder, T) error) *Unmarshalers {
 	t := reflect.TypeFor[T]()
 	assertCastableTo(t, false)
@@ -329,7 +329,7 @@ func UnmarshalFromFunc[T any](fn func(*jsontext.Decoder, T) error) *Unmarshalers
 					if err2 := xd.SkipUntil(prevDepth, prevLength+1); err2 != nil {
 						return err2
 					}
-					return err // unlike marshal, never wrapped
+					return err // 与 marshal 不同，从不被包装
 				}
 				if !isSyntacticError(err) && !export.IsIOError(err) {
 					err = newSemanticErrorWithPosition(dec, t, prevDepth, prevLength, err)
@@ -343,34 +343,34 @@ func UnmarshalFromFunc[T any](fn func(*jsontext.Decoder, T) error) *Unmarshalers
 	return &Unmarshalers{fncVals: []typedUnmarshaler{typFnc}, fromAny: castableToFromAny(t)}
 }
 
-// assertCastableTo asserts that "to" is a valid type to be casted to.
-// These are the Go types that type-specific arshalers may operate upon.
+// assertCastableTo 断言 "to" 是可被转换到的有效类型。
+// 这些是类型专用的 arshaler 可以操作的 Go 类型。
 //
-// Let AllTypes be the universal set of all possible Go types.
-// This function generally asserts that:
+// 令 AllTypes 为所有可能 Go 类型的全集。
+// 此函数通常断言：
 //
 //	len([from for from in AllTypes if castableTo(from, to)]) > 0
 //
-// otherwise it panics.
+// 否则它会 panic。
 //
-// As a special-case if marshal is false, then we forbid any non-pointer or
-// non-interface type since it is almost always a bug trying to unmarshal
-// into something where the end-user caller did not pass in an addressable value
-// since they will not observe the mutations.
+// 作为特例，如果 marshal 为 false，那么我们禁止任何
+// 非指针或非接口类型，因为在尝试 unmarshal 到
+// 最终用户调用者未传入可寻址值的地方时，
+// 这几乎总是 bug，因为他们将观察不到这些变更。
 func assertCastableTo(to reflect.Type, marshal bool) {
 	switch to.Kind() {
 	case reflect.Interface:
 		return
 	case reflect.Pointer:
-		// Only allow unnamed pointers to be consistent with the fact that
-		// taking the address of a value produces an unnamed pointer type.
+		// 只允许未命名指针，以与以下事实保持一致：
+		// 取某个值的地址会产生未命名指针类型。
 		if to.Name() == "" {
 			return
 		}
 	default:
-		// Technically, non-pointer types are permissible for unmarshal.
-		// However, they are often a bug since the receiver would be immutable.
-		// Thus, only allow them for marshaling.
+		// 从技术上讲，非指针类型对于 unmarshal 是允许的。
+		// 然而，它们通常是 bug，因为接收者将是不可变的。
+		// 因此，只允许它们用于 marshaling。
 		if marshal {
 			return
 		}
@@ -382,34 +382,34 @@ func assertCastableTo(to reflect.Type, marshal bool) {
 	}
 }
 
-// castableTo checks whether values of type "from" can be casted to type "to".
-// Nil pointer or interface "from" values are never considered castable.
+// castableTo 检查类型 "from" 的值是否能转换为类型 "to"。
+// 为 nil 的指针或接口 "from" 值永远不会被视为可转换。
 //
-// This function must be kept in sync with addressableValue.castTo.
+// 此函数必须与 addressableValue.castTo 保持同步。
 func castableTo(from, to reflect.Type) bool {
 	switch to.Kind() {
 	case reflect.Interface:
-		// TODO: This breaks when ordinary interfaces can have type sets
-		// since interfaces now exist where only the value form of a type (T)
-		// implements the interface, but not the pointer variant (*T).
-		// See https://go.dev/issue/45346.
+		// TODO: 当普通接口可以拥有类型集时，这会失效，
+		// 因为现在存在这样的接口：只有类型 (T) 的值形式
+		// 实现了该接口，而指针变体 (*T) 没有。
+		// 参见 https://go.dev/issue/45346。
 		return reflect.PointerTo(from).Implements(to)
 	case reflect.Pointer:
-		// Common case for unmarshaling.
-		// From must be a concrete or interface type.
+		// unmarshaling 的常见情况。
+		// From 必须是具体类型或接口类型。
 		return reflect.PointerTo(from) == to
 	default:
-		// Common case for marshaling.
-		// From must be a concrete type.
+		// marshaling 的常见情况。
+		// From 必须是具体类型。
 		return from == to
 	}
 }
 
-// castTo casts va to the specified type.
-// If the type is an interface, then the underlying type will always
-// be a non-nil pointer to a concrete type.
+// castTo 将 va 转换为指定类型。
+// 如果类型是接口，那么底层类型将始终是
+// 指向具体类型的非 nil 指针。
 //
-// Requirement: castableTo(va.Type(), to) must hold.
+// 要求：castableTo(va.Type(), to) 必须成立。
 func (va addressableValue) castTo(to reflect.Type) reflect.Value {
 	switch to.Kind() {
 	case reflect.Interface:
@@ -421,8 +421,8 @@ func (va addressableValue) castTo(to reflect.Type) reflect.Value {
 	}
 }
 
-// castableToFromAny reports whether "to" can be casted to from any
-// of the dynamic types used to represent arbitrary JSON.
+// castableToFromAny 报告 "to" 是否能从用于表示
+// 任意 JSON 的任一动态类型转换而来。
 func castableToFromAny(to reflect.Type) bool {
 	for _, from := range []reflect.Type{anyType, boolType, stringType, float64Type, mapStringAnyType, sliceAnyType} {
 		if castableTo(from, to) {

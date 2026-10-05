@@ -17,7 +17,7 @@ import (
 const errorPrefix = "jsontext: "
 
 type ioError struct {
-	action string // either "read" or "write"
+	action string // "read" 或 "write"
 	err    error
 }
 
@@ -28,34 +28,34 @@ func (e *ioError) Unwrap() error {
 	return e.err
 }
 
-// SyntacticError is a description of a syntactic error that occurred when
-// encoding or decoding JSON according to the grammar.
+// SyntacticError 是对在根据语法编码或解码 JSON 时
+// 发生的语法错误的描述。
 //
-// The contents of this error as produced by this package may change over time.
+// 本包产生的此错误的内容可能会随时间而变化。
 type SyntacticError struct {
 	requireKeyedLiterals
 	nonComparable
 
-	// ByteOffset indicates that an error occurred after this byte offset.
+	// ByteOffset 表明错误发生在此字节偏移量之后。
 	ByteOffset int64
-	// JSONPointer indicates that an error occurred within this JSON value
-	// as indicated using the JSON Pointer notation (see RFC 6901).
+	// JSONPointer 表明错误发生在此 JSON 值内，
+	// 使用 JSON Pointer 表示法（参见 RFC 6901）指示。
 	JSONPointer Pointer
 
-	// Err is the underlying error.
+	// Err 是底层错误。
 	Err error
 }
 
-// wrapSyntacticError wraps an error and annotates it with a precise location
-// using the provided [encoderState] or [decoderState].
-// If err is an [ioError] or [io.EOF], then it is not wrapped.
+// wrapSyntacticError 包装一个错误，并使用所提供的
+// [encoderState] 或 [decoderState] 为其标注精确的位置。
+// 如果 err 是 [ioError] 或 [io.EOF]，则不会被包装。
 //
-// It takes a relative offset pos that can be resolved into
-// an absolute offset using state.offsetAt.
+// 它接收一个相对偏移量 pos，可通过 state.offsetAt
+// 解析为绝对偏移量。
 //
-// It takes a where that specify how the JSON pointer is derived.
-// If the underlying error is a [pointerSuffixError],
-// then the suffix is appended to the derived pointer.
+// 它接收一个 where，用于指定 JSON pointer 是如何推导的。
+// 如果底层错误是 [pointerSuffixError]，
+// 则将该后缀追加到推导出的 pointer 上。
 func wrapSyntacticError(state interface {
 	offsetAt(pos int) int64
 	AppendStackPointer(b []byte, where int) []byte
@@ -75,10 +75,10 @@ func wrapSyntacticError(state interface {
 			switch {
 			case d.Tokens.Last.isArray():
 				where = "after array element (expecting ',' or ']')"
-				ptr = []byte(Pointer(ptr).Parent()) // problem is with parent array
+				ptr = []byte(Pointer(ptr).Parent()) // 问题出在父数组上
 			case d.Tokens.Last.isObject():
 				where = "after object value (expecting ',' or '}')"
-				ptr = []byte(Pointer(ptr).Parent()) // problem is with parent object
+				ptr = []byte(Pointer(ptr).Parent()) // 问题出在父对象上
 			}
 		}
 		err = jsonwire.NewInvalidCharacterError(d.buf[pos:], where)
@@ -95,7 +95,7 @@ func (e *SyntacticError) Error() string {
 		if e.Err == ErrDuplicateName {
 			b = strconv.AppendQuote(append(b, ' '), pointer.LastToken())
 			pointer = pointer.Parent()
-			offset = 0 // not useful to print offset for duplicate names
+			offset = 0 // 为重复名称打印偏移量没有用处
 		}
 	} else {
 		b = append(b, "syntactic error"...)
@@ -113,42 +113,42 @@ func (e *SyntacticError) Unwrap() error {
 	return e.Err
 }
 
-// pointerSuffixError represents a JSON pointer suffix to be appended
-// to [SyntacticError.JSONPointer]. It is an internal error type
-// used within this package and does not appear in the public API.
+// pointerSuffixError 表示要追加到
+// [SyntacticError.JSONPointer] 的 JSON pointer 后缀。它是本包内部
+// 使用的错误类型，不会出现在公开 API 中。
 //
-// This type is primarily used to annotate errors in Encoder.WriteValue
-// and Decoder.ReadValue with precise positions.
-// At the time WriteValue or ReadValue is called, a JSON pointer to the
-// upcoming value can be constructed using the Encoder/Decoder state.
-// However, tracking pointers within values during normal operation
-// would incur a performance penalty in the error-free case.
+// 此类型主要用于在 Encoder.WriteValue
+// 和 Decoder.ReadValue 中为错误标注精确的位置。
+// 在调用 WriteValue 或 ReadValue 时，可以使用 Encoder/Decoder 的状态
+// 构造指向即将到来的值的 JSON pointer。
+// 然而，在正常操作期间跟踪值内部的 pointer
+// 会在无错误的情况下带来性能损失。
 //
-// To provide precise error locations without this overhead,
-// the error is wrapped with object names or array indices
-// as the call stack is popped when an error occurs.
-// Since this happens in reverse order, pointerSuffixError holds
-// the pointer in reverse and is only later reversed when appending to
-// the pointer prefix.
+// 为了在不产生这种开销的情况下提供精确的错误位置，
+// 当发生错误时，随着调用栈的弹出，
+// 错误会被对象名称或数组索引包装。
+// 由于这以相反的顺序发生，pointerSuffixError 会以相反的顺序
+// 持有 pointer，只有在追加到 pointer 前缀时
+// 才会将其反转。
 //
-// For example, if the encoder is at "/alpha/bravo/charlie"
-// and an error occurs in WriteValue at "/xray/yankee/zulu", then
-// the final pointer should be "/alpha/bravo/charlie/xray/yankee/zulu".
+// 例如，如果编码器位于 "/alpha/bravo/charlie"，
+// 并且在 WriteValue 中 "/xray/yankee/zulu" 处发生错误，那么
+// 最终的 pointer 应为 "/alpha/bravo/charlie/xray/yankee/zulu"。
 //
-// As pointerSuffixError is populated during the error return path,
-// it first contains "/zulu", then "/zulu/yankee",
-// and finally "/zulu/yankee/xray".
-// These tokens are reversed and concatenated to "/alpha/bravo/charlie"
-// to form the full pointer.
+// 由于 pointerSuffixError 是在错误返回路径中填充的，
+// 它首先包含 "/zulu"，然后是 "/zulu/yankee"，
+// 最后是 "/zulu/yankee/xray"。
+// 这些 token 会被反转并连接到 "/alpha/bravo/charlie"，
+// 从而形成完整的 pointer。
 type pointerSuffixError struct {
 	error
 
-	// reversePointer is a JSON pointer, but with each token in reverse order.
+	// reversePointer 是一个 JSON pointer，但每个 token 的顺序都是反的。
 	reversePointer []byte
 }
 
-// wrapWithObjectName wraps err with a JSON object name access,
-// which must be a valid quoted JSON string.
+// wrapWithObjectName 用一个 JSON 对象名称访问来包装 err，
+// 该名称必须是有效的带引号 JSON 字符串。
 func wrapWithObjectName(err error, quotedName []byte) error {
 	serr, _ := err.(*pointerSuffixError)
 	if serr == nil {
@@ -159,7 +159,7 @@ func wrapWithObjectName(err error, quotedName []byte) error {
 	return serr
 }
 
-// wrapWithArrayIndex wraps err with a JSON array index access.
+// wrapWithArrayIndex 用一个 JSON 数组索引访问来包装 err。
 func wrapWithArrayIndex(err error, index int64) error {
 	serr, _ := err.(*pointerSuffixError)
 	if serr == nil {
@@ -169,10 +169,10 @@ func wrapWithArrayIndex(err error, index int64) error {
 	return serr
 }
 
-// appendPointer appends the path encoded in e to the end of pointer.
+// appendPointer 将 e 中编码的路径追加到 pointer 的末尾。
 func (e *pointerSuffixError) appendPointer(pointer []byte) []byte {
-	// Copy each token in reversePointer to the end of pointer in reverse order.
-	// Double reversal means that the appended suffix is now in forward order.
+	// 按相反的顺序将 reversePointer 中的每个 token 复制到 pointer 的末尾。
+	// 双重反转意味着所追加的后缀现在处于正向顺序。
 	bi, bo := e.reversePointer, pointer
 	for len(bi) > 0 {
 		i := bytes.LastIndexByte(bi, '/')

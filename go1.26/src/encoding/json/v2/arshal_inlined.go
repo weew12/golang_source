@@ -19,30 +19,30 @@ import (
 	"encoding/json/jsontext"
 )
 
-// This package supports "inlining" a Go struct field, where the contents
-// of the serialized field (which must be a JSON object) are treated as if
-// they are part of the parent Go struct (which represents a JSON object).
+// 本包支持对 Go 结构体字段进行“内联（inlining）”，
+// 即将序列化字段（必须是一个 JSON 对象）的内容
+// 视为父 Go 结构体（表示一个 JSON 对象）的一部分。
 //
-// Generally, inlined fields are of a Go struct type, where the fields of the
-// nested struct are virtually hoisted up to the parent struct using rules
-// similar to how Go embedding works (but operating within the JSON namespace).
+// 通常，内联字段是 Go 结构体类型，嵌套结构体的字段会
+// 使用类似于 Go 嵌入（embedding）的规则（但在 JSON 命名空间内运作）
+// 虚拟地提升到父结构体中。
 //
-// However, inlined fields may also be of a Go map type with a string key or
-// a jsontext.Value. Such inlined fields are called "fallback" fields since they
-// represent any arbitrary JSON object member. Explicitly named fields take
-// precedence over the inlined fallback. Only one inlined fallback is allowed.
+// 然而，内联字段也可以是带有字符串键的 Go map 类型，
+// 或 jsontext.Value。这类内联字段被称为“回退（fallback）”字段，
+// 因为它们表示任意的 JSON 对象成员。显式命名的字段
+// 优先于内联回退字段。只允许一个内联回退字段。
 
 var errRawInlinedNotObject = errors.New("inlined raw value must be a JSON object")
 
 var jsontextValueType = reflect.TypeFor[jsontext.Value]()
 
-// marshalInlinedFallbackAll marshals all the members in an inlined fallback.
+// marshalInlinedFallbackAll 序列化内联回退中的所有成员。
 func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct, f *structField, insertUnquotedName func([]byte) bool) error {
-	v := addressableValue{va.Field(f.index0), va.forcedAddr} // addressable if struct value is addressable
+	v := addressableValue{va.Field(f.index0), va.forcedAddr} // 如果结构体值可寻址，则此值可寻址
 	if len(f.index) > 0 {
 		v = v.fieldByIndex(f.index, false)
 		if !v.IsValid() {
-			return nil // implies a nil inlined field
+			return nil // 意味着内联字段为 nil
 		}
 	}
 	v = v.indirect(false)
@@ -52,7 +52,7 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 
 	if v.Type() == jsontextValueType {
 		b, _ := reflect.TypeAssert[jsontext.Value](v.Value)
-		if len(b) == 0 { // TODO: Should this be nil? What if it were all whitespace?
+		if len(b) == 0 { // TODO: 这里应该是 nil 吗？如果全是空白字符呢？
 			return nil
 		}
 
@@ -72,7 +72,7 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 			return newMarshalErrorBefore(enc, v.Type(), errRawInlinedNotObject)
 		}
 		for dec.PeekKind() != '}' {
-			// Parse the JSON object name.
+			// 解析 JSON 对象名称。
 			var flags jsonwire.ValueFlags
 			val, err := xd.ReadValue(&flags)
 			if err != nil {
@@ -88,7 +88,7 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 				return err
 			}
 
-			// Parse the JSON object value.
+			// 解析 JSON 对象值。
 			val, err = xd.ReadValue(&flags)
 			if err != nil {
 				return newMarshalErrorBefore(enc, v.Type(), err)
@@ -105,7 +105,7 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 		}
 		return nil
 	} else {
-		m := v // must be a map[~string]V
+		m := v // 必须是 map[~string]V
 		n := m.Len()
 		if n == 0 {
 			return nil
@@ -153,7 +153,7 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 				if err := marshalKey(mk); err != nil {
 					return err
 				}
-				// TODO(https://go.dev/issue/57061): Use mv.SetMapIndexOf.
+				// TODO(https://go.dev/issue/57061): 使用 mv.SetMapIndexOf。
 				mv.Set(m.MapIndex(mk.Value))
 				if err := marshalVal(enc, mv, mo); err != nil {
 					return err
@@ -165,9 +165,9 @@ func marshalInlinedFallbackAll(enc *jsontext.Encoder, va addressableValue, mo *j
 	}
 }
 
-// unmarshalInlinedFallbackNext unmarshals only the next member in an inlined fallback.
+// unmarshalInlinedFallbackNext 只反序列化内联回退中的下一个成员。
 func unmarshalInlinedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct, f *structField, quotedName, unquotedName []byte) error {
-	v := addressableValue{va.Field(f.index0), va.forcedAddr} // addressable if struct value is addressable
+	v := addressableValue{va.Field(f.index0), va.forcedAddr} // 如果结构体值可寻址，则此值可寻址
 	if len(f.index) > 0 {
 		v = v.fieldByIndex(f.index, true)
 	}
@@ -175,13 +175,13 @@ func unmarshalInlinedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo
 
 	if v.Type() == jsontextValueType {
 		b, _ := reflect.TypeAssert[*jsontext.Value](v.Addr())
-		if len(*b) == 0 { // TODO: Should this be nil? What if it were all whitespace?
+		if len(*b) == 0 { // TODO: 这里应该是 nil 吗？如果全是空白字符呢？
 			*b = append(*b, '{')
 		} else {
 			*b = jsonwire.TrimSuffixWhitespace(*b)
 			if jsonwire.HasSuffixByte(*b, '}') {
-				// TODO: When merging into an object for the first time,
-				// should we verify that it is valid?
+				// TODO: 首次合并到对象中时，
+				// 是否应该验证其有效性？
 				*b = jsonwire.TrimSuffixByte(*b, '}')
 				*b = jsonwire.TrimSuffixWhitespace(*b)
 				if !jsonwire.HasSuffixByte(*b, ',') && !jsonwire.HasSuffixByte(*b, '{') {
@@ -201,9 +201,9 @@ func unmarshalInlinedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo
 		*b = append(*b, '}')
 		return nil
 	} else {
-		name := string(unquotedName) // TODO: Intern this?
+		name := string(unquotedName) // TODO: 是否应该对此做驻留（intern）？
 
-		m := v // must be a map[~string]V
+		m := v // 必须是 map[~string]V
 		if m.IsNil() {
 			m.Set(reflect.MakeMap(m.Type()))
 		}
@@ -211,7 +211,7 @@ func unmarshalInlinedFallbackNext(dec *jsontext.Decoder, va addressableValue, uo
 		if mkt := m.Type().Key(); mkt != stringType {
 			mk = mk.Convert(mkt)
 		}
-		mv := newAddressableValue(m.Type().Elem()) // TODO: Cache across calls?
+		mv := newAddressableValue(m.Type().Elem()) // TODO: 跨调用缓存？
 		if v2 := m.MapIndex(mk); v2.IsValid() {
 			mv.Set(v2)
 		}

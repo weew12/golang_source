@@ -8,12 +8,11 @@ package json
 
 import "unicode/utf8"
 
-// safeSet holds the value true if the ASCII character with the given array
-// position can be represented inside a JSON string without any further
-// escaping.
+// safeSet：如果给定数组位置的 ASCII 字符可以在 JSON 字符串内
+// 表示而无需任何进一步的转义，则该值为 true。
 //
-// All values are true except for the ASCII control characters (0-31), the
-// double quote ("), and the backslash character ("\").
+// 除 ASCII 控制字符（0-31）、双引号（"）和反斜杠字符（"\"）外，
+// 所有值均为 true。
 var safeSet = [utf8.RuneSelf]bool{
 	' ':      true,
 	'!':      true,
@@ -113,13 +112,13 @@ var safeSet = [utf8.RuneSelf]bool{
 	'\u007f': true,
 }
 
-// htmlSafeSet holds the value true if the ASCII character with the given
-// array position can be safely represented inside a JSON string, embedded
-// inside of HTML <script> tags, without any additional escaping.
+// htmlSafeSet：如果给定数组位置的 ASCII 字符可以安全地表示在
+// 嵌入 HTML <script> 标签内的 JSON 字符串中，而无需任何额外的转义，
+// 则该值为 true。
 //
-// All values are true except for the ASCII control characters (0-31), the
-// double quote ("), the backslash character ("\"), HTML opening and closing
-// tags ("<" and ">"), and the ampersand ("&").
+// 除 ASCII 控制字符（0-31）、双引号（"）、反斜杠字符（"\"）、
+// HTML 开/闭标签（"<" 和 ">"）以及与号（"&"）外，
+// 所有值均为 true。
 var htmlSafeSet = [utf8.RuneSelf]bool{
 	' ':      true,
 	'!':      true,

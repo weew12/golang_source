@@ -12,22 +12,22 @@ import (
 	"runtime"
 )
 
-// TODO(https://go.dev/issue/52751): Replace with native testing support.
+// TODO(https://go.dev/issue/52751): 替换为原生测试支持。
 
-// CaseName is a case name annotated with a file and line.
+// CaseName 是带有文件和行号标注的用例名。
 type CaseName struct {
 	Name  string
 	Where CasePos
 }
 
-// Name annotates a case name with the file and line of the caller.
+// Name 用调用方的文件和行号标注一个用例名。
 func Name(s string) (c CaseName) {
 	c.Name = s
 	runtime.Callers(2, c.Where.pc[:])
 	return c
 }
 
-// CasePos represents a file and line number.
+// CasePos 表示一个文件和行号。
 type CasePos struct{ pc [1]uintptr }
 
 func (pos CasePos) String() string {

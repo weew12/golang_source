@@ -11,14 +11,14 @@ import (
 	"encoding/json/internal/jsonflags"
 )
 
-// Options is the common options type shared across json packages.
+// Options 是各 json 包之间共享的通用选项类型。
 type Options interface {
-	// JSONOptions is exported so related json packages can implement Options.
+	// JSONOptions 被导出，以便相关的 json 包能够实现 Options。
 	JSONOptions(internal.NotForPublicUse)
 }
 
-// Struct is the combination of all options in struct form.
-// This is efficient to pass down the call stack and to query.
+// Struct 是以结构体形式表示的所有选项的组合。
+// 这种形式便于沿着调用栈向下传递以及进行查询。
 type Struct struct {
 	Flags jsonflags.Flags
 
@@ -34,9 +34,9 @@ type CoderValues struct {
 }
 
 type ArshalValues struct {
-	// The Marshalers and Unmarshalers fields use the any type to avoid a
-	// concrete dependency on *json.Marshalers and *json.Unmarshalers,
-	// which would in turn create a dependency on the "reflect" package.
+	// Marshalers 和 Unmarshalers 字段使用 any 类型，以避免对
+	// *json.Marshalers 和 *json.Unmarshalers 产生具体依赖，
+	// 否则又会进而对 "reflect" 包产生依赖。
 
 	Marshalers   any // jsonflags.Marshalers
 	Unmarshalers any // jsonflags.Unmarshalers
@@ -45,30 +45,30 @@ type ArshalValues struct {
 	FormatDepth int
 }
 
-// DefaultOptionsV2 is the set of all options that define default v2 behavior.
+// DefaultOptionsV2 是定义默认 v2 行为的全部选项的集合。
 var DefaultOptionsV2 = Struct{
 	Flags: jsonflags.Flags{
 		Presence: uint64(jsonflags.DefaultV1Flags),
-		Values:   uint64(0), // all flags in DefaultV1Flags are false
+		Values:   uint64(0), // DefaultV1Flags 中的所有标志均为 false
 	},
 }
 
-// DefaultOptionsV1 is the set of all options that define default v1 behavior.
+// DefaultOptionsV1 是定义默认 v1 行为的全部选项的集合。
 var DefaultOptionsV1 = Struct{
 	Flags: jsonflags.Flags{
 		Presence: uint64(jsonflags.DefaultV1Flags),
-		Values:   uint64(jsonflags.DefaultV1Flags), // all flags in DefaultV1Flags are true
+		Values:   uint64(jsonflags.DefaultV1Flags), // DefaultV1Flags 中的所有标志均为 true
 	},
 }
 
 func (*Struct) JSONOptions(internal.NotForPublicUse) {}
 
-// GetUnknownOption is injected by the "json" package to handle Options
-// declared in that package so that "jsonopts" can handle them.
+// GetUnknownOption 由 "json" 包注入，用于处理在该包中声明的 Options，
+// 以便 "jsonopts" 能够处理它们。
 var GetUnknownOption = func(Struct, Options) (any, bool) { panic("unknown option") }
 
 func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
-	// Collapse the options to *Struct to simplify lookup.
+	// 将选项折叠为 *Struct，以简化查找。
 	structOpts, ok := opts.(*Struct)
 	if !ok {
 		var structOpts2 Struct
@@ -76,7 +76,7 @@ func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
 		structOpts = &structOpts2
 	}
 
-	// Lookup the option based on the return value of the setter.
+	// 根据 setter 的返回值查找该选项。
 	var zero T
 	switch opt := setter(zero).(type) {
 	case jsonflags.Bools:
@@ -109,8 +109,8 @@ func GetOption[T any](opts Options, setter func(T) Options) (T, bool) {
 	}
 }
 
-// JoinUnknownOption is injected by the "json" package to handle Options
-// declared in that package so that "jsonopts" can handle them.
+// JoinUnknownOption 由 "json" 包注入，用于处理在该包中声明的 Options，
+// 以便 "jsonopts" 能够处理它们。
 var JoinUnknownOption = func(Struct, Options) Struct { panic("unknown option") }
 
 func (dst *Struct) Join(srcs ...Options) {
@@ -156,7 +156,7 @@ func (dst *Struct) join(excludeCoderOptions bool, srcs ...Options) {
 			dst.Flags.Set(jsonflags.DepthLimit | 1)
 			dst.DepthLimit = int(src)
 		case *Struct:
-			srcFlags := src.Flags // shallow copy the flags
+			srcFlags := src.Flags // 浅拷贝这些 flags
 			if excludeCoderOptions {
 				srcFlags.Clear(jsonflags.AllCoderFlags)
 			}
@@ -192,8 +192,8 @@ type (
 	IndentPrefix string // jsontext.WithIndentPrefix
 	ByteLimit    int64  // jsontext.WithByteLimit
 	DepthLimit   int    // jsontext.WithDepthLimit
-	// type for jsonflags.Marshalers declared in "json" package
-	// type for jsonflags.Unmarshalers declared in "json" package
+	// 用于 "json" 包中声明的 jsonflags.Marshalers 的类型
+	// 用于 "json" 包中声明的 jsonflags.Unmarshalers 的类型
 )
 
 func (Indent) JSONOptions(internal.NotForPublicUse)       {}

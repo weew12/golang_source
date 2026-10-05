@@ -11,12 +11,12 @@ import (
 	"encoding/json/internal/jsonwire"
 )
 
-// AppendQuote appends a double-quoted JSON string literal representing src
-// to dst and returns the extended buffer.
-// It uses the minimal string representation per RFC 8785, section 3.2.2.2.
-// Invalid UTF-8 bytes are replaced with the Unicode replacement character
-// and an error is returned at the end indicating the presence of invalid UTF-8.
-// The dst must not overlap with the src.
+// AppendQuote 将表示 src 的双引号 JSON 字符串字面量追加到 dst，
+// 并返回扩展后的缓冲区。
+// 它使用 RFC 8785 第 3.2.2.2 节规定的最小字符串表示。
+// 无效的 UTF-8 字节会被替换为 Unicode 替换字符，
+// 并在末尾返回一个错误，表明存在无效的 UTF-8。
+// dst 不得与 src 重叠。
 func AppendQuote[Bytes ~[]byte | ~string](dst []byte, src Bytes) ([]byte, error) {
 	dst, err := jsonwire.AppendQuote(dst, src, &jsonflags.Flags{})
 	if err != nil {
@@ -25,13 +25,13 @@ func AppendQuote[Bytes ~[]byte | ~string](dst []byte, src Bytes) ([]byte, error)
 	return dst, err
 }
 
-// AppendUnquote appends the decoded interpretation of src as a
-// double-quoted JSON string literal to dst and returns the extended buffer.
-// The input src must be a JSON string without any surrounding whitespace.
-// Invalid UTF-8 bytes are replaced with the Unicode replacement character
-// and an error is returned at the end indicating the presence of invalid UTF-8.
-// Any trailing bytes after the JSON string literal results in an error.
-// The dst must not overlap with the src.
+// AppendUnquote 将 src 解码后的解释作为双引号 JSON 字符串字面量
+// 追加到 dst，并返回扩展后的缓冲区。
+// 输入 src 必须是一个不带任何周围空白的 JSON 字符串。
+// 无效的 UTF-8 字节会被替换为 Unicode 替换字符，
+// 并在末尾返回一个错误，表明存在无效的 UTF-8。
+// JSON 字符串字面量之后的任何尾随字节都会导致错误。
+// dst 不得与 src 重叠。
 func AppendUnquote[Bytes ~[]byte | ~string](dst []byte, src Bytes) ([]byte, error) {
 	dst, err := jsonwire.AppendUnquote(dst, src)
 	if err != nil {

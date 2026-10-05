@@ -11,17 +11,17 @@ import (
 	"unicode/utf8"
 )
 
-// foldName returns a folded string such that foldName(x) == foldName(y)
-// is identical to bytes.EqualFold(x, y).
+// foldName 返回一个折叠后的字符串，使得 foldName(x) == foldName(y)
+// 与 bytes.EqualFold(x, y) 等价。
 func foldName(in []byte) []byte {
-	// This is inlinable to take advantage of "function outlining".
-	var arr [32]byte // large enough for most JSON names
+	// 此函数可内联，以利用"函数外提"优化。
+	var arr [32]byte // 足以容纳大多数 JSON 名称
 	return appendFoldedName(arr[:0], in)
 }
 
 func appendFoldedName(out, in []byte) []byte {
 	for i := 0; i < len(in); {
-		// Handle single-byte ASCII.
+		// 处理单字节 ASCII。
 		if c := in[i]; c < utf8.RuneSelf {
 			if 'a' <= c && c <= 'z' {
 				c -= 'a' - 'A'
@@ -30,7 +30,7 @@ func appendFoldedName(out, in []byte) []byte {
 			i++
 			continue
 		}
-		// Handle multi-byte Unicode.
+		// 处理多字节 Unicode。
 		r, n := utf8.DecodeRune(in[i:])
 		out = utf8.AppendRune(out, foldRune(r))
 		i += n
@@ -38,7 +38,7 @@ func appendFoldedName(out, in []byte) []byte {
 	return out
 }
 
-// foldRune is returns the smallest rune for all runes in the same fold set.
+// foldRune 返回同一折叠集中所有 rune 中最小的 rune。
 func foldRune(r rune) rune {
 	for {
 		r2 := unicode.SimpleFold(r)

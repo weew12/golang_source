@@ -17,57 +17,55 @@ import (
 	"unicode/utf8"
 )
 
-// userTypeInfo stores the information associated with a type the user has handed
-// to the package. It's computed once and stored in a map keyed by reflection
-// type.
+// userTypeInfo 存储与用户交给本包的类型相关联的信息。
+// 它只计算一次，并存储在以反射类型为键的 map 中。
 type userTypeInfo struct {
-	user        reflect.Type // the type the user handed us
-	base        reflect.Type // the base type after all indirections
-	indir       int          // number of indirections to reach the base type
-	externalEnc int          // xGob, xBinary, or xText
-	externalDec int          // xGob, xBinary, or xText
-	encIndir    int8         // number of indirections to reach the receiver type; may be negative
-	decIndir    int8         // number of indirections to reach the receiver type; may be negative
+	user        reflect.Type // 用户交给我们的类型
+	base        reflect.Type // 所有间接寻址之后的基础类型
+	indir       int          // 到达基础类型所需的间接寻址层数
+	externalEnc int          // xGob、xBinary 或 xText
+	externalDec int          // xGob、xBinary 或 xText
+	encIndir    int8         // 到达接收者类型所需的间接寻址层数；可能为负数
+	decIndir    int8         // 到达接收者类型所需的间接寻址层数；可能为负数
 }
 
-// externalEncoding bits
+// externalEncoding 位
 const (
-	xGob    = 1 + iota // GobEncoder or GobDecoder
-	xBinary            // encoding.BinaryMarshaler or encoding.BinaryUnmarshaler
-	xText              // encoding.TextMarshaler or encoding.TextUnmarshaler
+	xGob    = 1 + iota // GobEncoder 或 GobDecoder
+	xBinary            // encoding.BinaryMarshaler 或 encoding.BinaryUnmarshaler
+	xText              // encoding.TextMarshaler 或 encoding.TextUnmarshaler
 )
 
 var userTypeCache sync.Map // map[reflect.Type]*userTypeInfo
 
-// validUserType returns, and saves, the information associated with user-provided type rt.
-// If the user type is not valid, err will be non-nil. To be used when the error handler
-// is not set up.
+// validUserType 返回并保存与用户提供的类型 rt 相关联的信息。
+// 如果用户类型无效，err 将为非 nil。用于未设置错误处理器时的场合。
 func validUserType(rt reflect.Type) (*userTypeInfo, error) {
 	if ui, ok := userTypeCache.Load(rt); ok {
 		return ui.(*userTypeInfo), nil
 	}
 
-	// Construct a new userTypeInfo and atomically add it to the userTypeCache.
-	// If we lose the race, we'll waste a little CPU and create a little garbage
-	// but return the existing value anyway.
+	// 构造一个新的 userTypeInfo 并将其原子地加入 userTypeCache。
+	// 如果竞争失败，我们会浪费一点 CPU 并产生一点垃圾，
+	// 但仍返回已存在的值。
 
 	ut := new(userTypeInfo)
 	ut.base = rt
 	ut.user = rt
-	// A type that is just a cycle of pointers (such as type T *T) cannot
-	// be represented in gobs, which need some concrete data. We use a
-	// cycle detection algorithm from Knuth, Vol 2, Section 3.1, Ex 6,
-	// pp 539-540.  As we step through indirections, run another type at
-	// half speed. If they meet up, there's a cycle.
-	slowpoke := ut.base // walks half as fast as ut.base
+	// 一个只是指针循环的类型（例如 type T *T）无法在 gob 中表示，
+	// 因为 gob 需要一些具体的数据。我们使用 Knuth《计算机程序设计艺术》
+	// 第 2 卷第 3.1 节习题 6（pp 539-540）中的循环检测算法。
+	// 当我们逐层走过间接寻址时，让另一个类型以半速前进。如果它们相遇，
+	// 就存在一个循环。
+	slowpoke := ut.base // 以 ut.base 一半的速度前进
 	for {
 		pt := ut.base
 		if pt.Kind() != reflect.Pointer {
 			break
 		}
 		ut.base = pt.Elem()
-		if ut.base == slowpoke { // ut.base lapped slowpoke
-			// recursive pointer type.
+		if ut.base == slowpoke { // ut.base 超过了 slowpoke
+			// 递归指针类型。
 			return nil, errors.New("can't represent recursive pointer type " + ut.base.String())
 		}
 		if ut.indir%2 == 0 {
@@ -82,8 +80,8 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
 		ut.externalEnc, ut.encIndir = xBinary, indir
 	}
 
-	// NOTE(rsc): Would like to allow MarshalText here, but results in incompatibility
-	// with older encodings for net.IP. See golang.org/issue/6760.
+	// NOTE(rsc)：这里本想允许 MarshalText，但这会导致
+	// 与 net.IP 旧有编码不兼容。参见 golang.org/issue/6760。
 	// } else if ok, indir := implementsInterface(ut.user, textMarshalerInterfaceType); ok {
 	// 	ut.externalEnc, ut.encIndir = xText, indir
 	// }
@@ -94,7 +92,7 @@ func validUserType(rt reflect.Type) (*userTypeInfo, error) {
 		ut.externalDec, ut.decIndir = xBinary, indir
 	}
 
-	// See note above.
+	// 参见上面的注释。
 	// } else if ok, indir := implementsInterface(ut.user, textUnmarshalerInterfaceType); ok {
 	// 	ut.externalDec, ut.decIndir = xText, indir
 	// }
@@ -114,24 +112,23 @@ var (
 	wireTypeType = reflect.TypeFor[wireType]()
 )
 
-// implementsInterface reports whether the type implements the
-// gobEncoder/gobDecoder interface.
-// It also returns the number of indirections required to get to the
-// implementation.
+// implementsInterface 报告该类型是否实现了
+// gobEncoder/gobDecoder 接口。
+// 它还返回到达该实现所需的间接寻址层数。
 func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir int8) {
 	if typ == nil {
 		return
 	}
 	rt := typ
-	// The type might be a pointer and we need to keep
-	// dereferencing to the base type until we find an implementation.
+	// 该类型可能是指针，我们需要不断解引用到基础类型，
+	// 直到找到实现为止。
 	for {
 		if rt.Implements(gobEncDecType) {
 			return true, indir
 		}
 		if p := rt; p.Kind() == reflect.Pointer {
 			indir++
-			if indir > 100 { // insane number of indirections
+			if indir > 100 { // 间接寻址层数多得离谱
 				return false, 0
 			}
 			rt = p.Elem()
@@ -139,9 +136,9 @@ func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir i
 		}
 		break
 	}
-	// No luck yet, but if this is a base type (non-pointer), the pointer might satisfy.
+	// 还没找到，但如果这是基础类型（非指针），指针也许能满足。
 	if typ.Kind() != reflect.Pointer {
-		// Not a pointer, but does the pointer work?
+		// 不是指针，但它的指针能用吗？
 		if reflect.PointerTo(typ).Implements(gobEncDecType) {
 			return true, -1
 		}
@@ -149,8 +146,8 @@ func implementsInterface(typ, gobEncDecType reflect.Type) (success bool, indir i
 	return false, 0
 }
 
-// userType returns, and saves, the information associated with user-provided type rt.
-// If the user type is not valid, it calls error.
+// userType 返回并保存与用户提供的类型 rt 相关联的信息。
+// 如果用户类型无效，它会调用 error。
 func userType(rt reflect.Type) *userTypeInfo {
 	ut, err := validUserType(rt)
 	if err != nil {
@@ -159,25 +156,25 @@ func userType(rt reflect.Type) *userTypeInfo {
 	return ut
 }
 
-// A typeId represents a gob Type as an integer that can be passed on the wire.
-// Internally, typeIds are used as keys to a map to recover the underlying type info.
+// typeId 将 gob 类型表示为一个可以在线路上传递的整数。
+// 在内部，typeId 被用作 map 的键，以取回底层的类型信息。
 type typeId int32
 
-var typeLock sync.Mutex // set while building a type
-const firstUserId = 64  // lowest id number granted to user
+var typeLock sync.Mutex // 在构建类型时设置
+const firstUserId = 64  // 授予用户的最低 id 编号
 
 type gobType interface {
 	id() typeId
 	setId(id typeId)
 	name() string
-	string() string // not public; only for debugging
+	string() string // 非公开；仅用于调试
 	safeString(seen map[typeId]bool) string
 }
 
 var (
 	types                = make(map[reflect.Type]gobType, 32)
 	idToTypeSlice        = make([]gobType, 1, firstUserId)
-	builtinIdToTypeSlice [firstUserId]gobType // set in init() after builtins are established
+	builtinIdToTypeSlice [firstUserId]gobType // 在内建类型建立之后于 init() 中设置
 )
 
 func idToType(id typeId) gobType {
@@ -195,7 +192,7 @@ func builtinIdToType(id typeId) gobType {
 }
 
 func setTypeId(typ gobType) {
-	// When building recursive types, someone may get there before us.
+	// 在构建递归类型时，可能有人先于我们到达这里。
 	if typ.id() != 0 {
 		return
 	}
@@ -211,7 +208,7 @@ func (t typeId) gobType() gobType {
 	return idToType(t)
 }
 
-// string returns the string representation of the type associated with the typeId.
+// string 返回与 typeId 相关联的类型的字符串表示。
 func (t typeId) string() string {
 	if t.gobType() == nil {
 		return "<nil>"
@@ -219,7 +216,7 @@ func (t typeId) string() string {
 	return t.gobType().string()
 }
 
-// Name returns the name of the type associated with the typeId.
+// Name 返回与 typeId 相关联的类型的名称。
 func (t typeId) name() string {
 	if t.gobType() == nil {
 		return "<nil>"
@@ -227,10 +224,9 @@ func (t typeId) name() string {
 	return t.gobType().name()
 }
 
-// CommonType holds elements of all types.
-// It is a historical artifact, kept for binary compatibility and exported
-// only for the benefit of the package's encoding of type descriptors. It is
-// not intended for direct use by clients.
+// CommonType 保存所有类型的公共元素。
+// 它是一个历史遗留物，为二进制兼容性而保留，并且仅为本包编码类型描述符
+// 而导出。它不供客户端直接使用。
 type CommonType struct {
 	Name string
 	Id   typeId
@@ -248,13 +244,13 @@ func (t *CommonType) safeString(seen map[typeId]bool) string {
 
 func (t *CommonType) name() string { return t.Name }
 
-// Create and check predefined types
-// The string for tBytes is "bytes" not "[]byte" to signify its specialness.
+// 创建并检查预定义类型
+// tBytes 的字符串是 "bytes" 而不是 "[]byte"，以表明其特殊性。
 
 var (
-	// Primordial types, needed during initialization.
-	// Always passed as pointers so the interface{} type
-	// goes through without losing its interfaceness.
+	// 原始类型，初始化期间需要。
+	// 始终以指针形式传递，以便 interface{} 类型
+	// 通过时不丢失其接口性。
 	tBool      = bootstrapType("bool", (*bool)(nil))
 	tInt       = bootstrapType("int", (*int)(nil))
 	tUint      = bootstrapType("uint", (*uint)(nil))
@@ -263,7 +259,7 @@ var (
 	tString    = bootstrapType("string", (*string)(nil))
 	tComplex   = bootstrapType("complex", (*complex128)(nil))
 	tInterface = bootstrapType("interface", (*any)(nil))
-	// Reserve some Ids for compatible expansion
+	// 预留一些 Id 以便兼容性扩展
 	tReserved7 = bootstrapType("_reserved1", (*struct{ r7 int })(nil))
 	tReserved6 = bootstrapType("_reserved1", (*struct{ r6 int })(nil))
 	tReserved5 = bootstrapType("_reserved1", (*struct{ r5 int })(nil))
@@ -273,12 +269,12 @@ var (
 	tReserved1 = bootstrapType("_reserved1", (*struct{ r1 int })(nil))
 )
 
-// Predefined because it's needed by the Decoder
+// 预定义，因为 Decoder 需要它
 var tWireType = mustGetTypeInfo(wireTypeType).id
-var wireTypeUserInfo *userTypeInfo // userTypeInfo of wireType
+var wireTypeUserInfo *userTypeInfo // wireType 的 userTypeInfo
 
 func init() {
-	// Some magic numbers to make sure there are no surprises.
+	// 一些魔数，以确保不会出现意外。
 	checkId(16, tWireType)
 	checkId(17, mustGetTypeInfo(reflect.TypeFor[arrayType]()).id)
 	checkId(18, mustGetTypeInfo(reflect.TypeFor[CommonType]()).id)
@@ -289,8 +285,8 @@ func init() {
 
 	copy(builtinIdToTypeSlice[:], idToTypeSlice)
 
-	// Move the id space upwards to allow for growth in the predefined world
-	// without breaking existing files.
+	// 将 id 空间上移，以便预定义世界能够扩展
+	// 而不破坏现有文件。
 	if nextId := len(idToTypeSlice); nextId > firstUserId {
 		panic(fmt.Sprintln("nextId too large:", nextId))
 	}
@@ -299,7 +295,7 @@ func init() {
 	wireTypeUserInfo = userType(wireTypeType)
 }
 
-// Array type
+// 数组类型
 type arrayType struct {
 	CommonType
 	Elem typeId
@@ -312,7 +308,7 @@ func newArrayType(name string) *arrayType {
 }
 
 func (a *arrayType) init(elem gobType, len int) {
-	// Set our type id before evaluating the element's, in case it's our own.
+	// 先设置我们自己的类型 id，再求值元素的类型 id，以防元素就是我们自己。
 	setTypeId(a)
 	a.Elem = elem.id()
 	a.Len = len
@@ -328,7 +324,7 @@ func (a *arrayType) safeString(seen map[typeId]bool) string {
 
 func (a *arrayType) string() string { return a.safeString(make(map[typeId]bool)) }
 
-// GobEncoder type (something that implements the GobEncoder interface)
+// GobEncoder 类型（实现了 GobEncoder 接口的东西）
 type gobEncoderType struct {
 	CommonType
 }
@@ -345,7 +341,7 @@ func (g *gobEncoderType) safeString(seen map[typeId]bool) string {
 
 func (g *gobEncoderType) string() string { return g.Name }
 
-// Map type
+// Map 类型
 type mapType struct {
 	CommonType
 	Key  typeId
@@ -358,7 +354,7 @@ func newMapType(name string) *mapType {
 }
 
 func (m *mapType) init(key, elem gobType) {
-	// Set our type id before evaluating the element's, in case it's our own.
+	// 先设置我们自己的类型 id，再求值元素的类型 id，以防元素就是我们自己。
 	setTypeId(m)
 	m.Key = key.id()
 	m.Elem = elem.id()
@@ -376,7 +372,7 @@ func (m *mapType) safeString(seen map[typeId]bool) string {
 
 func (m *mapType) string() string { return m.safeString(make(map[typeId]bool)) }
 
-// Slice type
+// 切片类型
 type sliceType struct {
 	CommonType
 	Elem typeId
@@ -388,10 +384,10 @@ func newSliceType(name string) *sliceType {
 }
 
 func (s *sliceType) init(elem gobType) {
-	// Set our type id before evaluating the element's, in case it's our own.
+	// 先设置我们自己的类型 id，再求值元素的类型 id，以防元素就是我们自己。
 	setTypeId(s)
-	// See the comments about ids in newTypeObject. Only slices and
-	// structs have mutual recursion.
+	// 关于 id 的说明参见 newTypeObject 中的注释。只有切片和
+	// 结构体存在相互递归。
 	if elem.id() == 0 {
 		setTypeId(elem)
 	}
@@ -408,7 +404,7 @@ func (s *sliceType) safeString(seen map[typeId]bool) string {
 
 func (s *sliceType) string() string { return s.safeString(make(map[typeId]bool)) }
 
-// Struct type
+// 结构体类型
 type fieldType struct {
 	Name string
 	Id   typeId
@@ -439,19 +435,17 @@ func (s *structType) string() string { return s.safeString(make(map[typeId]bool)
 
 func newStructType(name string) *structType {
 	s := &structType{CommonType{Name: name}, nil}
-	// For historical reasons we set the id here rather than init.
-	// See the comment in newTypeObject for details.
+	// 由于历史原因，我们在这里而非 init 中设置 id。
+	// 详见 newTypeObject 中的注释。
 	setTypeId(s)
 	return s
 }
 
-// newTypeObject allocates a gobType for the reflection type rt.
-// Unless ut represents a GobEncoder, rt should be the base type
-// of ut.
-// This is only called from the encoding side. The decoding side
-// works through typeIds and userTypeInfos alone.
+// newTypeObject 为反射类型 rt 分配一个 gobType。
+// 除非 ut 表示一个 GobEncoder，否则 rt 应当是 ut 的基础类型。
+// 这仅从编码端调用。解码端仅通过 typeId 和 userTypeInfo 工作。
 func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, error) {
-	// Does this type implement GobEncoder?
+	// 该类型实现了 GobEncoder 吗？
 	if ut.externalEnc != 0 {
 		return newGobEncoderType(name), nil
 	}
@@ -462,10 +456,10 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 			delete(types, rt)
 		}
 	}()
-	// Install the top-level type before the subtypes (e.g. struct before
-	// fields) so recursive types can be constructed safely.
+	// 先安装顶层类型，再安装子类型（例如先结构体后字段），
+	// 以便能够安全地构造递归类型。
 	switch t := rt; t.Kind() {
-	// All basic types are easy: they are predefined.
+	// 所有基本类型都很简单：它们是预定义的。
 	case reflect.Bool:
 		return tBool.gobType(), nil
 
@@ -494,14 +488,12 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 		if err != nil {
 			return nil, err
 		}
-		// Historical aside:
-		// For arrays, maps, and slices, we set the type id after the elements
-		// are constructed. This is to retain the order of type id allocation after
-		// a fix made to handle recursive types, which changed the order in
-		// which types are built. Delaying the setting in this way preserves
-		// type ids while allowing recursive types to be described. Structs,
-		// done below, were already handling recursion correctly so they
-		// assign the top-level id before those of the field.
+		// 历史插曲：
+		// 对于数组、map 和切片，我们在元素构造之后才设置类型 id。
+		// 这是为了在修复递归类型处理之后保留类型 id 的分配顺序，
+		// 因为那次修复改变了类型构建的顺序。以这种方式延迟设置
+		// 既保留了类型 id，又允许描述递归类型。下面处理的结构体
+		// 本就已正确应对递归，因此它们在字段的 id 之前先分配顶层 id。
 		at.init(type0, t.Len())
 		return at, nil
 
@@ -520,7 +512,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 		return mt, nil
 
 	case reflect.Slice:
-		// []byte == []uint8 is a special case
+		// []byte == []uint8 是一种特殊情况
 		if t.Elem().Kind() == reflect.Uint8 {
 			return tBytes.gobType(), nil
 		}
@@ -552,10 +544,10 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 			if err != nil {
 				return nil, err
 			}
-			// Some mutually recursive types can cause us to be here while
-			// still defining the element. Fix the element type id here.
-			// We could do this more neatly by setting the id at the start of
-			// building every type, but that would break binary compatibility.
+			// 某些相互递归的类型可能导致我们在仍在定义元素时就来到这里。
+			// 在这里修正元素的类型 id。
+			// 我们本可以在构建每个类型之初就设置 id 以更简洁地做到这一点，
+			// 但那会破坏二进制兼容性。
 			if gt.id() == 0 {
 				setTypeId(gt)
 			}
@@ -568,21 +560,21 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
 	}
 }
 
-// isExported reports whether this is an exported - upper case - name.
+// isExported 报告这是否是一个已导出（大写开头）的名称。
 func isExported(name string) bool {
 	rune, _ := utf8.DecodeRuneInString(name)
 	return unicode.IsUpper(rune)
 }
 
-// isSent reports whether this struct field is to be transmitted.
-// It will be transmitted only if it is exported and not a chan or func field
-// or pointer to chan or func.
+// isSent 报告该结构体字段是否要被传输。
+// 只有当它是已导出字段，且不是 chan 或 func 字段、也不是指向 chan 或 func
+// 的指针时，才会被传输。
 func isSent(field *reflect.StructField) bool {
 	if !isExported(field.Name) {
 		return false
 	}
-	// If the field is a chan or func or pointer thereto, don't send it.
-	// That is, treat it like an unexported field.
+	// 如果该字段是 chan 或 func 或指向它们的指针，则不要发送它。
+	// 也就是说，把它当作未导出字段对待。
 	typ := field.Type
 	for typ.Kind() == reflect.Pointer {
 		typ = typ.Elem()
@@ -594,18 +586,17 @@ func isSent(field *reflect.StructField) bool {
 	return true
 }
 
-// getBaseType returns the Gob type describing the given reflect.Type's base type.
-// typeLock must be held.
+// getBaseType 返回描述给定 reflect.Type 基础类型的 Gob 类型。
+// 必须持有 typeLock。
 func getBaseType(name string, rt reflect.Type) (gobType, error) {
 	ut := userType(rt)
 	return getType(name, ut, ut.base)
 }
 
-// getType returns the Gob type describing the given reflect.Type.
-// Should be called only when handling GobEncoders/Decoders,
-// which may be pointers. All other types are handled through the
-// base type, never a pointer.
-// typeLock must be held.
+// getType 返回描述给定 reflect.Type 的 Gob 类型。
+// 只应在处理 GobEncoder/GobDecoder 时调用，因为它们可能是指针。
+// 所有其他类型都通过基础类型处理，绝不通过指针处理。
+// 必须持有 typeLock。
 func getType(name string, ut *userTypeInfo, rt reflect.Type) (gobType, error) {
 	typ, present := types[rt]
 	if present {
@@ -625,8 +616,8 @@ func checkId(want, got typeId) {
 	}
 }
 
-// used for building the basic types; called only from init().  the incoming
-// interface always refers to a pointer.
+// 用于构建基本类型；仅从 init() 调用。传入的
+// interface 始终引用一个指针。
 func bootstrapType(name string, e any) typeId {
 	rt := reflect.TypeOf(e).Elem()
 	_, present := types[rt]
@@ -639,17 +630,16 @@ func bootstrapType(name string, e any) typeId {
 	return typ.id()
 }
 
-// Representation of the information we send and receive about this type.
-// Each value we send is preceded by its type definition: an encoded int.
-// However, the very first time we send the value, we first send the pair
-// (-id, wireType).
-// For bootstrapping purposes, we assume that the recipient knows how
-// to decode a wireType; it is exactly the wireType struct here, interpreted
-// using the gob rules for sending a structure, except that we assume the
-// ids for wireType and structType etc. are known. The relevant pieces
-// are built in encode.go's init() function.
-// To maintain binary compatibility, if you extend this type, always put
-// the new fields last.
+// 我们发送和接收的关于此类型的信息的表示。
+// 我们发送的每个值前面都带有其类型定义：一个经过编码的 int。
+// 不过，在我们第一次发送该值时，我们会先发送对
+// (-id, wireType)。
+// 出于引导目的，我们假定接收方知道如何解码 wireType；它就是这里的
+// wireType 结构体，用发送结构体的 gob 规则来解释，只不过我们假定
+// wireType 和 structType 等的 id 是已知的。相关部分在 encode.go 的
+// init() 函数中构建。
+// 为保持二进制兼容性，如果你扩展此类型，请总是把
+// 新字段放在最后。
 type wireType struct {
 	ArrayT           *arrayType
 	SliceT           *sliceType
@@ -686,23 +676,23 @@ func (w *wireType) string() string {
 
 type typeInfo struct {
 	id      typeId
-	encInit sync.Mutex // protects creation of encoder
+	encInit sync.Mutex // 保护 encoder 的创建
 	encoder atomic.Pointer[encEngine]
 	wire    wireType
 }
 
-// typeInfoMap is an atomic pointer to map[reflect.Type]*typeInfo.
-// It's updated copy-on-write. Readers just do an atomic load
-// to get the current version of the map. Writers make a full copy of
-// the map and atomically update the pointer to point to the new map.
-// Under heavy read contention, this is significantly faster than a map
-// protected by a mutex.
+// typeInfoMap 是一个指向 map[reflect.Type]*typeInfo 的原子指针。
+// 它以写时复制的方式更新。读者只需做一次原子加载
+// 即可获得该 map 的当前版本。写者会完整复制
+// map，并原子地更新指针以指向新 map。
+// 在读取竞争激烈的情况下，这比用互斥锁
+// 保护的 map 快得多。
 var typeInfoMap atomic.Value
 
-// typeInfoMapInit is used instead of typeInfoMap during init time,
-// as types are registered sequentially during init and we can save
-// the overhead of making map copies.
-// It is saved to typeInfoMap and set to nil before init finishes.
+// typeInfoMapInit 在初始化期间代替 typeInfoMap 使用，
+// 因为类型在初始化期间是顺序注册的，我们可以省去
+// 复制 map 的开销。
+// 它在初始化结束前被保存到 typeInfoMap 并置为 nil。
 var typeInfoMapInit = make(map[reflect.Type]*typeInfo, 16)
 
 func lookupTypeInfo(rt reflect.Type) *typeInfo {
@@ -716,7 +706,7 @@ func lookupTypeInfo(rt reflect.Type) *typeInfo {
 func getTypeInfo(ut *userTypeInfo) (*typeInfo, error) {
 	rt := ut.base
 	if ut.externalEnc != 0 {
-		// We want the user type, not the base type.
+		// 我们需要用户类型，而非基础类型。
 		rt = ut.user
 	}
 	if info := lookupTypeInfo(rt); info != nil {
@@ -725,8 +715,8 @@ func getTypeInfo(ut *userTypeInfo) (*typeInfo, error) {
 	return buildTypeInfo(ut, rt)
 }
 
-// buildTypeInfo constructs the type information for the type
-// and stores it in the type info map.
+// buildTypeInfo 构造该类型的类型信息，
+// 并将其存储在类型信息 map 中。
 func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
 	typeLock.Lock()
 	defer typeLock.Unlock()
@@ -764,7 +754,7 @@ func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
 		case reflect.Map:
 			info.wire.MapT = t.(*mapType)
 		case reflect.Slice:
-			// []byte == []uint8 is a special case handled separately
+			// []byte == []uint8 是单独处理的特殊情况
 			if typ.Elem().Kind() != reflect.Uint8 {
 				info.wire.SliceT = t.(*sliceType)
 			}
@@ -778,7 +768,7 @@ func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
 		return info, nil
 	}
 
-	// Create new map with old contents plus new entry.
+	// 创建包含旧内容加上新条目的新 map。
 	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
 	newm := maps.Clone(m)
 	newm[rt] = info
@@ -786,7 +776,7 @@ func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
 	return info, nil
 }
 
-// Called only when a panic is acceptable and unexpected.
+// 仅在 panic 可接受且出乎意料时才调用。
 func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 	t, err := getTypeInfo(userType(rt))
 	if err != nil {
@@ -795,30 +785,26 @@ func mustGetTypeInfo(rt reflect.Type) *typeInfo {
 	return t
 }
 
-// GobEncoder is the interface describing data that provides its own
-// representation for encoding values for transmission to a GobDecoder.
-// A type that implements GobEncoder and GobDecoder has complete
-// control over the representation of its data and may therefore
-// contain things such as private fields, channels, and functions,
-// which are not usually transmissible in gob streams.
+// GobEncoder 是描述数据的接口，这些数据为编码值以传输给 GobDecoder
+// 提供自己的表示形式。
+// 同时实现 GobEncoder 和 GobDecoder 的类型对其数据的表示形式拥有完全
+// 控制权，因此可以包含诸如私有字段、通道和函数之类的内容，
+// 这些内容通常无法在 gob 流中传输。
 //
-// Note: Since gobs can be stored permanently, it is good design
-// to guarantee the encoding used by a GobEncoder is stable as the
-// software evolves. For instance, it might make sense for GobEncode
-// to include a version number in the encoding.
+// 注意：由于 gob 可以被永久存储，保证 GobEncoder 所使用的编码随
+// 软件演进保持稳定是一种良好的设计。例如，让 GobEncode
+// 在编码中包含一个版本号可能是有意义的。
 type GobEncoder interface {
-	// GobEncode returns a byte slice representing the encoding of the
-	// receiver for transmission to a GobDecoder, usually of the same
-	// concrete type.
+	// GobEncode 返回一个字节切片，表示接收者的编码，以便传输给
+	// GobDecoder，通常用于相同的具体类型。
 	GobEncode() ([]byte, error)
 }
 
-// GobDecoder is the interface describing data that provides its own
-// routine for decoding transmitted values sent by a GobEncoder.
+// GobDecoder 是描述数据的接口，这些数据为解码由 GobEncoder
+// 发送的传输值提供自己的例程。
 type GobDecoder interface {
-	// GobDecode overwrites the receiver, which must be a pointer,
-	// with the value represented by the byte slice, which was written
-	// by GobEncode, usually for the same concrete type.
+	// GobDecode 用字节切片所表示的值覆盖接收者（接收者必须是指针），
+	// 该字节切片由 GobEncode 写入，通常用于相同的具体类型。
 	GobDecode([]byte) error
 }
 
@@ -827,64 +813,62 @@ var (
 	concreteTypeToName sync.Map // map[reflect.Type]string
 )
 
-// RegisterName is like [Register] but uses the provided name rather than the
-// type's default.
+// RegisterName 类似于 [Register]，但使用提供的名称而非
+// 类型的默认名称。
 func RegisterName(name string, value any) {
 	if name == "" {
-		// reserved for nil
+		// 保留给 nil
 		panic("attempt to register empty name")
 	}
 
 	ut := userType(reflect.TypeOf(value))
 
-	// Check for incompatible duplicates. The name must refer to the
-	// same user type, and vice versa.
+	// 检查不兼容的重复项。该名称必须指向
+	// 同一个用户类型，反之亦然。
 
-	// Store the name and type provided by the user....
+	// 存储用户提供的名称和类型……
 	if t, dup := nameToConcreteType.LoadOrStore(name, reflect.TypeOf(value)); dup && t != ut.user {
 		panic(fmt.Sprintf("gob: registering duplicate types for %q: %s != %s", name, t, ut.user))
 	}
 
-	// but the flattened type in the type table, since that's what decode needs.
+	// 但类型表中存的是展平后的类型，因为解码需要它。
 	if n, dup := concreteTypeToName.LoadOrStore(ut.base, name); dup && n != name {
 		nameToConcreteType.Delete(name)
 		panic(fmt.Sprintf("gob: registering duplicate names for %s: %q != %q", ut.user, n, name))
 	}
 }
 
-// Register records a type, identified by a value for that type, under its
-// internal type name. That name will identify the concrete type of a value
-// sent or received as an interface variable. Only types that will be
-// transferred as implementations of interface values need to be registered.
-// Expecting to be used only during initialization, it panics if the mapping
-// between types and names is not a bijection.
+// Register 记录一个类型（由该类型的一个值标识），并使用其
+// 内部类型名。该名称将标识作为 interface 变量发送或接收的值的
+// 具体类型。只有将作为 interface 值的实现来传输的类型才需要注册。
+// 预期仅在初始化期间使用；如果类型与名称之间的映射不是双射，
+// 它会 panic。
 func Register(value any) {
-	// Default to printed representation for unnamed types
+	// 对于未命名类型，默认采用打印表示
 	rt := reflect.TypeOf(value)
 	name := rt.String()
 
-	// But for named types (or pointers to them), qualify with import path (but see inner comment).
-	// Dereference one pointer looking for a named type.
+	// 但对于已命名类型（或指向它们的指针），用导入路径来限定（但参见内部注释）。
+	// 解引用一层指针，以寻找已命名类型。
 	star := ""
 	if rt.Name() == "" {
 		if pt := rt; pt.Kind() == reflect.Pointer {
 			star = "*"
-			// NOTE: The following line should be rt = pt.Elem() to implement
-			// what the comment above claims, but fixing it would break compatibility
-			// with existing gobs.
+			// 注意：下面这行本应为 rt = pt.Elem()，以实现
+			// 上面注释所声称的行为，但修正它会破坏与现有 gob 的
+			// 兼容性。
 			//
-			// Given package p imported as "full/p" with these definitions:
+			// 给定以 "full/p" 导入、具有以下定义的包 p：
 			//     package p
 			//     type T1 struct { ... }
-			// this table shows the intended and actual strings used by gob to
-			// name the types:
+			// 下表展示了 gob 用来命名类型的预期字符串和实际字符串：
 			//
-			// Type      Correct string     Actual string
+			// 类型      正确字符串         实际字符串
 			//
 			// T1        full/p.T1          full/p.T1
 			// *T1       *full/p.T1         *p.T1
 			//
-			// The missing full path cannot be fixed without breaking existing gob decoders.
+			// 缺失的完整路径无法在不破坏现有 gob 解码器的情况下修正。
 			rt = pt
 		}
 	}

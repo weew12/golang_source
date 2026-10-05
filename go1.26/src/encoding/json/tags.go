@@ -10,20 +10,18 @@ import (
 	"strings"
 )
 
-// tagOptions is the string following a comma in a struct field's "json"
-// tag, or the empty string. It does not include the leading comma.
+// tagOptions 是结构体字段 "json" 标签中逗号之后的字符串，
+// 或空字符串。它不包含前导逗号。
 type tagOptions string
 
-// parseTag splits a struct field's json tag into its name and
-// comma-separated options.
+// parseTag 将结构体字段的 json 标签拆分为名称和逗号分隔的选项。
 func parseTag(tag string) (string, tagOptions) {
 	tag, opt, _ := strings.Cut(tag, ",")
 	return tag, tagOptions(opt)
 }
 
-// Contains reports whether a comma-separated list of options
-// contains a particular substr flag. substr must be surrounded by a
-// string boundary or commas.
+// Contains 报告一个逗号分隔的选项列表是否包含某个特定的子串标志。
+// substr 必须被字符串边界或逗号包围。
 func (o tagOptions) Contains(optionName string) bool {
 	if len(o) == 0 {
 		return false

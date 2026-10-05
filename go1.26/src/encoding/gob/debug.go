@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Delete the next line to include in the gob package.
+// 删除下一行即可将其包含进 gob 包。
 //
 //go:build ignore
 
 package gob
 
-// This file is not normally included in the gob package. Used only for debugging the package itself.
-// Except for reading uints, it is an implementation of a reader that is independent of
-// the one implemented by Decoder.
-// To enable the Debug function, delete the +build ignore line above and do
+// 此文件通常不包含在 gob 包中。仅用于调试本包自身。
+// 除了读取 uint 之外，它实现了一个独立于 Decoder 所实现读取器的读取器。
+// 若要启用 Debug 函数，请删除上面的 +build ignore 行，然后执行
 //	go install
 
 import (
@@ -23,10 +22,10 @@ import (
 	"sync"
 )
 
-var dumpBytes = false // If true, print the remaining bytes in the input buffer at each item.
+var dumpBytes = false // 若为 true，则在每个条目处打印输入缓冲区中剩余的字节。
 
-// Init installs the debugging facility. If this file is not compiled in the
-// package, the tests in codec_test.go are no-ops.
+// Init 安装调试设施。如果此文件未编译进包中，
+// 那么 codec_test.go 中的测试为空操作。
 func init() {
 	debugFunc = Debug
 }
@@ -37,7 +36,7 @@ var (
 	tabs   = strings.Repeat("\t", 100)
 )
 
-// tab indents itself when printed.
+// tab 在打印时对自身进行缩进。
 type tab int
 
 func (t tab) String() string {
@@ -52,33 +51,33 @@ func (t tab) print() {
 	fmt.Fprint(os.Stderr, t)
 }
 
-// A peekReader wraps an io.Reader, allowing one to peek ahead to see
-// what's coming without stealing the data from the client of the Reader.
+// peekReader 包装一个 io.Reader，允许向前预读以查看即将到来的内容，
+// 而不会从 Reader 的客户端那里窃取数据。
 type peekReader struct {
 	r    io.Reader
-	data []byte // read-ahead data
+	data []byte // 预读数据
 }
 
-// newPeekReader returns a peekReader that wraps r.
+// newPeekReader 返回一个包装 r 的 peekReader。
 func newPeekReader(r io.Reader) *peekReader {
 	return &peekReader{r: r}
 }
 
-// Read is the usual method. It will first take data that has been read ahead.
+// Read 是常规方法。它会先取用已经预读的数据。
 func (p *peekReader) Read(b []byte) (n int, err error) {
 	if len(p.data) == 0 {
 		return p.r.Read(b)
 	}
-	// Satisfy what's possible from the read-ahead data.
+	// 尽可能地从预读数据中满足需求。
 	n = copy(b, p.data)
-	// Move data down to beginning of slice, to avoid endless growth
+	// 将数据下移到切片的开头，以避免无限增长
 	copy(p.data, p.data[n:])
 	p.data = p.data[:len(p.data)-n]
 	return
 }
 
-// peek returns as many bytes as possible from the unread
-// portion of the stream, up to the length of b.
+// peek 从流的未读部分返回尽可能多的字节，
+// 最多不超过 b 的长度。
 func (p *peekReader) peek(b []byte) (n int, err error) {
 	if len(p.data) > 0 {
 		n = copy(b, p.data)
@@ -96,8 +95,8 @@ func (p *peekReader) peek(b []byte) (n int, err error) {
 	}
 	n += m
 	if e == io.ErrUnexpectedEOF {
-		// That means m > 0 but we reached EOF. If we got data
-		// we won't complain about not being able to peek enough.
+		// 这意味着 m > 0，但我们到达了 EOF。如果我们已获取到数据，
+		// 就不会抱怨无法预读足够的内容。
 		if n > 0 {
 			e = nil
 		} else {
@@ -109,16 +108,16 @@ func (p *peekReader) peek(b []byte) (n int, err error) {
 
 type debugger struct {
 	mutex          sync.Mutex
-	remain         int  // the number of bytes known to remain in the input
-	remainingKnown bool // the value of 'remain' is valid
+	remain         int  // 已知输入中剩余的字节数
+	remainingKnown bool // 'remain' 的值是否有效
 	r              *peekReader
 	wireType       map[typeId]*wireType
-	tmp            []byte // scratch space for decoding uints.
+	tmp            []byte // 用于解码 uint 的暂存空间。
 }
 
-// dump prints the next nBytes of the input.
-// It arranges to print the output aligned from call to
-// call, to make it easy to see what has been consumed.
+// dump 打印输入中接下来的 nBytes 个字节。
+// 它安排各次调用之间的输出对齐，
+// 以便于看出哪些内容已被消费。
 func (deb *debugger) dump(format string, args ...any) {
 	if !dumpBytes {
 		return
@@ -139,13 +138,13 @@ func (deb *debugger) dump(format string, args ...any) {
 	}
 	b := new(bytes.Buffer)
 	fmt.Fprintf(b, "[%d]{\n", deb.remain)
-	// Blanks until first byte
+	// 填充空格直到第一个字节
 	lineLength := 0
 	if n := len(data); n%10 != 0 {
 		lineLength = 10 - n%10
 		fmt.Fprintf(b, "\t%s", blanks[:lineLength*3])
 	}
-	// 10 bytes per line
+	// 每行 10 个字节
 	for len(data) > 0 {
 		if lineLength == 0 {
 			fmt.Fprint(b, "\t")
@@ -162,8 +161,8 @@ func (deb *debugger) dump(format string, args ...any) {
 	os.Stderr.Write(b.Bytes())
 }
 
-// Debug prints a human-readable representation of the gob data read from r.
-// It is a no-op unless debugging was enabled when the package was built.
+// Debug 打印从 r 读取的 gob 数据的可读表示。
+// 除非构建包时启用了调试，否则它为空操作。
 func Debug(r io.Reader) {
 	err := debug(r)
 	if err != nil {
@@ -171,8 +170,8 @@ func Debug(r io.Reader) {
 	}
 }
 
-// debug implements Debug, but catches panics and returns
-// them as errors to be printed by Debug.
+// debug 实现了 Debug，但会捕获 panic，并将其作为
+// 错误返回，供 Debug 打印。
 func debug(r io.Reader) (err error) {
 	defer catchError(&err)
 	fmt.Fprintln(os.Stderr, "Start of debugging")
@@ -189,22 +188,22 @@ func debug(r io.Reader) (err error) {
 	return
 }
 
-// note that we've consumed some bytes
+// 记录我们已消费了一些字节
 func (deb *debugger) consumed(n int) {
 	if deb.remainingKnown {
 		deb.remain -= n
 	}
 }
 
-// int64 decodes and returns the next integer, which must be present.
-// Don't call this if you could be at EOF.
+// int64 解码并返回下一个整数，该整数必须存在。
+// 如果你可能处于 EOF，请不要调用此函数。
 func (deb *debugger) int64() int64 {
 	return toInt(deb.uint64())
 }
 
-// uint64 returns and decodes the next unsigned integer, which must be present.
-// Don't call this if you could be at EOF.
-// TODO: handle errors better.
+// uint64 返回并解码下一个无符号整数，该整数必须存在。
+// 如果你可能处于 EOF，请不要调用此函数。
+// TODO: 更好地处理错误。
 func (deb *debugger) uint64() uint64 {
 	n, w, err := decodeUintReader(deb.r, deb.tmp)
 	if err != nil {
@@ -218,7 +217,7 @@ func (deb *debugger) uint64() uint64 {
 //
 //	DelimitedMessage* (until EOF)
 func (deb *debugger) gobStream() {
-	// Make sure we're single-threaded through here.
+	// 确保此处是单线程执行的。
 	deb.mutex.Lock()
 	defer deb.mutex.Unlock()
 
@@ -241,13 +240,11 @@ func (deb *debugger) delimitedMessage(indent tab) bool {
 	return true
 }
 
-// loadBlock preps us to read a message
-// of the length specified next in the input. It returns
-// the length of the block. The argument tells whether
-// an EOF is acceptable now. If it is and one is found,
-// the return value is negative.
+// loadBlock 让我们准备好读取输入中接下来指定的长度的消息。
+// 它返回该块的长度。参数指明现在是否可接受 EOF。
+// 如果可以且遇到了 EOF，则返回值为负数。
 func (deb *debugger) loadBlock(eofOK bool) int {
-	n64, w, err := decodeUintReader(deb.r, deb.tmp) // deb.uint64 will error at EOF
+	n64, w, err := decodeUintReader(deb.r, deb.tmp) // deb.uint64 在 EOF 时会报错
 	if err != nil {
 		if eofOK && err == io.EOF {
 			return -1
@@ -279,7 +276,7 @@ func (deb *debugger) loadBlock(eofOK bool) int {
 //	int(typeId) Value
 func (deb *debugger) message(indent tab) bool {
 	for {
-		// Convert the uint64 to a signed integer typeId
+		// 将 uint64 转换为有符号整数 typeId
 		uid := deb.int64()
 		id := typeId(uid)
 		deb.dump("type id=%d", id)
@@ -296,9 +293,9 @@ func (deb *debugger) message(indent tab) bool {
 	return true
 }
 
-// Helper methods to make it easy to scan a type descriptor.
+// 辅助方法，便于扫描类型描述符。
 
-// common returns the CommonType at the input point.
+// common 返回输入点处的 CommonType。
 func (deb *debugger) common() CommonType {
 	fieldNum := -1
 	name := ""
@@ -322,22 +319,22 @@ func (deb *debugger) common() CommonType {
 	return CommonType{name, id}
 }
 
-// uint returns the unsigned int at the input point, as a uint (not uint64).
+// uint 以 uint（而非 uint64）返回输入点处的无符号整数。
 func (deb *debugger) uint() uint {
 	return uint(deb.uint64())
 }
 
-// int returns the signed int at the input point, as an int (not int64).
+// int 以 int（而非 int64）返回输入点处的有符号整数。
 func (deb *debugger) int() int {
 	return int(deb.int64())
 }
 
-// typeId returns the type id at the input point.
+// typeId 返回输入点处的类型 id。
 func (deb *debugger) typeId() typeId {
 	return typeId(deb.int64())
 }
 
-// string returns the string at the input point.
+// string 返回输入点处的字符串。
 func (deb *debugger) string() string {
 	x := int(deb.uint64())
 	b := make([]byte, x)
@@ -349,8 +346,8 @@ func (deb *debugger) string() string {
 	return string(b)
 }
 
-// delta returns the field delta at the input point. The expect argument,
-// if non-negative, identifies what the value should be.
+// delta 返回输入点处的字段增量。expect 参数若为非负数，
+// 则指明该值应当是多少。
 func (deb *debugger) delta(expect int) int {
 	delta := int(deb.uint64())
 	if delta < 0 || (expect >= 0 && delta != expect) {
@@ -364,75 +361,75 @@ func (deb *debugger) delta(expect int) int {
 //	[int(-typeId) (already read)] encodingOfWireType
 func (deb *debugger) typeDefinition(indent tab, id typeId) {
 	deb.dump("type definition for id %d", id)
-	// Encoding is of a wireType. Decode the structure as usual
+	// 编码内容是一个 wireType。像往常一样解码该结构
 	fieldNum := -1
 	wire := new(wireType)
-	// A wireType defines a single field.
+	// 一个 wireType 定义单个字段。
 	delta := deb.delta(-1)
 	fieldNum += delta
 	switch fieldNum {
-	case 0: // array type, one field of {{Common}, elem, length}
-		// Field number 0 is CommonType
+	case 0: // 数组类型，一个形如 {{Common}, elem, length} 的字段
+		// 字段号 0 是 CommonType
 		deb.delta(1)
 		com := deb.common()
-		// Field number 1 is type Id of elem
+		// 字段号 1 是 elem 的类型 Id
 		deb.delta(1)
 		id := deb.typeId()
-		// Field number 3 is length
+		// 字段号 3 是长度
 		deb.delta(1)
 		length := deb.int()
 		wire.ArrayT = &arrayType{com, id, length}
 
-	case 1: // slice type, one field of {{Common}, elem}
-		// Field number 0 is CommonType
+	case 1: // 切片类型，一个形如 {{Common}, elem} 的字段
+		// 字段号 0 是 CommonType
 		deb.delta(1)
 		com := deb.common()
-		// Field number 1 is type Id of elem
+		// 字段号 1 是 elem 的类型 Id
 		deb.delta(1)
 		id := deb.typeId()
 		wire.SliceT = &sliceType{com, id}
 
-	case 2: // struct type, one field of {{Common}, []fieldType}
-		// Field number 0 is CommonType
+	case 2: // 结构体类型，一个形如 {{Common}, []fieldType} 的字段
+		// 字段号 0 是 CommonType
 		deb.delta(1)
 		com := deb.common()
-		// Field number 1 is slice of FieldType
+		// 字段号 1 是 FieldType 的切片
 		deb.delta(1)
 		numField := int(deb.uint())
 		field := make([]*fieldType, numField)
 		for i := 0; i < numField; i++ {
 			field[i] = new(fieldType)
-			deb.delta(1) // field 0 of fieldType: name
+			deb.delta(1) // fieldType 的字段 0：name
 			field[i].Name = deb.string()
-			deb.delta(1) // field 1 of fieldType: id
+			deb.delta(1) // fieldType 的字段 1：id
 			field[i].Id = deb.typeId()
-			deb.delta(0) // end of fieldType
+			deb.delta(0) // fieldType 结束
 		}
 		wire.StructT = &structType{com, field}
 
-	case 3: // map type, one field of {{Common}, key, elem}
-		// Field number 0 is CommonType
+	case 3: // map 类型，一个形如 {{Common}, key, elem} 的字段
+		// 字段号 0 是 CommonType
 		deb.delta(1)
 		com := deb.common()
-		// Field number 1 is type Id of key
+		// 字段号 1 是 key 的类型 Id
 		deb.delta(1)
 		keyId := deb.typeId()
-		// Field number 2 is type Id of elem
+		// 字段号 2 是 elem 的类型 Id
 		deb.delta(1)
 		elemId := deb.typeId()
 		wire.MapT = &mapType{com, keyId, elemId}
-	case 4: // GobEncoder type, one field of {{Common}}
-		// Field number 0 is CommonType
+	case 4: // GobEncoder 类型，一个形如 {{Common}} 的字段
+		// 字段号 0 是 CommonType
 		deb.delta(1)
 		com := deb.common()
 		wire.GobEncoderT = &gobEncoderType{com}
-	case 5: // BinaryMarshaler type, one field of {{Common}}
-		// Field number 0 is CommonType
+	case 5: // BinaryMarshaler 类型，一个形如 {{Common}} 的字段
+		// 字段号 0 是 CommonType
 		deb.delta(1)
 		com := deb.common()
 		wire.BinaryMarshalerT = &gobEncoderType{com}
-	case 6: // TextMarshaler type, one field of {{Common}}
-		// Field number 0 is CommonType
+	case 6: // TextMarshaler 类型，一个形如 {{Common}} 的字段
+		// 字段号 0 是 CommonType
 		deb.delta(1)
 		com := deb.common()
 		wire.TextMarshalerT = &gobEncoderType{com}
@@ -440,9 +437,9 @@ func (deb *debugger) typeDefinition(indent tab, id typeId) {
 		errorf("bad field in type %d", fieldNum)
 	}
 	deb.printWireType(indent, wire)
-	deb.delta(0) // end inner type (arrayType, etc.)
-	deb.delta(0) // end wireType
-	// Remember we've seen this type.
+	deb.delta(0) // 结束内部类型（arrayType 等）
+	deb.delta(0) // 结束 wireType
+	// 记住我们已经见过此类型。
 	deb.wireType[id] = wire
 }
 
@@ -463,7 +460,7 @@ func (deb *debugger) value(indent tab, id typeId) {
 //	uint(0) FieldValue
 func (deb *debugger) singletonValue(indent tab, id typeId) {
 	deb.dump("Singleton value")
-	// is it a builtin type?
+	// 它是内建类型吗？
 	wire := deb.wireType[id]
 	if builtinIdToType(id) == nil && wire == nil {
 		errorf("type id %d not defined", id)
@@ -513,7 +510,7 @@ func (deb *debugger) nilInterfaceValue(indent tab) int {
 func (deb *debugger) nonNilInterfaceValue(indent tab, nameLen int) {
 	// ConcreteTypeName
 	b := make([]byte, nameLen)
-	deb.r.Read(b) // TODO: CHECK THESE READS!!
+	deb.r.Read(b) // TODO: 检查这些读取操作！！
 	deb.consumed(nameLen)
 	name := string(b)
 
@@ -525,7 +522,7 @@ func (deb *debugger) nonNilInterfaceValue(indent tab, nameLen int) {
 			deb.dump("Nested message of length %d", n)
 		} else {
 			// DelimitedValue
-			x := deb.uint64() // in case we want to ignore the value; we don't.
+			x := deb.uint64() // 以备我们可能想忽略该值；我们并不忽略。
 			fmt.Fprintf(os.Stderr, "%sinterface value, type %q id=%d; valueLength %d\n", indent, name, id, x)
 			deb.value(indent, id)
 			break
@@ -533,13 +530,13 @@ func (deb *debugger) nonNilInterfaceValue(indent tab, nameLen int) {
 	}
 }
 
-// printCommonType prints a common type; used by printWireType.
+// printCommonType 打印一个公共类型；由 printWireType 使用。
 func (deb *debugger) printCommonType(indent tab, kind string, common *CommonType) {
 	indent.print()
 	fmt.Fprintf(os.Stderr, "%s %q id=%d\n", kind, common.Name, common.Id)
 }
 
-// printWireType prints the contents of a wireType.
+// printWireType 打印一个 wireType 的内容。
 func (deb *debugger) printWireType(indent tab, wire *wireType) {
 	fmt.Fprintf(os.Stderr, "%stype definition {\n", indent)
 	indent++
@@ -567,7 +564,7 @@ func (deb *debugger) printWireType(indent tab, wire *wireType) {
 	fmt.Fprintf(os.Stderr, "%s}\n", indent)
 }
 
-// fieldValue prints a value of any type, such as a struct field.
+// fieldValue 打印任意类型的值，例如结构体字段。
 // FieldValue:
 //
 //	builtinValue | ArrayValue | MapValue | SliceValue | StructValue | InterfaceValue
@@ -600,8 +597,8 @@ func (deb *debugger) fieldValue(indent tab, id typeId) {
 	}
 }
 
-// printBuiltin prints a value not of a fundamental type, that is,
-// one whose type is known to gobs at bootstrap time.
+// printBuiltin 打印一个并非基本类型的值，
+// 即其类型在引导时对 gob 是已知的。
 func (deb *debugger) printBuiltin(indent tab, id typeId) {
 	switch id {
 	case tBool:
@@ -699,7 +696,7 @@ func (deb *debugger) structValue(indent tab, id typeId) {
 	indent++
 	for {
 		delta := deb.uint64()
-		if delta == 0 { // struct terminator is zero delta fieldnum
+		if delta == 0 { // 结构体终止符是增量为零的 fieldnum
 			break
 		}
 		fieldNum += int(delta)
