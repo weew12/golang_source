@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package gzip implements reading and writing of gzip format compressed files,
-// as specified in RFC 1952.
+// gzip 包实现了 gzip 格式压缩文件的读写，
+// 格式规范见 RFC 1952。
 package gzip
 
 import (
@@ -28,15 +28,15 @@ const (
 )
 
 var (
-	// ErrChecksum is returned when reading GZIP data that has an invalid checksum.
+	// 当读取的 GZIP 数据校验和无效时，返回 ErrChecksum。
 	ErrChecksum = errors.New("gzip: invalid checksum")
-	// ErrHeader is returned when reading GZIP data that has an invalid header.
+	// 当读取的 GZIP 数据头部无效时，返回 ErrHeader。
 	ErrHeader = errors.New("gzip: invalid header")
 )
 
 var le = binary.LittleEndian
 
-// noEOF converts io.EOF to io.ErrUnexpectedEOF.
+// noEOF 将 io.EOF 转换为 io.ErrUnexpectedEOF。
 func noEOF(err error) error {
 	if err == io.EOF {
 		return io.ErrUnexpectedEOF
@@ -44,51 +44,51 @@ func noEOF(err error) error {
 	return err
 }
 
-// The gzip file stores a header giving metadata about the compressed file.
-// That header is exposed as the fields of the [Writer] and [Reader] structs.
+// gzip 文件存储一个头部，提供关于压缩文件的元数据。
+// 该头部以 [Writer] 和 [Reader] 结构体的字段形式暴露。
 //
-// Strings must be UTF-8 encoded and may only contain Unicode code points
-// U+0001 through U+00FF, due to limitations of the GZIP file format.
+// 由于 GZIP 文件格式的限制，字符串必须采用 UTF-8 编码，
+// 且只能包含 U+0001 到 U+00FF 的 Unicode 码点。
 type Header struct {
-	Comment string    // comment
-	Extra   []byte    // "extra data"
-	ModTime time.Time // modification time
-	Name    string    // file name
-	OS      byte      // operating system type
+	Comment string    // 注释
+	Extra   []byte    // “额外数据”
+	ModTime time.Time // 修改时间
+	Name    string    // 文件名
+	OS      byte      // 操作系统类型
 }
 
-// A Reader is an [io.Reader] that can be read to retrieve
-// uncompressed data from a gzip-format compressed file.
+// Reader 是一个 [io.Reader]，可以从中读取以获取
+// gzip 格式压缩文件中的未压缩数据。
 //
-// In general, a gzip file can be a concatenation of gzip files,
-// each with its own header. Reads from the Reader
-// return the concatenation of the uncompressed data of each.
-// Only the first header is recorded in the Reader fields.
+// 一般而言，一个 gzip 文件可以是多个 gzip 文件的拼接，
+// 每个文件都有自己的头部。从 Reader 读取会
+// 返回各文件未压缩数据的拼接。
+// 只有第一个头部会记录在 Reader 字段中。
 //
-// Gzip files store a length and checksum of the uncompressed data.
-// The Reader will return an [ErrChecksum] when [Reader.Read]
-// reaches the end of the uncompressed data if it does not
-// have the expected length or checksum. Clients should treat data
-// returned by [Reader.Read] as tentative until they receive the [io.EOF]
-// marking the end of the data.
+// Gzip 文件存储未压缩数据的长度和校验和。
+// 如果 [Reader.Read] 到达未压缩数据的末尾时
+// 数据不具有预期的长度或校验和，
+// Reader 将返回 [ErrChecksum]。客户端应将
+// [Reader.Read] 返回的数据视为暂定的，直到收到标志着
+// 数据末尾的 [io.EOF]。
 type Reader struct {
-	Header       // valid after NewReader or Reader.Reset
+	Header       // 在 NewReader 或 Reader.Reset 之后有效
 	r            flate.Reader
 	decompressor io.ReadCloser
-	digest       uint32 // CRC-32, IEEE polynomial (section 8)
-	size         uint32 // Uncompressed size (section 2.3.1)
+	digest       uint32 // CRC-32，IEEE 多项式（第 8 节）
+	size         uint32 // 未压缩大小（第 2.3.1 节）
 	buf          [512]byte
 	err          error
 	multistream  bool
 }
 
-// NewReader creates a new [Reader] reading the given reader.
-// If r does not also implement [io.ByteReader],
-// the decompressor may read more data than necessary from r.
+// NewReader 创建一个新的 [Reader]，读取给定的 reader。
+// 如果 r 未同时实现 [io.ByteReader]，
+// 解压器可能会从 r 读取超出必要的数据。
 //
-// It is the caller's responsibility to call [Reader.Close] when done.
+// 调用方有责任在使用完毕后调用 [Reader.Close]。
 //
-// The Reader.[Header] fields will be valid in the [Reader] returned.
+// 返回的 [Reader] 中 Reader.[Header] 字段将是有效的。
 func NewReader(r io.Reader) (*Reader, error) {
 	z := new(Reader)
 	if err := z.Reset(r); err != nil {
@@ -97,9 +97,9 @@ func NewReader(r io.Reader) (*Reader, error) {
 	return z, nil
 }
 
-// Reset discards the [Reader] z's state and makes it equivalent to the
-// result of its original state from [NewReader], but reading from r instead.
-// This permits reusing a [Reader] rather than allocating a new one.
+// Reset 丢弃 [Reader] z 的状态，使其等同于
+// 从 [NewReader] 得到的初始状态，但改为从 r 读取。
+// 这样可以复用 [Reader]，而不必分配一个新的。
 func (z *Reader) Reset(r io.Reader) error {
 	*z = Reader{
 		decompressor: z.decompressor,
@@ -114,30 +114,30 @@ func (z *Reader) Reset(r io.Reader) error {
 	return z.err
 }
 
-// Multistream controls whether the reader supports multistream files.
+// Multistream 控制 reader 是否支持多流文件。
 //
-// If enabled (the default), the [Reader] expects the input to be a sequence
-// of individually gzipped data streams, each with its own header and
-// trailer, ending at EOF. The effect is that the concatenation of a sequence
-// of gzipped files is treated as equivalent to the gzip of the concatenation
-// of the sequence. This is standard behavior for gzip readers.
+// 如果启用（默认），[Reader] 期望输入是一系列
+// 各自独立的 gzip 数据流，每个都有自己的头部和
+// 尾部，以 EOF 结束。其效果是，一系列
+// gzip 文件的拼接被视为等同于
+// 该序列拼接后的 gzip。这是 gzip reader 的标准行为。
 //
-// Calling Multistream(false) disables this behavior; disabling the behavior
-// can be useful when reading file formats that distinguish individual gzip
-// data streams or mix gzip data streams with other data streams.
-// In this mode, when the [Reader] reaches the end of the data stream,
-// [Reader.Read] returns [io.EOF]. The underlying reader must implement [io.ByteReader]
-// in order to be left positioned just after the gzip stream.
-// To start the next stream, call z.Reset(r) followed by z.Multistream(false).
-// If there is no next stream, z.Reset(r) will return [io.EOF].
+// 调用 Multistream(false) 会禁用此行为；当读取区分
+// 单个 gzip 数据流、或将 gzip 数据流与其他数据流混合的文件格式时，
+// 禁用该行为会很有用。
+// 在此模式下，当 [Reader] 到达数据流末尾时，
+// [Reader.Read] 返回 [io.EOF]。底层 reader 必须实现 [io.ByteReader]，
+// 以便使其恰好停留在 gzip 流之后。
+// 要开始下一个流，调用 z.Reset(r)，然后调用 z.Multistream(false)。
+// 如果没有下一个流，z.Reset(r) 将返回 [io.EOF]。
 func (z *Reader) Multistream(ok bool) {
 	z.multistream = ok
 }
 
-// readString reads a NUL-terminated string from z.r.
-// It treats the bytes read as being encoded as ISO 8859-1 (Latin-1) and
-// will output a string encoded using UTF-8.
-// This method always updates z.digest with the data read.
+// readString 从 z.r 读取一个以 NUL 结尾的字符串。
+// 它将读取到的字节视为 ISO 8859-1（Latin-1）编码，
+// 并输出使用 UTF-8 编码的字符串。
+// 此方法总是用读取到的数据更新 z.digest。
 func (z *Reader) readString() (string, error) {
 	var err error
 	needConv := false
@@ -153,10 +153,10 @@ func (z *Reader) readString() (string, error) {
 			needConv = true
 		}
 		if z.buf[i] == 0 {
-			// Digest covers the NUL terminator.
+			// Digest 涵盖 NUL 终止符。
 			z.digest = crc32.Update(z.digest, crc32.IEEETable, z.buf[:i+1])
 
-			// Strings are ISO 8859-1, Latin-1 (RFC 1952, section 2.3.1).
+			// 字符串为 ISO 8859-1、Latin-1（RFC 1952，第 2.3.1 节）。
 			if needConv {
 				s := make([]rune, 0, i)
 				for _, v := range z.buf[:i] {
@@ -169,17 +169,17 @@ func (z *Reader) readString() (string, error) {
 	}
 }
 
-// readHeader reads the GZIP header according to section 2.3.1.
-// This method does not set z.err.
+// readHeader 根据第 2.3.1 节读取 GZIP 头部。
+// 此方法不设置 z.err。
 func (z *Reader) readHeader() (hdr Header, err error) {
 	if _, err = io.ReadFull(z.r, z.buf[:10]); err != nil {
-		// RFC 1952, section 2.2, says the following:
-		//	A gzip file consists of a series of "members" (compressed data sets).
+		// RFC 1952 第 2.2 节写道：
+		//	一个 gzip 文件由一系列“成员”（压缩数据集）组成。
 		//
-		// Other than this, the specification does not clarify whether a
-		// "series" is defined as "one or more" or "zero or more". To err on the
-		// side of caution, Go interprets this to mean "zero or more".
-		// Thus, it is okay to return io.EOF here.
+		// 除此之外，规范并未阐明“一系列”被定义为
+		// “一个或多个”还是“零个或多个”。为谨慎起见，
+		// Go 将其解释为“零个或多个”。
+		// 因此，这里返回 io.EOF 是可以的。
 		return hdr, err
 	}
 	if z.buf[0] != gzipID1 || z.buf[1] != gzipID2 || z.buf[2] != gzipDeflate {
@@ -187,11 +187,11 @@ func (z *Reader) readHeader() (hdr Header, err error) {
 	}
 	flg := z.buf[3]
 	if t := int64(le.Uint32(z.buf[4:8])); t > 0 {
-		// Section 2.3.1, the zero value for MTIME means that the
-		// modified time is not set.
+		// 第 2.3.1 节，MTIME 的零值表示
+		// 未设置修改时间。
 		hdr.ModTime = time.Unix(t, 0)
 	}
-	// z.buf[8] is XFL and is currently ignored.
+	// z.buf[8] 是 XFL，目前被忽略。
 	hdr.OS = z.buf[9]
 	z.digest = crc32.ChecksumIEEE(z.buf[:10])
 
@@ -242,7 +242,7 @@ func (z *Reader) readHeader() (hdr Header, err error) {
 	return hdr, nil
 }
 
-// Read implements [io.Reader], reading uncompressed bytes from its underlying reader.
+// Read 实现 [io.Reader]，从其底层 reader 读取未压缩字节。
 func (z *Reader) Read(p []byte) (n int, err error) {
 	if z.err != nil {
 		return 0, z.err
@@ -253,11 +253,11 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 		z.digest = crc32.Update(z.digest, crc32.IEEETable, p[:n])
 		z.size += uint32(n)
 		if z.err != io.EOF {
-			// In the normal case we return here.
+			// 正常情况下我们在这里返回。
 			return n, z.err
 		}
 
-		// Finished file; check checksum and size.
+		// 文件已结束；检查校验和与大小。
 		if _, err := io.ReadFull(z.r, z.buf[:8]); err != nil {
 			z.err = noEOF(err)
 			return n, z.err
@@ -270,11 +270,11 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 		}
 		z.digest, z.size = 0, 0
 
-		// File is ok; check if there is another.
+		// 文件正常；检查是否还有另一个。
 		if !z.multistream {
 			return n, io.EOF
 		}
-		z.err = nil // Remove io.EOF
+		z.err = nil // 移除 io.EOF
 
 		if _, z.err = z.readHeader(); z.err != nil {
 			return n, z.err
@@ -284,7 +284,7 @@ func (z *Reader) Read(p []byte) (n int, err error) {
 	return n, nil
 }
 
-// Close closes the [Reader]. It does not close the underlying reader.
-// In order for the GZIP checksum to be verified, the reader must be
-// fully consumed until the [io.EOF].
+// Close 关闭 [Reader]。它不会关闭底层 reader。
+// 为了验证 GZIP 校验和，必须将 reader
+// 完全消费直到 [io.EOF]。
 func (z *Reader) Close() error { return z.decompressor.Close() }

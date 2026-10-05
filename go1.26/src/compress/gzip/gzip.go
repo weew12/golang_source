@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// These constants are copied from the [flate] package, so that code that imports
-// [compress/gzip] does not also have to import [compress/flate].
+// 这些常量复制自 [flate] 包，这样导入 [compress/gzip] 的代码
+// 就无需再导入 [compress/flate]。
 const (
 	NoCompression      = flate.NoCompression
 	BestSpeed          = flate.BestSpeed
@@ -23,40 +23,39 @@ const (
 	HuffmanOnly        = flate.HuffmanOnly
 )
 
-// A Writer is an [io.WriteCloser].
-// Writes to a Writer are compressed and written to w.
+// Writer 是一个 [io.WriteCloser]。
+// 写入 Writer 的数据会被压缩并写入 w。
 type Writer struct {
-	Header      // written at first call to Write, Flush, or Close
+	Header      // 在首次调用 Write、Flush 或 Close 时写入
 	w           io.Writer
 	level       int
 	wroteHeader bool
 	closed      bool
 	buf         [10]byte
 	compressor  *flate.Writer
-	digest      uint32 // CRC-32, IEEE polynomial (section 8)
-	size        uint32 // Uncompressed size (section 2.3.1)
+	digest      uint32 // CRC-32，IEEE 多项式（第 8 节）
+	size        uint32 // 未压缩大小（第 2.3.1 节）
 	err         error
 }
 
-// NewWriter returns a new [Writer].
-// Writes to the returned writer are compressed and written to w.
+// NewWriter 返回一个新的 [Writer]。
+// 写入所返回 writer 的数据会被压缩并写入 w。
 //
-// It is the caller's responsibility to call Close on the [Writer] when done.
-// Writes may be buffered and not flushed until Close.
+// 调用者有责任在使用完毕后调用 [Writer] 的 Close。
+// 写入的数据可能会被缓冲，直到 Close 时才刷新。
 //
-// Callers that wish to set the fields in Writer.[Header] must do so before
-// the first call to Write, Flush, or Close.
+// 希望设置 Writer.[Header] 中字段的调用者，必须在首次调用 Write、Flush 或 Close
+// 之前完成设置。
 func NewWriter(w io.Writer) *Writer {
 	z, _ := NewWriterLevel(w, DefaultCompression)
 	return z
 }
 
-// NewWriterLevel is like [NewWriter] but specifies the compression level instead
-// of assuming [DefaultCompression].
+// NewWriterLevel 类似 [NewWriter]，但指定压缩级别，而不是假定使用 [DefaultCompression]。
 //
-// The compression level can be [DefaultCompression], [NoCompression], [HuffmanOnly]
-// or any integer value between [BestSpeed] and [BestCompression] inclusive.
-// The error returned will be nil if the level is valid.
+// 压缩级别可以是 [DefaultCompression]、[NoCompression]、[HuffmanOnly]，
+// 或者是 [BestSpeed] 与 [BestCompression] 之间（含两端）的任意整数值。
+// 如果级别有效，则返回的错误为 nil。
 func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
 	if level < HuffmanOnly || level > BestCompression {
 		return nil, fmt.Errorf("gzip: invalid compression level: %d", level)
@@ -73,7 +72,7 @@ func (z *Writer) init(w io.Writer, level int) {
 	}
 	*z = Writer{
 		Header: Header{
-			OS: 255, // unknown
+			OS: 255, // 未知
 		},
 		w:          w,
 		level:      level,
@@ -81,15 +80,14 @@ func (z *Writer) init(w io.Writer, level int) {
 	}
 }
 
-// Reset discards the [Writer] z's state and makes it equivalent to the
-// result of its original state from [NewWriter] or [NewWriterLevel], but
-// writing to w instead. This permits reusing a [Writer] rather than
-// allocating a new one.
+// Reset 丢弃 [Writer] z 的状态，使其等同于其原始状态（来自 [NewWriter] 或
+// [NewWriterLevel]）的结果，但改为写入 w。这样可以复用 [Writer]，
+// 而不必分配一个新的。
 func (z *Writer) Reset(w io.Writer) {
 	z.init(w, z.level)
 }
 
-// writeBytes writes a length-prefixed byte slice to z.w.
+// writeBytes 将一个带长度前缀的字节切片写入 z.w。
 func (z *Writer) writeBytes(b []byte) error {
 	if len(b) > 0xffff {
 		return errors.New("gzip.Write: Extra data is too large")
@@ -103,10 +101,10 @@ func (z *Writer) writeBytes(b []byte) error {
 	return err
 }
 
-// writeString writes a UTF-8 string s in GZIP's format to z.w.
-// GZIP (RFC 1952) specifies that strings are NUL-terminated ISO 8859-1 (Latin-1).
+// writeString 将 UTF-8 字符串 s 以 GZIP 的格式写入 z.w。
+// GZIP（RFC 1952）规定字符串为以 NUL 结尾的 ISO 8859-1（Latin-1）。
 func (z *Writer) writeString(s string) (err error) {
-	// GZIP stores Latin-1 strings; error if non-Latin-1; convert if non-ASCII.
+	// GZIP 存储 Latin-1 字符串；非 Latin-1 时报错；非 ASCII 时进行转换。
 	needconv := false
 	for _, v := range s {
 		if v == 0 || v > 0xff {
@@ -128,20 +126,20 @@ func (z *Writer) writeString(s string) (err error) {
 	if err != nil {
 		return err
 	}
-	// GZIP strings are NUL-terminated.
+	// GZIP 字符串以 NUL 结尾。
 	z.buf[0] = 0
 	_, err = z.w.Write(z.buf[:1])
 	return err
 }
 
-// Write writes a compressed form of p to the underlying [io.Writer]. The
-// compressed bytes are not necessarily flushed until the [Writer] is closed.
+// Write 将 p 的压缩形式写入底层 [io.Writer]。压缩后的字节在 [Writer]
+// 关闭之前不一定被刷新。
 func (z *Writer) Write(p []byte) (int, error) {
 	if z.err != nil {
 		return 0, z.err
 	}
 	var n int
-	// Write the GZIP header lazily.
+	// 延迟写入 GZIP 头。
 	if !z.wroteHeader {
 		z.wroteHeader = true
 		z.buf = [10]byte{0: gzipID1, 1: gzipID2, 2: gzipDeflate}
@@ -155,8 +153,7 @@ func (z *Writer) Write(p []byte) (int, error) {
 			z.buf[3] |= 0x10
 		}
 		if z.ModTime.After(time.Unix(0, 0)) {
-			// Section 2.3.1, the zero value for MTIME means that the
-			// modified time is not set.
+			// 第 2.3.1 节，MTIME 的零值表示未设置修改时间。
 			le.PutUint32(z.buf[4:8], uint32(z.ModTime.Unix()))
 		}
 		if z.level == BestCompression {
@@ -197,14 +194,12 @@ func (z *Writer) Write(p []byte) (int, error) {
 	return n, z.err
 }
 
-// Flush flushes any pending compressed data to the underlying writer.
+// Flush 将所有待处理的压缩数据刷新到底层 writer。
 //
-// It is useful mainly in compressed network protocols, to ensure that
-// a remote reader has enough data to reconstruct a packet. Flush does
-// not return until the data has been written. If the underlying
-// writer returns an error, Flush returns that error.
+// 它主要用于压缩网络协议，以确保远程读取方有足够的数据来重建数据包。
+// Flush 在数据写入完成之前不会返回。如果底层 writer 返回错误，Flush 会返回该错误。
 //
-// In the terminology of the zlib library, Flush is equivalent to Z_SYNC_FLUSH.
+// 在 zlib 库的术语中，Flush 等价于 Z_SYNC_FLUSH。
 func (z *Writer) Flush() error {
 	if z.err != nil {
 		return z.err
@@ -222,9 +217,9 @@ func (z *Writer) Flush() error {
 	return z.err
 }
 
-// Close closes the [Writer] by flushing any unwritten data to the underlying
-// [io.Writer] and writing the GZIP footer.
-// It does not close the underlying [io.Writer].
+// Close 通过将所有未写入的数据刷新到底层 [io.Writer] 并写入 GZIP 尾部，
+// 从而关闭 [Writer]。
+// 它不会关闭底层的 [io.Writer]。
 func (z *Writer) Close() error {
 	if z.err != nil {
 		return z.err
