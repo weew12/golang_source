@@ -32,24 +32,23 @@ func walkSymlinks(path string) (string, error) {
 			end++
 		}
 
-		// On Windows, "." can be a symlink.
-		// We look it up, and use the value if it is absolute.
-		// If not, we just return ".".
+		// 在 Windows 上，"." 可以是一个符号链接。
+		// 我们查找它，如果它是绝对路径则使用该值。
+		// 如果不是，我们只返回 "."。
 		isWindowsDot := runtime.GOOS == "windows" && path[filepathlite.VolumeNameLen(path):] == "."
 
-		// The next path component is in path[start:end].
+		// 下一个路径组件位于 path[start:end] 中。
 		if end == start {
-			// No more path components.
+			// 没有更多路径组件。
 			break
 		} else if path[start:end] == "." && !isWindowsDot {
-			// Ignore path component ".".
+			// 忽略路径组件 "."。
 			continue
 		} else if path[start:end] == ".." {
-			// Back up to previous component if possible.
-			// Note that volLen includes any leading slash.
+			// 如果可能，回退到上一个组件。
+			// 注意 volLen 包含任何前导斜杠。
 
-			// Set r to the index of the last slash in dest,
-			// after the volume.
+			// 将 r 设为卷名之后 dest 中最后一个斜杠的索引。
 			var r int
 			for r = len(dest) - 1; r >= volLen; r-- {
 				if os.IsPathSeparator(dest[r]) {
@@ -57,22 +56,22 @@ func walkSymlinks(path string) (string, error) {
 				}
 			}
 			if r < volLen || dest[r+1:] == ".." {
-				// Either path has no slashes
-				// (it's empty or just "C:")
-				// or it ends in a ".." we had to keep.
-				// Either way, keep this "..".
+				// 要么路径没有斜杠
+				// （它是空的或只是 "C:"）
+				// 要么它以我们不得不保留的 ".." 结尾。
+				// 无论哪种情况，都保留这个 ".."。
 				if len(dest) > volLen {
 					dest += pathSeparator
 				}
 				dest += ".."
 			} else {
-				// Discard everything since the last slash.
+				// 丢弃自最后一个斜杠以来的所有内容。
 				dest = dest[:r]
 			}
 			continue
 		}
 
-		// Ordinary path component. Add it to result.
+		// 普通路径组件。将其添加到结果中。
 
 		if len(dest) > filepathlite.VolumeNameLen(dest) && !os.IsPathSeparator(dest[len(dest)-1]) {
 			dest += pathSeparator
@@ -80,7 +79,7 @@ func walkSymlinks(path string) (string, error) {
 
 		dest += path[start:end]
 
-		// Resolve symlink.
+		// 解析符号链接。
 
 		fi, err := os.Lstat(dest)
 		if err != nil {
@@ -94,7 +93,7 @@ func walkSymlinks(path string) (string, error) {
 			continue
 		}
 
-		// Found symlink.
+		// 找到符号链接。
 
 		linksWalked++
 		if linksWalked > 255 {
@@ -107,8 +106,8 @@ func walkSymlinks(path string) (string, error) {
 		}
 
 		if isWindowsDot && !IsAbs(link) {
-			// On Windows, if "." is a relative symlink,
-			// just return ".".
+			// 在 Windows 上，如果 "." 是相对符号链接，
+			// 只返回 "."。
 			break
 		}
 
@@ -116,7 +115,7 @@ func walkSymlinks(path string) (string, error) {
 
 		v := filepathlite.VolumeNameLen(link)
 		if v > 0 {
-			// Symlink to drive name is an absolute path.
+			// 指向驱动器名的符号链接是绝对路径。
 			if v < len(link) && os.IsPathSeparator(link[v]) {
 				v++
 			}
@@ -124,14 +123,14 @@ func walkSymlinks(path string) (string, error) {
 			dest = vol
 			end = len(vol)
 		} else if len(link) > 0 && os.IsPathSeparator(link[0]) {
-			// Symlink to absolute path.
+			// 指向绝对路径的符号链接。
 			dest = link[:1]
 			end = 1
 			vol = link[:1]
 			volLen = 1
 		} else {
-			// Symlink to relative path; replace last
-			// path component in dest.
+			// 指向相对路径的符号链接；替换 dest 中
+			// 最后一个路径组件。
 			var r int
 			for r = len(dest) - 1; r >= volLen; r-- {
 				if os.IsPathSeparator(dest[r]) {

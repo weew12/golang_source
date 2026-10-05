@@ -11,12 +11,12 @@ import (
 )
 
 func evalSymlinks(path string) (string, error) {
-	// Plan 9 doesn't have symbolic links, so no need for substitutions.
+	// Plan 9 没有符号链接，因此无需替换。
 	if len(path) > 0 {
-		// Check validity of path
+		// 检查 path 的有效性
 		_, err := os.Lstat(path)
 		if err != nil {
-			// Return the same error value as on other operating systems.
+			// 返回与其他操作系统相同的错误值。
 			if strings.Contains(err.Error(), "not a directory") {
 				err = syscall.ENOTDIR
 			}

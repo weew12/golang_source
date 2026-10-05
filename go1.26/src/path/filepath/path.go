@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package filepath implements utility routines for manipulating filename paths
-// in a way compatible with the target operating system-defined file paths.
+// Package filepath 实现了以与目标操作系统定义的文件路径
+// 相兼容的方式操作文件名路径的实用例程。
 //
-// The filepath package uses either forward slashes or backslashes,
-// depending on the operating system. To process paths such as URLs
-// that always use forward slashes regardless of the operating
-// system, see the [path] package.
+// filepath 包使用正斜杠或反斜杠，
+// 具体取决于操作系统。要处理诸如 URL 这类
+// 无论操作系统如何都始终使用正斜杠的路径，
+// 请参见 [path] 包。
 package filepath
 
 import (
@@ -25,139 +25,136 @@ const (
 	ListSeparator = os.PathListSeparator
 )
 
-// Clean returns the shortest path name equivalent to path
-// by purely lexical processing. It applies the following rules
-// iteratively until no further processing can be done:
+// Clean 通过纯粹的词法处理返回与 path 等价的最短路径名。
+// 它迭代地应用以下规则，直到无法再做进一步处理：
 //
-//  1. Replace multiple [Separator] elements with a single one.
-//  2. Eliminate each . path name element (the current directory).
-//  3. Eliminate each inner .. path name element (the parent directory)
-//     along with the non-.. element that precedes it.
-//  4. Eliminate .. elements that begin a rooted path:
-//     that is, replace "/.." by "/" at the beginning of a path,
-//     assuming Separator is '/'.
+//  1. 将多个 [Separator] 元素替换为单个元素。
+//  2. 消除每个 . 路径名元素（当前目录）。
+//  3. 消除每个内部的 .. 路径名元素（父目录）
+//     以及位于它前面的非 .. 元素。
+//  4. 消除位于有根路径开头的 .. 元素：
+//     即，假设 Separator 为 '/'，将路径开头的 "/.." 替换为 "/"。
 //
-// The returned path ends in a slash only if it represents a root directory,
-// such as "/" on Unix or `C:\` on Windows.
+// 返回的路径只有在表示根目录时才以斜杠结尾，
+// 例如 Unix 上的 "/" 或 Windows 上的 `C:\`。
 //
-// Finally, any occurrences of slash are replaced by Separator.
+// 最后，所有出现的斜杠都被替换为 Separator。
 //
-// If the result of this process is an empty string, Clean
-// returns the string ".".
+// 如果此过程的结果是空字符串，Clean
+// 返回字符串 "."。
 //
-// On Windows, Clean does not modify the volume name other than to replace
-// occurrences of "/" with `\`.
-// For example, Clean("//host/share/../x") returns `\\host\share\x`.
+// 在 Windows 上，Clean 除了将出现的 "/" 替换为 `\` 之外，
+// 不会修改卷名。
+// 例如，Clean("//host/share/../x") 返回 `\\host\share\x`。
 //
-// See also Rob Pike, “Lexical File Names in Plan 9 or
+// 另见 Rob Pike, “Lexical File Names in Plan 9 or
 // Getting Dot-Dot Right,”
 // https://9p.io/sys/doc/lexnames.html
 func Clean(path string) string {
 	return filepathlite.Clean(path)
 }
 
-// IsLocal reports whether path, using lexical analysis only, has all of these properties:
+// IsLocal 报告 path 仅使用词法分析是否具有以下所有性质：
 //
-//   - is within the subtree rooted at the directory in which path is evaluated
-//   - is not an absolute path
-//   - is not empty
-//   - on Windows, is not a reserved name such as "NUL"
+//   - 位于对其求值所在目录为根的子树内
+//   - 不是绝对路径
+//   - 不为空
+//   - 在 Windows 上，不是诸如 "NUL" 之类的保留名称
 //
-// If IsLocal(path) returns true, then
-// Join(base, path) will always produce a path contained within base and
-// Clean(path) will always produce an unrooted path with no ".." path elements.
+// 如果 IsLocal(path) 返回 true，那么
+// Join(base, path) 将始终产生一个包含在 base 内的路径，并且
+// Clean(path) 将始终产生一个没有 ".." 路径元素的无根路径。
 //
-// IsLocal is a purely lexical operation.
-// In particular, it does not account for the effect of any symbolic links
-// that may exist in the filesystem.
+// IsLocal 是纯粹的词法操作。
+// 特别地，它不考虑文件系统中可能存在的
+// 任何符号链接的影响。
 func IsLocal(path string) bool {
 	return filepathlite.IsLocal(path)
 }
 
-// Localize converts a slash-separated path into an operating system path.
-// The input path must be a valid path as reported by [io/fs.ValidPath].
+// Localize 将以斜杠分隔的路径转换为操作系统路径。
+// 输入路径必须是 [io/fs.ValidPath] 所报告的有效路径。
 //
-// Localize returns an error if the path cannot be represented by the operating system.
-// For example, the path a\b is rejected on Windows, on which \ is a separator
-// character and cannot be part of a filename.
+// 如果路径无法被操作系统表示，Localize 返回错误。
+// 例如，路径 a\b 在 Windows 上会被拒绝，因为在 Windows 上 \ 是分隔符
+// 字符，不能作为文件名的一部分。
 //
-// The path returned by Localize will always be local, as reported by IsLocal.
+// Localize 返回的路径将始终是本地路径，如 IsLocal 所报告的那样。
 func Localize(path string) (string, error) {
 	return filepathlite.Localize(path)
 }
 
-// ToSlash returns the result of replacing each separator character
-// in path with a slash ('/') character. Multiple separators are
-// replaced by multiple slashes.
+// ToSlash 返回将 path 中每个分隔符字符
+// 替换为斜杠（'/'）字符后的结果。多个分隔符
+// 会被替换为多个斜杠。
 func ToSlash(path string) string {
 	return filepathlite.ToSlash(path)
 }
 
-// FromSlash returns the result of replacing each slash ('/') character
-// in path with a separator character. Multiple slashes are replaced
-// by multiple separators.
+// FromSlash 返回将 path 中每个斜杠（'/'）字符
+// 替换为分隔符字符后的结果。多个斜杠会被替换
+// 为多个分隔符。
 //
-// See also the Localize function, which converts a slash-separated path
-// as used by the io/fs package to an operating system path.
+// 另见 Localize 函数，它将 io/fs 包所使用的
+// 以斜杠分隔的路径转换为操作系统路径。
 func FromSlash(path string) string {
 	return filepathlite.FromSlash(path)
 }
 
-// SplitList splits a list of paths joined by the OS-specific [ListSeparator],
-// usually found in PATH or GOPATH environment variables.
-// Unlike strings.Split, SplitList returns an empty slice when passed an empty
-// string.
+// SplitList 拆分由操作系统特定的 [ListSeparator] 连接的路径列表，
+// 通常见于 PATH 或 GOPATH 环境变量中。
+// 与 strings.Split 不同，SplitList 在传入空字符串时
+// 返回空切片。
 func SplitList(path string) []string {
 	return splitList(path)
 }
 
-// Split splits path immediately following the final [Separator],
-// separating it into a directory and file name component.
-// If there is no Separator in path, Split returns an empty dir
-// and file set to path.
-// The returned values have the property that path = dir+file.
+// Split 在最后一个 [Separator] 之后立即拆分 path，
+// 将其分为目录和文件名两部分。
+// 如果 path 中没有 Separator，Split 返回空 dir
+// 并将 file 设为 path。
+// 返回值具有 path = dir+file 的性质。
 func Split(path string) (dir, file string) {
 	return filepathlite.Split(path)
 }
 
-// Join joins any number of path elements into a single path,
-// separating them with an OS specific [Separator]. Empty elements
-// are ignored. The result is Cleaned. However, if the argument
-// list is empty or all its elements are empty, Join returns
-// an empty string.
-// On Windows, the result will only be a UNC path if the first
-// non-empty element is a UNC path.
+// Join 将任意数量的路径元素连接为单个路径，
+// 用操作系统特定的 [Separator] 分隔它们。空元素
+// 会被忽略。结果会被 Clean。然而，如果参数
+// 列表为空或其所有元素都为空，Join 返回
+// 空字符串。
+// 在 Windows 上，仅当第一个非空元素是 UNC 路径时，
+// 结果才会是 UNC 路径。
 func Join(elem ...string) string {
 	return join(elem)
 }
 
-// Ext returns the file name extension used by path.
-// The extension is the suffix beginning at the final dot
-// in the final element of path; it is empty if there is
-// no dot.
+// Ext 返回 path 所使用的文件名扩展名。
+// 扩展名是从 path 最后一个元素中最后一个点
+// 开始的后缀；如果没有点，
+// 则为空。
 func Ext(path string) string {
 	return filepathlite.Ext(path)
 }
 
-// EvalSymlinks returns the path name after the evaluation of any symbolic
-// links.
-// If path is relative the result will be relative to the current directory,
-// unless one of the components is an absolute symbolic link.
-// EvalSymlinks calls [Clean] on the result.
+// EvalSymlinks 返回对任何符号链接求值之后的路径名。
+// 如果 path 是相对路径，结果将相对于当前目录，
+// 除非其中一个组件是绝对符号链接。
+// EvalSymlinks 会对结果调用 [Clean]。
 func EvalSymlinks(path string) (string, error) {
 	return evalSymlinks(path)
 }
 
-// IsAbs reports whether the path is absolute.
+// IsAbs 报告 path 是否为绝对路径。
 func IsAbs(path string) bool {
 	return filepathlite.IsAbs(path)
 }
 
-// Abs returns an absolute representation of path.
-// If the path is not absolute it will be joined with the current
-// working directory to turn it into an absolute path. The absolute
-// path name for a given file is not guaranteed to be unique.
-// Abs calls [Clean] on the result.
+// Abs 返回 path 的绝对表示。
+// 如果 path 不是绝对路径，它将与当前工作目录
+// 连接以转换为绝对路径。给定文件的绝对
+// 路径名不保证唯一。
+// Abs 会对结果调用 [Clean]。
 func Abs(path string) (string, error) {
 	return abs(path)
 }
@@ -173,15 +170,15 @@ func unixAbs(path string) (string, error) {
 	return Join(wd, path), nil
 }
 
-// Rel returns a relative path that is lexically equivalent to targPath when
-// joined to basePath with an intervening separator. That is,
-// [Join](basePath, Rel(basePath, targPath)) is equivalent to targPath itself.
+// Rel 返回一个相对路径，当它与 basePath 以分隔符连接时，
+// 在词法上等价于 targPath。也就是说，
+// [Join](basePath, Rel(basePath, targPath)) 等价于 targPath 本身。
 //
-// The returned path will always be relative to basePath, even if basePath and
-// targPath share no elements. Rel calls [Clean] on the result.
+// 返回的路径将始终相对于 basePath，即使 basePath 和
+// targPath 没有共享任何元素。Rel 会对结果调用 [Clean]。
 //
-// An error is returned if targPath can't be made relative to basePath
-// or if knowing the current working directory would be necessary to compute it.
+// 如果 targPath 无法相对于 basePath 表示，
+// 或者计算它需要知道当前工作目录，则返回错误。
 func Rel(basePath, targPath string) (string, error) {
 	baseVol := VolumeName(basePath)
 	targVol := VolumeName(targPath)
@@ -194,18 +191,18 @@ func Rel(basePath, targPath string) (string, error) {
 	targ = targ[len(targVol):]
 	if base == "." {
 		base = ""
-	} else if base == "" && filepathlite.VolumeNameLen(baseVol) > 2 /* isUNC */ {
-		// Treat any targetpath matching `\\host\share` basePath as absolute path.
+	} else if base == "" && filepathlite.VolumeNameLen(baseVol) > 2 /* 是UNC */ {
+		// 将任何匹配 `\\host\share` basePath 的 targetpath 视为绝对路径。
 		base = string(Separator)
 	}
 
-	// Can't use IsAbs - `\a` and `a` are both relative in Windows.
+	// 不能使用 IsAbs——`\a` 和 `a` 在 Windows 中都是相对路径。
 	baseSlashed := len(base) > 0 && base[0] == Separator
 	targSlashed := len(targ) > 0 && targ[0] == Separator
 	if baseSlashed != targSlashed || !sameWord(baseVol, targVol) {
 		return "", errors.New("Rel: can't make " + targPath + " relative to " + basePath)
 	}
-	// Position base[b0:bi] and targ[t0:ti] at the first differing elements.
+	// 将 base[b0:bi] 和 targ[t0:ti] 定位到第一个不同的元素。
 	bl := len(base)
 	tl := len(targ)
 	var b0, bi, t0, ti int
@@ -232,7 +229,7 @@ func Rel(basePath, targPath string) (string, error) {
 		return "", errors.New("Rel: can't make " + targPath + " relative to " + basePath)
 	}
 	if b0 != bl {
-		// Base elements left. Must go up before going down.
+		// 还剩下 base 元素。必须在向下之前先向上。
 		seps := bytealg.CountString(base[b0:bl], Separator)
 		size := 2 + seps*3
 		if tl != t0 {
@@ -254,63 +251,63 @@ func Rel(basePath, targPath string) (string, error) {
 	return targ[t0:], nil
 }
 
-// SkipDir is used as a return value from [WalkFunc] to indicate that
-// the directory named in the call is to be skipped. It is not returned
-// as an error by any function.
+// SkipDir 用作 [WalkFunc] 的返回值，以指示
+// 调用中指定的目录应被跳过。它不会
+// 被任何函数作为错误返回。
 var SkipDir error = fs.SkipDir
 
-// SkipAll is used as a return value from [WalkFunc] to indicate that
-// all remaining files and directories are to be skipped. It is not returned
-// as an error by any function.
+// SkipAll 用作 [WalkFunc] 的返回值，以指示
+// 所有剩余的文件和目录都应被跳过。它不会
+// 被任何函数作为错误返回。
 var SkipAll error = fs.SkipAll
 
-// WalkFunc is the type of the function called by [Walk] to visit each
-// file or directory.
+// WalkFunc 是 [Walk] 为访问每个文件或目录
+// 而调用的函数类型。
 //
-// The path argument contains the argument to Walk as a prefix.
-// That is, if Walk is called with root argument "dir" and finds a file
-// named "a" in that directory, the walk function will be called with
-// argument "dir/a".
+// path 参数包含作为 Walk 参数的路径作为前缀。
+// 也就是说，如果 Walk 以根参数 "dir" 调用，并在该目录中
+// 找到一个名为 "a" 的文件，则 walk 函数将以
+// 参数 "dir/a" 被调用。
 //
-// The directory and file are joined with Join, which may clean the
-// directory name: if Walk is called with the root argument "x/../dir"
-// and finds a file named "a" in that directory, the walk function will
-// be called with argument "dir/a", not "x/../dir/a".
+// 目录和文件通过 Join 连接，这可能会清理
+// 目录名：如果 Walk 以根参数 "x/../dir" 调用，
+// 并在该目录中找到一个名为 "a" 的文件，则 walk 函数
+// 将以参数 "dir/a" 被调用，而不是 "x/../dir/a"。
 //
-// The info argument is the fs.FileInfo for the named path.
+// info 参数是命名路径的 fs.FileInfo。
 //
-// The error result returned by the function controls how Walk continues.
-// If the function returns the special value [SkipDir], Walk skips the
-// current directory (path if info.IsDir() is true, otherwise path's
-// parent directory). If the function returns the special value [SkipAll],
-// Walk skips all remaining files and directories. Otherwise, if the function
-// returns a non-nil error, Walk stops entirely and returns that error.
+// 函数返回的错误结果控制 Walk 如何继续。
+// 如果函数返回特殊值 [SkipDir]，Walk 会跳过
+// 当前目录（若 info.IsDir() 为 true 则为 path，
+// 否则为 path 的父目录）。如果函数返回特殊值 [SkipAll]，
+// Walk 会跳过所有剩余的文件和目录。否则，如果函数
+// 返回非 nil 错误，Walk 会完全停止并返回该错误。
 //
-// The err argument reports an error related to path, signaling that Walk
-// will not walk into that directory. The function can decide how to
-// handle that error; as described earlier, returning the error will
-// cause Walk to stop walking the entire tree.
+// err 参数报告与 path 相关的错误，表明 Walk
+// 不会进入该目录。函数可以决定如何
+// 处理该错误；如前所述，返回该错误将
+// 导致 Walk 停止遍历整棵树。
 //
-// Walk calls the function with a non-nil err argument in two cases.
+// Walk 在两种情况下会以非 nil 的 err 参数调用该函数。
 //
-// First, if an [os.Lstat] on the root directory or any directory or file
-// in the tree fails, Walk calls the function with path set to that
-// directory or file's path, info set to nil, and err set to the error
-// from os.Lstat.
+// 首先，如果对根目录或树中的任何目录或文件
+// 执行 [os.Lstat] 失败，Walk 会以 path 设为该
+// 目录或文件的路径、info 设为 nil、err 设为
+// os.Lstat 返回的错误来调用该函数。
 //
-// Second, if a directory's Readdirnames method fails, Walk calls the
-// function with path set to the directory's path, info, set to an
-// [fs.FileInfo] describing the directory, and err set to the error from
-// Readdirnames.
+// 其次，如果某个目录的 Readdirnames 方法失败，Walk 会
+// 以 path 设为该目录的路径、info 设为描述该目录的
+// [fs.FileInfo]、err 设为 Readdirnames 返回的错误
+// 来调用该函数。
 type WalkFunc func(path string, info fs.FileInfo, err error) error
 
-var lstat = os.Lstat // for testing
+var lstat = os.Lstat // 用于测试
 
-// walkDir recursively descends path, calling walkDirFn.
+// walkDir 递归下降 path，调用 walkDirFn。
 func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
 	if err := walkDirFn(path, d, nil); err != nil || !d.IsDir() {
 		if err == SkipDir && d.IsDir() {
-			// Successfully skipped directory.
+			// 成功跳过目录。
 			err = nil
 		}
 		return err
@@ -318,7 +315,7 @@ func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
 
 	dirs, err := os.ReadDir(path)
 	if err != nil {
-		// Second call, to report ReadDir error.
+		// 第二次调用，用于报告 ReadDir 错误。
 		err = walkDirFn(path, d, err)
 		if err != nil {
 			if err == SkipDir && d.IsDir() {
@@ -340,7 +337,7 @@ func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
 	return nil
 }
 
-// walk recursively descends path, calling walkFn.
+// walk 递归下降 path，调用 walkFn。
 func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
 	if !info.IsDir() {
 		return walkFn(path, info, nil)
@@ -348,14 +345,14 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
 
 	names, err := readDirNames(path)
 	err1 := walkFn(path, info, err)
-	// If err != nil, walk can't walk into this directory.
-	// err1 != nil means walkFn want walk to skip this directory or stop walking.
-	// Therefore, if one of err and err1 isn't nil, walk will return.
+	// 如果 err != nil，walk 无法进入此目录。
+	// err1 != nil 意味着 walkFn 希望 walk 跳过此目录或停止遍历。
+	// 因此，如果 err 和 err1 中有一个不为 nil，walk 将返回。
 	if err != nil || err1 != nil {
-		// The caller's behavior is controlled by the return value, which is decided
-		// by walkFn. walkFn may ignore err and return nil.
-		// If walkFn returns SkipDir or SkipAll, it will be handled by the caller.
-		// So walk should return whatever walkFn returns.
+		// 调用方的行为由返回值控制，该返回值由
+		// walkFn 决定。walkFn 可以忽略 err 并返回 nil。
+		// 如果 walkFn 返回 SkipDir 或 SkipAll，它将被调用方处理。
+		// 所以 walk 应返回 walkFn 返回的任何值。
 		return err1
 	}
 
@@ -378,21 +375,21 @@ func walk(path string, info fs.FileInfo, walkFn WalkFunc) error {
 	return nil
 }
 
-// WalkDir walks the file tree rooted at root, calling fn for each file or
-// directory in the tree, including root.
+// WalkDir 遍历以 root 为根的文件树，为树中的每个文件或目录
+// 调用 fn，包括 root。
 //
-// All errors that arise visiting files and directories are filtered by fn:
-// see the [fs.WalkDirFunc] documentation for details.
+// 访问文件和目录时产生的所有错误都由 fn 过滤：
+// 详情参见 [fs.WalkDirFunc] 文档。
 //
-// The files are walked in lexical order, which makes the output deterministic
-// but requires WalkDir to read an entire directory into memory before proceeding
-// to walk that directory.
+// 文件按字典序遍历，这使输出具有确定性，
+// 但要求 WalkDir 在开始遍历该目录之前
+// 将整个目录读入内存。
 //
-// WalkDir does not follow symbolic links.
+// WalkDir 不跟随符号链接。
 //
-// WalkDir calls fn with paths that use the separator character appropriate
-// for the operating system. This is unlike [io/fs.WalkDir], which always
-// uses slash separated paths.
+// WalkDir 调用 fn 时使用的路径采用适合操作系统
+// 的分隔符字符。这与 [io/fs.WalkDir] 不同，后者始终
+// 使用以斜杠分隔的路径。
 func WalkDir(root string, fn fs.WalkDirFunc) error {
 	info, err := os.Lstat(root)
 	if err != nil {
@@ -406,20 +403,20 @@ func WalkDir(root string, fn fs.WalkDirFunc) error {
 	return err
 }
 
-// Walk walks the file tree rooted at root, calling fn for each file or
-// directory in the tree, including root.
+// Walk 遍历以 root 为根的文件树，为树中的每个文件或目录
+// 调用 fn，包括 root。
 //
-// All errors that arise visiting files and directories are filtered by fn:
-// see the [WalkFunc] documentation for details.
+// 访问文件和目录时产生的所有错误都由 fn 过滤：
+// 详情参见 [WalkFunc] 文档。
 //
-// The files are walked in lexical order, which makes the output deterministic
-// but requires Walk to read an entire directory into memory before proceeding
-// to walk that directory.
+// 文件按字典序遍历，这使输出具有确定性，
+// 但要求 Walk 在开始遍历该目录之前
+// 将整个目录读入内存。
 //
-// Walk does not follow symbolic links.
+// Walk 不跟随符号链接。
 //
-// Walk is less efficient than [WalkDir], introduced in Go 1.16,
-// which avoids calling os.Lstat on every visited file or directory.
+// Walk 的效率低于 Go 1.16 引入的 [WalkDir]，
+// 后者避免对每个访问的文件或目录调用 os.Lstat。
 func Walk(root string, fn WalkFunc) error {
 	info, err := os.Lstat(root)
 	if err != nil {
@@ -433,8 +430,8 @@ func Walk(root string, fn WalkFunc) error {
 	return err
 }
 
-// readDirNames reads the directory named by dirname and returns
-// a sorted list of directory entry names.
+// readDirNames 读取 dirname 指定的目录，并返回
+// 排序后的目录项名称列表。
 func readDirNames(dirname string) ([]string, error) {
 	f, err := os.Open(dirname)
 	if err != nil {
@@ -449,28 +446,28 @@ func readDirNames(dirname string) ([]string, error) {
 	return names, nil
 }
 
-// Base returns the last element of path.
-// Trailing path separators are removed before extracting the last element.
-// If the path is empty, Base returns ".".
-// If the path consists entirely of separators, Base returns a single separator.
+// Base 返回 path 的最后一个元素。
+// 在提取最后一个元素之前会移除尾部路径分隔符。
+// 如果 path 为空，Base 返回 "."。
+// 如果 path 完全由分隔符组成，Base 返回单个分隔符。
 func Base(path string) string {
 	return filepathlite.Base(path)
 }
 
-// Dir returns all but the last element of path, typically the path's directory.
-// After dropping the final element, Dir calls [Clean] on the path and trailing
-// slashes are removed.
-// If the path is empty, Dir returns ".".
-// If the path consists entirely of separators, Dir returns a single separator.
-// The returned path does not end in a separator unless it is the root directory.
+// Dir 返回 path 中除最后一个元素外的所有部分，通常就是 path 的目录。
+// 去掉最后一个元素后，Dir 会对 path 调用 [Clean] 并
+// 移除尾部斜杠。
+// 如果 path 为空，Dir 返回 "."。
+// 如果 path 完全由分隔符组成，Dir 返回单个分隔符。
+// 返回的路径不以分隔符结尾，除非它是根目录。
 func Dir(path string) string {
 	return filepathlite.Dir(path)
 }
 
-// VolumeName returns leading volume name.
-// Given "C:\foo\bar" it returns "C:" on Windows.
-// Given "\\host\share\foo" it returns "\\host\share".
-// On other platforms it returns "".
+// VolumeName 返回前导卷名。
+// 给定 "C:\foo\bar"，在 Windows 上它返回 "C:"。
+// 给定 "\\host\share\foo"，它返回 "\\host\share"。
+// 在其他平台上它返回 ""。
 func VolumeName(path string) string {
 	return filepathlite.VolumeName(path)
 }

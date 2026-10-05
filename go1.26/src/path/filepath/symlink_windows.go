@@ -9,20 +9,20 @@ import (
 	"syscall"
 )
 
-// normVolumeName is like VolumeName, but makes drive letter upper case.
-// result of EvalSymlinks must be unique, so we have
-// EvalSymlinks(`c:\a`) == EvalSymlinks(`C:\a`).
+// normVolumeName 类似于 VolumeName，但会将盘符转为大写。
+// EvalSymlinks 的结果必须唯一，因此我们有
+// EvalSymlinks(`c:\a`) == EvalSymlinks(`C:\a`)。
 func normVolumeName(path string) string {
 	volume := VolumeName(path)
 
-	if len(volume) > 2 { // isUNC
+	if len(volume) > 2 { // 是UNC
 		return volume
 	}
 
 	return strings.ToUpper(volume)
 }
 
-// normBase returns the last element of path with correct case.
+// normBase 返回 path 的最后一个元素，且大小写正确。
 func normBase(path string) (string, error) {
 	p, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
@@ -40,24 +40,24 @@ func normBase(path string) (string, error) {
 	return syscall.UTF16ToString(data.FileName[:]), nil
 }
 
-// baseIsDotDot reports whether the last element of path is "..".
-// The given path should be 'Clean'-ed in advance.
+// baseIsDotDot 报告 path 的最后一个元素是否为 ".."。
+// 给定的 path 应当已事先经过 'Clean'。
 func baseIsDotDot(path string) bool {
 	i := strings.LastIndexByte(path, Separator)
 	return path[i+1:] == ".."
 }
 
-// toNorm returns the normalized path that is guaranteed to be unique.
-// It should accept the following formats:
-//   - UNC paths                              (e.g \\server\share\foo\bar)
-//   - absolute paths                         (e.g C:\foo\bar)
-//   - relative paths begin with drive letter (e.g C:foo\bar, C:..\foo\bar, C:.., C:.)
-//   - relative paths begin with '\'          (e.g \foo\bar)
-//   - relative paths begin without '\'       (e.g foo\bar, ..\foo\bar, .., .)
+// toNorm 返回保证唯一的规范化路径。
+// 它应接受以下格式：
+//   - UNC 路径                              （例如 \\server\share\foo\bar）
+//   - 绝对路径                              （例如 C:\foo\bar）
+//   - 以盘符开头的相对路径                  （例如 C:foo\bar, C:..\foo\bar, C:.., C:.）
+//   - 以 '\' 开头的相对路径                 （例如 \foo\bar）
+//   - 不以 '\' 开头的相对路径               （例如 foo\bar, ..\foo\bar, .., .）
 //
-// The returned normalized path will be in the same form (of 5 listed above) as the input path.
-// If two paths A and B are indicating the same file with the same format, toNorm(A) should be equal to toNorm(B).
-// The normBase parameter should be equal to the normBase func, except for in tests.  See docs on the normBase func.
+// 返回的规范化路径将与输入路径具有相同的形式（上述 5 种之一）。
+// 如果两个路径 A 和 B 以相同格式指向同一文件，则 toNorm(A) 应等于 toNorm(B)。
+// 除测试外，normBase 参数应等于 normBase 函数。参见 normBase 函数的文档。
 func toNorm(path string, normBase func(string) (string, error)) (string, error) {
 	if path == "" {
 		return path, nil
@@ -66,7 +66,7 @@ func toNorm(path string, normBase func(string) (string, error)) (string, error) 
 	volume := normVolumeName(path)
 	path = path[len(volume):]
 
-	// skip special cases
+	// 跳过特殊情况
 	if path == "" || path == "." || path == `\` {
 		return volume + path, nil
 	}
@@ -91,7 +91,7 @@ func toNorm(path string, normBase func(string) (string, error)) (string, error) 
 		if i == -1 {
 			break
 		}
-		if i == 0 { // `\Go` or `C:\Go`
+		if i == 0 { // `\Go` 或 `C:\Go`
 			normPath = `\` + normPath
 
 			break
@@ -100,7 +100,7 @@ func toNorm(path string, normBase func(string) (string, error)) (string, error) 
 		path = path[:i]
 	}
 
-	normPath = normPath[:len(normPath)-1] // remove trailing '\'
+	normPath = normPath[:len(normPath)-1] // 移除尾部的 '\'
 
 	return volume + normPath, nil
 }

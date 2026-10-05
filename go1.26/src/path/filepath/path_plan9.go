@@ -8,10 +8,10 @@ import (
 	"strings"
 )
 
-// HasPrefix exists for historical compatibility and should not be used.
+// HasPrefix 的存在是为了历史兼容性，不应使用。
 //
-// Deprecated: HasPrefix does not respect path boundaries and
-// does not ignore case when required.
+// Deprecated: HasPrefix 不遵守路径边界，
+// 并且在需要时不会忽略大小写。
 func HasPrefix(p, prefix string) bool {
 	return strings.HasPrefix(p, prefix)
 }
@@ -28,7 +28,7 @@ func abs(path string) (string, error) {
 }
 
 func join(elem []string) string {
-	// If there's a bug here, fix the logic in ./path_unix.go too.
+	// 如果这里有 bug，请同时修复 ./path_unix.go 中的逻辑。
 	for i, e := range elem {
 		if e != "" {
 			return Clean(strings.Join(elem[i:], string(Separator)))

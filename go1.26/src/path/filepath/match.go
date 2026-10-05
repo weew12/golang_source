@@ -14,35 +14,35 @@ import (
 	"unicode/utf8"
 )
 
-// ErrBadPattern indicates a pattern was malformed.
+// ErrBadPattern 表示模式格式错误。
 var ErrBadPattern = errors.New("syntax error in pattern")
 
-// Match reports whether name matches the shell file name pattern.
-// The pattern syntax is:
+// Match 报告 name 是否匹配 shell 文件名模式。
+// 模式语法为：
 //
 //	pattern:
 //		{ term }
 //	term:
-//		'*'         matches any sequence of non-Separator characters
-//		'?'         matches any single non-Separator character
+//		'*'         匹配任意非 Separator 字符序列
+//		'?'         匹配任意单个非 Separator 字符
 //		'[' [ '^' ] { character-range } ']'
-//		            character class (must be non-empty)
-//		c           matches character c (c != '*', '?', '\\', '[')
-//		'\\' c      matches character c (except on Windows)
+//		            字符类（必须非空）
+//		c           匹配字符 c (c != '*', '?', '\\', '[')
+//		'\\' c      匹配字符 c （Windows 上除外）
 //
 //	character-range:
-//		c           matches character c (c != '\\', '-', ']')
-//		'\\' c      matches character c (except on Windows)
-//		lo '-' hi   matches character c for lo <= c <= hi
+//		c           匹配字符 c (c != '\\', '-', ']')
+//		'\\' c      匹配字符 c （Windows 上除外）
+//		lo '-' hi   对于 lo <= c <= hi 匹配字符 c
 //
-// Path segments in the pattern must be separated by [Separator].
+// 模式中的路径段必须用 [Separator] 分隔。
 //
-// Match requires pattern to match all of name, not just a substring.
-// The only possible returned error is [ErrBadPattern], when pattern
-// is malformed.
+// Match 要求 pattern 匹配整个 name，而不仅仅是子串。
+// 唯一可能返回的错误是 [ErrBadPattern]，当 pattern
+// 格式错误时。
 //
-// On Windows, escaping is disabled. Instead, '\\' is treated as
-// path separator.
+// 在 Windows 上，转义被禁用。取而代之的是，'\\' 被视为
+// 路径分隔符。
 func Match(pattern, name string) (matched bool, err error) {
 Pattern:
 	for len(pattern) > 0 {
@@ -50,14 +50,14 @@ Pattern:
 		var chunk string
 		star, chunk, pattern = scanChunk(pattern)
 		if star && chunk == "" {
-			// Trailing * matches rest of string unless it has a /.
+			// 结尾的 * 匹配字符串剩余部分，除非其中含有 /。
 			return !strings.Contains(name, string(Separator)), nil
 		}
-		// Look for match at current position.
+		// 在当前位置查找匹配。
 		t, ok, err := matchChunk(chunk, name)
-		// if we're the last chunk, make sure we've exhausted the name
-		// otherwise we'll give a false result even if we could still match
-		// using the star
+		// 如果这是最后一个块，确保我们已经用尽了 name，
+		// 否则，即使仍可通过星号完成匹配，
+		// 也会得到错误的结果
 		if ok && (len(t) == 0 || len(pattern) > 0) {
 			name = t
 			continue
@@ -66,12 +66,12 @@ Pattern:
 			return false, err
 		}
 		if star {
-			// Look for match skipping i+1 bytes.
-			// Cannot skip /.
+			// 尝试跳过 i+1 个字节进行匹配。
+			// 不能跳过 /。
 			for i := 0; i < len(name) && name[i] != Separator; i++ {
 				t, ok, err := matchChunk(chunk, name[i+1:])
 				if ok {
-					// if we're the last chunk, make sure we exhausted the name
+					// 如果这是最后一个块，确保我们已经用尽了 name
 					if len(pattern) == 0 && len(t) > 0 {
 						continue
 					}
@@ -88,8 +88,8 @@ Pattern:
 	return len(name) == 0, nil
 }
 
-// scanChunk gets the next segment of pattern, which is a non-star string
-// possibly preceded by a star.
+// scanChunk 获取 pattern 的下一个片段，它是一个非星号字符串，
+// 之前可能带有一个星号。
 func scanChunk(pattern string) (star bool, chunk, rest string) {
 	for len(pattern) > 0 && pattern[0] == '*' {
 		pattern = pattern[1:]
@@ -99,7 +99,7 @@ func scanChunk(pattern string) (star bool, chunk, rest string) {
 	for i := 0; i < len(pattern); i++ {
 		switch pattern[i] {
 		case '\\':
-			// error check handled in matchChunk: bad pattern.
+			// 错误检查在 matchChunk 中处理：坏模式。
 			if runtime.GOOS != "windows" && i+1 < len(pattern) {
 				i++
 			}
@@ -116,19 +116,19 @@ func scanChunk(pattern string) (star bool, chunk, rest string) {
 	return star, pattern, ""
 }
 
-// matchChunk checks whether chunk matches the beginning of s.
-// If so, it returns the remainder of s (after the match).
-// Chunk is all single-character operators: literals, char classes, and ?.
+// matchChunk 检查 chunk 是否匹配 s 的开头。
+// 如果是，它返回 s 的剩余部分（匹配之后的部分）。
+// Chunk 由所有单字符操作符组成：字面量、字符类和 ?。
 func matchChunk(chunk, s string) (rest string, ok bool, err error) {
-	// failed records whether the match has failed.
-	// After the match fails, the loop continues on processing chunk,
-	// checking that the pattern is well-formed but no longer reading s.
+	// failed 记录匹配是否已失败。
+	// 匹配失败后，循环继续处理 chunk，
+	// 检查模式是否格式良好，但不再读取 s。
 	failed := false
 	for len(chunk) > 0 {
 		failed = failed || len(s) == 0
 		switch chunk[0] {
 		case '[':
-			// character class
+			// 字符类
 			var r rune
 			if !failed {
 				var n int
@@ -136,13 +136,13 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 				s = s[n:]
 			}
 			chunk = chunk[1:]
-			// possibly negated
+			// 可能取反
 			negated := false
 			if len(chunk) > 0 && chunk[0] == '^' {
 				negated = true
 				chunk = chunk[1:]
 			}
-			// parse all ranges
+			// 解析所有范围
 			match := false
 			nrange := 0
 			for {
@@ -196,7 +196,7 @@ func matchChunk(chunk, s string) (rest string, ok bool, err error) {
 	return s, true, nil
 }
 
-// getEsc gets a possibly-escaped character from chunk, for a character class.
+// getEsc 从 chunk 中获取一个可能被转义的字符，用于字符类。
 func getEsc(chunk string) (r rune, nchunk string, err error) {
 	if len(chunk) == 0 || chunk[0] == '-' || chunk[0] == ']' {
 		err = ErrBadPattern
@@ -220,26 +220,26 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
 	return
 }
 
-// Glob returns the names of all files matching pattern or nil
-// if there is no matching file. The syntax of patterns is the same
-// as in [Match]. The pattern may describe hierarchical names such as
-// /usr/*/bin/ed (assuming the [Separator] is '/').
+// Glob 返回所有匹配 pattern 的文件名，如果没有匹配的文件
+// 则返回 nil。模式的语法与 [Match] 中相同。
+// 模式可以描述层级名称，例如
+// /usr/*/bin/ed（假设 [Separator] 为 '/'）。
 //
-// Glob ignores file system errors such as I/O errors reading directories.
-// The only possible returned error is [ErrBadPattern], when pattern
-// is malformed.
+// Glob 忽略文件系统错误，例如读取目录时的 I/O 错误。
+// 唯一可能返回的错误是 [ErrBadPattern]，当 pattern
+// 格式错误时。
 func Glob(pattern string) (matches []string, err error) {
 	return globWithLimit(pattern, 0)
 }
 
 func globWithLimit(pattern string, depth int) (matches []string, err error) {
-	// This limit is used prevent stack exhaustion issues. See CVE-2022-30632.
+	// 此限制用于防止栈耗尽问题。参见 CVE-2022-30632。
 	const pathSeparatorsLimit = 10000
 	if depth == pathSeparatorsLimit {
 		return nil, ErrBadPattern
 	}
 
-	// Check pattern is well-formed.
+	// 检查 pattern 格式是否良好。
 	if _, err := Match(pattern, ""); err != nil {
 		return nil, err
 	}
@@ -262,7 +262,7 @@ func globWithLimit(pattern string, depth int) (matches []string, err error) {
 		return glob(dir, file, nil)
 	}
 
-	// Prevent infinite recursion. See issue 15879.
+	// 防止无限递归。参见 issue 15879。
 	if dir == pattern {
 		return nil, ErrBadPattern
 	}
@@ -281,54 +281,54 @@ func globWithLimit(pattern string, depth int) (matches []string, err error) {
 	return
 }
 
-// cleanGlobPath prepares path for glob matching.
+// cleanGlobPath 为 glob 匹配准备 path。
 func cleanGlobPath(path string) string {
 	switch path {
 	case "":
 		return "."
 	case string(Separator):
-		// do nothing to the path
+		// 不对 path 做任何处理
 		return path
 	default:
-		return path[0 : len(path)-1] // chop off trailing separator
+		return path[0 : len(path)-1] // 去掉尾部分隔符
 	}
 }
 
-// cleanGlobPathWindows is windows version of cleanGlobPath.
+// cleanGlobPathWindows 是 cleanGlobPath 的 windows 版本。
 func cleanGlobPathWindows(path string) (prefixLen int, cleaned string) {
 	vollen := filepathlite.VolumeNameLen(path)
 	switch {
 	case path == "":
 		return 0, "."
 	case vollen+1 == len(path) && os.IsPathSeparator(path[len(path)-1]): // /, \, C:\ and C:/
-		// do nothing to the path
+		// 不对 path 做任何处理
 		return vollen + 1, path
 	case vollen == len(path) && len(path) == 2: // C:
-		return vollen, path + "." // convert C: into C:.
+		return vollen, path + "." // 将 C: 转换为 C:.
 	default:
 		if vollen >= len(path) {
 			vollen = len(path) - 1
 		}
-		return vollen, path[0 : len(path)-1] // chop off trailing separator
+		return vollen, path[0 : len(path)-1] // 去掉尾部分隔符
 	}
 }
 
-// glob searches for files matching pattern in the directory dir
-// and appends them to matches. If the directory cannot be
-// opened, it returns the existing matches. New matches are
-// added in lexicographical order.
+// glob 在目录 dir 中搜索匹配 pattern 的文件，
+// 并将它们追加到 matches。如果目录无法
+// 打开，它返回现有的 matches。新匹配
+// 按字典序添加。
 func glob(dir, pattern string, matches []string) (m []string, e error) {
 	m = matches
 	fi, err := os.Stat(dir)
 	if err != nil {
-		return // ignore I/O error
+		return // 忽略 I/O 错误
 	}
 	if !fi.IsDir() {
-		return // ignore I/O error
+		return // 忽略 I/O 错误
 	}
 	d, err := os.Open(dir)
 	if err != nil {
-		return // ignore I/O error
+		return // 忽略 I/O 错误
 	}
 	defer d.Close()
 
@@ -347,8 +347,8 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
 	return
 }
 
-// hasMeta reports whether path contains any of the magic characters
-// recognized by Match.
+// hasMeta 报告 path 是否包含 Match 所识别的
+// 任意魔法字符。
 func hasMeta(path string) bool {
 	magicChars := `*?[`
 	if runtime.GOOS != "windows" {
