@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-// matcher sanitizes, uniques, and filters names of subtests and subbenchmarks.
+// matcher 对子测试和子基准测试的名称进行清理、去重和过滤。
 type matcher struct {
 	filter    filterMatch
 	skip      filterMatch
@@ -20,32 +20,27 @@ type matcher struct {
 
 	mu sync.Mutex
 
-	// subNames is used to deduplicate subtest names.
-	// Each key is the subtest name joined to the deduplicated name of the parent test.
-	// Each value is the count of the number of occurrences of the given subtest name
-	// already seen.
+	// subNames 用于对子测试名称去重。
+	// 每个键是子测试名称与父测试去重后名称的组合。
+	// 每个值是该子测试名称已出现的次数。
 	subNames map[string]int32
 }
 
 type filterMatch interface {
-	// matches checks the name against the receiver's pattern strings using the
-	// given match function.
+	// matches 使用给定的匹配函数，将名称与接收者的模式字符串进行匹配检查。
 	matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool)
 
-	// verify checks that the receiver's pattern strings are valid filters by
-	// calling the given match function.
+	// verify 通过调用给定的匹配函数，检查接收者的模式字符串是否为有效的过滤器。
 	verify(name string, matchString func(pat, str string) (bool, error)) error
 }
 
-// simpleMatch matches a test name if all of the pattern strings match in
-// sequence.
+// simpleMatch 在所有模式字符串按顺序匹配时匹配测试名称。
 type simpleMatch []string
 
-// alternationMatch matches a test name if one of the alternations match.
+// alternationMatch 在其中一个备选匹配时匹配测试名称。
 type alternationMatch []filterMatch
 
-// TODO: fix test_main to avoid race and improve caching, also allowing to
-// eliminate this Mutex.
+// TODO: 修复 test_main 以避免竞态并改进缓存，同时允许消除此 Mutex。
 var matchMutex sync.Mutex
 
 func allMatcher() *matcher {
@@ -55,7 +50,7 @@ func allMatcher() *matcher {
 func newMatcher(matchString func(pat, str string) (bool, error), patterns, name, skips string) *matcher {
 	var filter, skip filterMatch
 	if patterns == "" {
-		filter = simpleMatch{} // always partial true
+		filter = simpleMatch{} // 始终 partial 为 true
 	} else {
 		filter = splitRegexp(patterns)
 		if err := filter.verify(name, matchString); err != nil {
@@ -64,7 +59,7 @@ func newMatcher(matchString func(pat, str string) (bool, error), patterns, name,
 		}
 	}
 	if skips == "" {
-		skip = alternationMatch{} // always false
+		skip = alternationMatch{} // 始终为 false
 	} else {
 		skip = splitRegexp(skips)
 		if err := skip.verify("-test.skip", matchString); err != nil {
@@ -93,18 +88,18 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok, partial 
 	matchMutex.Lock()
 	defer matchMutex.Unlock()
 
-	// We check the full array of paths each time to allow for the case that a pattern contains a '/'.
+	// 我们每次检查完整的路径数组，以处理模式中包含 '/' 的情况。
 	elem := strings.Split(name, "/")
 
-	// filter must match.
-	// accept partial match that may produce full match later.
+	// filter 必须匹配。
+	// 接受可能稍后产生完全匹配的部分匹配。
 	ok, partial = m.filter.matches(elem, m.matchFunc)
 	if !ok {
 		return name, false, false
 	}
 
-	// skip must not match.
-	// ignore partial match so we can get to more precise match later.
+	// skip 必须不匹配。
+	// 忽略部分匹配，以便稍后能获得更精确的匹配。
 	skip, partialSkip := m.skip.matches(elem, m.matchFunc)
 	if skip && !partialSkip {
 		return name, false, false
@@ -113,9 +108,8 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok, partial 
 	return name, ok, partial
 }
 
-// clearSubNames clears the matcher's internal state, potentially freeing
-// memory. After this is called, T.Name may return the same strings as it did
-// for earlier subtests.
+// clearSubNames 清除 matcher 的内部状态，可能会释放内存。
+// 调用此方法后，T.Name 可能返回与之前子测试相同的字符串。
 func (m *matcher) clearSubNames() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -138,7 +132,7 @@ func (m simpleMatch) verify(name string, matchString func(pat, str string) (bool
 	for i, s := range m {
 		m[i] = rewrite(s)
 	}
-	// Verify filters before doing any processing.
+	// 在进行任何处理之前先验证过滤器。
 	for i, s := range m {
 		if _, err := matchString(s, "non-empty"); err != nil {
 			return fmt.Errorf("element %d of %s (%q): %s", i, name, s, err)
@@ -175,7 +169,7 @@ func splitRegexp(s string) filterMatch {
 		case '[':
 			cs++
 		case ']':
-			if cs--; cs < 0 { // An unmatched ']' is legal.
+			if cs--; cs < 0 { // 不匹配的 ']' 是合法的。
 				cs = 0
 			}
 		case '(':
@@ -215,8 +209,7 @@ func splitRegexp(s string) filterMatch {
 	return append(b, a)
 }
 
-// unique creates a unique name for the given parent and subname by affixing it
-// with one or more counts, if necessary.
+// unique 通过（如有必要）附加一个或多个计数，为给定的父名称和子名称创建唯一名称。
 func (m *matcher) unique(parent, subname string) string {
 	base := parent + "/" + subname
 
@@ -230,9 +223,9 @@ func (m *matcher) unique(parent, subname string) string {
 		if n == 0 && subname != "" {
 			prefix, nn := parseSubtestNumber(base)
 			if len(prefix) < len(base) && nn < m.subNames[prefix] {
-				// This test is explicitly named like "parent/subname#NN",
-				// and #NN was already used for the NNth occurrence of "parent/subname".
-				// Loop to add a disambiguating suffix.
+				// 此测试被显式命名为类似 "parent/subname#NN" 的形式，
+				// 而 #NN 已被用于 "parent/subname" 的第 NN 次出现。
+				// 循环以添加一个用于消歧的后缀。
 				continue
 			}
 			return base
@@ -240,9 +233,9 @@ func (m *matcher) unique(parent, subname string) string {
 
 		name := fmt.Sprintf("%s#%02d", base, n)
 		if m.subNames[name] != 0 {
-			// This is the nth occurrence of base, but the name "parent/subname#NN"
-			// collides with the first occurrence of a subtest *explicitly* named
-			// "parent/subname#NN". Try the next number.
+			// 这是 base 的第 n 次出现，但名称 "parent/subname#NN"
+			// 与*显式*命名为 "parent/subname#NN" 的子测试的第一次出现冲突。
+			// 尝试下一个数字。
 			continue
 		}
 
@@ -250,8 +243,8 @@ func (m *matcher) unique(parent, subname string) string {
 	}
 }
 
-// parseSubtestNumber splits a subtest name into a "#%02d"-formatted int32
-// suffix (if present), and a prefix preceding that suffix (always).
+// parseSubtestNumber 将子测试名称拆分为格式为 "#%02d" 的 int32 后缀（如果存在），
+// 以及该后缀之前的（总是存在的）前缀。
 func parseSubtestNumber(s string) (prefix string, nn int32) {
 	i := strings.LastIndex(s, "#")
 	if i < 0 {
@@ -260,14 +253,14 @@ func parseSubtestNumber(s string) (prefix string, nn int32) {
 
 	prefix, suffix := s[:i], s[i+1:]
 	if len(suffix) < 2 || (len(suffix) > 2 && suffix[0] == '0') {
-		// Even if suffix is numeric, it is not a possible output of a "%02" format
-		// string: it has either too few digits or too many leading zeroes.
+		// 即使 suffix 是数字，它也不可能是 "%02" 格式
+		// 字符串的输出：它的位数太少或前导零太多。
 		return s, 0
 	}
 	if suffix == "00" {
 		if !strings.HasSuffix(prefix, "/") {
-			// We only use "#00" as a suffix for subtests named with the empty
-			// string — it isn't a valid suffix if the subtest name is non-empty.
+			// 我们仅将 "#00" 用作以空字符串命名的子测试的后缀 ——
+			// 如果子测试名称非空，它就不是有效的后缀。
 			return s, 0
 		}
 	}
@@ -279,8 +272,7 @@ func parseSubtestNumber(s string) (prefix string, nn int32) {
 	return prefix, int32(n)
 }
 
-// rewrite rewrites a subname to having only printable characters and no white
-// space.
+// rewrite 将子名称重写为仅包含可打印字符且不含空白。
 func rewrite(s string) string {
 	b := []byte{}
 	for _, r := range s {
@@ -300,7 +292,7 @@ func rewrite(s string) string {
 func isSpace(r rune) bool {
 	if r < 0x2000 {
 		switch r {
-		// Note: not the same as Unicode Z class.
+		// 注意：与 Unicode Z 类不同。
 		case '\t', '\n', '\v', '\f', '\r', ' ', 0x85, 0xA0, 0x1680:
 			return true
 		}

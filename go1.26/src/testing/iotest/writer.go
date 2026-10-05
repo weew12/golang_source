@@ -6,8 +6,8 @@ package iotest
 
 import "io"
 
-// TruncateWriter returns a Writer that writes to w
-// but stops silently after n bytes.
+// TruncateWriter 返回一个 Writer，它写入 w，
+// 但在写入 n 个字节后静默停止。
 func TruncateWriter(w io.Writer, n int64) io.Writer {
 	return &truncateWriter{w, n}
 }
@@ -21,7 +21,7 @@ func (t *truncateWriter) Write(p []byte) (n int, err error) {
 	if t.n <= 0 {
 		return len(p), nil
 	}
-	// real write
+	// 实际写入
 	n = len(p)
 	if int64(n) > t.n {
 		n = int(t.n)

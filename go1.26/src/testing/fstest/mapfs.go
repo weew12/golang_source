@@ -13,28 +13,28 @@ import (
 	"time"
 )
 
-// A MapFS is a simple in-memory file system for use in tests,
-// represented as a map from path names (arguments to Open)
-// to information about the files, directories, or symbolic links they represent.
+// MapFS 是一个用于测试的简单内存文件系统，
+// 表示为从路径名（Open 的参数）到
+// 其所代表的文件、目录或符号链接信息的映射。
 //
-// The map need not include parent directories for files contained
-// in the map; those will be synthesized if needed.
-// But a directory can still be included by setting the [MapFile.Mode]'s [fs.ModeDir] bit;
-// this may be necessary for detailed control over the directory's [fs.FileInfo]
-// or to create an empty directory.
+// 映射无需包含映射内文件的父目录；
+// 这些父目录会在需要时被合成。
+// 但通过设置 [MapFile.Mode] 的 [fs.ModeDir] 位仍可包含一个目录；
+// 这对于对目录的 [fs.FileInfo] 进行详细控制
+// 或创建一个空目录可能是必要的。
 //
-// File system operations read directly from the map,
-// so that the file system can be changed by editing the map as needed.
-// An implication is that file system operations must not run concurrently
-// with changes to the map, which would be a race.
-// Another implication is that opening or reading a directory requires
-// iterating over the entire map, so a MapFS should typically be used with not more
-// than a few hundred entries or directory reads.
+// 文件系统操作直接读取该映射，
+// 因此可以按需编辑映射来更改文件系统。
+// 一个推论是：文件系统操作不得与映射的更改
+// 并发运行，否则会产生数据竞争。
+// 另一个推论是：打开或读取目录需要
+// 遍历整个映射，因此 MapFS 通常应仅用于
+// 不超过几百个条目或目录读取的场景。
 type MapFS map[string]*MapFile
 
-// A MapFile describes a single file in a [MapFS].
+// MapFile 描述 [MapFS] 中的单个文件。
 type MapFile struct {
-	Data    []byte      // file content or symlink destination
+	Data    []byte      // 文件内容或符号链接目标
 	Mode    fs.FileMode // fs.FileInfo.Mode
 	ModTime time.Time   // fs.FileInfo.ModTime
 	Sys     any         // fs.FileInfo.Sys
@@ -44,7 +44,7 @@ var _ fs.FS = MapFS(nil)
 var _ fs.ReadLinkFS = MapFS(nil)
 var _ fs.File = (*openMapFile)(nil)
 
-// Open opens the named file after following any symbolic links.
+// Open 在跟随任何符号链接后打开指定名称的文件。
 func (fsys MapFS) Open(name string) (fs.File, error) {
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
@@ -56,14 +56,14 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 
 	file := fsys[realName]
 	if file != nil && file.Mode&fs.ModeDir == 0 {
-		// Ordinary file
+		// 普通文件
 		return &openMapFile{name, mapFileInfo{path.Base(name), file}, 0}, nil
 	}
 
-	// Directory, possibly synthesized.
-	// Note that file can be nil here: the map need not contain explicit parent directories for all its files.
-	// But file can also be non-nil, in case the user wants to set metadata for the directory explicitly.
-	// Either way, we need to construct the list of children of this directory.
+	// 目录，可能是合成的。
+	// 注意这里 file 可以为 nil：映射无需为其所有文件包含显式的父目录。
+	// 但 file 也可以非 nil，以防用户想显式设置目录的元数据。
+	// 无论哪种情况，我们都需要构造该目录的子项列表。
 	var list []mapFileInfo
 	var need = make(map[string]bool)
 	if realName == "." {
@@ -90,9 +90,9 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 				}
 			}
 		}
-		// If the directory name is not in the map,
-		// and there are no children of the name in the map,
-		// then the directory is treated as not existing.
+		// 如果目录名不在映射中，
+		// 且映射中没有该名称的子项，
+		// 则该目录被视为不存在。
 		if file == nil && list == nil && len(need) == 0 {
 			return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
 		}
@@ -120,7 +120,7 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
 }
 
 func (fsys MapFS) resolveSymlinks(name string) (_ string, ok bool) {
-	// Fast path: if a symlink is in the map, resolve it.
+	// 快速路径：如果映射中存在符号链接，则解析它。
 	if file := fsys[name]; file != nil && file.Mode.Type() == fs.ModeSymlink {
 		target := string(file.Data)
 		if path.IsAbs(target) {
@@ -129,7 +129,7 @@ func (fsys MapFS) resolveSymlinks(name string) (_ string, ok bool) {
 		return fsys.resolveSymlinks(path.Join(path.Dir(name), target))
 	}
 
-	// Check if each parent directory (starting at root) is a symlink.
+	// 检查每个父目录（从根开始）是否为符号链接。
 	for i := 0; i < len(name); {
 		j := strings.Index(name[i:], "/")
 		var dir string
@@ -152,7 +152,7 @@ func (fsys MapFS) resolveSymlinks(name string) (_ string, ok bool) {
 	return name, fs.ValidPath(name)
 }
 
-// ReadLink returns the destination of the named symbolic link.
+// ReadLink 返回指定名称符号链接的目标。
 func (fsys MapFS) ReadLink(name string) (string, error) {
 	info, err := fsys.lstat(name)
 	if err != nil {
@@ -164,9 +164,9 @@ func (fsys MapFS) ReadLink(name string) (string, error) {
 	return string(info.f.Data), nil
 }
 
-// Lstat returns a FileInfo describing the named file.
-// If the file is a symbolic link, the returned FileInfo describes the symbolic link.
-// Lstat makes no attempt to follow the link.
+// Lstat 返回描述指定名称文件的 FileInfo。
+// 如果该文件是符号链接，则返回的 FileInfo 描述该符号链接。
+// Lstat 不尝试跟随该链接。
 func (fsys MapFS) Lstat(name string) (fs.FileInfo, error) {
 	info, err := fsys.lstat(name)
 	if err != nil {
@@ -194,25 +194,25 @@ func (fsys MapFS) lstat(name string) (*mapFileInfo, error) {
 	if realName == "." {
 		return &mapFileInfo{elem, &MapFile{Mode: fs.ModeDir | 0555}}, nil
 	}
-	// Maybe a directory.
+	// 可能是一个目录。
 	prefix := realName + "/"
 	for fname := range fsys {
 		if strings.HasPrefix(fname, prefix) {
 			return &mapFileInfo{elem, &MapFile{Mode: fs.ModeDir | 0555}}, nil
 		}
 	}
-	// If the directory name is not in the map,
-	// and there are no children of the name in the map,
-	// then the directory is treated as not existing.
+	// 如果目录名不在映射中，
+	// 且映射中没有该名称的子项，
+	// 则该目录被视为不存在。
 	return nil, fs.ErrNotExist
 }
 
-// fsOnly is a wrapper that hides all but the fs.FS methods,
-// to avoid an infinite recursion when implementing special
-// methods in terms of helpers that would use them.
-// (In general, implementing these methods using the package fs helpers
-// is redundant and unnecessary, but having the methods may make
-// MapFS exercise more code paths when used in tests.)
+// fsOnly 是一个包装器，它隐藏除 fs.FS 方法之外的所有方法，
+// 以避免在以会使用这些方法的辅助函数来实现特殊
+// 方法时产生无限递归。
+// （通常，使用 fs 包的辅助函数来实现这些方法是
+// 冗余且不必要的，但拥有这些方法可能会让
+// MapFS 在测试中使用时覆盖更多代码路径。）
 type fsOnly struct{ fs.FS }
 
 func (fsys MapFS) ReadFile(name string) ([]byte, error) {
@@ -235,13 +235,13 @@ type noSub struct {
 	MapFS
 }
 
-func (noSub) Sub() {} // not the fs.SubFS signature
+func (noSub) Sub() {} // 不是 fs.SubFS 的签名
 
 func (fsys MapFS) Sub(dir string) (fs.FS, error) {
 	return fs.Sub(noSub{fsys}, dir)
 }
 
-// A mapFileInfo implements fs.FileInfo and fs.DirEntry for a given map file.
+// mapFileInfo 为给定的映射文件实现 fs.FileInfo 和 fs.DirEntry。
 type mapFileInfo struct {
 	name string
 	f    *MapFile
@@ -260,7 +260,7 @@ func (i *mapFileInfo) String() string {
 	return fs.FormatFileInfo(i)
 }
 
-// An openMapFile is a regular (non-directory) fs.File open for reading.
+// openMapFile 是一个以读取方式打开的常规（非目录）fs.File。
 type openMapFile struct {
 	path string
 	mapFileInfo
@@ -310,7 +310,7 @@ func (f *openMapFile) ReadAt(b []byte, offset int64) (int, error) {
 	return n, nil
 }
 
-// A mapDir is a directory fs.File (so also an fs.ReadDirFile) open for reading.
+// mapDir 是一个以读取方式打开的目录 fs.File（因此也是 fs.ReadDirFile）。
 type mapDir struct {
 	path string
 	mapFileInfo

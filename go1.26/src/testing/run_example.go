@@ -4,9 +4,8 @@
 
 //go:build !js && !wasip1
 
-// TODO(@musiol, @odeke-em): re-unify this entire file back into
-// example.go when js/wasm gets an os.Pipe implementation
-// and no longer needs this separation.
+// TODO(@musiol, @odeke-em)：当 js/wasm 获得 os.Pipe 实现
+// 并不再需要这种分离时，将整个文件重新合并回 example.go。
 
 package testing
 
@@ -23,7 +22,7 @@ func runExample(eg InternalExample) (ok bool) {
 		fmt.Printf("%s=== RUN   %s\n", chatty.prefix(), eg.Name)
 	}
 
-	// Capture stdout.
+	// 捕获标准输出。
 	stdout := os.Stdout
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -46,11 +45,11 @@ func runExample(eg InternalExample) (ok bool) {
 	finished := false
 	start := time.Now()
 
-	// Clean up in a deferred call so we can recover if the example panics.
+	// 在延迟调用中进行清理，以便在示例发生 panic 时能够 recover。
 	defer func() {
 		timeSpent := time.Since(start)
 
-		// Close pipe, restore stdout, get output.
+		// 关闭管道，恢复 stdout，获取输出。
 		w.Close()
 		os.Stdout = stdout
 		out := <-outC
@@ -59,7 +58,7 @@ func runExample(eg InternalExample) (ok bool) {
 		ok = eg.processRunResult(out, timeSpent, finished, err)
 	}()
 
-	// Run example.
+	// 运行示例。
 	eg.F()
 	finished = true
 	return

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package cryptotest provides deterministic random source testing.
+// Package cryptotest 提供确定性随机源测试。
 package cryptotest
 
 import (
@@ -13,8 +13,8 @@ import (
 	"sync"
 	"testing"
 
-	// Import unsafe and crypto/rand, which imports crypto/internal/rand,
-	// for the crypto/internal/rand.SetTestingReader go:linkname.
+	// 导入 unsafe 与 crypto/rand（后者会导入 crypto/internal/rand），
+	// 以使用 crypto/internal/rand.SetTestingReader 的 go:linkname。
 	_ "crypto/rand"
 	_ "unsafe"
 )
@@ -25,23 +25,22 @@ func randSetTestingReader(r io.Reader)
 //go:linkname testingCheckParallel testing.checkParallel
 func testingCheckParallel(t *testing.T)
 
-// SetGlobalRandom sets a global, deterministic cryptographic randomness source
-// for the duration of test t. It affects crypto/rand, and all implicit sources
-// of cryptographic randomness in the crypto/... packages.
+// SetGlobalRandom 在测试 t 期间设置一个全局的、确定性的加密随机性源。
+// 它会影响 crypto/rand，以及 crypto/... 各包中所有隐式的
+// 加密随机性来源。
 //
-// SetGlobalRandom may be called multiple times in the same test to reset the
-// random stream or change the seed.
+// 可以在同一个测试中多次调用 SetGlobalRandom，以重置
+// 随机流或更改种子。
 //
-// Because SetGlobalRandom affects the whole process, it cannot be used in
-// parallel tests or tests with parallel ancestors.
+// 由于 SetGlobalRandom 会影响整个进程，因此不能用于
+// 并行测试或具有并行祖先的测试。
 //
-// Note that the way cryptographic algorithms use randomness is generally not
-// specified and may change over time. Thus, if a test expects a specific output
-// from a cryptographic function, it may fail in the future even if it uses
-// SetGlobalRandom.
+// 注意，密码算法使用随机性的方式通常并未明确规定，且可能随时间变化。
+// 因此，如果某个测试期望从加密函数获得特定输出，
+// 即使使用了 SetGlobalRandom，将来也可能失败。
 //
-// SetGlobalRandom is not supported when building against the Go Cryptographic
-// Module v1.0.0 (i.e. when [crypto/fips140.Version] returns "v1.0.0").
+// 当针对 Go Cryptographic Module v1.0.0 构建时（即当
+// [crypto/fips140.Version] 返回 “v1.0.0” 时），不支持 SetGlobalRandom。
 func SetGlobalRandom(t *testing.T, seed uint64) {
 	if t == nil {
 		panic("cryptotest: SetGlobalRandom called with a nil *testing.T")

@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package quick implements utility functions to help with black box testing.
+// Package quick 实现了帮助进行黑盒测试的实用函数。
 //
-// The testing/quick package is frozen and is not accepting new features.
+// testing/quick 包已冻结，不再接受新特性。
 package quick
 
 import (
@@ -19,14 +19,14 @@ import (
 
 var defaultMaxCount *int = flag.Int("quickchecks", 100, "The default number of iterations for each check")
 
-// A Generator can generate random values of its own type.
+// Generator 可以生成其自身类型的随机值。
 type Generator interface {
-	// Generate returns a random instance of the type on which it is a
-	// method using the size as a size hint.
+	// Generate 返回该方法所属类型的一个随机实例，
+	// 并将 size 用作大小提示。
 	Generate(rand *rand.Rand, size int) reflect.Value
 }
 
-// randFloat32 generates a random float taking the full range of a float32.
+// randFloat32 生成一个随机浮点数，取值范围覆盖 float32 的完整范围。
 func randFloat32(rand *rand.Rand) float32 {
 	f := rand.Float64() * math.MaxFloat32
 	if rand.Int()&1 == 1 {
@@ -35,7 +35,7 @@ func randFloat32(rand *rand.Rand) float32 {
 	return float32(f)
 }
 
-// randFloat64 generates a random float taking the full range of a float64.
+// randFloat64 生成一个随机浮点数，取值范围覆盖 float64 的完整范围。
 func randFloat64(rand *rand.Rand) float64 {
 	f := rand.Float64() * math.MaxFloat64
 	if rand.Int()&1 == 1 {
@@ -44,25 +44,24 @@ func randFloat64(rand *rand.Rand) float64 {
 	return f
 }
 
-// randInt64 returns a random int64.
+// randInt64 返回一个随机 int64。
 func randInt64(rand *rand.Rand) int64 {
 	return int64(rand.Uint64())
 }
 
-// complexSize is the maximum length of arbitrary values that contain other
-// values.
+// complexSize 是包含其他值的任意值的最大长度。
 const complexSize = 50
 
-// Value returns an arbitrary value of the given type.
-// If the type implements the [Generator] interface, that will be used.
-// Note: To create arbitrary values for structs, all the fields must be exported.
+// Value 返回给定类型的任意值。
+// 如果该类型实现了 [Generator] 接口，则会使用它。
+// 注意：要为结构体创建任意值，所有字段都必须导出。
 func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
 	return sizedValue(t, rand, complexSize)
 }
 
-// sizedValue returns an arbitrary value of the given type. The size
-// hint is used for shrinking as a function of indirection level so
-// that recursive data structures will terminate.
+// sizedValue 返回给定类型的任意值。size
+// 提示用于根据间接层级进行缩减，
+// 以使递归数据结构能够终止。
 func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value, ok bool) {
 	if m, ok := reflect.TypeAssert[Generator](reflect.Zero(t)); ok {
 		return m.Generate(rand, size), true
@@ -115,7 +114,7 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 		}
 	case reflect.Pointer:
 		if rand.Intn(size) == 0 {
-			v.SetZero() // Generate nil pointer.
+			v.SetZero() // 生成 nil 指针。
 		} else {
 			elem, ok := sizedValue(concrete.Elem(), rand, size)
 			if !ok {
@@ -152,7 +151,7 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 		v.SetString(string(codePoints))
 	case reflect.Struct:
 		n := v.NumField()
-		// Divide sizeLeft evenly among the struct fields.
+		// 在结构体各字段之间平均分配 sizeLeft。
 		sizeLeft := size
 		if n > sizeLeft {
 			sizeLeft = 1
@@ -173,29 +172,27 @@ func sizedValue(t reflect.Type, rand *rand.Rand, size int) (value reflect.Value,
 	return v, true
 }
 
-// A Config structure contains options for running a test.
+// Config 结构体包含运行测试的选项。
 type Config struct {
-	// MaxCount sets the maximum number of iterations.
-	// If zero, MaxCountScale is used.
+	// MaxCount 设置最大迭代次数。
+	// 如果为零，则使用 MaxCountScale。
 	MaxCount int
-	// MaxCountScale is a non-negative scale factor applied to the
-	// default maximum.
-	// A count of zero implies the default, which is usually 100
-	// but can be set by the -quickchecks flag.
+	// MaxCountScale 是应用于默认最大值的非负缩放因子。
+	// 计数为零表示使用默认值，该值通常为 100，
+	// 但可以通过 -quickchecks 标志设置。
 	MaxCountScale float64
-	// Rand specifies a source of random numbers.
-	// If nil, a default pseudo-random source will be used.
+	// Rand 指定随机数来源。
+	// 如果为 nil，将使用默认的伪随机源。
 	Rand *rand.Rand
-	// Values specifies a function to generate a slice of
-	// arbitrary reflect.Values that are congruent with the
-	// arguments to the function being tested.
-	// If nil, the top-level Value function is used to generate them.
+	// Values 指定一个函数，用于生成与被测函数参数
+	// 相匹配的任意 reflect.Value 切片。
+	// 如果为 nil，则使用顶层 Value 函数来生成它们。
 	Values func([]reflect.Value, *rand.Rand)
 }
 
 var defaultConfig Config
 
-// getRand returns the *rand.Rand to use for a given Config.
+// getRand 返回用于给定 Config 的 *rand.Rand。
 func (c *Config) getRand() *rand.Rand {
 	if c.Rand == nil {
 		return rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -203,8 +200,7 @@ func (c *Config) getRand() *rand.Rand {
 	return c.Rand
 }
 
-// getMaxCount returns the maximum number of iterations to run for a given
-// Config.
+// getMaxCount 返回给定 Config 要运行的最大迭代次数。
 func (c *Config) getMaxCount() (maxCount int) {
 	maxCount = c.MaxCount
 	if maxCount == 0 {
@@ -218,13 +214,12 @@ func (c *Config) getMaxCount() (maxCount int) {
 	return
 }
 
-// A SetupError is the result of an error in the way that check is being
-// used, independent of the functions being tested.
+// SetupError 表示 check 使用方式出错的结果，与被测函数无关。
 type SetupError string
 
 func (s SetupError) Error() string { return string(s) }
 
-// A CheckError is the result of Check finding an error.
+// CheckError 是 Check 发现错误的结果。
 type CheckError struct {
 	Count int
 	In    []any
@@ -234,7 +229,7 @@ func (s *CheckError) Error() string {
 	return fmt.Sprintf("#%d: failed on input %s", s.Count, toString(s.In))
 }
 
-// A CheckEqualError is the result [CheckEqual] finding an error.
+// CheckEqualError 是 [CheckEqual] 发现错误的结果。
 type CheckEqualError struct {
 	CheckError
 	Out1 []any
@@ -245,11 +240,10 @@ func (s *CheckEqualError) Error() string {
 	return fmt.Sprintf("#%d: failed on input %s. Output 1: %s. Output 2: %s", s.Count, toString(s.In), toString(s.Out1), toString(s.Out2))
 }
 
-// Check looks for an input to f, any function that returns bool,
-// such that f returns false. It calls f repeatedly, with arbitrary
-// values for each argument. If f returns false on a given input,
-// Check returns that input as a *[CheckError].
-// For example:
+// Check 为 f（任何返回 bool 的函数）寻找一个使 f 返回 false 的输入。
+// 它使用每个参数的任意值重复调用 f。如果 f 在某个输入上返回 false，
+// Check 将该输入作为 *[CheckError] 返回。
+// 例如：
 //
 //	func TestOddMultipleOfThree(t *testing.T) {
 //		f := func(x int) bool {
@@ -295,10 +289,10 @@ func Check(f any, config *Config) error {
 	return nil
 }
 
-// CheckEqual looks for an input on which f and g return different results.
-// It calls f and g repeatedly with arbitrary values for each argument.
-// If f and g return different answers, CheckEqual returns a *[CheckEqualError]
-// describing the input and the outputs.
+// CheckEqual 寻找一个使 f 和 g 返回不同结果的输入。
+// 它使用每个参数的任意值重复调用 f 和 g。
+// 如果 f 和 g 返回不同的答案，CheckEqual 返回一个 *[CheckEqualError]，
+// 其中描述该输入和输出。
 func CheckEqual(f, g any, config *Config) error {
 	if config == nil {
 		config = &defaultConfig
@@ -338,8 +332,7 @@ func CheckEqual(f, g any, config *Config) error {
 	return nil
 }
 
-// arbitraryValues writes Values to args such that args contains Values
-// suitable for calling f.
+// arbitraryValues 将 Values 写入 args，使 args 包含适合调用 f 的 Values。
 func arbitraryValues(args []reflect.Value, f reflect.Type, config *Config, rand *rand.Rand) (err error) {
 	if config.Values != nil {
 		config.Values(args, rand)

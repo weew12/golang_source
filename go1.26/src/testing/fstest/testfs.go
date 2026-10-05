@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package fstest implements support for testing implementations and users of file systems.
+// fstest 包实现对文件系统实现和用户的测试支持。
 package fstest
 
 import (
@@ -17,21 +17,21 @@ import (
 	"testing/iotest"
 )
 
-// TestFS tests a file system implementation.
-// It walks the entire tree of files in fsys,
-// opening and checking that each file behaves correctly.
-// Symbolic links are not followed,
-// but their Lstat values are checked
-// if the file system implements [fs.ReadLinkFS].
-// It also checks that the file system contains at least the expected files.
-// As a special case, if no expected files are listed, fsys must be empty.
-// Otherwise, fsys must contain at least the listed files; it can also contain others.
-// The contents of fsys must not change concurrently with TestFS.
+// TestFS 测试一个文件系统实现。
+// 它会遍历 fsys 中的整个文件树，
+// 打开并检查每个文件的行为是否正确。
+// 不会跟随符号链接，
+// 但如果文件系统实现了 [fs.ReadLinkFS]，
+// 则会检查它们的 Lstat 值。
+// 它还会检查文件系统至少包含预期的文件。
+// 作为一种特殊情况，如果未列出任何预期文件，则 fsys 必须为空。
+// 否则，fsys 必须至少包含所列出的文件；它也可以包含其他文件。
+// fsys 的内容不得在 TestFS 运行时并发更改。
 //
-// If TestFS finds any misbehaviors, it returns either the first error or a
-// list of errors. Use [errors.Is] or [errors.AsType] to inspect.
+// 如果 TestFS 发现任何不当行为，它会返回第一个错误或
+// 一个错误列表。可使用 [errors.Is] 或 [errors.AsType] 进行检查。
 //
-// Typical usage inside a test is:
+// 在测试中的典型用法是：
 //
 //	if err := fstest.TestFS(myFS, "file/that/should/be/present"); err != nil {
 //		t.Fatal(err)
@@ -92,7 +92,7 @@ func testFS(fsys fs.FS, expected ...string) error {
 	return fmt.Errorf("TestFS found errors:\n%w", errors.Join(t.errors...))
 }
 
-// An fsTester holds state for running the test.
+// fsTester 保存运行测试所需的状态。
 type fsTester struct {
 	fsys   fs.FS
 	errors []error
@@ -100,7 +100,7 @@ type fsTester struct {
 	files  []string
 }
 
-// errorf adds an error to the list of errors.
+// errorf 向错误列表中添加一个错误。
 func (t *fsTester) errorf(format string, args ...any) {
 	t.errors = append(t.errors, fmt.Errorf(format, args...))
 }
@@ -120,10 +120,10 @@ func (t *fsTester) openDir(dir string) fs.ReadDirFile {
 	return d
 }
 
-// checkDir checks the directory dir, which is expected to exist
-// (it is either the root or was found in a directory listing with IsDir true).
+// checkDir 检查目录 dir，该目录预期存在
+// （它要么是根目录，要么是在目录列表中发现的且 IsDir 为 true 的目录）。
 func (t *fsTester) checkDir(dir string) {
-	// Read entire directory.
+	// 读取整个目录。
 	t.dirs = append(t.dirs, dir)
 	d := t.openDir(dir)
 	if d == nil {
@@ -136,7 +136,7 @@ func (t *fsTester) checkDir(dir string) {
 		return
 	}
 
-	// Check all children.
+	// 检查所有子项。
 	var prefix string
 	if dir == "." {
 		prefix = ""
@@ -163,15 +163,15 @@ func (t *fsTester) checkDir(dir string) {
 		case fs.ModeDir:
 			t.checkDir(path)
 		case fs.ModeSymlink:
-			// No further processing.
-			// Avoid following symlinks to avoid potentially unbounded recursion.
+			// 不再进一步处理。
+			// 避免跟随符号链接，以避免可能无界的递归。
 			t.files = append(t.files, path)
 		default:
 			t.checkFile(path)
 		}
 	}
 
-	// Check ReadDir(-1) at EOF.
+	// 检查 EOF 处的 ReadDir(-1)。
 	list2, err := d.ReadDir(-1)
 	if len(list2) > 0 || err != nil {
 		d.Close()
@@ -179,7 +179,7 @@ func (t *fsTester) checkDir(dir string) {
 		return
 	}
 
-	// Check ReadDir(1) at EOF (different results).
+	// 检查 EOF 处的 ReadDir(1)（结果不同）。
 	list2, err = d.ReadDir(1)
 	if len(list2) > 0 || err != io.EOF {
 		d.Close()
@@ -187,16 +187,16 @@ func (t *fsTester) checkDir(dir string) {
 		return
 	}
 
-	// Check that close does not report an error.
+	// 检查 close 不会报告错误。
 	if err := d.Close(); err != nil {
 		t.errorf("%s: Close: %w", dir, err)
 	}
 
-	// Check that closing twice doesn't crash.
-	// The return value doesn't matter.
+	// 检查关闭两次不会崩溃。
+	// 返回值无关紧要。
 	d.Close()
 
-	// Reopen directory, read a second time, make sure contents match.
+	// 重新打开目录，第二次读取，确保内容一致。
 	if d = t.openDir(dir); d == nil {
 		return
 	}
@@ -208,7 +208,7 @@ func (t *fsTester) checkDir(dir string) {
 	}
 	t.checkDirList(dir, "first Open+ReadDir(-1) vs second Open+ReadDir(-1)", list, list2)
 
-	// Reopen directory, read a third time in pieces, make sure contents match.
+	// 重新打开目录，第三次分片读取，确保内容一致。
 	if d = t.openDir(dir); d == nil {
 		return
 	}
@@ -239,7 +239,7 @@ func (t *fsTester) checkDir(dir string) {
 	}
 	t.checkDirList(dir, "first Open+ReadDir(-1) vs third Open+ReadDir(1,2) loop", list, list2)
 
-	// If fsys has ReadDir, check that it matches and is sorted.
+	// 如果 fsys 有 ReadDir，则检查其是否匹配且已排序。
 	if fsys, ok := t.fsys.(fs.ReadDirFS); ok {
 		list2, err := fsys.ReadDir(dir)
 		if err != nil {
@@ -255,7 +255,7 @@ func (t *fsTester) checkDir(dir string) {
 		}
 	}
 
-	// Check fs.ReadDir as well.
+	// 也检查 fs.ReadDir。
 	list2, err = fs.ReadDir(t.fsys, dir)
 	if err != nil {
 		t.errorf("%s: fs.ReadDir: %w", dir, err)
@@ -272,28 +272,28 @@ func (t *fsTester) checkDir(dir string) {
 	t.checkGlob(dir, list2)
 }
 
-// formatEntry formats an fs.DirEntry into a string for error messages and comparison.
+// formatEntry 将 fs.DirEntry 格式化为字符串，用于错误消息和比较。
 func formatEntry(entry fs.DirEntry) string {
 	return fmt.Sprintf("%s IsDir=%v Type=%v", entry.Name(), entry.IsDir(), entry.Type())
 }
 
-// formatInfoEntry formats an fs.FileInfo into a string like the result of formatEntry, for error messages and comparison.
+// formatInfoEntry 将 fs.FileInfo 格式化为与 formatEntry 结果类似的字符串，用于错误消息和比较。
 func formatInfoEntry(info fs.FileInfo) string {
 	return fmt.Sprintf("%s IsDir=%v Type=%v", info.Name(), info.IsDir(), info.Mode().Type())
 }
 
-// formatInfo formats an fs.FileInfo into a string for error messages and comparison.
+// formatInfo 将 fs.FileInfo 格式化为字符串，用于错误消息和比较。
 func formatInfo(info fs.FileInfo) string {
 	return fmt.Sprintf("%s IsDir=%v Mode=%v Size=%d ModTime=%v", info.Name(), info.IsDir(), info.Mode(), info.Size(), info.ModTime())
 }
 
-// checkGlob checks that various glob patterns work if the file system implements GlobFS.
+// checkGlob 检查当文件系统实现 GlobFS 时各种 glob 模式是否正常工作。
 func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 	if _, ok := t.fsys.(fs.GlobFS); !ok {
 		return
 	}
 
-	// Make a complex glob pattern prefix that only matches dir.
+	// 构造一个仅匹配 dir 的复杂 glob 模式前缀。
 	var glob string
 	if dir != "." {
 		elem := strings.Split(dir, "/")
@@ -322,13 +322,13 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 		glob = strings.Join(elem, "/") + "/"
 	}
 
-	// Test that malformed patterns are detected.
-	// The error is likely path.ErrBadPattern but need not be.
+	// 测试能否检测到格式错误的模式。
+	// 错误很可能是 path.ErrBadPattern，但不一定。
 	if _, err := t.fsys.(fs.GlobFS).Glob(glob + "nonexist/[]"); err == nil {
 		t.errorf("%s: Glob(%#q): bad pattern not detected", dir, glob+"nonexist/[]")
 	}
 
-	// Try to find a letter that appears in only some of the final names.
+	// 尝试找出仅出现在部分最终名称中的字母。
 	c := rune('a')
 	for ; c <= 'z'; c++ {
 		have, haveNot := false, false
@@ -385,8 +385,8 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
 	t.errorf("%s: Glob(%#q): wrong output:\n%s", dir, glob, strings.Join(problems, "\n"))
 }
 
-// checkStat checks that a direct stat of path matches entry,
-// which was found in the parent's directory listing.
+// checkStat 检查对 path 的直接 stat 是否与 entry 匹配，
+// 其中 entry 是在父目录的目录列表中找到的。
 func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 	file, err := t.fsys.Open(path)
 	if err != nil {
@@ -401,7 +401,7 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 	}
 	fentry := formatEntry(entry)
 	fientry := formatInfoEntry(info)
-	// Note: mismatch here is OK for symlink, because Open dereferences symlink.
+	// 注意：对于符号链接，此处不一致是可以的，因为 Open 会解引用符号链接。
 	if fentry != fientry && entry.Type()&fs.ModeSymlink == 0 {
 		t.errorf("%s: mismatch:\n\tentry = %s\n\tfile.Stat() = %s", path, fentry, fientry)
 	}
@@ -413,8 +413,8 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 	}
 	finfo := formatInfo(info)
 	if entry.Type()&fs.ModeSymlink != 0 {
-		// For symlink, just check that entry.Info matches entry on common fields.
-		// Open deferences symlink, so info itself may differ.
+		// 对于符号链接，只需检查 entry.Info 与 entry 在公共字段上是否匹配。
+		// Open 会解引用符号链接，因此 info 本身可能不同。
 		feentry := formatInfoEntry(einfo)
 		if fentry != feentry {
 			t.errorf("%s: mismatch\n\tentry = %s\n\tentry.Info() = %s\n", path, fentry, feentry)
@@ -426,7 +426,7 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 		}
 	}
 
-	// Stat should be the same as Open+Stat, even for symlinks.
+	// Stat 应与 Open+Stat 相同，即使对于符号链接也是如此。
 	info2, err := fs.Stat(t.fsys, path)
 	if err != nil {
 		t.errorf("%s: fs.Stat: %w", path, err)
@@ -467,8 +467,8 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
 	}
 }
 
-// checkDirList checks that two directory lists contain the same files and file info.
-// The order of the lists need not match.
+// checkDirList 检查两个目录列表包含相同的文件和文件信息。
+// 列表的顺序无需匹配。
 func (t *fsTester) checkDirList(dir, desc string, list1, list2 []fs.DirEntry) {
 	old := make(map[string]fs.DirEntry)
 	checkMode := func(entry fs.DirEntry) {
@@ -510,18 +510,18 @@ func (t *fsTester) checkDirList(dir, desc string, list1, list2 []fs.DirEntry) {
 	slices.SortFunc(diffs, func(a, b string) int {
 		fa := strings.Fields(a)
 		fb := strings.Fields(b)
-		// sort by name (i < j) and then +/- (j < i, because + < -)
+		// 按名称排序（i < j），然后按 +/- 排序（j < i，因为 + < -）
 		return strings.Compare(fa[1]+" "+fb[0], fb[1]+" "+fa[0])
 	})
 
 	t.errorf("%s: diff %s:\n\t%s", dir, desc, strings.Join(diffs, "\n\t"))
 }
 
-// checkFile checks that basic file reading works correctly.
+// checkFile 检查基本的文件读取是否正确工作。
 func (t *fsTester) checkFile(file string) {
 	t.files = append(t.files, file)
 
-	// Read entire file.
+	// 读取整个文件。
 	f, err := t.fsys.Open(file)
 	if err != nil {
 		t.errorf("%s: Open: %w", file, err)
@@ -539,11 +539,11 @@ func (t *fsTester) checkFile(file string) {
 		t.errorf("%s: Close: %w", file, err)
 	}
 
-	// Check that closing twice doesn't crash.
-	// The return value doesn't matter.
+	// 检查关闭两次不会崩溃。
+	// 返回值无关紧要。
 	f.Close()
 
-	// Check that ReadFile works if present.
+	// 检查 ReadFile 在存在时是否正常工作。
 	if fsys, ok := t.fsys.(fs.ReadFileFS); ok {
 		data2, err := fsys.ReadFile(file)
 		if err != nil {
@@ -552,8 +552,8 @@ func (t *fsTester) checkFile(file string) {
 		}
 		t.checkFileRead(file, "ReadAll vs fsys.ReadFile", data, data2)
 
-		// Modify the data and check it again. Modifying the
-		// returned byte slice should not affect the next call.
+		// 修改数据并再次检查。修改
+		// 返回的字节切片不应影响下一次调用。
 		for i := range data2 {
 			data2[i]++
 		}
@@ -568,7 +568,7 @@ func (t *fsTester) checkFile(file string) {
 			func(name string) error { _, err := fsys.ReadFile(name); return err })
 	}
 
-	// Check that fs.ReadFile works with t.fsys.
+	// 检查 fs.ReadFile 与 t.fsys 是否能正常工作。
 	data2, err := fs.ReadFile(t.fsys, file)
 	if err != nil {
 		t.errorf("%s: fs.ReadFile: %w", file, err)
@@ -576,7 +576,7 @@ func (t *fsTester) checkFile(file string) {
 	}
 	t.checkFileRead(file, "ReadAll vs fs.ReadFile", data, data2)
 
-	// Use iotest.TestReader to check small reads, Seek, ReadAt.
+	// 使用 iotest.TestReader 检查小批量读取、Seek、ReadAt。
 	f, err = t.fsys.Open(file)
 	if err != nil {
 		t.errorf("%s: second Open: %w", file, err)
@@ -595,7 +595,7 @@ func (t *fsTester) checkFileRead(file, desc string, data1, data2 []byte) {
 	}
 }
 
-// checkOpen validates file opening behavior by attempting to open and then close the given file path.
+// checkOpen 通过尝试打开然后关闭给定的文件路径来验证文件打开行为。
 func (t *fsTester) checkOpen(file string) {
 	t.checkBadPath(file, "Open", func(file string) error {
 		f, err := t.fsys.Open(file)
@@ -606,7 +606,7 @@ func (t *fsTester) checkOpen(file string) {
 	})
 }
 
-// checkBadPath checks that various invalid forms of file's name cannot be opened using open.
+// checkBadPath 检查文件名的各种无效形式无法使用 open 打开。
 func (t *fsTester) checkBadPath(file string, desc string, open func(string) error) {
 	bad := []string{
 		"/" + file,

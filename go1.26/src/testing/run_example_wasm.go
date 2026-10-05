@@ -14,26 +14,26 @@ import (
 	"time"
 )
 
-// TODO(@musiol, @odeke-em): unify this code back into
-// example.go when js/wasm gets an os.Pipe implementation.
+// TODO(@musiol, @odeke-em)：当 js/wasm 获得 os.Pipe 实现时，
+// 将这段代码重新合并回 example.go。
 func runExample(eg InternalExample) (ok bool) {
 	if chatty.on {
 		fmt.Printf("%s=== RUN   %s\n", chatty.prefix(), eg.Name)
 	}
 
-	// Capture stdout to temporary file. We're not using
-	// os.Pipe because it is not supported on js/wasm.
+	// 将标准输出捕获到临时文件。我们未使用
+	// os.Pipe，因为它在 js/wasm 上不受支持。
 	stdout := os.Stdout
 	f := createTempFile(eg.Name)
 	os.Stdout = f
 	finished := false
 	start := time.Now()
 
-	// Clean up in a deferred call so we can recover if the example panics.
+	// 在延迟调用中进行清理，以便在示例发生 panic 时能够 recover。
 	defer func() {
 		timeSpent := time.Since(start)
 
-		// Restore stdout, get output and remove temporary file.
+		// 恢复 stdout，获取输出并删除临时文件。
 		os.Stdout = stdout
 		var buf strings.Builder
 		_, seekErr := f.Seek(0, io.SeekStart)
@@ -54,7 +54,7 @@ func runExample(eg InternalExample) (ok bool) {
 		ok = eg.processRunResult(out, timeSpent, finished, err)
 	}()
 
-	// Run example.
+	// 运行示例。
 	eg.F()
 	finished = true
 	return

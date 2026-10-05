@@ -24,9 +24,9 @@ func (l *writeLogger) Write(p []byte) (n int, err error) {
 	return
 }
 
-// NewWriteLogger returns a writer that behaves like w except
-// that it logs (using [log.Printf]) each write to standard error,
-// printing the prefix and the hexadecimal data written.
+// NewWriteLogger 返回一个 writer，其行为与 w 相同，
+// 但会在每次写入时通过 [log.Printf] 向标准错误记录日志，
+// 打印前缀以及所写入数据的十六进制表示。
 func NewWriteLogger(prefix string, w io.Writer) io.Writer {
 	return &writeLogger{prefix, w}
 }
@@ -46,9 +46,9 @@ func (l *readLogger) Read(p []byte) (n int, err error) {
 	return
 }
 
-// NewReadLogger returns a reader that behaves like r except
-// that it logs (using [log.Printf]) each read to standard error,
-// printing the prefix and the hexadecimal data read.
+// NewReadLogger 返回一个 reader，其行为与 r 相同，
+// 但会在每次读取时通过 [log.Printf] 向标准错误记录日志，
+// 打印前缀以及所读取数据的十六进制表示。
 func NewReadLogger(prefix string, r io.Reader) io.Reader {
 	return &readLogger{prefix, r}
 }

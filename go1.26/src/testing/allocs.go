@@ -8,41 +8,39 @@ import (
 	"runtime"
 )
 
-// AllocsPerRun returns the average number of allocations during calls to f.
-// Although the return value has type float64, it will always be an integral value.
+// AllocsPerRun 返回调用 f 期间的平均分配次数。
+// 尽管返回值类型为 float64，但它始终是一个整数值。
 //
-// To compute the number of allocations, the function will first be run once as
-// a warm-up. The average number of allocations over the specified number of
-// runs will then be measured and returned.
+// 为了计算分配次数，该函数会先运行一次作为预热。
+// 随后将测量并返回指定运行次数内的平均分配次数。
 //
-// AllocsPerRun sets [runtime.GOMAXPROCS] to 1 during its measurement and will restore
-// it before returning.
+// AllocsPerRun 在测量期间将 [runtime.GOMAXPROCS] 设置为 1，并在返回前恢复它。
 func AllocsPerRun(runs int, f func()) (avg float64) {
 	if parallelStart.Load() != parallelStop.Load() {
 		panic("testing: AllocsPerRun called during parallel test")
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 
-	// Warm up the function
+	// 预热函数
 	f()
 
-	// Measure the starting statistics
+	// 测量初始统计信息
 	var memstats runtime.MemStats
 	runtime.ReadMemStats(&memstats)
 	mallocs := 0 - memstats.Mallocs
 
-	// Run the function the specified number of times
+	// 按指定次数运行函数
 	for i := 0; i < runs; i++ {
 		f()
 	}
 
-	// Read the final statistics
+	// 读取最终统计信息
 	runtime.ReadMemStats(&memstats)
 	mallocs += memstats.Mallocs
 
-	// Average the mallocs over the runs (not counting the warm-up).
-	// We are forced to return a float64 because the API is silly, but do
-	// the division as integers so we can ask if AllocsPerRun()==1
-	// instead of AllocsPerRun()<2.
+	// 计算各次运行中分配次数的平均值（不计入预热）。
+	// 由于该 API 设计欠佳，我们被迫返回 float64，但
+	// 以整数方式进行除法，这样我们可以判断 AllocsPerRun()==1
+	// 而不是 AllocsPerRun()<2。
 	return float64(mallocs / uint64(runs))
 }

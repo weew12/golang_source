@@ -2,27 +2,26 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Support for test coverage.
+// 测试覆盖率支持。
 
 package testing
 
-// CoverBlock records the coverage data for a single basic block.
-// The fields are 1-indexed, as in an editor: The opening line of
-// the file is number 1, for example. Columns are measured
-// in bytes.
-// NOTE: This struct is internal to the testing infrastructure and may change.
-// It is not covered (yet) by the Go 1 compatibility guidelines.
+// CoverBlock 记录单个基本块的覆盖率数据。
+// 各字段采用 1 起始索引，如同编辑器中的行号：例如，
+// 文件的开头一行编号为 1。列以字节为单位度量。
+// 注意：该结构体属于测试基础设施内部实现，可能会发生变化。
+// 它（尚）不受 Go 1 兼容性准则的保护。
 type CoverBlock struct {
-	Line0 uint32 // Line number for block start.
-	Col0  uint16 // Column number for block start.
-	Line1 uint32 // Line number for block end.
-	Col1  uint16 // Column number for block end.
-	Stmts uint16 // Number of statements included in this block.
+	Line0 uint32 // 块起始的行号。
+	Col0  uint16 // 块起始的列号。
+	Line1 uint32 // 块结束的行号。
+	Col1  uint16 // 块结束的列号。
+	Stmts uint16 // 此块中包含的语句数量。
 }
 
-// Cover records information about test coverage checking.
-// NOTE: This struct is internal to the testing infrastructure and may change.
-// It is not covered (yet) by the Go 1 compatibility guidelines.
+// Cover 记录有关测试覆盖率检查的信息。
+// 注意：该结构体属于测试基础设施内部实现，可能会发生变化。
+// 它（尚）不受 Go 1 兼容性准则的保护。
 type Cover struct {
 	Mode            string
 	Counters        map[string][]uint32
@@ -30,8 +29,8 @@ type Cover struct {
 	CoveredPackages string
 }
 
-// RegisterCover records the coverage data accumulators for the tests.
-// NOTE: This function is internal to the testing infrastructure and may change.
-// It is not covered (yet) by the Go 1 compatibility guidelines.
+// RegisterCover 记录测试的覆盖率数据累加器。
+// 注意：该函数属于测试基础设施内部实现，可能会发生变化。
+// 它（尚）不受 Go 1 兼容性准则的保护。
 func RegisterCover(c Cover) {
 }

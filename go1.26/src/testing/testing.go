@@ -2,28 +2,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package testing provides support for automated testing of Go packages.
-// It is intended to be used in concert with the "go test" command, which automates
-// execution of any function of the form
+// Package testing 为 Go 包的自动化测试提供支持。
+// 它旨在与 "go test" 命令配合使用，该命令会自动执行任何形式的函数
 //
 //	func TestXxx(*testing.T)
 //
-// where Xxx does not start with a lowercase letter. The function name
-// serves to identify the test routine.
+// 其中 Xxx 不以小写字母开头。函数名用于标识该测试例程。
 //
-// Within these functions, use [T.Error], [T.Fail] or related methods to signal failure.
+// 在这些函数中，使用 [T.Error]、[T.Fail] 或相关方法来表示失败。
 //
-// To write a new test suite, create a file that
-// contains the TestXxx functions as described here,
-// and give that file a name ending in "_test.go".
-// The file will be excluded from regular
-// package builds but will be included when the "go test" command is run.
+// 要编写新的测试套件，请创建一个文件，其中包含此处所述的 TestXxx 函数，
+// 并将该文件命名为以 "_test.go" 结尾。
+// 该文件将被排除在常规包构建之外，但在运行 "go test" 命令时会被包含进来。
 //
-// The test file can be in the same package as the one being tested,
-// or in a corresponding package with the suffix "_test".
+// 测试文件可以与被测包位于同一包中，
+// 也可以位于带有后缀 "_test" 的对应包中。
 //
-// If the test file is in the same package, it may refer to unexported
-// identifiers within the package, as in this example:
+// 如果测试文件位于同一包中，它可以引用包内未导出的标识符，如下例所示：
 //
 //	package abs
 //
@@ -36,9 +31,8 @@
 //	    }
 //	}
 //
-// If the file is in a separate "_test" package, the package being tested
-// must be imported explicitly and only its exported identifiers may be used.
-// This is known as "black box" testing.
+// 如果文件位于单独的 "_test" 包中，则必须显式导入被测包，
+// 并且只能使用其导出的标识符。这被称为 "黑盒" 测试。
 //
 //	package abs_test
 //
@@ -55,20 +49,19 @@
 //	    }
 //	}
 //
-// For more detail, run [go help test] and [go help testflag].
+// 更多详情，请运行 [go help test] 和 [go help testflag]。
 //
-// # Benchmarks
+// # 基准测试
 //
-// Functions of the form
+// 形式如下的函数
 //
 //	func BenchmarkXxx(*testing.B)
 //
-// are considered benchmarks, and are executed by the "go test" command when
-// its -bench flag is provided. Benchmarks are run sequentially.
+// 被视为基准测试，当提供 -bench 标志时由 "go test" 命令执行。基准测试按顺序运行。
 //
-// For a description of the testing flags, see [go help testflag].
+// 关于测试标志的说明，请参阅 [go help testflag]。
 //
-// A sample benchmark function looks like this:
+// 一个基准测试函数示例看起来像这样：
 //
 //	func BenchmarkRandInt(b *testing.B) {
 //	    for b.Loop() {
@@ -76,15 +69,14 @@
 //	    }
 //	}
 //
-// The output
+// 输出
 //
 //	BenchmarkRandInt-8   	68453040	        17.8 ns/op
 //
-// means that the body of the loop ran 68453040 times at a speed of 17.8 ns per loop.
+// 表示循环体运行了 68453040 次，每次循环的速度为 17.8 ns。
 //
-// Only the body of the loop is timed, so benchmarks may do expensive
-// setup before calling b.Loop, which will not be counted toward the
-// benchmark measurement:
+// 只对循环体计时，因此基准测试可以在调用 b.Loop 之前进行耗时的准备工作，
+// 这些准备不会被计入基准测试的测量结果：
 //
 //	func BenchmarkBigLen(b *testing.B) {
 //	    big := NewBig()
@@ -93,9 +85,8 @@
 //	    }
 //	}
 //
-// If a benchmark needs to test performance in a parallel setting, it may use
-// the RunParallel helper function; such benchmarks are intended to be used with
-// the go test -cpu flag:
+// 如果基准测试需要在并行环境下测试性能，可以使用
+// RunParallel 辅助函数；此类基准测试旨在与 go test -cpu 标志一起使用：
 //
 //	func BenchmarkTemplateParallel(b *testing.B) {
 //	    templ := template.Must(template.New("test").Parse("Hello, {{.}}!"))
@@ -108,18 +99,16 @@
 //	    })
 //	}
 //
-// A detailed specification of the benchmark results format is given
-// in https://go.dev/design/14313-benchmark-format.
+// 基准测试结果格式的详细规范见
+// https://go.dev/design/14313-benchmark-format。
 //
-// There are standard tools for working with benchmark results at
-// [golang.org/x/perf/cmd].
-// In particular, [golang.org/x/perf/cmd/benchstat] performs
-// statistically robust A/B comparisons.
+// 在 [golang.org/x/perf/cmd] 中有处理基准测试结果的标准工具。
+// 特别是，[golang.org/x/perf/cmd/benchstat] 执行
+// 统计上稳健的 A/B 比较。
 //
-// # b.N-style benchmarks
+// # b.N 风格的基准测试
 //
-// Prior to the introduction of [B.Loop], benchmarks were written in a
-// different style using B.N. For example:
+// 在引入 [B.Loop] 之前，基准测试使用 B.N 以不同的风格编写。例如：
 //
 //	func BenchmarkRandInt(b *testing.B) {
 //	    for range b.N {
@@ -127,14 +116,11 @@
 //	    }
 //	}
 //
-// In this style of benchmark, the benchmark function must run
-// the target code b.N times. The benchmark function is called
-// multiple times with b.N adjusted until the benchmark function
-// lasts long enough to be timed reliably. This also means any setup
-// done before the loop may be run several times.
+// 在这种风格的基准测试中，基准测试函数必须运行目标代码 b.N 次。
+// 基准测试函数会被多次调用，并调整 b.N，直到基准测试函数持续足够长的时间
+// 以进行可靠计时。这也意味着循环之前执行的任何准备工作可能会运行多次。
 //
-// If a benchmark needs some expensive setup before running, the timer
-// should be explicitly reset:
+// 如果基准测试在运行前需要一些耗时的准备工作，应显式重置计时器：
 //
 //	func BenchmarkBigLen(b *testing.B) {
 //	    big := NewBig()
@@ -144,15 +130,13 @@
 //	    }
 //	}
 //
-// New benchmarks should prefer using [B.Loop], which is more robust
-// and more efficient.
+// 新的基准测试应优先使用 [B.Loop]，它更稳健也更高效。
 //
-// # Examples
+// # 示例
 //
-// The package also runs and verifies example code. Example functions may
-// include a concluding line comment that begins with "Output:" and is compared with
-// the standard output of the function when the tests are run. (The comparison
-// ignores leading and trailing space.) These are examples of an example:
+// 该包还会运行并验证示例代码。示例函数可以包含一个以 "Output:" 开头的
+// 结尾行注释，在运行测试时会将其与该函数的标准输出进行比较。
+// （比较会忽略前导和尾随空格。）以下是一个示例的示例：
 //
 //	func ExampleHello() {
 //	    fmt.Println("hello")
@@ -167,8 +151,7 @@
 //	    // goodbye
 //	}
 //
-// The comment prefix "Unordered output:" is like "Output:", but matches any
-// line order:
+// 注释前缀 "Unordered output:" 类似于 "Output:"，但匹配任意行顺序：
 //
 //	func ExamplePerm() {
 //	    for _, value := range Perm(5) {
@@ -181,42 +164,38 @@
 //	    // 0
 //	}
 //
-// Example functions without output comments are compiled but not executed.
+// 没有输出注释的示例函数会被编译但不会被执行。
 //
-// The naming convention to declare examples for the package, a function F, a type T and
-// method M on type T are:
+// 为包、函数 F、类型 T 以及类型 T 上的方法 M 声明示例的命名约定为：
 //
 //	func Example() { ... }
 //	func ExampleF() { ... }
 //	func ExampleT() { ... }
 //	func ExampleT_M() { ... }
 //
-// Multiple example functions for a package/type/function/method may be provided by
-// appending a distinct suffix to the name. The suffix must start with a
-// lower-case letter.
+// 通过为名称附加不同的后缀，可以为包/类型/函数/方法提供多个示例函数。
+// 后缀必须以小写字母开头。
 //
 //	func Example_suffix() { ... }
 //	func ExampleF_suffix() { ... }
 //	func ExampleT_suffix() { ... }
 //	func ExampleT_M_suffix() { ... }
 //
-// The entire test file is presented as the example when it contains a single
-// example function, at least one other function, type, variable, or constant
-// declaration, and no test or benchmark functions.
+// 当整个测试文件只包含一个示例函数、至少一个其他函数/类型/变量/常量
+// 声明，且不包含任何测试或基准测试函数时，整个测试文件会作为示例呈现。
 //
-// # Fuzzing
+// # 模糊测试
 //
-// 'go test' and the testing package support fuzzing, a testing technique where
-// a function is called with randomly generated inputs to find bugs not
-// anticipated by unit tests.
+// 'go test' 和 testing 包支持模糊测试（fuzzing），这是一种用随机生成的
+// 输入调用函数以发现单元测试未预料到的缺陷的测试技术。
 //
-// Functions of the form
+// 形式如下的函数
 //
 //	func FuzzXxx(*testing.F)
 //
-// are considered fuzz tests.
+// 被视为模糊测试。
 //
-// For example:
+// 例如：
 //
 //	func FuzzHex(f *testing.F) {
 //	  for _, seed := range [][]byte{{}, {0}, {9}, {0xa}, {0xf}, {1, 2, 3, 4}} {
@@ -234,46 +213,38 @@
 //	  })
 //	}
 //
-// A fuzz test maintains a seed corpus, or a set of inputs which are run by
-// default, and can seed input generation. Seed inputs may be registered by
-// calling [F.Add] or by storing files in the directory testdata/fuzz/<Name>
-// (where <Name> is the name of the fuzz test) within the package containing
-// the fuzz test. Seed inputs are optional, but the fuzzing engine may find
-// bugs more efficiently when provided with a set of small seed inputs with good
-// code coverage. These seed inputs can also serve as regression tests for bugs
-// identified through fuzzing.
+// 模糊测试会维护一个种子语料库（seed corpus），即一组默认运行的输入，
+// 并可为输入生成提供种子。种子输入可以通过调用 [F.Add] 注册，
+// 也可以通过将文件存储在包含模糊测试的包内的 testdata/fuzz/<Name>
+// 目录中（其中 <Name> 是模糊测试的名称）。种子输入是可选的，
+// 但当提供一组具有良好代码覆盖率的小型种子输入时，模糊测试引擎可以更高效地
+// 发现缺陷。这些种子输入也可以用作通过模糊测试发现的缺陷的回归测试。
 //
-// The function passed to [F.Fuzz] within the fuzz test is considered the fuzz
-// target. A fuzz target must accept a [*T] parameter, followed by one or more
-// parameters for random inputs. The types of arguments passed to [F.Add] must
-// be identical to the types of these parameters. The fuzz target may signal
-// that it's found a problem the same way tests do: by calling [T.Fail] (or any
-// method that calls it like [T.Error] or [T.Fatal]) or by panicking.
+// 模糊测试中传递给 [F.Fuzz] 的函数被视为模糊测试目标（fuzz target）。
+// 模糊测试目标必须接受一个 [*T] 参数，后跟一个或多个用于随机输入的参数。
+// 传递给 [F.Add] 的参数类型必须与这些参数的类型完全一致。
+// 模糊测试目标可以像测试一样以相同方式表示发现了问题：
+// 通过调用 [T.Fail]（或任何调用它的方法，如 [T.Error] 或 [T.Fatal]）或通过 panic。
 //
-// When fuzzing is enabled (by setting the -fuzz flag to a regular expression
-// that matches a specific fuzz test), the fuzz target is called with arguments
-// generated by repeatedly making random changes to the seed inputs. On
-// supported platforms, 'go test' compiles the test executable with fuzzing
-// coverage instrumentation. The fuzzing engine uses that instrumentation to
-// find and cache inputs that expand coverage, increasing the likelihood of
-// finding bugs. If the fuzz target fails for a given input, the fuzzing engine
-// writes the inputs that caused the failure to a file in the directory
-// testdata/fuzz/<Name> within the package directory. This file later serves as
-// a seed input. If the file can't be written at that location (for example,
-// because the directory is read-only), the fuzzing engine writes the file to
-// the fuzz cache directory within the build cache instead.
+// 当启用模糊测试时（通过将 -fuzz 标志设置为匹配特定模糊测试的正则表达式），
+// 会使用通过对种子输入反复进行随机更改而生成的参数来调用模糊测试目标。
+// 在支持的平台上，'go test' 会使用模糊测试覆盖率插桩来编译测试可执行文件。
+// 模糊测试引擎利用该插桩来查找并缓存能扩大覆盖率的输入，从而提高
+// 发现缺陷的可能性。如果模糊测试目标对某个输入失败，模糊测试引擎
+// 会将导致失败的输入写入包目录内 testdata/fuzz/<Name> 目录中的文件。
+// 该文件随后会作为种子输入。如果无法写入该位置（例如，
+// 因为目录是只读的），模糊测试引擎会改为将该文件写入构建缓存内的
+// 模糊测试缓存目录。
 //
-// When fuzzing is disabled, the fuzz target is called with the seed inputs
-// registered with [F.Add] and seed inputs from testdata/fuzz/<Name>. In this
-// mode, the fuzz test acts much like a regular test, with subtests started
-// with [F.Fuzz] instead of [T.Run].
+// 当模糊测试被禁用时，会使用通过 [F.Add] 注册的种子输入以及来自
+// testdata/fuzz/<Name> 的种子输入来调用模糊测试目标。在此模式下，
+// 模糊测试的行为很像常规测试，其子测试由 [F.Fuzz] 而非 [T.Run] 启动。
 //
-// See https://go.dev/doc/fuzz for documentation about fuzzing.
+// 关于模糊测试的文档，请参阅 https://go.dev/doc/fuzz。
 //
-// # Skipping
+// # 跳过
 //
-// Tests or benchmarks may be skipped at run time with a call to
-// [T.Skip] or [B.Skip]:
+// 测试或基准测试可以在运行时通过调用 [T.Skip] 或 [B.Skip] 来跳过：
 //
 //	func TestTimeConsuming(t *testing.T) {
 //	    if testing.Short() {
@@ -282,8 +253,8 @@
 //	    ...
 //	}
 //
-// The [T.Skip] method can be used in a fuzz target if the input is invalid,
-// but should not be considered a failing input. For example:
+// 如果输入无效，可以在模糊测试目标中使用 [T.Skip] 方法，
+// 但不应将其视为导致失败的输入。例如：
 //
 //	func FuzzJSONMarshaling(f *testing.F) {
 //	    f.Fuzz(func(t *testing.T, b []byte) {
@@ -297,12 +268,12 @@
 //	    })
 //	}
 //
-// # Subtests and Sub-benchmarks
+// # 子测试与子基准测试
 //
-// The [T.Run] and [B.Run] methods allow defining subtests and sub-benchmarks,
-// without having to define separate functions for each. This enables uses
-// like table-driven benchmarks and creating hierarchical tests.
-// It also provides a way to share common setup and tear-down code:
+// [T.Run] 和 [B.Run] 方法允许定义子测试和子基准测试，
+// 而无需为每个分别定义函数。这使得表驱动基准测试和创建
+// 分层测试等用法成为可能。它还提供了一种共享公共
+// 准备和清理代码的方式：
 //
 //	func TestFoo(t *testing.T) {
 //	    // <setup code>
@@ -312,16 +283,15 @@
 //	    // <tear-down code>
 //	}
 //
-// Each subtest and sub-benchmark has a unique name: the combination of the name
-// of the top-level test and the sequence of names passed to Run, separated by
-// slashes, with an optional trailing sequence number for disambiguation.
+// 每个子测试和子基准测试都有一个唯一名称：顶层测试的名称与
+// 传递给 Run 的名称序列的组合，以斜杠分隔，并可选择附带一个
+// 用于消歧的尾随序号。
 //
-// The argument to the -run, -bench, and -fuzz command-line flags is an unanchored regular
-// expression that matches the test's name. For tests with multiple slash-separated
-// elements, such as subtests, the argument is itself slash-separated, with
-// expressions matching each name element in turn. Because it is unanchored, an
-// empty expression matches any string.
-// For example, using "matching" to mean "whose name contains":
+// -run、-bench 和 -fuzz 命令行标志的参数是一个不锚定的正则表达式，
+// 用于匹配测试的名称。对于包含多个以斜杠分隔元素的测试（例如子测试），
+// 该参数本身也以斜杠分隔，其中的表达式依次匹配每个名称元素。
+// 由于它是不锚定的，空表达式会匹配任意字符串。
+// 例如，用 "匹配" 表示 "其名称包含"：
 //
 //	go test -run ''        # Run all tests.
 //	go test -run Foo       # Run top-level tests matching "Foo", such as "TestFooBar".
@@ -329,18 +299,16 @@
 //	go test -run /A=1      # For all top-level tests, run subtests matching "A=1".
 //	go test -fuzz FuzzFoo  # Fuzz the target matching "FuzzFoo"
 //
-// The -run argument can also be used to run a specific value in the seed
-// corpus, for debugging. For example:
+// -run 参数也可以用于运行种子语料库中的特定值，以便调试。例如：
 //
 //	go test -run=FuzzFoo/9ddb952d9814
 //
-// The -fuzz and -run flags can both be set, in order to fuzz a target but
-// skip the execution of all other tests.
+// 可以同时设置 -fuzz 和 -run 标志，以便对某个目标进行模糊测试，
+// 但跳过所有其他测试的执行。
 //
-// Subtests can also be used to control parallelism. A parent test will only
-// complete once all of its subtests complete. In this example, all tests are
-// run in parallel with each other, and only with each other, regardless of
-// other top-level tests that may be defined:
+// 子测试还可以用于控制并行性。父测试只有在所有子测试完成后才会
+// 完成。在此示例中，所有测试都彼此并行运行，且仅彼此并行运行，
+// 无论可能定义了哪些其他顶层测试：
 //
 //	func TestGroupedParallel(t *testing.T) {
 //	    for _, tc := range tests {
@@ -351,8 +319,8 @@
 //	    }
 //	}
 //
-// Run does not return until parallel subtests have completed, providing a way
-// to clean up after a group of parallel tests:
+// Run 会等到并行的子测试全部完成后才返回，这提供了一种
+// 在一组并行测试之后进行清理的方式：
 //
 //	func TestTeardownParallel(t *testing.T) {
 //	    // This Run will not return until the parallel tests finish.
@@ -366,33 +334,30 @@
 //
 // # Main
 //
-// It is sometimes necessary for a test or benchmark program to do extra setup or teardown
-// before or after it executes. It is also sometimes necessary to control
-// which code runs on the main thread. To support these and other cases,
-// if a test file contains a function:
+// 有时测试或基准测试程序需要在执行前后进行额外的准备或清理。
+// 有时还需要控制哪些代码在主线程上运行。为支持这些
+// 及其他情况，如果测试文件包含如下函数：
 //
 //	func TestMain(m *testing.M)
 //
-// then the generated test will call TestMain(m) instead of running the tests or benchmarks
-// directly. TestMain runs in the main goroutine and can do whatever setup
-// and teardown is necessary around a call to m.Run. m.Run will return an exit
-// code that may be passed to [os.Exit]. If TestMain returns, the test wrapper
-// will pass the result of m.Run to [os.Exit] itself.
+// 那么生成的测试将调用 TestMain(m)，而不是直接运行测试或基准测试。
+// TestMain 在主 goroutine 中运行，可以在调用 m.Run 前后进行任何必要的
+// 准备和清理工作。m.Run 会返回一个退出码，可将其传递给 [os.Exit]。
+// 如果 TestMain 返回，测试包装器会自行将 m.Run 的结果传递给 [os.Exit]。
 //
-// When TestMain is called, flag.Parse has not been run. If TestMain depends on
-// command-line flags, including those of the testing package, it should call
-// [flag.Parse] explicitly. Command line flags are always parsed by the time test
-// or benchmark functions run.
+// 调用 TestMain 时，flag.Parse 尚未运行。如果 TestMain 依赖于
+// 命令行标志（包括 testing 包的标志），它应显式调用 [flag.Parse]。
+// 当测试或基准测试函数运行时，命令行标志始终已被解析。
 //
-// A simple implementation of TestMain is:
+// TestMain 的一个简单实现是：
 //
 //	func TestMain(m *testing.M) {
 //		// call flag.Parse() here if TestMain uses flags
 //		m.Run()
 //	}
 //
-// TestMain is a low-level primitive and should not be necessary for casual
-// testing needs, where ordinary test functions suffice.
+// TestMain 是一个底层原语，对于普通的测试需求（普通测试函数即可满足）
+// 应该是不必要的。
 //
 // [go help test]: https://pkg.go.dev/cmd/go#hdr-Test_packages
 // [go help testflag]: https://pkg.go.dev/cmd/go#hdr-Testing_flags
@@ -420,43 +385,39 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode"
-	_ "unsafe" // for linkname
+	_ "unsafe" // 用于 linkname
 )
 
 var initRan bool
 
 var (
-	parallelStart atomic.Int64 // number of parallel tests started
-	parallelStop  atomic.Int64 // number of parallel tests stopped
+	parallelStart atomic.Int64 // 已启动的并行测试数量
+	parallelStop  atomic.Int64 // 已停止的并行测试数量
 )
 
-// Init registers testing flags. These flags are automatically registered by
-// the "go test" command before running test functions, so Init is only needed
-// when calling functions such as Benchmark without using "go test".
+// Init 注册 testing 标志。这些标志由 "go test" 命令在运行测试函数前自动注册，
+// 因此只有在不使用 "go test" 而调用诸如 Benchmark 之类的函数时才需要 Init。
 //
-// Init is not safe to call concurrently. It has no effect if it was already called.
+// Init 并发调用不安全。如果已经调用过，则不会产生任何效果。
 func Init() {
 	if initRan {
 		return
 	}
 	initRan = true
-	// The short flag requests that tests run more quickly, but its functionality
-	// is provided by test writers themselves. The testing package is just its
-	// home. The all.bash installation script sets it to make installation more
-	// efficient, but by default the flag is off so a plain "go test" will do a
-	// full test of the package.
+	// short 标志请求测试运行得更快，但其功能由测试编写者自己提供。
+	// testing 包只是它的归属。all.bash 安装脚本会设置它以使安装更高效，
+	// 但默认情况下该标志是关闭的，这样普通的 "go test" 会执行包的完整测试。
 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
 
-	// The failfast flag requests that test execution stop after the first test failure.
+	// failfast 标志请求在第一次测试失败后停止测试执行。
 	failFast = flag.Bool("test.failfast", false, "do not start new tests after the first test failure")
 
-	// The directory in which to create profile files and the like. When run from
-	// "go test", the binary always runs in the source directory for the package;
-	// this flag lets "go test" tell the binary to write the files in the directory where
-	// the "go test" command is run.
+	// 用于创建 profile 文件等的目录。当从 "go test" 运行时，
+	// 二进制文件总是在包的源目录中运行；此标志让 "go test" 告诉
+	// 二进制文件将文件写到运行 "go test" 命令所在的目录。
 	outputDir = flag.String("test.outputdir", "", "write profiles to `dir`")
 	artifacts = flag.Bool("test.artifacts", false, "store test artifacts in test.,outputdir")
-	// Report as tests are run; default is silent for success.
+	// 在测试运行时进行报告；默认成功时保持静默。
 	flag.Var(&chatty, "test.v", "verbose: print additional output")
 	count = flag.Uint("test.count", 1, "run tests and benchmarks `n` times")
 	coverProfile = flag.String("test.coverprofile", "", "write a coverage profile to `file`")
@@ -485,7 +446,7 @@ func Init() {
 }
 
 var (
-	// Flags, registered during Init.
+	// 在 Init 期间注册的标志。
 	short                *bool
 	failFast             *bool
 	outputDir            *string
@@ -513,20 +474,20 @@ var (
 	testlog              *string
 	fullPath             *bool
 
-	haveExamples bool // are there examples?
+	haveExamples bool // 是否有示例？
 
 	cpuList     []int
 	testlogFile *os.File
 	artifactDir string
 
-	numFailed atomic.Uint32 // number of test failures
+	numFailed atomic.Uint32 // 测试失败次数
 
-	running sync.Map // map[string]time.Time of running, unpaused tests
+	running sync.Map // map[string]time.Time，记录正在运行、未暂停的测试
 )
 
 type chattyFlag struct {
-	on   bool // -v is set in some form
-	json bool // -v=test2json is set, to make output better for test2json
+	on   bool // 以某种形式设置了 -v
+	json bool // 设置了 -v=test2json，使输出对 test2json 更友好
 }
 
 func (*chattyFlag) IsBoolFlag() bool { return true }
@@ -562,7 +523,7 @@ func (f *chattyFlag) Get() any {
 	return f.on
 }
 
-const marker = byte(0x16) // ^V for framing
+const marker = byte(0x16) // ^V，用于分帧
 
 func (f *chattyFlag) prefix() string {
 	if f.json {
@@ -573,19 +534,19 @@ func (f *chattyFlag) prefix() string {
 
 type chattyPrinter struct {
 	w          io.Writer
-	lastNameMu sync.Mutex // guards lastName
-	lastName   string     // last printed test name in chatty mode
-	json       bool       // -v=json output mode
+	lastNameMu sync.Mutex // 保护 lastName
+	lastName   string     // 在 chatty 模式下最后打印的测试名称
+	json       bool       // -v=json 输出模式
 }
 
 func newChattyPrinter(w io.Writer) *chattyPrinter {
 	return &chattyPrinter{w: w, json: chatty.json}
 }
 
-// prefix is like chatty.prefix but using p.json instead of chatty.json.
-// Using p.json allows tests to check the json behavior without modifying
-// the global variable. For convenience, we allow p == nil and treat
-// that as not in json mode (because it's not chatty at all).
+// prefix 类似于 chatty.prefix，但使用 p.json 而非 chatty.json。
+// 使用 p.json 允许测试在不修改全局变量的情况下检查 json 行为。
+// 为方便起见，我们允许 p == nil，并将其视为非 json 模式
+// （因为它根本不是 chatty）。
 func (p *chattyPrinter) prefix() string {
 	if p != nil && p.json {
 		return string(marker)
@@ -593,23 +554,21 @@ func (p *chattyPrinter) prefix() string {
 	return ""
 }
 
-// Updatef prints a message about the status of the named test to w.
+// Updatef 向 w 打印有关指定测试状态的消息。
 //
-// The formatted message must include the test name itself.
+// 格式化后的消息必须包含测试名称本身。
 func (p *chattyPrinter) Updatef(testName, format string, args ...any) {
 	p.lastNameMu.Lock()
 	defer p.lastNameMu.Unlock()
 
-	// Since the message already implies an association with a specific new test,
-	// we don't need to check what the old test name was or log an extra NAME line
-	// for it. (We're updating it anyway, and the current message already includes
-	// the test name.)
+	// 由于该消息已经暗示与某个特定的新测试相关联，
+	// 我们无需检查旧的测试名称是什么，也无需为它额外记录一行 NAME。
+	// （我们反正都会更新它，而且当前消息已经包含了测试名称。）
 	p.lastName = testName
 	fmt.Fprintf(p.w, p.prefix()+format, args...)
 }
 
-// Printf prints a message, generated by the named test, that does not
-// necessarily mention that tests's name itself.
+// Printf 打印由指定测试生成的消息，该消息不一定提及该测试的名称本身。
 func (p *chattyPrinter) Printf(testName, format string, args ...any) {
 	p.lastNameMu.Lock()
 	defer p.lastNameMu.Unlock()
@@ -624,50 +583,49 @@ func (p *chattyPrinter) Printf(testName, format string, args ...any) {
 	fmt.Fprintf(p.w, format, args...)
 }
 
-// The maximum number of stack frames to go through when skipping helper functions for
-// the purpose of decorating log messages.
+// 在为了修饰日志消息而跳过辅助函数时，允许经过的最大栈帧数。
 const maxStackLen = 50
 
-// common holds the elements common between T and B and
-// captures common methods such as Errorf.
+// common 保存 T 和 B 之间共有的元素，并
+// 包含诸如 Errorf 之类的共有方法。
 type common struct {
-	mu          sync.RWMutex         // guards this group of fields
-	output      []byte               // Output generated by test or benchmark.
-	w           io.Writer            // For flushToParent.
-	o           *outputWriter        // Writes output.
-	ran         bool                 // Test or benchmark (or one of its subtests) was executed.
-	failed      bool                 // Test or benchmark has failed.
-	skipped     bool                 // Test or benchmark has been skipped.
-	done        bool                 // Test is finished and all subtests have completed.
-	helperPCs   map[uintptr]struct{} // functions to be skipped when writing file/line info
-	helperNames map[string]struct{}  // helperPCs converted to function names
-	cleanups    []func()             // optional functions to be called at the end of the test
-	cleanupName string               // Name of the cleanup function.
-	cleanupPc   []uintptr            // The stack trace at the point where Cleanup was called.
-	finished    bool                 // Test function has completed.
-	inFuzzFn    bool                 // Whether the fuzz target, if this is one, is running.
+	mu          sync.RWMutex         // 保护这组字段
+	output      []byte               // 由测试或基准测试生成的输出。
+	w           io.Writer            // 用于 flushToParent。
+	o           *outputWriter        // 写入输出。
+	ran         bool                 // 测试或基准测试（或其某个子测试）已被执行。
+	failed      bool                 // 测试或基准测试已失败。
+	skipped     bool                 // 测试或基准测试已被跳过。
+	done        bool                 // 测试已完成且所有子测试也已完成。
+	helperPCs   map[uintptr]struct{} // 在写入文件/行信息时要跳过的函数
+	helperNames map[string]struct{}  // helperPCs 转换后的函数名
+	cleanups    []func()             // 在测试结束时调用的可选函数
+	cleanupName string               // cleanup 函数的名称。
+	cleanupPc   []uintptr            // 调用 Cleanup 时的栈回溯。
+	finished    bool                 // 测试函数已完成。
+	inFuzzFn    bool                 // 如果这是模糊测试目标，表示它是否正在运行。
 	isSynctest  bool
 
-	chatty         *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
-	bench          bool           // Whether the current test is a benchmark.
-	hasSub         atomic.Bool    // whether there are sub-benchmarks.
-	cleanupStarted atomic.Bool    // Registered cleanup callbacks have started to execute
-	runner         string         // Function name of tRunner running the test.
-	isParallel     bool           // Whether the test is parallel.
+	chatty         *chattyPrinter // 若设置了 chatty 标志，则为 chattyPrinter 的副本。
+	bench          bool           // 当前测试是否为基准测试。
+	hasSub         atomic.Bool    // 是否存在子基准测试。
+	cleanupStarted atomic.Bool    // 已注册的 cleanup 回调是否已开始执行
+	runner         string         // 运行该测试的 tRunner 的函数名。
+	isParallel     bool           // 该测试是否为并行的。
 
 	parent     *common
-	level      int       // Nesting depth of test or benchmark.
-	creator    []uintptr // If level > 0, the stack trace at the point where the parent called t.Run.
+	level      int       // 测试或基准测试的嵌套深度。
+	creator    []uintptr // 如果 level > 0，则为父级调用 t.Run 时的栈回溯。
 	modulePath string
 	importPath string
-	name       string            // Name of test or benchmark.
-	start      highPrecisionTime // Time test or benchmark started
+	name       string            // 测试或基准测试的名称。
+	start      highPrecisionTime // 测试或基准测试开始的时间
 	duration   time.Duration
-	barrier    chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
-	signal     chan bool // To signal a test is done.
-	sub        []*T      // Queue of subtests to be run in parallel.
+	barrier    chan bool // 用于通知并行的子测试它们可以启动。未使用 T.Parallel 时（B）或不可用时（模糊测试时）为 nil。
+	signal     chan bool // 用于通知测试已完成。
+	sub        []*T      // 将要并行运行的子测试队列。
 
-	lastRaceErrors  atomic.Int64 // Max value of race.Errors seen during the test or its subtests.
+	lastRaceErrors  atomic.Int64 // 测试或其子测试期间看到的 race.Errors 的最大值。
 	raceErrorLogged atomic.Bool
 
 	tempDirMu  sync.Mutex
@@ -683,12 +641,12 @@ type common struct {
 	cancelCtx context.CancelFunc
 }
 
-// Short reports whether the -test.short flag is set.
+// Short 报告是否设置了 -test.short 标志。
 func Short() bool {
 	if short == nil {
 		panic("testing: Short called before Init")
 	}
-	// Catch code that calls this from TestMain without first calling flag.Parse.
+	// 捕获那些在未先调用 flag.Parse 的情况下从 TestMain 调用此函数的代码。
 	if !flag.Parsed() {
 		panic("testing: Short called before Parse")
 	}
@@ -696,32 +654,30 @@ func Short() bool {
 	return *short
 }
 
-// testBinary is set by cmd/go to "1" if this is a binary built by "go test".
-// The value is set to "1" by a -X option to cmd/link. We assume that
-// because this is possible, the compiler will not optimize testBinary
-// into a constant on the basis that it is an unexported package-scope
-// variable that is never changed. If the compiler ever starts implementing
-// such an optimization, we will need some technique to mark this variable
-// as "changed by a cmd/link -X option".
+// testBinary 由 cmd/go 设置为 "1"，表示这是由 "go test" 构建的二进制文件。
+// 该值由 cmd/link 的 -X 选项设置为 "1"。我们假设正因为这是可能的，
+// 编译器不会以“这是一个从未改变的未导出包级变量”为由将 testBinary
+// 优化为常量。如果编译器将来开始实现这样的优化，
+// 我们就需要某种技术将该变量标记为“由 cmd/link -X 选项更改”。
 var testBinary = "0"
 
-// Testing reports whether the current code is being run in a test.
-// This will report true in programs created by "go test",
-// false in programs created by "go build".
+// Testing 报告当前代码是否正在测试中运行。
+// 在由 "go test" 创建的程序中它会报告 true，
+// 在由 "go build" 创建的程序中报告 false。
 func Testing() bool {
 	return testBinary == "1"
 }
 
-// CoverMode reports what the test coverage mode is set to. The
-// values are "set", "count", or "atomic". The return value will be
-// empty if test coverage is not enabled.
+// CoverMode 报告测试覆盖率模式被设置为什么。
+// 取值为 "set"、"count" 或 "atomic"。如果未启用测试覆盖率，
+// 返回值将为空。
 func CoverMode() string {
 	return cover.mode
 }
 
-// Verbose reports whether the -test.v flag is set.
+// Verbose 报告是否设置了 -test.v 标志。
 func Verbose() bool {
-	// Same as in Short.
+	// 与 Short 中相同。
 	if !flag.Parsed() {
 		panic("testing: Verbose called before Parse")
 	}
@@ -734,14 +690,14 @@ func (c *common) checkFuzzFn(name string) {
 	}
 }
 
-// frameSkip searches, starting after skip frames, for the first caller frame
-// in a function not marked as a helper and returns that frame.
-// The search stops if it finds a tRunner function that
-// was the entry point into the test and the test is not a subtest.
-// This function must be called with c.mu held.
+// frameSkip 从跳过 skip 个帧之后开始搜索，寻找第一个位于
+// 未被标记为 helper 的函数中的调用者帧，并返回该帧。
+// 如果它找到某个 tRunner 函数，且该函数是进入测试的入口点
+// 并且该测试不是子测试，则停止搜索。
+// 调用此函数时必须持有 c.mu。
 func (c *common) frameSkip(skip int) runtime.Frame {
-	// If the search continues into the parent test, we'll have to hold
-	// its mu temporarily. If we then return, we need to unlock it.
+	// 如果搜索继续进入父测试，我们将不得不临时持有
+	// 其 mu。如果随后返回，我们需要将其解锁。
 	shouldUnlock := false
 	defer func() {
 		if shouldUnlock {
@@ -749,8 +705,8 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 		}
 	}()
 	var pc [maxStackLen]uintptr
-	// Skip two extra frames to account for this function
-	// and runtime.Callers itself.
+	// 多跳过两个帧，以计入此函数
+	// 和 runtime.Callers 本身。
 	n := runtime.Callers(skip+2, pc[:])
 	if n == 0 {
 		panic("testing: zero callers found")
@@ -770,32 +726,30 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 			firstFrame = frame
 		}
 		if frame.Function == c.runner {
-			// We've gone up all the way to the tRunner calling
-			// the test function (so the user must have
-			// called tb.Helper from inside that test function).
-			// If this is a top-level test, only skip up to the test function itself.
-			// If we're in a subtest, continue searching in the parent test,
-			// starting from the point of the call to Run which created this subtest.
+			// 我们已经一路向上找到调用测试函数的 tRunner
+			// （因此用户一定是在该测试函数内部调用了 tb.Helper）。
+			// 如果这是顶层测试，只跳到测试函数本身为止。
+			// 如果我们处于子测试中，则在父测试中继续搜索，
+			// 从创建该子测试的 Run 调用点开始。
 			if c.level > 1 {
 				frames = runtime.CallersFrames(c.creator)
 				parent := c.parent
-				// We're no longer looking at the current c after this point,
-				// so we should unlock its mu, unless it's the original receiver,
-				// in which case our caller doesn't expect us to do that.
+				// 在此之后我们不再关注当前的 c，
+				// 因此应该解锁它的 mu，除非它是原始的接收者，
+				// 在这种情况下我们的调用者不希望我们那样做。
 				if shouldUnlock {
 					c.mu.Unlock()
 				}
 				c = parent
-				// Remember to unlock c.mu when we no longer need it, either
-				// because we went up another nesting level, or because we
-				// returned.
+				// 记住在我们不再需要 c.mu 时将其解锁，无论是因为
+				// 我们又向上了一层嵌套，还是因为返回了。
 				shouldUnlock = true
 				c.mu.Lock()
 				continue
 			}
 			return prevFrame
 		}
-		// If more helper PCs have been added since we last did the conversion
+		// 如果自上次进行转换以来又添加了更多 helper PC
 		if c.helperNames == nil {
 			c.helperNames = make(map[string]struct{})
 			for pc := range c.helperPCs {
@@ -803,15 +757,15 @@ func (c *common) frameSkip(skip int) runtime.Frame {
 			}
 		}
 		if _, ok := c.helperNames[frame.Function]; !ok {
-			// Found a frame that wasn't inside a helper function.
+			// 找到了一帧不在 helper 函数内的帧。
 			return frame
 		}
 	}
 	return firstFrame
 }
 
-// flushToParent writes c.output to the parent after first writing the header
-// with the given format and arguments.
+// flushToParent 先使用给定的格式和参数写入头部，
+// 然后将 c.output 写入父级。
 func (c *common) flushToParent(testName, format string, args ...any) {
 	p := c.parent
 	p.mu.Lock()
@@ -821,32 +775,30 @@ func (c *common) flushToParent(testName, format string, args ...any) {
 	defer c.mu.Unlock()
 
 	if len(c.output) > 0 {
-		// Add the current c.output to the print,
-		// and then arrange for the print to replace c.output.
-		// (This displays the logged output after the --- FAIL line.)
+		// 将当前的 c.output 添加到打印中，
+		// 然后安排该打印替换 c.output。
+		// （这会在 --- FAIL 行之后显示记录的输出。）
 		format += "%s"
 		args = append(args[:len(args):len(args)], c.output)
 		c.output = c.output[:0]
 	}
 
 	if c.chatty != nil && (p.w == c.chatty.w || c.chatty.json) {
-		// We're flushing to the actual output, so track that this output is
-		// associated with a specific test (and, specifically, that the next output
-		// is *not* associated with that test).
+		// 我们正在刷新到实际的输出，因此要追踪此输出与某个特定测试
+		// 相关联（具体来说，下一个输出*不*与该测试相关联）。
 		//
-		// Moreover, if c.output is non-empty it is important that this write be
-		// atomic with respect to the output of other tests, so that we don't end up
-		// with confusing '=== NAME' lines in the middle of our '--- PASS' block.
-		// Neither humans nor cmd/test2json can parse those easily.
-		// (See https://go.dev/issue/40771.)
+		// 此外，如果 c.output 非空，则本次写入相对于其他测试的输出必须是
+		// 原子的，这样我们就不会在我们的 '--- PASS' 块中间出现令人困惑的
+		// '=== NAME' 行。无论是人还是 cmd/test2json 都不容易解析这些内容。
+		// （参见 https://go.dev/issue/40771。）
 		//
-		// If test2json is used, we never flush to parent tests,
-		// so that the json stream shows subtests as they finish.
-		// (See https://go.dev/issue/29811.)
+		// 如果使用了 test2json，我们绝不刷新到父测试，
+		// 这样 json 流会在子测试完成时显示它们。
+		// （参见 https://go.dev/issue/29811。）
 		c.chatty.Updatef(testName, format, args...)
 	} else {
-		// We're flushing to the output buffer of the parent test, which will
-		// itself follow a test-name header when it is finally flushed to stdout.
+		// 我们正在刷新到父测试的输出缓冲区，当它最终刷新到 stdout 时，
+		// 其自身会跟随一个测试名称头部。
 		fmt.Fprintf(p.w, c.chatty.prefix()+format, args...)
 	}
 }
@@ -866,8 +818,7 @@ func (w indenter) Write(b []byte) (n int, err error) {
 		} else {
 			end++
 		}
-		// An indent of 4 spaces will neatly align the dashes with the status
-		// indicator of the parent.
+		// 4 个空格的缩进会将短横线整齐地与父级的状态指示符对齐。
 		line := b[:end]
 		if line[0] == marker {
 			w.c.output = append(w.c.output, marker)
@@ -880,12 +831,12 @@ func (w indenter) Write(b []byte) (n int, err error) {
 	return
 }
 
-// fmtDuration returns a string representing d in the form "87.00s".
+// fmtDuration 返回以 "87.00s" 形式表示 d 的字符串。
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
-// TB is the interface common to [T], [B], and [F].
+// TB 是 [T]、[B] 和 [F] 共有的接口。
 type TB interface {
 	ArtifactDir() string
 	Attr(key, value string)
@@ -911,9 +862,9 @@ type TB interface {
 	Context() context.Context
 	Output() io.Writer
 
-	// A private method to prevent users implementing the
-	// interface and so future additions to it will not
-	// violate Go 1 compatibility.
+	// 一个私有方法，用于阻止用户实现该接口，
+	// 这样将来向该接口添加内容就不会
+	// 违反 Go 1 兼容性。
 	private()
 }
 
@@ -922,28 +873,27 @@ var (
 	_ TB = (*B)(nil)
 )
 
-// T is a type passed to Test functions to manage test state and support formatted test logs.
+// T 是传递给 Test 函数的类型，用于管理测试状态并支持格式化测试日志。
 //
-// A test ends when its Test function returns or calls any of the methods
-// [T.FailNow], [T.Fatal], [T.Fatalf], [T.SkipNow], [T.Skip], or [T.Skipf]. Those methods, as well as
-// the [T.Parallel] method, must be called only from the goroutine running the
-// Test function.
+// 当测试函数返回或调用 [T.FailNow]、[T.Fatal]、[T.Fatalf]、[T.SkipNow]、[T.Skip] 或 [T.Skipf]
+// 中的任一方法时，测试结束。这些方法以及 [T.Parallel] 方法
+// 只能从运行该测试函数的 goroutine 中调用。
 //
-// The other reporting methods, such as the variations of [T.Log] and [T.Error],
-// may be called simultaneously from multiple goroutines.
+// 其他的报告方法，例如 [T.Log] 和 [T.Error] 的各种变体，
+// 可以从多个 goroutine 同时调用。
 type T struct {
 	common
 	denyParallel bool
-	tstate       *testState // For running tests and subtests.
+	tstate       *testState // 用于运行测试和子测试。
 }
 
 func (c *common) private() {}
 
-// Name returns the name of the running (sub-) test or benchmark.
+// Name 返回正在运行的（子）测试或基准测试的名称。
 //
-// The name will include the name of the test along with the names of
-// any nested sub-tests. If two sibling sub-tests have the same name,
-// Name will append a suffix to guarantee the returned name is unique.
+// 该名称将包含测试的名称以及任何嵌套子测试的名称。
+// 如果两个同级的子测试同名，Name 会附加一个后缀
+// 以保证返回的名称唯一。
 func (c *common) Name() string {
 	return c.name
 }
@@ -957,21 +907,21 @@ func (c *common) setRan() {
 	c.ran = true
 }
 
-// Fail marks the function as having failed but continues execution.
+// Fail 将该函数标记为已失败，但会继续执行。
 func (c *common) Fail() {
 	if c.parent != nil {
 		c.parent.Fail()
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	// c.done needs to be locked to synchronize checks to c.done in parent tests.
+	// 需要锁定 c.done，以便与父测试中对 c.done 的检查同步。
 	if c.done {
 		panic("Fail in goroutine after " + c.name + " has completed")
 	}
 	c.failed = true
 }
 
-// Failed reports whether the function has failed.
+// Failed 报告该函数是否已失败。
 func (c *common) Failed() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -985,72 +935,69 @@ func (c *common) Failed() bool {
 	return c.failed
 }
 
-// FailNow marks the function as having failed and stops its execution
-// by calling [runtime.Goexit] (which then runs all deferred calls in the
-// current goroutine).
-// Execution will continue at the next test or benchmark.
-// FailNow must be called from the goroutine running the
-// test or benchmark function, not from other goroutines
-// created during the test. Calling FailNow does not stop
-// those other goroutines.
+// FailNow 将该函数标记为已失败，并通过调用 [runtime.Goexit]
+// （随后会运行当前 goroutine 中的所有延迟调用）来停止其执行。
+// 执行将在下一个测试或基准测试处继续。
+// FailNow 必须从运行测试或基准测试函数的 goroutine 中调用，
+// 而不是从测试期间创建的其他 goroutine 中调用。
+// 调用 FailNow 不会停止那些其他 goroutine。
 func (c *common) FailNow() {
 	c.checkFuzzFn("FailNow")
 	c.Fail()
 
-	// Calling runtime.Goexit will exit the goroutine, which
-	// will run the deferred functions in this goroutine,
-	// which will eventually run the deferred lines in tRunner,
-	// which will signal to the test loop that this test is done.
+	// 调用 runtime.Goexit 将退出该 goroutine，这会
+	// 运行此 goroutine 中的延迟函数，最终会运行
+	// tRunner 中的延迟语句，从而向测试循环
+	// 发出该测试已完成的信号。
 	//
-	// A previous version of this code said:
+	// 此代码的先前版本是这样写的：
 	//
 	//	c.duration = ...
 	//	c.signal <- c.self
 	//	runtime.Goexit()
 	//
-	// This previous version duplicated code (those lines are in
-	// tRunner no matter what), but worse the goroutine teardown
-	// implicit in runtime.Goexit was not guaranteed to complete
-	// before the test exited. If a test deferred an important cleanup
-	// function (like removing temporary files), there was no guarantee
-	// it would run on a test failure. Because we send on c.signal during
-	// a top-of-stack deferred function now, we know that the send
-	// only happens after any other stacked defers have completed.
+	// 这个先前版本重复了代码（无论如何那些行都在
+	// tRunner 中），但更糟糕的是，runtime.Goexit 隐含的
+	// goroutine 清理不保证在测试退出前完成。如果测试延迟了
+	// 一个重要的 cleanup 函数（比如删除临时文件），就无法保证
+	// 它会在测试失败时运行。因为我们现在在栈顶的延迟函数中
+	// 向 c.signal 发送信号，所以我们知道只有在所有其他
+	// 已堆叠的延迟调用完成后才会发送。
 	c.mu.Lock()
 	c.finished = true
 	c.mu.Unlock()
 	runtime.Goexit()
 }
 
-// log generates the output. It is always at the same stack depth. log inserts
-// indentation and the final newline if necessary. It prefixes the string
-// with the file and line of the call site.
+// log 生成输出。它总是处于相同的栈深度。log 会插入
+// 缩进，并在必要时插入最后的换行符。它会在字符串前
+// 加上调用点的文件和行号。
 func (c *common) log(s string) {
 	s = strings.TrimSuffix(s, "\n")
 
-	// Second and subsequent lines are indented 4 spaces. This is in addition to
-	// the indentation provided by outputWriter.
+	// 第二行及后续行缩进 4 个空格。这是在
+	// outputWriter 提供的缩进之外的额外缩进。
 	s = strings.ReplaceAll(s, "\n", "\n"+indent)
 	s += "\n"
 
 	n := c.destination()
 	if n == nil {
-		// The test and all its parents are done. The log cannot be output.
+		// 该测试及其所有父级都已完成。日志无法输出。
 		panic("Log in goroutine after " + c.name + " has completed: " + s)
 	}
 
-	// Prefix with the call site. It is located by skipping 3 functions:
-	// callSite + log + public function
+	// 加上调用点作为前缀。它通过跳过 3 个函数来定位：
+	// callSite + log + 公共函数
 	s = n.callSite(3) + s
 
-	// Output buffered logs.
+	// 输出缓冲的日志。
 	n.flushPartial()
 
 	n.o.Write([]byte(s))
 }
 
-// destination selects the test to which output should be appended. It returns the
-// test if it is incomplete. Otherwise, it finds its closest incomplete parent.
+// destination 选择应将输出追加到的测试。如果该测试
+// 尚未完成，则返回它。否则，它查找最近的未完成父级。
 func (c *common) destination() *common {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -1068,7 +1015,7 @@ func (c *common) destination() *common {
 	return nil
 }
 
-// callSite retrieves and formats the file and line of the call site.
+// callSite 检索并格式化调用点的文件和行号。
 func (c *common) callSite(skip int) string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -1078,7 +1025,7 @@ func (c *common) callSite(skip int) string {
 	line := frame.Line
 	if file != "" {
 		if *fullPath {
-			// If relative path, truncate file name at last file name separator.
+			// 如果是相对路径，则在最后一个文件名分隔符处截断文件名。
 		} else {
 			file = filepath.Base(file)
 		}
@@ -1092,7 +1039,7 @@ func (c *common) callSite(skip int) string {
 	return fmt.Sprintf("%s:%d: ", file, line)
 }
 
-// flushPartial checks the buffer for partial logs and outputs them.
+// flushPartial 检查缓冲区中的不完整日志并输出它们。
 func (c *common) flushPartial() {
 	partial := func() bool {
 		c.mu.Lock()
@@ -1105,12 +1052,12 @@ func (c *common) flushPartial() {
 	}
 }
 
-// Output returns a Writer that writes to the same test output stream as TB.Log.
-// The output is indented like TB.Log lines, but Output does not
-// add source locations or newlines. The output is internally line
-// buffered, and a call to TB.Log or the end of the test will implicitly
-// flush the buffer, followed by a newline. After a test function and all its
-// parents return, neither Output nor the Write method may be called.
+// Output 返回一个 Writer，它写入与 TB.Log 相同的测试输出流。
+// 输出会像 TB.Log 行一样缩进，但 Output 不会
+// 添加源位置或换行符。输出在内部按行缓冲，
+// 调用 TB.Log 或测试结束时都会隐式刷新缓冲区，
+// 并随后添加一个换行符。在测试函数及其所有
+// 父级返回之后，不得调用 Output 或 Write 方法。
 func (c *common) Output() io.Writer {
 	c.checkFuzzFn("Output")
 	n := c.destination()
@@ -1120,22 +1067,22 @@ func (c *common) Output() io.Writer {
 	return n.o
 }
 
-// setOutputWriter initializes an outputWriter and sets it as a common field.
+// setOutputWriter 初始化一个 outputWriter 并将其设置为 common 字段。
 func (c *common) setOutputWriter() {
 	c.o = &outputWriter{c: c}
 }
 
-// outputWriter buffers, formats and writes log messages.
+// outputWriter 缓冲、格式化并写入日志消息。
 type outputWriter struct {
 	c       *common
-	partial []byte // incomplete ('\n'-free) suffix of last Write
+	partial []byte // 上次 Write 的不完整（不含 '\n'）后缀
 }
 
-// Write writes a log message to the test's output stream, properly formatted and
-// indented. It may not be called after a test function and all its parents return.
+// Write 将日志消息写入测试的输出流，并进行适当的格式化和
+// 缩进。在测试函数及其所有父级返回之后不得调用它。
 func (o *outputWriter) Write(p []byte) (int, error) {
-	// o can be nil if this is called from a top-level *TB that is no longer active.
-	// Just ignore the message in that case.
+	// 如果从不再活动的顶层 *TB 调用，o 可能为 nil。
+	// 在这种情况下忽略该消息即可。
 	if o == nil || o.c == nil {
 		return 0, nil
 	}
@@ -1146,29 +1093,29 @@ func (o *outputWriter) Write(p []byte) (int, error) {
 	o.c.mu.Lock()
 	defer o.c.mu.Unlock()
 
-	// The last element is a partial line.
+	// 最后一个元素是不完整的一行。
 	lines := bytes.SplitAfter(p, []byte("\n"))
-	last := len(lines) - 1 // Inv: 0 <= last
+	last := len(lines) - 1 // 不变式：0 <= last
 	for i, line := range lines[:last] {
-		// Emit partial line from previous call.
+		// 输出上次调用留下的不完整行。
 		if i == 0 && len(o.partial) > 0 {
 			line = slices.Concat(o.partial, line)
 			o.partial = o.partial[:0]
 		}
 		o.writeLine(line)
 	}
-	// Save partial line for next call.
+	// 保存不完整行供下次调用使用。
 	o.partial = append(o.partial, lines[last]...)
 
 	return len(p), nil
 }
 
-// writeLine generates the output for a given line.
+// writeLine 为给定行生成输出。
 func (o *outputWriter) writeLine(b []byte) {
 	if !o.c.done && (o.c.chatty != nil) {
 		if o.c.bench {
-			// Benchmarks don't print === CONT, so we should skip the test
-			// printer and just print straight to stdout.
+			// 基准测试不打印 === CONT，因此我们应跳过测试
+			// 打印器，直接打印到 stdout。
 			fmt.Printf("%s%s", indent, b)
 		} else {
 			o.c.chatty.Printf(o.c.name, "%s%s", indent, b)
@@ -1179,77 +1126,77 @@ func (o *outputWriter) writeLine(b []byte) {
 	o.c.output = append(o.c.output, b...)
 }
 
-// Log formats its arguments using default formatting, analogous to [fmt.Println],
-// and records the text in the error log. For tests, the text will be printed only if
-// the test fails or the -test.v flag is set. For benchmarks, the text is always
-// printed to avoid having performance depend on the value of the -test.v flag.
-// It is an error to call Log after a test or benchmark returns.
+// Log 使用默认格式（类似于 [fmt.Println]）格式化其参数，
+// 并将文本记录到错误日志中。对于测试，只有测试失败或设置了
+// -test.v 标志时才会打印该文本。对于基准测试，文本始终会打印，
+// 以避免性能依赖于 -test.v 标志的取值。
+// 在测试或基准测试返回后调用 Log 是错误的。
 func (c *common) Log(args ...any) {
 	c.checkFuzzFn("Log")
 	c.log(fmt.Sprintln(args...))
 }
 
-// Logf formats its arguments according to the format, analogous to [fmt.Printf], and
-// records the text in the error log. A final newline is added if not provided. For
-// tests, the text will be printed only if the test fails or the -test.v flag is
-// set. For benchmarks, the text is always printed to avoid having performance
-// depend on the value of the -test.v flag.
-// It is an error to call Logf after a test or benchmark returns.
+// Logf 按照格式（类似于 [fmt.Printf]）格式化其参数，
+// 并将文本记录到错误日志中。如果未提供，会添加最后的换行符。
+// 对于测试，只有测试失败或设置了 -test.v 标志时才会打印
+// 该文本。对于基准测试，文本始终会打印，以避免性能
+// 依赖于 -test.v 标志的取值。
+// 在测试或基准测试返回后调用 Logf 是错误的。
 func (c *common) Logf(format string, args ...any) {
 	c.checkFuzzFn("Logf")
 	c.log(fmt.Sprintf(format, args...))
 }
 
-// Error is equivalent to Log followed by Fail.
+// Error 等价于依次调用 Log 和 Fail。
 func (c *common) Error(args ...any) {
 	c.checkFuzzFn("Error")
 	c.log(fmt.Sprintln(args...))
 	c.Fail()
 }
 
-// Errorf is equivalent to Logf followed by Fail.
+// Errorf 等价于依次调用 Logf 和 Fail。
 func (c *common) Errorf(format string, args ...any) {
 	c.checkFuzzFn("Errorf")
 	c.log(fmt.Sprintf(format, args...))
 	c.Fail()
 }
 
-// Fatal is equivalent to Log followed by FailNow.
+// Fatal 等价于依次调用 Log 和 FailNow。
 func (c *common) Fatal(args ...any) {
 	c.checkFuzzFn("Fatal")
 	c.log(fmt.Sprintln(args...))
 	c.FailNow()
 }
 
-// Fatalf is equivalent to Logf followed by FailNow.
+// Fatalf 等价于依次调用 Logf 和 FailNow。
 func (c *common) Fatalf(format string, args ...any) {
 	c.checkFuzzFn("Fatalf")
 	c.log(fmt.Sprintf(format, args...))
 	c.FailNow()
 }
 
-// Skip is equivalent to Log followed by SkipNow.
+// Skip 等价于依次调用 Log 和 SkipNow。
 func (c *common) Skip(args ...any) {
 	c.checkFuzzFn("Skip")
 	c.log(fmt.Sprintln(args...))
 	c.SkipNow()
 }
 
-// Skipf is equivalent to Logf followed by SkipNow.
+// Skipf 等价于依次调用 Logf 和 SkipNow。
 func (c *common) Skipf(format string, args ...any) {
 	c.checkFuzzFn("Skipf")
 	c.log(fmt.Sprintf(format, args...))
 	c.SkipNow()
 }
 
-// SkipNow marks the test as having been skipped and stops its execution
-// by calling [runtime.Goexit].
-// If a test fails (see Error, Errorf, Fail) and is then skipped,
-// it is still considered to have failed.
-// Execution will continue at the next test or benchmark. See also FailNow.
-// SkipNow must be called from the goroutine running the test, not from
-// other goroutines created during the test. Calling SkipNow does not stop
-// those other goroutines.
+// SkipNow 将该测试标记为已被跳过，并通过调用 [runtime.Goexit]
+// 停止其执行。
+// 如果测试失败（参见 Error、Errorf、Fail）随后又被跳过，
+// 它仍会被视为已失败。
+// 执行将在下一个测试或基准测试处继续。另请参见 FailNow。
+// SkipNow 必须从运行该测试的 goroutine 中调用，而不是从测试期间
+// 创建的其他 goroutine 中调用。调用 SkipNow 不会停止
+// 那些其他 goroutine。
 func (c *common) SkipNow() {
 	c.checkFuzzFn("SkipNow")
 	c.mu.Lock()
@@ -1259,16 +1206,16 @@ func (c *common) SkipNow() {
 	runtime.Goexit()
 }
 
-// Skipped reports whether the test was skipped.
+// Skipped 报告该测试是否被跳过。
 func (c *common) Skipped() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.skipped
 }
 
-// Helper marks the calling function as a test helper function.
-// When printing file and line information, that function will be skipped.
-// Helper may be called simultaneously from multiple goroutines.
+// Helper 将调用函数标记为测试辅助函数。
+// 在打印文件和行信息时，该函数将被跳过。
+// Helper 可以从多个 goroutine 同时调用。
 func (c *common) Helper() {
 	if c.isSynctest {
 		c = c.parent
@@ -1278,25 +1225,24 @@ func (c *common) Helper() {
 	if c.helperPCs == nil {
 		c.helperPCs = make(map[uintptr]struct{})
 	}
-	// repeating code from callerName here to save walking a stack frame
+	// 此处重复 callerName 的代码以省去遍历一个栈帧
 	var pc [1]uintptr
-	n := runtime.Callers(2, pc[:]) // skip runtime.Callers + Helper
+	n := runtime.Callers(2, pc[:]) // 跳过 runtime.Callers + Helper
 	if n == 0 {
 		panic("testing: zero callers found")
 	}
 	if _, found := c.helperPCs[pc[0]]; !found {
 		c.helperPCs[pc[0]] = struct{}{}
-		c.helperNames = nil // map will be recreated next time it is needed
+		c.helperNames = nil // map 会在下次需要时被重新创建
 	}
 }
 
-// Cleanup registers a function to be called when the test (or subtest) and all its
-// subtests complete. Cleanup functions will be called in last added,
-// first called order.
+// Cleanup 注册一个在测试（或子测试）及其所有子测试完成时
+// 调用的函数。Cleanup 函数将按最后添加、最先调用的顺序调用。
 func (c *common) Cleanup(f func()) {
 	c.checkFuzzFn("Cleanup")
 	var pc [maxStackLen]uintptr
-	// Skip two extra frames to account for this function and runtime.Callers itself.
+	// 多跳过两个帧，以计入此函数和 runtime.Callers 本身。
 	n := runtime.Callers(2, pc[:])
 	cleanupPc := pc[:n]
 
@@ -1322,14 +1268,13 @@ func (c *common) Cleanup(f func()) {
 	c.cleanups = append(c.cleanups, fn)
 }
 
-// ArtifactDir returns a directory in which the test should store output files.
-// When the -artifacts flag is provided, this directory is located
-// under the output directory. Otherwise, ArtifactDir returns a temporary directory
-// that is removed after the test completes.
+// ArtifactDir 返回一个目录，测试应在其中存储输出文件。
+// 当提供 -artifacts 标志时，该目录位于输出目录之下。
+// 否则，ArtifactDir 返回一个在测试完成后被删除的临时目录。
 //
-// Each test or subtest within each test package has a unique artifact directory.
-// Repeated calls to ArtifactDir in the same test or subtest return the same directory.
-// Subtest outputs are not located under the parent test's output directory.
+// 每个测试包中的每个测试或子测试都有唯一的 artifact 目录。
+// 在同一测试或子测试中重复调用 ArtifactDir 会返回相同的目录。
+// 子测试的输出不位于父测试的输出目录之下。
 func (c *common) ArtifactDir() string {
 	c.checkFuzzFn("ArtifactDir")
 	c.artifactDirOnce.Do(func() {
@@ -1342,7 +1287,7 @@ func (c *common) ArtifactDir() string {
 }
 
 func hashString(s string) (h uint64) {
-	// FNV, used here to avoid a dependency on maphash.
+	// FNV，此处使用它是为了避免对 maphash 的依赖。
 	for i := 0; i < len(s); i++ {
 		h ^= uint64(s[i])
 		h *= 1099511628211
@@ -1350,21 +1295,21 @@ func hashString(s string) (h uint64) {
 	return
 }
 
-// makeArtifactDir creates the artifact directory for a test.
-// The artifact directory is:
+// makeArtifactDir 为测试创建 artifact 目录。
+// artifact 目录为：
 //
 //	<output dir>/_artifacts/<test package>/<test name>/<random>
 //
-// The test package is the package import path with the module name prefix removed.
-// The test name is truncated if too long.
-// Special characters are removed from the path.
+// 测试包是去除了模块名前缀的包导入路径。
+// 测试名称如果太长会被截断。
+// 路径中的特殊字符会被移除。
 func (c *common) makeArtifactDir() (string, error) {
 	if !*artifacts {
 		return c.makeTempDir()
 	}
 
-	// If the test name is longer than maxNameSize, truncate it and replace the last
-	// hashSize bytes with a hash of the full name.
+	// 如果测试名称长于 maxNameSize，则截断它，并用完整名称的哈希
+	// 替换最后 hashSize 个字节。
 	const maxNameSize = 64
 	name := strings.ReplaceAll(c.name, "/", "__")
 	if len(name) > maxNameSize {
@@ -1372,17 +1317,17 @@ func (c *common) makeArtifactDir() (string, error) {
 		name = name[:maxNameSize-len(h)] + h
 	}
 
-	// Remove the module path prefix from the import path.
+	// 从导入路径中移除模块路径前缀。
 	pkg := strings.TrimPrefix(c.importPath, c.modulePath+"/")
 
-	// Join with /, not filepath.Join: the import path is /-separated,
-	// and we don't want removeSymbolsExcept to strip \ separators on Windows.
+	// 使用 / 连接，而非 filepath.Join：导入路径以 / 分隔，
+	// 我们不希望 removeSymbolsExcept 在 Windows 上剥除 \ 分隔符。
 	base := "/" + pkg + "/" + name
 	base = removeSymbolsExcept(base, "!#$%&()+,-.=@^_{}~ /")
 	base, err := filepath.Localize(base)
 	if err != nil {
-		// This name can't be safely converted into a local filepath.
-		// Drop it and just use _artifacts/<random>.
+		// 此名称无法安全地转换为本地文件路径。
+		// 丢弃它，只使用 _artifacts/<random>。
 		base = ""
 	}
 
@@ -1407,18 +1352,17 @@ func removeSymbolsExcept(s, allowed string) string {
 			strings.ContainsRune(allowed, r) {
 			return r
 		}
-		return -1 // disallowed symbol
+		return -1 // 不允许的符号
 	}
 	return strings.Map(mapper, s)
 }
 
-// TempDir returns a temporary directory for the test to use.
-// The directory is automatically removed when the test and
-// all its subtests complete.
-// Each subsequent call to TempDir returns a unique directory;
-// if the directory creation fails, TempDir terminates the test by calling Fatal.
-// If the environment variable GOTMPDIR is set, the temporary directory will
-// be created somewhere beneath it.
+// TempDir 返回一个供测试使用的临时目录。
+// 当测试及其所有子测试完成时，该目录会被自动删除。
+// 后续每次调用 TempDir 都会返回一个唯一的目录；
+// 如果目录创建失败，TempDir 会通过调用 Fatal 终止测试。
+// 如果设置了环境变量 GOTMPDIR，临时目录将在
+// 该目录之下某处创建。
 func (c *common) TempDir() string {
 	c.checkFuzzFn("TempDir")
 	dir, err := c.makeTempDir()
@@ -1429,11 +1373,11 @@ func (c *common) TempDir() string {
 }
 
 func (c *common) makeTempDir() (string, error) {
-	// Use a single parent directory for all the temporary directories
-	// created by a test, each numbered sequentially.
+	// 为测试创建的所有临时目录使用单个父目录，
+	// 每个目录按顺序编号。
 	c.tempDirMu.Lock()
 	var nonExistent bool
-	if c.tempDir == "" { // Usually the case with js/wasm
+	if c.tempDir == "" { // 通常是 js/wasm 的情况
 		nonExistent = true
 	} else {
 		_, err := os.Stat(c.tempDir)
@@ -1447,13 +1391,13 @@ func (c *common) makeTempDir() (string, error) {
 		c.Helper()
 
 		pattern := c.Name()
-		// Limit length of file names on disk.
-		// Invalid runes from slicing are dropped by strings.Map below.
+		// 限制磁盘上文件名的长度。
+		// 切片产生的无效 rune 会被下面的 strings.Map 丢弃。
 		pattern = pattern[:min(len(pattern), 64)]
 
-		// Drop unusual characters (such as path separators or
-		// characters interacting with globs) from the directory name to
-		// avoid surprising os.MkdirTemp behavior.
+		// 从目录名中去掉不寻常的字符（例如路径分隔符或
+		// 与 glob 交互的字符），以避免
+		// 出现意外的 os.MkdirTemp 行为。
 		const allowed = "!#$%&()+,-.=@^_{}~ "
 		pattern = removeSymbolsExcept(pattern, allowed)
 
@@ -1484,15 +1428,14 @@ func (c *common) makeTempDir() (string, error) {
 	return dir, nil
 }
 
-// removeAll is like os.RemoveAll, but retries Windows "Access is denied."
-// errors up to an arbitrary timeout.
+// removeAll 类似于 os.RemoveAll，但会重试 Windows 的 "Access is denied."
+// 错误，直到一个任意设定的超时时间。
 //
-// Those errors have been known to occur spuriously on at least the
-// windows-amd64-2012 builder (https://go.dev/issue/50051), and can only occur
-// legitimately if the test leaves behind a temp file that either is still open
-// or the test otherwise lacks permission to delete. In the case of legitimate
-// failures, a failing test may take a bit longer to fail, but once the test is
-// fixed the extra latency will go away.
+// 已知这些错误至少会在 windows-amd64-2012 构建器上偶发出现
+// （https://go.dev/issue/50051），并且只有在测试遗留了一个仍处于
+// 打开状态的临时文件，或测试因其他原因没有删除权限时，才会
+// 合理地发生。在合理失败的情况下，失败的测试可能会多花一点时间
+// 才失败，但一旦测试被修复，多余的延迟就会消失。
 func removeAll(path string) error {
 	const arbitraryTimeout = 2 * time.Second
 	var (
@@ -1514,12 +1457,11 @@ func removeAll(path string) error {
 	}
 }
 
-// Setenv calls [os.Setenv] and uses Cleanup to
-// restore the environment variable to its original value
-// after the test.
+// Setenv 调用 [os.Setenv]，并使用 Cleanup 在测试后将
+// 环境变量恢复为其原始值。
 //
-// Because Setenv affects the whole process, it cannot be used
-// in parallel tests or tests with parallel ancestors.
+// 由于 Setenv 会影响整个进程，因此不能在并行测试或
+// 具有并行祖先的测试中使用。
 func (c *common) Setenv(key, value string) {
 	c.checkFuzzFn("Setenv")
 	prevValue, ok := os.LookupEnv(key)
@@ -1539,12 +1481,12 @@ func (c *common) Setenv(key, value string) {
 	}
 }
 
-// Chdir calls [os.Chdir] and uses Cleanup to restore the current
-// working directory to its original value after the test. On Unix, it
-// also sets PWD environment variable for the duration of the test.
+// Chdir 调用 [os.Chdir]，并使用 Cleanup 在测试后将当前
+// 工作目录恢复为其原始值。在 Unix 上，它还会在测试期间
+// 设置 PWD 环境变量。
 //
-// Because Chdir affects the whole process, it cannot be used
-// in parallel tests or tests with parallel ancestors.
+// 由于 Chdir 会影响整个进程，因此不能在并行测试或
+// 具有并行祖先的测试中使用。
 func (c *common) Chdir(dir string) {
 	c.checkFuzzFn("Chdir")
 	oldwd, err := os.Open(".")
@@ -1554,12 +1496,12 @@ func (c *common) Chdir(dir string) {
 	if err := os.Chdir(dir); err != nil {
 		c.Fatal(err)
 	}
-	// On POSIX platforms, PWD represents “an absolute pathname of the
-	// current working directory.” Since we are changing the working
-	// directory, we should also set or update PWD to reflect that.
+	// 在 POSIX 平台上，PWD 表示“当前工作目录的绝对路径名”。
+	// 由于我们正在更改工作目录，因此也应设置或更新 PWD
+	// 以反映这一点。
 	switch runtime.GOOS {
 	case "windows", "plan9":
-		// Windows and Plan 9 do not use the PWD variable.
+		// Windows 和 Plan 9 不使用 PWD 变量。
 	default:
 		if !filepath.IsAbs(dir) {
 			dir, err = os.Getwd()
@@ -1573,34 +1515,33 @@ func (c *common) Chdir(dir string) {
 		err := oldwd.Chdir()
 		oldwd.Close()
 		if err != nil {
-			// It's not safe to continue with tests if we can't
-			// get back to the original working directory. Since
-			// we are holding a dirfd, this is highly unlikely.
+			// 如果我们无法回到原始工作目录，继续测试是不安全的。
+			// 由于我们持有一个 dirfd，这种情况极不可能发生。
 			panic("testing.Chdir: " + err.Error())
 		}
 	})
 }
 
-// Context returns a context that is canceled just before
-// Cleanup-registered functions are called.
+// Context 返回一个 context，它会在 Cleanup 注册的函数
+// 被调用之前被取消。
 //
-// Cleanup functions can wait for any resources
-// that shut down on [context.Context.Done] before the test or benchmark completes.
+// Cleanup 函数可以等待任何在测试或基准测试完成前
+// 通过 [context.Context.Done] 关闭的资源。
 func (c *common) Context() context.Context {
 	c.checkFuzzFn("Context")
 	return c.ctx
 }
 
-// Attr emits a test attribute associated with this test.
+// Attr 发出一个与该测试关联的测试属性。
 //
-// The key must not contain whitespace.
-// The value must not contain newlines or carriage returns.
+// 键不能包含空白字符。
+// 值不能包含换行符或回车符。
 //
-// The meaning of different attribute keys is left up to
-// continuous integration systems and test frameworks.
+// 不同属性键的含义由持续集成系统和测试框架
+// 自行决定。
 //
-// Test attributes are emitted immediately in the test log,
-// but they are intended to be treated as unordered.
+// 测试属性会立即在测试日志中发出，
+// 但它们应被视为无序的。
 func (c *common) Attr(key, value string) {
 	if strings.ContainsFunc(key, unicode.IsSpace) {
 		c.Errorf("disallowed whitespace in attribute key %q", key)
@@ -1616,7 +1557,7 @@ func (c *common) Attr(key, value string) {
 	c.chatty.Updatef(c.name, "=== ATTR  %s %v %v\n", c.name, key, value)
 }
 
-// panicHandling controls the panic handling used by runCleanup.
+// panicHandling 控制 runCleanup 使用的 panic 处理方式。
 type panicHandling int
 
 const (
@@ -1624,9 +1565,9 @@ const (
 	recoverAndReturnPanic
 )
 
-// runCleanup is called at the end of the test.
-// If ph is recoverAndReturnPanic, it will catch panics, and return the
-// recovered value if any.
+// runCleanup 在测试结束时调用。
+// 如果 ph 为 recoverAndReturnPanic，它将捕获 panic，并在有值时
+// 返回恢复的值。
 func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 	c.cleanupStarted.Store(true)
 	defer c.cleanupStarted.Store(false)
@@ -1637,8 +1578,8 @@ func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 		}()
 	}
 
-	// Make sure that if a cleanup function panics,
-	// we still run the remaining cleanup functions.
+	// 确保如果某个 cleanup 函数发生 panic，
+	// 我们仍会运行剩余的 cleanup 函数。
 	defer func() {
 		c.mu.Lock()
 		recur := len(c.cleanups) > 0
@@ -1668,11 +1609,11 @@ func (c *common) runCleanup(ph panicHandling) (panicVal any) {
 	}
 }
 
-// resetRaces updates c.parent's count of data race errors (or the global count,
-// if c has no parent), and updates c.lastRaceErrors to match.
+// resetRaces 更新 c.parent 的数据竞争错误计数（如果 c 没有父级，
+// 则为全局计数），并更新 c.lastRaceErrors 以与之匹配。
 //
-// Any races that occurred prior to this call to resetRaces will
-// not be attributed to c.
+// 在此次调用 resetRaces 之前发生的任何竞争都不会
+// 归因于 c。
 func (c *common) resetRaces() {
 	if c.parent == nil {
 		c.lastRaceErrors.Store(int64(race.Errors()))
@@ -1681,22 +1622,22 @@ func (c *common) resetRaces() {
 	}
 }
 
-// checkRaces checks whether the global count of data race errors has increased
-// since c's count was last reset.
+// checkRaces 检查数据竞争错误的全局计数自 c 的计数上次重置以来
+// 是否增加了。
 //
-// If so, it marks c as having failed due to those races (logging an error for
-// the first such race), and updates the race counts for the parents of c so
-// that if they are currently suspended (such as in a call to T.Run) they will
-// not log separate errors for the race(s).
+// 如果增加了，它会将 c 标记为因这些竞争而失败（并为其中第一次
+// 竞争记录一个错误），同时更新 c 的父级的竞争计数，这样如果
+// 它们当前处于挂起状态（例如在调用 T.Run 中），就不会为该竞争
+// 记录单独的错误。
 //
-// Note that multiple tests may be marked as failed due to the same race if they
-// are executing in parallel.
+// 注意，如果多个测试并行执行，它们可能因同一个竞争而被
+// 标记为失败。
 func (c *common) checkRaces() (raceErrors int64) {
 	raceErrors = int64(race.Errors())
 	for {
 		last := c.lastRaceErrors.Load()
 		if raceErrors <= last {
-			// All races have already been reported.
+			// 所有竞争都已报告过了。
 			return raceErrors
 		}
 		if c.lastRaceErrors.CompareAndSwap(last, raceErrors) {
@@ -1705,20 +1646,20 @@ func (c *common) checkRaces() (raceErrors int64) {
 	}
 
 	if c.raceErrorLogged.CompareAndSwap(false, true) {
-		// This is the first race we've encountered for this test.
-		// Mark the test as failed, and log the reason why only once.
-		// (Note that the race detector itself will still write a goroutine
-		// dump for any further races it detects.)
+		// 这是该测试遇到的第一次竞争。
+		// 将该测试标记为失败，并只记录一次原因。
+		// （注意，竞争检测器本身仍会为它检测到的任何后续竞争
+		// 写入 goroutine 转储。）
 		c.Errorf("race detected during execution of test")
 	}
 
-	// Update the parent(s) of this test so that they don't re-report the race.
+	// 更新该测试的父级，使它们不重复报告该竞争。
 	parent := c.parent
 	for parent != nil {
 		for {
 			last := parent.lastRaceErrors.Load()
 			if raceErrors <= last {
-				// This race was already reported by another (likely parallel) subtest.
+				// 该竞争已由另一个（很可能是并行的）子测试报告过了。
 				return raceErrors
 			}
 			if parent.lastRaceErrors.CompareAndSwap(last, raceErrors) {
@@ -1731,11 +1672,11 @@ func (c *common) checkRaces() (raceErrors int64) {
 	return raceErrors
 }
 
-// callerName gives the function name (qualified with a package path)
-// for the caller after skip frames (where 0 means the current function).
+// callerName 返回跳过 skip 个帧之后（其中 0 表示当前函数）
+// 调用者的函数名（带包路径限定）。
 func callerName(skip int) string {
 	var pc [1]uintptr
-	n := runtime.Callers(skip+2, pc[:]) // skip + runtime.Callers + callerName
+	n := runtime.Callers(skip+2, pc[:]) // 跳过 skip 个 + runtime.Callers + callerName
 	if n == 0 {
 		panic("testing: zero callers found")
 	}
@@ -1751,10 +1692,9 @@ func pcToName(pc uintptr) string {
 
 const parallelConflict = `testing: test using t.Setenv, t.Chdir, or cryptotest.SetGlobalRandom can not use t.Parallel`
 
-// Parallel signals that this test is to be run in parallel with (and only with)
-// other parallel tests. When a test is run multiple times due to use of
-// -test.count or -test.cpu, multiple instances of a single test never run in
-// parallel with each other.
+// Parallel 表示此测试要与其他并行测试并行（且仅与其他并行测试）
+// 运行。当一个测试因使用 -test.count 或 -test.cpu 而被运行多次时，
+// 单个测试的多个实例从不会彼此并行运行。
 func (t *T) Parallel() {
 	if t.isParallel {
 		panic("testing: t.Parallel called multiple times")
@@ -1766,32 +1706,31 @@ func (t *T) Parallel() {
 		panic(parallelConflict)
 	}
 	if t.parent.barrier == nil {
-		// T.Parallel has no effect when fuzzing.
-		// Multiple processes may run in parallel, but only one input can run at a
-		// time per process so we can attribute crashes to specific inputs.
+		// 模糊测试时 T.Parallel 无效。
+		// 多个进程可能并行运行，但每个进程一次只能运行一个输入，
+		// 这样我们才能将崩溃归因于特定的输入。
 		return
 	}
 
 	t.isParallel = true
 
-	// We don't want to include the time we spend waiting for serial tests
-	// in the test duration. Record the elapsed time thus far and reset the
-	// timer afterwards.
+	// 我们不希望把等待串行测试所花的时间计入测试时长。
+	// 记录到目前为止经过的时间，并在之后重置计时器。
 	t.duration += highPrecisionTimeSince(t.start)
 
-	// Add to the list of tests to be released by the parent.
+	// 添加到将由父级释放的测试列表中。
 	t.parent.sub = append(t.parent.sub, t)
 
-	// Report any races during execution of this test up to this point.
+	// 报告该测试到目前为止执行期间发生的任何竞争。
 	//
-	// We will assume that any races that occur between here and the point where
-	// we unblock are not caused by this subtest. That assumption usually holds,
-	// although it can be wrong if the test spawns a goroutine that races in the
-	// background while the rest of the test is blocked on the call to Parallel.
-	// If that happens, we will misattribute the background race to some other
-	// test, or to no test at all — but that false-negative is so unlikely that it
-	// is not worth adding race-report noise for the common case where the test is
-	// completely suspended during the call to Parallel.
+	// 我们将假设从这里到我们解除阻塞之间发生的任何竞争
+	// 都不是由该子测试引起的。这个假设通常成立，
+	// 但如果测试在其余部分阻塞于 Parallel 调用时生成了一个
+	// 在后台发生竞争的 goroutine，它就可能出错。
+	// 如果发生这种情况，我们会把后台竞争错误地归因于某个
+	// 其他测试，或者根本不归因于任何测试——但这种假阴性
+	// 极其罕见，不值得为测试在调用 Parallel 期间完全挂起
+	// 这一常见情况添加竞争报告噪音。
 	t.checkRaces()
 
 	if t.chatty != nil {
@@ -1799,8 +1738,8 @@ func (t *T) Parallel() {
 	}
 	running.Delete(t.name)
 
-	t.signal <- true   // Release calling test.
-	<-t.parent.barrier // Wait for the parent test to complete.
+	t.signal <- true   // 释放正在调用的测试。
+	<-t.parent.barrier // 等待父测试完成。
 	t.tstate.waitParallel()
 	parallelStart.Add(1)
 
@@ -1810,17 +1749,16 @@ func (t *T) Parallel() {
 	running.Store(t.name, highPrecisionTimeNow())
 	t.start = highPrecisionTimeNow()
 
-	// Reset the local race counter to ignore any races that happened while this
-	// goroutine was blocked, such as in the parent test or in other parallel
-	// subtests.
+	// 重置本地竞争计数器，以忽略此 goroutine 被阻塞期间发生的任何竞争，
+	// 例如在父测试或其他并行子测试中发生的竞争。
 	//
-	// (Note that we don't call parent.checkRaces here:
-	// if other parallel subtests have already introduced races, we want to
-	// let them report those races instead of attributing them to the parent.)
+	// （注意，我们这里不调用 parent.checkRaces：
+	// 如果其他并行子测试已经引入了竞争，我们希望让它们报告
+	// 那些竞争，而不是将其归因于父级。）
 	t.lastRaceErrors.Store(int64(race.Errors()))
 }
 
-// checkParallel is called by [testing/cryptotest.SetGlobalRandom].
+// checkParallel 由 [testing/cryptotest.SetGlobalRandom] 调用。
 //
 //go:linkname checkParallel testing.checkParallel
 func checkParallel(t *T) {
@@ -1828,11 +1766,10 @@ func checkParallel(t *T) {
 }
 
 func (t *T) checkParallel() {
-	// Non-parallel subtests that have parallel ancestors may still
-	// run in parallel with other tests: they are only non-parallel
-	// with respect to the other subtests of the same parent.
-	// Since calls like SetEnv or Chdir affects the whole process, we need
-	// to deny those if the current test or any parent is parallel.
+	// 具有并行祖先的非并行子测试仍可能与其他测试并行运行：
+	// 它们仅相对于同一父级的其他子测试才是非并行的。
+	// 由于 SetEnv 或 Chdir 之类的调用会影响整个进程，
+	// 因此如果当前测试或任何父级是并行的，我们就需要禁止这些调用。
 	for c := &t.common; c != nil; c = c.parent {
 		if c.isParallel {
 			panic(parallelConflict)
@@ -1842,30 +1779,29 @@ func (t *T) checkParallel() {
 	t.denyParallel = true
 }
 
-// Setenv calls os.Setenv(key, value) and uses Cleanup to
-// restore the environment variable to its original value
-// after the test.
+// Setenv 调用 os.Setenv(key, value)，并使用 Cleanup 在测试后
+// 将环境变量恢复为其原始值。
 //
-// Because Setenv affects the whole process, it cannot be used
-// in parallel tests or tests with parallel ancestors.
+// 由于 Setenv 会影响整个进程，因此不能在并行测试或
+// 具有并行祖先的测试中使用。
 func (t *T) Setenv(key, value string) {
 	t.checkParallel()
 	t.common.Setenv(key, value)
 }
 
-// Chdir calls [os.Chdir] and uses Cleanup to restore the current
-// working directory to its original value after the test. On Unix, it
-// also sets PWD environment variable for the duration of the test.
+// Chdir 调用 [os.Chdir]，并使用 Cleanup 在测试后将当前
+// 工作目录恢复为其原始值。在 Unix 上，它还会在测试期间
+// 设置 PWD 环境变量。
 //
-// Because Chdir affects the whole process, it cannot be used
-// in parallel tests or tests with parallel ancestors.
+// 由于 Chdir 会影响整个进程，因此不能在并行测试或
+// 具有并行祖先的测试中使用。
 func (t *T) Chdir(dir string) {
 	t.checkParallel()
 	t.common.Chdir(dir)
 }
 
-// InternalTest is an internal type but exported because it is cross-package;
-// it is part of the implementation of the "go test" command.
+// InternalTest 是一个内部类型，但因跨包使用而导出；
+// 它是 "go test" 命令实现的一部分。
 type InternalTest struct {
 	Name string
 	F    func(*T)
@@ -1876,26 +1812,24 @@ var errNilPanicOrGoexit = errors.New("test executed panic(nil) or runtime.Goexit
 func tRunner(t *T, fn func(t *T)) {
 	t.runner = callerName(0)
 
-	// When this goroutine is done, either because fn(t)
-	// returned normally or because a test failure triggered
-	// a call to runtime.Goexit, record the duration and send
-	// a signal saying that the test is done.
+	// 当此 goroutine 结束时——无论是由于 fn(t) 正常返回，
+	// 还是由于测试失败触发了对 runtime.Goexit 的调用——
+	// 记录时长并发送一个表示测试已完成的信号。
 	defer func() {
 		t.checkRaces()
 
-		// TODO(#61034): This is the wrong place for this check.
+		// TODO(#61034): 这个检查放在这里是不对的。
 		if t.Failed() {
 			numFailed.Add(1)
 		}
 
-		// Check if the test panicked or Goexited inappropriately.
+		// 检查测试是否不适当地发生了 panic 或 Goexit。
 		//
-		// If this happens in a normal test, print output but continue panicking.
-		// tRunner is called in its own goroutine, so this terminates the process.
+		// 如果这发生在普通测试中，则打印输出但继续 panic。
+		// tRunner 在自己的 goroutine 中调用，因此这会终止进程。
 		//
-		// If this happens while fuzzing, recover from the panic and treat it like a
-		// normal failure. It's important that the process keeps running in order to
-		// find short inputs that cause panics.
+		// 如果这发生在模糊测试期间，则从 panic 中恢复并将其视为
+		// 普通失败。让进程继续运行以找到导致 panic 的短输入非常重要。
 		err := recover()
 		signal := true
 
@@ -1931,13 +1865,13 @@ func tRunner(t *T, fn func(t *T)) {
 			err = nil
 		}
 
-		// Use a deferred call to ensure that we report that the test is
-		// complete even if a cleanup function calls t.FailNow. See issue 41355.
+		// 使用延迟调用以确保即使某个 cleanup 函数调用了 t.FailNow，
+		// 我们也会报告测试已完成。参见 issue 41355。
 		didPanic := false
 		defer func() {
-			// Only report that the test is complete if it doesn't panic,
-			// as otherwise the test binary can exit before the panic is
-			// reported to the user. See issue 41479.
+			// 只有在测试不发生 panic 时才报告测试已完成，
+			// 否则测试二进制文件可能会在 panic 报告给用户之前退出。
+			// 参见 issue 41479。
 			if didPanic {
 				return
 			}
@@ -1956,14 +1890,14 @@ func tRunner(t *T, fn func(t *T)) {
 			if r := t.runCleanup(recoverAndReturnPanic); r != nil {
 				t.Logf("cleanup panicked with %v", r)
 			}
-			// Flush the output log up to the root before dying.
-			// Skip this if this *T is a synctest bubble, because we're not a subtest.
+			// 在终止之前将输出日志一直刷新到根。
+			// 如果此 *T 是 synctest bubble，则跳过此操作，因为它不是子测试。
 			for root := &t.common; !root.isSynctest && root.parent != nil; root = root.parent {
 				root.mu.Lock()
 				root.duration += highPrecisionTimeSince(root.start)
 				d := root.duration
 				root.mu.Unlock()
-				// Output buffered logs.
+				// 输出缓冲的日志。
 				root.flushPartial()
 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
 				if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
@@ -1980,21 +1914,21 @@ func tRunner(t *T, fn func(t *T)) {
 		t.duration += highPrecisionTimeSince(t.start)
 
 		if len(t.sub) > 0 {
-			// Run parallel subtests.
+			// 运行并行的子测试。
 
-			// Decrease the running count for this test and mark it as no longer running.
+			// 减少该测试的运行计数并将其标记为不再运行。
 			t.tstate.release()
 			running.Delete(t.name)
 
-			// Release the parallel subtests.
+			// 释放并行的子测试。
 			close(t.barrier)
-			// Wait for subtests to complete.
+			// 等待子测试完成。
 			for _, sub := range t.sub {
 				<-sub.signal
 			}
 
-			// Run any cleanup callbacks, marking the test as running
-			// in case the cleanup hangs.
+			// 运行任何 cleanup 回调，并将该测试标记为正在运行，
+			// 以防 cleanup 挂起。
 			cleanupStart := highPrecisionTimeNow()
 			running.Store(t.name, cleanupStart)
 			err := t.runCleanup(recoverAndReturnPanic)
@@ -2004,22 +1938,22 @@ func tRunner(t *T, fn func(t *T)) {
 			}
 			t.checkRaces()
 			if !t.isParallel {
-				// Reacquire the count for sequential tests. See comment in Run.
+				// 重新获取串行测试的计数。参见 Run 中的注释。
 				t.tstate.waitParallel()
 			}
 		} else if t.isParallel {
-			// Only release the count for this test if it was run as a parallel
-			// test. See comment in Run method.
+			// 仅当该测试作为并行测试运行时才释放它的计数。
+			// 参见 Run 方法中的注释。
 			t.tstate.release()
 		}
-		// Output buffered logs.
+		// 输出缓冲的日志。
 		for root := &t.common; root.parent != nil; root = root.parent {
 			root.flushPartial()
 		}
-		t.report() // Report after all subtests have finished.
+		t.report() // 在所有子测试完成后进行报告。
 
-		// Do not lock t.done to allow race detector to detect race in case
-		// the user does not appropriately synchronize a goroutine.
+		// 不要锁定 t.done，以便在用户没有适当地同步 goroutine 时
+		// 让竞争检测器能够检测到竞争。
 		t.done = true
 		if t.parent != nil && !t.hasSub.Load() {
 			t.setRan()
@@ -2035,18 +1969,18 @@ func tRunner(t *T, fn func(t *T)) {
 	t.resetRaces()
 	fn(t)
 
-	// code beyond here will not be executed when FailNow is invoked
+	// 当调用 FailNow 时，此处之后的代码不会被执行
 	t.mu.Lock()
 	t.finished = true
 	t.mu.Unlock()
 }
 
-// Run runs f as a subtest of t called name. It runs f in a separate goroutine
-// and blocks until f returns or calls t.Parallel to become a parallel test.
-// Run reports whether f succeeded (or at least did not fail before calling t.Parallel).
+// Run 将 f 作为 t 的一个名为 name 的子测试运行。它在一个单独的
+// goroutine 中运行 f，并阻塞直到 f 返回或调用 t.Parallel 成为并行测试。
+// Run 报告 f 是否成功（或至少在调用 t.Parallel 之前没有失败）。
 //
-// Run may be called simultaneously from multiple goroutines, but all such calls
-// must return before the outer test function for t returns.
+// Run 可以从多个 goroutine 同时调用，但所有此类调用都必须在
+// t 的外层测试函数返回之前返回。
 func (t *T) Run(name string, f func(t *T)) bool {
 	if t.isSynctest {
 		panic("testing: t.Run called inside synctest bubble")
@@ -2060,14 +1994,14 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	if !ok || shouldFailFast() {
 		return true
 	}
-	// Record the stack trace at the point of this call so that if the subtest
-	// function - which runs in a separate stack - is marked as a helper, we can
-	// continue walking the stack into the parent test.
+	// 在此调用点记录栈回溯，这样如果子测试函数
+	// ——它在单独的栈上运行——被标记为 helper，我们就能
+	// 继续沿栈向上遍历进入父测试。
 	var pc [maxStackLen]uintptr
 	n := runtime.Callers(2, pc[:])
 
-	// There's no reason to inherit this context from parent. The user's code can't observe
-	// the difference between the background context and the one from the parent test.
+	// 没有理由从父级继承此 context。用户代码无法观察到
+	// 后台 context 与来自父测试的 context 之间的区别。
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	t = &T{
 		common: common{
@@ -2093,22 +2027,22 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	}
 	running.Store(t.name, highPrecisionTimeNow())
 
-	// Instead of reducing the running count of this test before calling the
-	// tRunner and increasing it afterwards, we rely on tRunner keeping the
-	// count correct. This ensures that a sequence of sequential tests runs
-	// without being preempted, even when their parent is a parallel test. This
-	// may especially reduce surprises if *parallel == 1.
+	// 我们没有在调用 tRunner 之前减少该测试的运行计数、
+	// 之后又将其增加，而是依赖 tRunner 保持计数正确。
+	// 这确保了一连串串行测试运行时不会被抢占，即使它们的
+	// 父级是一个并行测试也是如此。当 *parallel == 1 时，
+	// 这尤其能减少意外情况。
 	go tRunner(t, f)
 
-	// The parent goroutine will block until the subtest either finishes or calls
-	// Parallel, but in general we don't know whether the parent goroutine is the
-	// top-level test function or some other goroutine it has spawned.
-	// To avoid confusing false-negatives, we leave the parent in the running map
-	// even though in the typical case it is blocked.
+	// 父 goroutine 将阻塞，直到子测试完成或调用 Parallel，
+	// 但通常我们不知道父 goroutine 是顶层测试函数还是
+	// 它产生的其他某个 goroutine。
+	// 为避免令人困惑的假阴性，即使父级在典型情况下处于阻塞状态，
+	// 我们也将其保留在 running map 中。
 
 	if !<-t.signal {
-		// At this point, it is likely that FailNow was called on one of the
-		// parent tests by one of the subtests. Continue aborting up the chain.
+		// 此时，很可能是某个子测试对某个父测试调用了 FailNow。
+		// 继续沿调用链向上中止。
 		runtime.Goexit()
 	}
 
@@ -2118,8 +2052,8 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	return !t.failed
 }
 
-// testingSynctestTest runs f within a synctest bubble.
-// It is called by synctest.Test, from within an already-created bubble.
+// testingSynctestTest 在一个 synctest bubble 内运行 f。
+// 它由 synctest.Test 从已创建的 bubble 内部调用。
 //
 //go:linkname testingSynctestTest testing/synctest.testingSynctestTest
 func testingSynctestTest(t *T, f func(*T)) (ok bool) {
@@ -2149,53 +2083,52 @@ func testingSynctestTest(t *T, f func(*T)) (ok bool) {
 
 	go tRunner(t2, f)
 	if !<-t2.signal {
-		// At this point, it is likely that FailNow was called on one of the
-		// parent tests by one of the subtests. Continue aborting up the chain.
+		// 此时，很可能是某个子测试对某个父测试调用了 FailNow。
+		// 继续沿调用链向上中止。
 		runtime.Goexit()
 	}
 	return !t2.failed
 }
 
-// Deadline reports the time at which the test binary will have
-// exceeded the timeout specified by the -timeout flag.
+// Deadline 报告测试二进制文件将超过 -timeout 标志所指定
+// 超时的时间。
 //
-// The ok result is false if the -timeout flag indicates “no timeout” (0).
+// 如果 -timeout 标志表示“无超时”（0），则 ok 结果为 false。
 func (t *T) Deadline() (deadline time.Time, ok bool) {
 	if t.isSynctest {
-		// There's no point in returning a real-clock deadline to
-		// a test using a fake clock. We could return "no timeout",
-		// but panicking makes it easier for users to catch the error.
+		// 向使用假时钟的测试返回真实时钟的截止时间毫无意义。
+		// 我们可以返回“无超时”，但 panic 能让用户更容易
+		// 捕获该错误。
 		panic("testing: t.Deadline called inside synctest bubble")
 	}
 	deadline = t.tstate.deadline
 	return deadline, !deadline.IsZero()
 }
 
-// testState holds all fields that are common to all tests. This includes
-// synchronization primitives to run at most *parallel tests.
+// testState 保存所有测试共有的所有字段。这包括用于最多
+// 运行 *parallel 个测试的同步原语。
 type testState struct {
 	match    *matcher
 	deadline time.Time
 
-	// isFuzzing is true in the state used when generating random inputs
-	// for fuzz targets. isFuzzing is false when running normal tests and
-	// when running fuzz tests as unit tests (without -fuzz or when -fuzz
-	// does not match).
+	// 在用于为模糊测试目标生成随机输入的状态中，isFuzzing 为 true。
+	// 在运行普通测试以及将模糊测试作为单元测试运行时
+	// （不带 -fuzz，或 -fuzz 不匹配时），isFuzzing 为 false。
 	isFuzzing bool
 
 	mu sync.Mutex
 
-	// Channel used to signal tests that are ready to be run in parallel.
+	// 用于通知测试已准备好并行运行的通道。
 	startParallel chan bool
 
-	// running is the number of tests currently running in parallel.
-	// This does not include tests that are waiting for subtests to complete.
+	// running 是当前并行运行的测试数量。
+	// 这不包括正在等待子测试完成的测试。
 	running int
 
-	// numWaiting is the number tests waiting to be run in parallel.
+	// numWaiting 是等待并行运行的测试数量。
 	numWaiting int
 
-	// maxParallel is a copy of the parallel flag.
+	// maxParallel 是 parallel 标志的副本。
 	maxParallel int
 }
 
@@ -2204,7 +2137,7 @@ func newTestState(maxParallel int, m *matcher) *testState {
 		match:         m,
 		startParallel: make(chan bool),
 		maxParallel:   maxParallel,
-		running:       1, // Set the count to 1 for the main (sequential) test.
+		running:       1, // 将主（串行）测试的计数设为 1。
 	}
 }
 
@@ -2229,11 +2162,11 @@ func (s *testState) release() {
 	}
 	s.numWaiting--
 	s.mu.Unlock()
-	s.startParallel <- true // Pick a waiting test to be run.
+	s.startParallel <- true // 挑选一个等待中的测试来运行。
 }
 
-// No one should be using func Main anymore.
-// See the doc comment on func Main and use MainStart instead.
+// 不应再有人使用 func Main。
+// 参见 func Main 的文档注释，改用 MainStart。
 var errMain = errors.New("testing: unexpected use of func Main")
 
 type matchStringOnly func(pat, str string) (bool, error)
@@ -2262,17 +2195,16 @@ func (f matchStringOnly) InitRuntimeCoverage() (mode string, tearDown func(strin
 	return
 }
 
-// Main is an internal function, part of the implementation of the "go test" command.
-// It was exported because it is cross-package and predates "internal" packages.
-// It is no longer used by "go test" but preserved, as much as possible, for other
-// systems that simulate "go test" using Main, but Main sometimes cannot be updated as
-// new functionality is added to the testing package.
-// Systems simulating "go test" should be updated to use [MainStart].
+// Main 是一个内部函数，是 "go test" 命令实现的一部分。
+// 它被导出是因为它跨包使用，并且早于 "internal" 包。
+// "go test" 不再使用它，但尽可能为其他使用 Main 来模拟 "go test"
+// 的系统保留了它，然而随着 testing 包添加新功能，Main 有时无法更新。
+// 模拟 "go test" 的系统应更新为使用 [MainStart]。
 func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
 	os.Exit(MainStart(matchStringOnly(matchString), tests, benchmarks, nil, examples).Run())
 }
 
-// M is a type passed to a TestMain function to run the actual tests.
+// M 是传递给 TestMain 函数以运行实际测试的类型。
 type M struct {
 	deps        testDeps
 	tests       []InternalTest
@@ -2285,15 +2217,14 @@ type M struct {
 
 	numRun int
 
-	// value to pass to os.Exit, the outer test func main
-	// harness calls os.Exit with this code. See #34129.
+	// 传递给 os.Exit 的值，外层测试 func main
+	// 测试框架会用此代码调用 os.Exit。参见 #34129。
 	exitCode int
 }
 
-// testDeps is an internal interface of functionality that is
-// passed into this package by a test's generated main package.
-// The canonical implementation of this interface is
-// testing/internal/testdeps's TestDeps.
+// testDeps 是一个内部接口，表示由测试生成的 main 包
+// 传入本包的功能。该接口的规范实现是
+// testing/internal/testdeps 的 TestDeps。
 type testDeps interface {
 	ImportPath() string
 	ModulePath() string
@@ -2313,9 +2244,9 @@ type testDeps interface {
 	InitRuntimeCoverage() (mode string, tearDown func(coverprofile string, gocoverdir string) (string, error), snapcov func() float64)
 }
 
-// MainStart is meant for use by tests generated by 'go test'.
-// It is not meant to be called directly and is not subject to the Go 1 compatibility document.
-// It may change signature from release to release.
+// MainStart 供 'go test' 生成的测试使用。
+// 它不应被直接调用，也不受 Go 1 兼容性文档的约束。
+// 它的签名可能随版本发布而变化。
 func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) *M {
 	registerCover(deps.InitRuntimeCoverage())
 	Init()
@@ -2333,60 +2264,55 @@ var (
 	realStderr     *os.File
 )
 
-// Run runs the tests. It returns an exit code to pass to os.Exit.
-// The exit code is zero when all tests pass, and non-zero for any kind
-// of failure. For machine readable test results, parse the output of
-// 'go test -json'.
+// Run 运行测试。它返回一个要传递给 os.Exit 的退出码。
+// 当所有测试通过时退出码为零，任何类型的失败时
+// 退出码非零。要获得机器可读的测试结果，请解析
+// 'go test -json' 的输出。
 func (m *M) Run() (code int) {
 	defer func() {
 		code = m.exitCode
 	}()
 
-	// Count the number of calls to m.Run.
-	// We only ever expected 1, but we didn't enforce that,
-	// and now there are tests in the wild that call m.Run multiple times.
-	// Sigh. go.dev/issue/23129.
+	// 统计对 m.Run 的调用次数。
+	// 我们原本只预期调用 1 次，但没有强制这一点，
+	// 而现在实际使用中有测试多次调用 m.Run。
+	// 唉。go.dev/issue/23129。
 	m.numRun++
 
-	// TestMain may have already called flag.Parse.
+	// TestMain 可能已经调用了 flag.Parse。
 	if !flag.Parsed() {
 		flag.Parse()
 	}
 
 	if chatty.json {
-		// With -v=json, stdout and stderr are pointing to the same pipe,
-		// which is leading into test2json. In general, operating systems
-		// do a good job of ensuring that writes to the same pipe through
-		// different file descriptors are delivered whole, so that writing
-		// AAA to stdout and BBB to stderr simultaneously produces
-		// AAABBB or BBBAAA on the pipe, not something like AABBBA.
-		// However, the exception to this is when the pipe fills: in that
-		// case, Go's use of non-blocking I/O means that writing AAA
-		// or BBB might be split across multiple system calls, making it
-		// entirely possible to get output like AABBBA. The same problem
-		// happens inside the operating system kernel if we switch to
-		// blocking I/O on the pipe. This interleaved output can do things
-		// like print unrelated messages in the middle of a TestFoo line,
-		// which confuses test2json. Setting os.Stderr = os.Stdout will make
-		// them share a single pfd, which will hold a lock for each program
-		// write, preventing any interleaving.
+		// 使用 -v=json 时，stdout 和 stderr 指向同一个管道，
+		// 该管道通向 test2json。一般来说，操作系统能很好地
+		// 确保通过不同文件描述符对同一管道的写入被整体传递，
+		// 因此同时向 stdout 写 AAA、向 stderr 写 BBB 会在管道上
+		// 产生 AAABBB 或 BBBAAA，而不是像 AABBBA 这样的结果。
+		// 然而，例外情况是管道被填满时：在这种情况下，
+		// Go 使用非阻塞 I/O 意味着写入 AAA 或 BBB 可能被拆分到
+		// 多个系统调用中，从而完全有可能得到像 AABBBA 这样的输出。
+		// 如果我们改为在管道上使用阻塞 I/O，操作系统内核中也会
+		// 出现同样的问题。这种交错的输出可能会在一行 TestFoo 的
+		// 中间打印不相关的消息，从而干扰 test2json。
+		// 设置 os.Stderr = os.Stdout 将使它们共享同一个 pfd，
+		// 该 pfd 会为每次程序写入持有锁，从而防止任何交错。
 		//
-		// It might be nice to set Stderr = Stdout always, or perhaps if
-		// we can tell they are the same file, but for now -v=json is
-		// a very clear signal. Making the two files the same may cause
-		// surprises if programs close os.Stdout but expect to be able
-		// to continue to write to os.Stderr, but it's hard to see why a
-		// test would think it could take over global state that way.
+		// 如果总是设置 Stderr = Stdout 或许也不错，或者在我们能
+		// 判断它们是不是同一个文件时这样做，但目前 -v=json 是
+		// 一个非常明确的信号。让这两个文件相同可能会导致意外，
+		// 如果程序关闭了 os.Stdout 却期望能继续写入 os.Stderr，
+		// 但很难看出为什么测试会认为自己能以那种方式接管全局状态。
 		//
-		// This fix only helps programs where the output is coming directly
-		// from Go code. It does not help programs in which a subprocess is
-		// writing to stderr or stdout at the same time that a Go test is writing output.
-		// It also does not help when the output is coming from the runtime,
-		// such as when using the print/println functions, since that code writes
-		// directly to fd 2 without any locking.
-		// We keep realStderr around to prevent fd 2 from being closed.
+		// 此修复只对输出来自 Go 代码本身的程序有帮助。
+		// 它对于那些在 Go 测试写入输出的同时有子进程写入
+		// stderr 或 stdout 的程序没有帮助。
+		// 当输出来自运行时（例如使用 print/println 函数）时也没有帮助，
+		// 因为该代码直接写入 fd 2，没有任何锁定。
+		// 我们保留 realStderr 以防止 fd 2 被关闭。
 		//
-		// See go.dev/issue/33419.
+		// 参见 go.dev/issue/33419。
 		realStderr = os.Stderr
 		os.Stderr = os.Stdout
 	}
@@ -2434,9 +2360,8 @@ func (m *M) Run() (code int) {
 	m.before()
 	defer m.after()
 
-	// Run tests, examples, and benchmarks unless this is a fuzz worker process.
-	// Workers start after this is done by their parent process, and they should
-	// not repeat this work.
+	// 除非这是模糊测试的工作进程，否则运行测试、示例和基准测试。
+	// 工作进程在其父进程完成此工作之后启动，它们不应重复此工作。
 	if !*isFuzzWorker {
 		deadline := m.startAlarm()
 		haveExamples = len(m.examples) > 0
@@ -2447,11 +2372,11 @@ func (m *M) Run() (code int) {
 		if !testRan && !exampleRan && !fuzzTargetsRan && *matchBenchmarks == "" && *matchFuzz == "" {
 			fmt.Fprintln(os.Stderr, "testing: warning: no tests to run")
 			if testingTesting && *match != "^$" {
-				// If this happens during testing of package testing it could be that
-				// package testing's own logic for when to run a test is broken,
-				// in which case every test will run nothing and succeed,
-				// with no obvious way to detect this problem (since no tests are running).
-				// So make 'no tests to run' a hard failure when testing package testing itself.
+				// 如果这种情况发生在测试 package testing 自身时，可能是
+				// package testing 自身关于何时运行测试的逻辑出了问题，
+				// 那样的话每个测试都不会运行任何内容却会成功，
+				// 且没有明显的方式检测这个问题（因为没有测试在运行）。
+				// 所以在测试 package testing 自身时，把 'no tests to run' 视为硬性失败。
 				fmt.Print(chatty.prefix(), "FAIL: package testing must run tests\n")
 				testOk = false
 			}
@@ -2491,7 +2416,7 @@ func (t *T) report() {
 		return
 	}
 	if t.isSynctest {
-		return // t.parent will handle reporting
+		return // t.parent 将负责报告
 	}
 	dstr := fmtDuration(t.duration)
 	format := "--- %s: %s (%s)\n"
@@ -2534,8 +2459,8 @@ func listTests(matchString func(pat, str string) (bool, error), tests []Internal
 	}
 }
 
-// RunTests is an internal function but exported because it is cross-package;
-// it is part of the implementation of the "go test" command.
+// RunTests 是一个内部函数，但因需要跨包调用而导出；
+// 它是 "go test" 命令实现的一部分。
 func RunTests(matchString func(pat, str string) (bool, error), tests []InternalTest) (ok bool) {
 	var deadline time.Time
 	if *timeout > 0 {
@@ -2557,9 +2482,8 @@ func runTests(modulePath, importPath string, matchString func(pat, str string) (
 				break
 			}
 			if i > 0 && !ran {
-				// There were no tests to run on the first
-				// iteration. This won't change, so no reason
-				// to keep trying.
+				// 第一次迭代时没有测试可运行。
+				// 这不会改变，因此没有理由继续尝试。
 				break
 			}
 			ctx, cancelCtx := context.WithCancel(context.Background())
@@ -2597,7 +2521,7 @@ func runTests(modulePath, importPath string, matchString func(pat, str string) (
 	return ran, ok
 }
 
-// before runs before all testing.
+// before 在所有测试之前运行。
 func (m *M) before() {
 	if *memProfileRate > 0 {
 		runtime.MemProfileRate = *memProfileRate
@@ -2613,7 +2537,7 @@ func (m *M) before() {
 			f.Close()
 			return
 		}
-		// Could save f so after can call f.Close; not worth the effort.
+		// 可以保存 f，以便 after 调用 f.Close；但不值得这么做。
 	}
 	if *traceFile != "" {
 		f, err := os.Create(toOutputDir(*traceFile))
@@ -2626,7 +2550,7 @@ func (m *M) before() {
 			f.Close()
 			return
 		}
-		// Could save f so after can call f.Close; not worth the effort.
+		// 可以保存 f，以便 after 调用 f.Close；但不值得这么做。
 	}
 	if *blockProfile != "" && *blockProfileRate >= 0 {
 		runtime.SetBlockProfileRate(*blockProfileRate)
@@ -2655,8 +2579,8 @@ func (m *M) before() {
 		}
 	}
 	if *testlog != "" {
-		// Note: Not using toOutputDir.
-		// This file is for use by cmd/go, not users.
+		// 注意：此处不使用 toOutputDir。
+		// 该文件供 cmd/go 使用，而非用户。
 		var f *os.File
 		var err error
 		if m.numRun == 1 {
@@ -2679,15 +2603,15 @@ func (m *M) before() {
 	}
 }
 
-// after runs after all testing.
+// after 在所有测试之后运行。
 func (m *M) after() {
 	m.afterOnce.Do(func() {
 		m.writeProfiles()
 	})
 
-	// Restore PanicOnExit0 after every run, because we set it to true before
-	// every run. Otherwise, if m.Run is called multiple times the behavior of
-	// os.Exit(0) will not be restored after the second run.
+	// 每次运行后都恢复 PanicOnExit0，因为我们在每次运行前
+	// 将其设为 true。否则，如果 m.Run 被调用多次，
+	// os.Exit(0) 的行为在第二次运行后将无法恢复。
 	if *panicOnExit0 {
 		m.deps.SetPanicOnExit0(false)
 	}
@@ -2705,10 +2629,10 @@ func (m *M) writeProfiles() {
 		}
 	}
 	if *cpuProfile != "" {
-		m.deps.StopCPUProfile() // flushes profile to disk
+		m.deps.StopCPUProfile() // 将 profile 刷写到磁盘
 	}
 	if *traceFile != "" {
-		trace.Stop() // flushes trace to disk
+		trace.Stop() // 将 trace 刷写到磁盘
 	}
 	if *memProfile != "" {
 		f, err := os.Create(toOutputDir(*memProfile))
@@ -2716,7 +2640,7 @@ func (m *M) writeProfiles() {
 			fmt.Fprintf(os.Stderr, "testing: %s\n", err)
 			os.Exit(2)
 		}
-		runtime.GC() // materialize all statistics
+		runtime.GC() // 使所有统计信息具体化
 		if err = m.deps.WriteProfileTo("allocs", f, 0); err != nil {
 			fmt.Fprintf(os.Stderr, "testing: can't write %s: %s\n", *memProfile, err)
 			os.Exit(2)
@@ -2752,23 +2676,23 @@ func (m *M) writeProfiles() {
 	}
 }
 
-// toOutputDir returns the file name relocated, if required, to outputDir.
-// Simple implementation to avoid pulling in path/filepath.
+// toOutputDir 返回按需重定位到 outputDir 的文件名。
+// 采用简单实现以避免引入 path/filepath。
 func toOutputDir(path string) string {
 	if *outputDir == "" || path == "" {
 		return path
 	}
-	// On Windows, it's clumsy, but we can be almost always correct
-	// by just looking for a drive letter and a colon.
-	// Absolute paths always have a drive letter (ignoring UNC).
-	// Problem: if path == "C:A" and outputdir == "C:\Go" it's unclear
-	// what to do, but even then path/filepath doesn't help.
-	// TODO: Worth doing better? Probably not, because we're here only
-	// under the management of go test.
+	// 在 Windows 上，这种做法很笨拙，但仅通过查找盘符和冒号，
+	// 我们几乎总能给出正确结果。
+	// 绝对路径总是带有一个盘符（忽略 UNC）。
+	// 问题：如果 path == "C:A" 且 outputdir == "C:\Go"，该怎么做并不明确，
+	// 但即便如此 path/filepath 也帮不上忙。
+	// TODO: 值得做得更好吗？大概不值得，因为只有
+	// 在 go test 的管理下才会执行到这里。
 	if runtime.GOOS == "windows" && len(path) >= 2 {
 		letter, colon := path[0], path[1]
 		if ('a' <= letter && letter <= 'z' || 'A' <= letter && letter <= 'Z') && colon == ':' {
-			// If path starts with a drive letter we're stuck with it regardless.
+			// 如果 path 以盘符开头，无论如何我们都只能保留它。
 			return path
 		}
 	}
@@ -2778,7 +2702,7 @@ func toOutputDir(path string) string {
 	return fmt.Sprintf("%s%c%s", *outputDir, os.PathSeparator, path)
 }
 
-// startAlarm starts an alarm if requested.
+// startAlarm 在需要时启动定时器。
 func (m *M) startAlarm() time.Time {
 	if *timeout <= 0 {
 		return time.Time{}
@@ -2804,7 +2728,7 @@ func (m *M) startAlarm() time.Time {
 	return deadline
 }
 
-// runningList returns the list of running tests.
+// runningList 返回正在运行的测试列表。
 func runningList() []string {
 	var list []string
 	running.Range(func(k, v any) bool {
@@ -2815,7 +2739,7 @@ func runningList() []string {
 	return list
 }
 
-// stopAlarm turns off the alarm.
+// stopAlarm 关闭定时器。
 func (m *M) stopAlarm() {
 	if *timeout > 0 {
 		m.timer.Stop()

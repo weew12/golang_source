@@ -19,8 +19,8 @@ type InternalExample struct {
 	Unordered bool
 }
 
-// RunExamples is an internal function but exported because it is cross-package;
-// it is part of the implementation of the "go test" command.
+// RunExamples 是一个内部函数，但由于它是跨包使用的而被导出；
+// 它是 "go test" 命令实现的一部分。
 func RunExamples(matchString func(pat, str string) (bool, error), examples []InternalExample) (ok bool) {
 	_, ok = runExamples(matchString, examples)
 	return ok
@@ -46,15 +46,15 @@ func runExamples(matchString func(pat, str string) (bool, error), examples []Int
 	return ran, ok
 }
 
-// processRunResult computes a summary and status of the result of running an example test.
-// stdout is the captured output from stdout of the test.
-// recovered is the result of invoking recover after running the test, in case it panicked.
+// processRunResult 计算运行一个示例测试的结果的摘要和状态。
+// stdout 是从测试的标准输出中捕获的输出。
+// recovered 是运行测试后调用 recover 的结果，以防测试发生 panic。
 //
-// If stdout doesn't match the expected output or if recovered is non-nil, it'll print the cause of failure to stdout.
-// If the test is chatty/verbose, it'll print a success message to stdout.
-// If recovered is non-nil, it'll panic with that value.
-// If the test panicked with nil, or invoked runtime.Goexit, it'll be
-// made to fail and panic with errNilPanicOrGoexit
+// 如果 stdout 与预期输出不匹配，或者 recovered 非 nil，它会将失败原因打印到标准输出。
+// 如果测试是 chatty/verbose 模式，它会向标准输出打印成功消息。
+// 如果 recovered 非 nil，它会以该值触发 panic。
+// 如果测试以 nil 触发 panic，或者调用了 runtime.Goexit，它会被
+// 判定为失败并以 errNilPanicOrGoexit 触发 panic
 func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Duration, finished bool, recovered any) (passed bool) {
 	passed = true
 	dstr := fmtDuration(timeSpent)
@@ -88,7 +88,7 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
 	}
 
 	if recovered != nil {
-		// Propagate the previously recovered result, by panicking.
+		// 通过 panic 传播之前 recover 到的结果。
 		panic(recovered)
 	} else if !finished {
 		panic(errNilPanicOrGoexit)

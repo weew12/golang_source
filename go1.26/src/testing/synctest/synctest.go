@@ -2,57 +2,57 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package synctest provides support for testing concurrent code.
+// synctest 包为测试并发代码提供支持。
 //
-// The [Test] function runs a function in an isolated "bubble".
-// Any goroutines started within the bubble are also part of the bubble.
+// [Test] 函数在一个隔离的“气泡”中运行一个函数。
+// 在气泡内启动的任何 goroutine 也是该气泡的一部分。
 //
-// Each test should be entirely self-contained:
-// The following guidelines should apply to most tests:
+// 每个测试都应完全自包含：
+// 以下准则应适用于大多数测试：
 //
-//   - Avoid interacting with goroutines not started from within the test.
-//   - Avoid using the network. Use a fake network implementation as needed.
-//   - Avoid interacting with external processes.
-//   - Avoid leaking goroutines in background tasks.
+//   - 避免与并非从测试内部启动的 goroutine 交互。
+//   - 避免使用网络。按需使用假的网络实现。
+//   - 避免与外部进程交互。
+//   - 避免在后台任务中泄漏 goroutine。
 //
-// # Time
+// # 时间
 //
-// Within a bubble, the [time] package uses a fake clock.
-// Each bubble has its own clock.
-// The initial time is midnight UTC 2000-01-01.
+// 在气泡内，[time] 包使用假时钟。
+// 每个气泡都有自己的时钟。
+// 初始时间为 UTC 2000-01-01 午夜。
 //
-// Time in a bubble only advances when every goroutine in the
-// bubble is durably blocked.
-// See below for the exact definition of "durably blocked".
+// 只有当气泡中的每个 goroutine 都处于持久阻塞状态时，
+// 气泡内的时间才会推进。
+// “持久阻塞”的确切定义见下文。
 //
-// For example, this test runs immediately rather than taking
-// two seconds:
+// 例如，下面这个测试会立即运行，而不会耗时
+// 两秒：
 //
 //	func TestTime(t *testing.T) {
 //		synctest.Test(t, func(t *testing.T) {
-//			start := time.Now() // always midnight UTC 2000-01-01
+//			start := time.Now() // 始终为 UTC 2000-01-01 午夜
 //			go func() {
 //				time.Sleep(1 * time.Second)
-//				t.Log(time.Since(start)) // always logs "1s"
+//				t.Log(time.Since(start)) // 始终记录 "1s"
 //			}()
-//			time.Sleep(2 * time.Second) // the goroutine above will run before this Sleep returns
-//			t.Log(time.Since(start))    // always logs "2s"
+//			time.Sleep(2 * time.Second) // 上面的 goroutine 会在此 Sleep 返回之前运行
+//			t.Log(time.Since(start))    // 始终记录 "2s"
 //		})
 //	}
 //
-// Time stops advancing when the root goroutine of the bubble exits.
+// 当气泡的根 goroutine 退出时，时间停止推进。
 //
-// # Blocking
+// # 阻塞
 //
-// A goroutine in a bubble is "durably blocked" when it is blocked
-// and can only be unblocked by another goroutine in the same bubble.
-// A goroutine which can be unblocked by an event from outside its
-// bubble is not durably blocked.
+// 当气泡中的某个 goroutine 处于阻塞状态，
+// 且只能被同一气泡中的另一个 goroutine 解除阻塞时，
+// 它处于“持久阻塞”状态。
+// 能够被来自其气泡外部的事件解除阻塞的 goroutine 不属于持久阻塞。
 //
-// The [Wait] function blocks until all other goroutines in the
-// bubble are durably blocked.
+// [Wait] 函数会阻塞，直到气泡中的所有其他 goroutine
+// 都处于持久阻塞状态。
 //
-// For example:
+// 例如：
 //
 //	func TestWait(t *testing.T) {
 //		synctest.Test(t, func(t *testing.T) {
@@ -60,90 +60,89 @@
 //			go func() {
 //				done = true
 //			}()
-//			// Wait will block until the goroutine above has finished.
+//			// Wait 会阻塞，直到上面的 goroutine 执行完毕。
 //			synctest.Wait()
-//			t.Log(done) // always logs "true"
+//			t.Log(done) // 始终记录 "true"
 //		})
 //	}
 //
-// When every goroutine in a bubble is durably blocked:
+// 当气泡中的每个 goroutine 都处于持久阻塞状态时：
 //
-//   - [Wait] returns, if it has been called.
-//   - Otherwise, time advances to the next time that will
-//     unblock at least one goroutine, if there is such a time
-//     and the root goroutine of the bubble has not exited.
-//   - Otherwise, there is a deadlock and [Test] panics.
+//   - 如果 [Wait] 已被调用，则它会返回。
+//   - 否则，时间会推进到下一个能够解除至少一个 goroutine 阻塞的时刻，
+//     前提是存在这样的时刻，并且气泡的根 goroutine 尚未退出。
+//   - 否则，出现死锁，[Test] 会 panic。
 //
-// The following operations durably block a goroutine:
+// 以下操作会持久阻塞一个 goroutine：
 //
-//   - a blocking send or receive on a channel created within the bubble
-//   - a blocking select statement where every case is a channel created
-//     within the bubble
+//   - 在气泡内创建的 channel 上进行阻塞式发送或接收
+//   - 阻塞式 select 语句，其中每个 case 都是
+//     在气泡内创建的 channel
 //   - [sync.Cond.Wait]
-//   - [sync.WaitGroup.Wait], when [sync.WaitGroup.Add] was called within the bubble
+//   - [sync.WaitGroup.Wait]，当 [sync.WaitGroup.Add] 在气泡内被调用时
 //   - [time.Sleep]
 //
-// Operations not in the above list are not durably blocking.
-// In particular, the following operations may block a goroutine,
-// but are not durably blocking because the goroutine can be unblocked
-// by an event occurring outside its bubble:
+// 不在上述列表中的操作不属于持久阻塞。
+// 特别地，以下操作可能会阻塞一个 goroutine，
+// 但不属于持久阻塞，因为该 goroutine 可以被
+// 在其气泡外部发生的事件解除阻塞：
 //
-//   - locking a [sync.Mutex] or [sync.RWMutex]
-//   - blocking on I/O, such as reading from a network socket
-//   - system calls
+//   - 锁定 [sync.Mutex] 或 [sync.RWMutex]
+//   - 阻塞于 I/O，例如从网络套接字读取
+//   - 系统调用
 //
-// # Isolation
+// # 隔离
 //
-// A channel, [time.Timer], or [time.Ticker] created within a bubble
-// is associated with it. Operating on a bubbled channel, timer, or
-// ticker from outside the bubble panics.
+// 在气泡内创建的 channel、[time.Timer] 或 [time.Ticker]
+// 会与该气泡关联。从气泡外部操作与气泡关联的 channel、timer 或
+// ticker 会 panic。
 //
-// A [sync.WaitGroup] becomes associated with a bubble on the first
-// call to Add or Go. Once a WaitGroup is associated with a bubble,
-// calling Add or Go from outside that bubble is a fatal error.
-// (As a technical limitation, a WaitGroup defined as a package
-// variable, such as "var wg sync.WaitGroup", cannot be associated
-// with a bubble and operations on it may not be durably blocking.
-// This limitation does not apply to a *WaitGroup stored in a
-// package variable, such as "var wg = new(sync.WaitGroup)".)
+// [sync.WaitGroup] 在首次调用 Add 或 Go 时会与
+// 某个气泡关联。一旦 WaitGroup 与某个气泡关联，
+// 从该气泡外部调用 Add 或 Go 就是致命错误。
+// （作为一项技术限制，定义为包变量的 WaitGroup，
+// 例如 "var wg sync.WaitGroup"，无法与气泡关联，
+// 对其执行的操作可能不属于持久阻塞。
+// 此限制不适用于存储在包变量中的 *WaitGroup，
+// 例如 "var wg = new(sync.WaitGroup)"。）
 //
-// [sync.Cond.Wait] is durably blocking. Waking a goroutine in a bubble
-// blocked on Cond.Wait from outside the bubble is a fatal error.
+// [sync.Cond.Wait] 属于持久阻塞。从气泡外部唤醒气泡中
+// 阻塞于 Cond.Wait 的 goroutine 是致命错误。
 //
-// Cleanup functions and finalizers registered with
-// [runtime.AddCleanup] and [runtime.SetFinalizer]
-// run outside of any bubble.
+// 通过 [runtime.AddCleanup] 和 [runtime.SetFinalizer]
+// 注册的清理函数和终结器
+// 在任何气泡之外运行。
 //
-// # Example: Context.AfterFunc
+// # 示例：Context.AfterFunc
 //
-// This example demonstrates testing the [context.AfterFunc] function.
+// 此示例演示如何测试 [context.AfterFunc] 函数。
 //
-// AfterFunc registers a function to execute in a new goroutine
-// after a context is canceled.
+// AfterFunc 注册一个函数，在 context 被取消后
+// 于新的 goroutine 中执行。
 //
-// The test verifies that the function is not run before the context is canceled,
-// and is run after the context is canceled.
+// 该测试验证该函数在 context 被取消之前不会运行，
+// 并在 context 被取消之后运行。
 //
 //	func TestContextAfterFunc(t *testing.T) {
 //		synctest.Test(t, func(t *testing.T) {
-//			// Create a context.Context which can be canceled.
+//			// 创建一个可以被取消的 context.Context。
 //			ctx, cancel := context.WithCancel(t.Context())
 //
-//			// context.AfterFunc registers a function to be called
-//			// when a context is canceled.
+//			// context.AfterFunc 注册一个在 context 被取消时
+//			// 被调用的函数。
 //			afterFuncCalled := false
 //			context.AfterFunc(ctx, func() {
 //				afterFuncCalled = true
 //			})
 //
-//			// The context has not been canceled, so the AfterFunc is not called.
+//			// context 尚未被取消，因此 AfterFunc 未被调用。
 //			synctest.Wait()
 //			if afterFuncCalled {
 //				t.Fatalf("before context is canceled: AfterFunc called")
 //			}
 //
-//			// Cancel the context and wait for the AfterFunc to finish executing.
-//			// Verify that the AfterFunc ran.
+//			// 取消 context 并等待 AfterFunc 执行完毕。
+//			// 验证 AfterFunc 已运行。
 //			cancel()
 //			synctest.Wait()
 //			if !afterFuncCalled {
@@ -152,30 +151,30 @@
 //		})
 //	}
 //
-// # Example: Context.WithTimeout
+// # 示例：Context.WithTimeout
 //
-// This example demonstrates testing the [context.WithTimeout] function.
+// 此示例演示如何测试 [context.WithTimeout] 函数。
 //
-// WithTimeout creates a context which is canceled after a timeout.
+// WithTimeout 创建一个在超时后被取消的 context。
 //
-// The test verifies that the context is not canceled before the timeout expires,
-// and is canceled after the timeout expires.
+// 该测试验证 context 在超时到期之前不会被取消，
+// 并在超时到期之后被取消。
 //
 //	func TestContextWithTimeout(t *testing.T) {
 //		synctest.Test(t, func(t *testing.T) {
-//			// Create a context.Context which is canceled after a timeout.
+//			// 创建一个在超时后被取消的 context.Context。
 //			const timeout = 5 * time.Second
 //			ctx, cancel := context.WithTimeout(t.Context(), timeout)
 //			defer cancel()
 //
-//			// Wait just less than the timeout.
+//			// 等待略少于超时的时间。
 //			time.Sleep(timeout - time.Nanosecond)
 //			synctest.Wait()
 //			if err := ctx.Err(); err != nil {
 //				t.Fatalf("before timeout: ctx.Err() = %v, want nil\n", err)
 //			}
 //
-//			// Wait the rest of the way until the timeout.
+//			// 等待剩余的时间直到超时。
 //			time.Sleep(time.Nanosecond)
 //			synctest.Wait()
 //			if err := ctx.Err(); err != context.DeadlineExceeded {
@@ -184,42 +183,42 @@
 //		})
 //	}
 //
-// # Example: HTTP 100 Continue
+// # 示例：HTTP 100 Continue
 //
-// This example demonstrates testing [http.Transport]'s 100 Continue handling.
+// 此示例演示如何测试 [http.Transport] 的 100 Continue 处理。
 //
-// An HTTP client sending a request can include an "Expect: 100-continue" header
-// to tell the server that the client has additional data to send.
-// The server may then respond with an 100 Continue information response
-// to request the data, or some other status to tell the client the data is not needed.
-// For example, a client uploading a large file might use this feature to confirm
-// that the server is willing to accept the file before sending it.
+// 发送请求的 HTTP 客户端可以包含一个 "Expect: 100-continue" 头，
+// 以告知服务器客户端还有额外数据要发送。
+// 服务器随后可以响应一个 100 Continue 信息响应
+// 来请求该数据，或者用其他状态码告知客户端不需要该数据。
+// 例如，上传大文件的客户端可能会使用此特性，
+// 在发送文件之前确认服务器愿意接收该文件。
 //
-// This test confirms that when sending an "Expect: 100-continue" header
-// the HTTP client does not send a request's content before the server requests it,
-// and that it does send the content after receiving a 100 Continue response.
+// 该测试确认：在发送 "Expect: 100-continue" 头时，
+// HTTP 客户端在服务器请求之前不会发送请求的内容，
+// 并且在收到 100 Continue 响应之后确实会发送该内容。
 //
 //	func TestHTTPTransport100Continue(t *testing.T) {
 //		synctest.Test(t, func(*testing.T) {
-//			// Create an in-process fake network connection.
-//			// We cannot use a loopback network connection for this test,
-//			// because goroutines blocked on network I/O prevent a synctest
-//			// bubble from becoming idle.
+//			// 创建一个进程内的假网络连接。
+//			// 我们无法为此测试使用环回网络连接，
+//			// 因为阻塞于网络 I/O 的 goroutine 会阻止 synctest
+//			// 气泡进入空闲状态。
 //			srvConn, cliConn := net.Pipe()
 //			defer cliConn.Close()
 //			defer srvConn.Close()
 //
 //			tr := &http.Transport{
-//				// Use the fake network connection created above.
+//				// 使用上面创建的假网络连接。
 //				DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
 //					return cliConn, nil
 //				},
-//				// Enable "Expect: 100-continue" handling.
+//				// 启用 "Expect: 100-continue" 处理。
 //				ExpectContinueTimeout: 5 * time.Second,
 //			}
 //
-//			// Send a request with the "Expect: 100-continue" header set.
-//			// Send it in a new goroutine, since it won't complete until the end of the test.
+//			// 发送一个设置了 "Expect: 100-continue" 头的请求。
+//			// 在一个新的 goroutine 中发送它，因为它要到测试结束才会完成。
 //			body := "request body"
 //			go func() {
 //				req, _ := http.NewRequest("PUT", "http://test.tld/", strings.NewReader(body))
@@ -232,15 +231,15 @@
 //				}
 //			}()
 //
-//			// Read the request headers sent by the client.
+//			// 读取客户端发送的请求头。
 //			req, err := http.ReadRequest(bufio.NewReader(srvConn))
 //			if err != nil {
 //				t.Fatalf("ReadRequest: %v\n", err)
 //			}
 //
-//			// Start a new goroutine copying the body sent by the client into a buffer.
-//			// Wait for all goroutines in the bubble to block and verify that we haven't
-//			// read anything from the client yet.
+//			// 启动一个新的 goroutine，将客户端发送的正文复制到缓冲区中。
+//			// 等待气泡中的所有 goroutine 阻塞，并验证我们尚未
+//			// 从客户端读取到任何内容。
 //			var gotBody bytes.Buffer
 //			go io.Copy(&gotBody, req.Body)
 //			synctest.Wait()
@@ -248,19 +247,19 @@
 //				t.Fatalf("before sending 100 Continue, read body: %q, want %q\n", got, want)
 //			}
 //
-//			// Write a "100 Continue" response to the client and verify that
-//			// it sends the request body.
+//			// 向客户端写入一个 "100 Continue" 响应，并验证
+//			// 它发送了请求正文。
 //			srvConn.Write([]byte("HTTP/1.1 100 Continue\r\n\r\n"))
 //			synctest.Wait()
 //			if got, want := gotBody.String(), body; got != want {
 //				t.Fatalf("after sending 100 Continue, read body: %q, want %q\n", got, want)
 //			}
 //
-//			// Finish up by sending the "200 OK" response to conclude the request.
+//			// 最后发送 "200 OK" 响应以结束该请求。
 //			srvConn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 //
-//			// We started several goroutines during the test.
-//			// The synctest.Test call will wait for all of them to exit before returning.
+//			// 我们在测试期间启动了多个 goroutine。
+//			// synctest.Test 调用会等待它们全部退出后再返回。
 //		})
 //	}
 package synctest
@@ -271,28 +270,28 @@ import (
 	_ "unsafe" // for linkname
 )
 
-// Test executes f in a new bubble.
+// Test 在一个新的气泡中执行 f。
 //
-// Test waits for all goroutines in the bubble to exit before returning.
-// If the goroutines in the bubble become deadlocked, the test fails.
+// Test 会等待气泡中的所有 goroutine 退出后再返回。
+// 如果气泡中的 goroutine 出现死锁，测试就会失败。
 //
-// Test must not be called from within a bubble.
+// 不得从气泡内部调用 Test。
 //
-// The [*testing.T] provided to f has the following properties:
+// 提供给 f 的 [*testing.T] 具有以下特性：
 //
-//   - T.Cleanup functions run inside the bubble,
-//     immediately before Test returns.
-//   - T.Context returns a [context.Context] with a Done channel
-//     associated with the bubble.
-//   - T.Run, T.Parallel, and T.Deadline must not be called.
+//   - T.Cleanup 函数在气泡内运行，
+//     紧接在 Test 返回之前。
+//   - T.Context 返回一个带有与气泡关联的
+//     Done channel 的 [context.Context]。
+//   - 不得调用 T.Run、T.Parallel 和 T.Deadline。
 func Test(t *testing.T, f func(*testing.T)) {
 	var ok bool
 	synctest.Run(func() {
 		ok = testingSynctestTest(t, f)
 	})
 	if !ok {
-		// Fail the test outside the bubble,
-		// so test durations get set using real time.
+		// 在气泡外使测试失败，
+		// 这样测试时长就会使用真实时间设置。
 		t.FailNow()
 	}
 }
@@ -300,12 +299,12 @@ func Test(t *testing.T, f func(*testing.T)) {
 //go:linkname testingSynctestTest testing/synctest.testingSynctestTest
 func testingSynctestTest(t *testing.T, f func(*testing.T)) bool
 
-// Wait blocks until every goroutine within the current bubble,
-// other than the current goroutine, is durably blocked.
+// Wait 会阻塞，直到当前气泡中
+// 除当前 goroutine 之外的每个 goroutine 都处于持久阻塞状态。
 //
-// Wait must not be called from outside a bubble.
-// Wait must not be called concurrently by multiple goroutines
-// in the same bubble.
+// 不得从气泡外部调用 Wait。
+// 不得由同一气泡中的多个 goroutine
+// 并发调用 Wait。
 func Wait() {
 	synctest.Wait()
 }

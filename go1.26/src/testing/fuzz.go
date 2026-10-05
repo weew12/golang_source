@@ -34,49 +34,46 @@ var (
 	fuzzCacheDir     *string
 	isFuzzWorker     *bool
 
-	// corpusDir is the parent directory of the fuzz test's seed corpus within
-	// the package.
+	// corpusDir 是包内模糊测试种子语料库的父目录。
 	corpusDir = "testdata/fuzz"
 )
 
-// fuzzWorkerExitCode is used as an exit code by fuzz worker processes after an
-// internal error. This distinguishes internal errors from uncontrolled panics
-// and other failures. Keep in sync with internal/fuzz.workerExitCode.
+// fuzzWorkerExitCode 在模糊测试工作进程发生内部错误后用作退出码。
+// 它用于区分内部错误与不受控的 panic 及其他失败。
+// 需与 internal/fuzz.workerExitCode 保持一致。
 const fuzzWorkerExitCode = 70
 
-// InternalFuzzTarget is an internal type but exported because it is
-// cross-package; it is part of the implementation of the "go test" command.
+// InternalFuzzTarget 是一个内部类型，但由于需要跨包使用而导出；
+// 它是 "go test" 命令实现的一部分。
 type InternalFuzzTarget struct {
 	Name string
 	Fn   func(f *F)
 }
 
-// F is a type passed to fuzz tests.
+// F 是传递给模糊测试的类型。
 //
-// Fuzz tests run generated inputs against a provided fuzz target, which can
-// find and report potential bugs in the code being tested.
+// 模糊测试会针对提供的模糊测试目标运行生成的输入，从而发现并报告
+// 被测代码中潜在的 bug。
 //
-// A fuzz test runs the seed corpus by default, which includes entries provided
-// by [F.Add] and entries in the testdata/fuzz/<FuzzTestName> directory. After
-// any necessary setup and calls to [F.Add], the fuzz test must then call
-// [F.Fuzz] to provide the fuzz target. See the testing package documentation
-// for an example, and see the [F.Fuzz] and [F.Add] method documentation for
-// details.
+// 模糊测试默认会运行种子语料库，其中包含由 [F.Add] 提供的条目以及
+// testdata/fuzz/<FuzzTestName> 目录中的条目。在完成必要的设置并调用
+// [F.Add] 之后，模糊测试必须调用 [F.Fuzz] 来提供模糊测试目标。
+// 示例参见 testing 包文档，详情参见 [F.Fuzz] 和 [F.Add]
+// 方法的文档。
 //
-// *F methods can only be called before [F.Fuzz]. Once the test is
-// executing the fuzz target, only [*T] methods can be used. The only *F methods
-// that are allowed in the [F.Fuzz] function are [F.Failed] and [F.Name].
+// *F 的方法只能在 [F.Fuzz] 之前调用。一旦测试开始
+// 执行模糊测试目标，就只能使用 [*T] 的方法。在 [F.Fuzz] 函数中
+// 唯一允许使用的 *F 方法是 [F.Failed] 和 [F.Name]。
 type F struct {
 	common
 	fstate *fuzzState
 	tstate *testState
 
-	// inFuzzFn is true when the fuzz function is running. Most F methods cannot
-	// be called when inFuzzFn is true.
+	// inFuzzFn 在模糊测试函数运行时为 true。当 inFuzzFn 为 true 时，
+	// 大多数 F 方法都不能被调用。
 	inFuzzFn bool
 
-	// corpus is a set of seed corpus entries, added with F.Add and loaded
-	// from testdata.
+	// corpus 是一组种子语料库条目，通过 F.Add 添加并从 testdata 加载。
 	corpus []corpusEntry
 
 	result     fuzzResult
@@ -85,9 +82,9 @@ type F struct {
 
 var _ TB = (*F)(nil)
 
-// corpusEntry is an alias to the same type as internal/fuzz.CorpusEntry.
-// We use a type alias because we don't want to export this type, and we can't
-// import internal/fuzz from testing.
+// corpusEntry 是与 internal/fuzz.CorpusEntry 相同的类型的别名。
+// 我们使用类型别名，是因为不想导出该类型，而 testing 又不能
+// 导入 internal/fuzz。
 type corpusEntry = struct {
 	Parent     string
 	Path       string
@@ -97,38 +94,38 @@ type corpusEntry = struct {
 	IsSeed     bool
 }
 
-// Helper marks the calling function as a test helper function.
-// When printing file and line information, that function will be skipped.
-// Helper may be called simultaneously from multiple goroutines.
+// Helper 将调用它的函数标记为测试辅助函数。
+// 在打印文件和行信息时，该函数将被跳过。
+// Helper 可以从多个 goroutine 同时调用。
 func (f *F) Helper() {
 	if f.inFuzzFn {
 		panic("testing: f.Helper was called inside the fuzz target, use t.Helper instead")
 	}
 
-	// common.Helper is inlined here.
-	// If we called it, it would mark F.Helper as the helper
-	// instead of the caller.
+	// 此处内联了 common.Helper。
+	// 如果直接调用它，它会将 F.Helper 标记为辅助函数，
+	// 而不是调用者。
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.helperPCs == nil {
 		f.helperPCs = make(map[uintptr]struct{})
 	}
-	// repeating code from callerName here to save walking a stack frame
+	// 此处重复 callerName 中的代码，以避免遍历一个栈帧
 	var pc [1]uintptr
-	n := runtime.Callers(2, pc[:]) // skip runtime.Callers + Helper
+	n := runtime.Callers(2, pc[:]) // 跳过 runtime.Callers + Helper
 	if n == 0 {
 		panic("testing: zero callers found")
 	}
 	if _, found := f.helperPCs[pc[0]]; !found {
 		f.helperPCs[pc[0]] = struct{}{}
-		f.helperNames = nil // map will be recreated next time it is needed
+		f.helperNames = nil // 该 map 将在下次需要时重新创建
 	}
 }
 
-// Fail marks the function as having failed but continues execution.
+// Fail 将函数标记为已失败，但会继续执行。
 func (f *F) Fail() {
-	// (*F).Fail may be called by (*T).Fail, which we should allow. However, we
-	// shouldn't allow direct (*F).Fail calls from inside the (*F).Fuzz function.
+	// (*F).Fail 可能会由 (*T).Fail 调用，这是应当允许的。但是，
+	// 不应允许从 (*F).Fuzz 函数内部直接调用 (*F).Fail。
 	if f.inFuzzFn {
 		panic("testing: f.Fail was called inside the fuzz target, use t.Fail instead")
 	}
@@ -136,10 +133,10 @@ func (f *F) Fail() {
 	f.common.Fail()
 }
 
-// Skipped reports whether the test was skipped.
+// Skipped 报告测试是否被跳过。
 func (f *F) Skipped() bool {
-	// (*F).Skipped may be called by tRunner, which we should allow. However, we
-	// shouldn't allow direct (*F).Skipped calls from inside the (*F).Fuzz function.
+	// (*F).Skipped 可能会由 tRunner 调用，这是应当允许的。但是，
+	// 不应允许从 (*F).Fuzz 函数内部直接调用 (*F).Skipped。
 	if f.inFuzzFn {
 		panic("testing: f.Skipped was called inside the fuzz target, use t.Skipped instead")
 	}
@@ -147,9 +144,9 @@ func (f *F) Skipped() bool {
 	return f.common.Skipped()
 }
 
-// Add will add the arguments to the seed corpus for the fuzz test. This will be
-// a no-op if called after or within the fuzz target, and args must match the
-// arguments for the fuzz target.
+// Add 会将参数添加到模糊测试的种子语料库中。如果在模糊测试目标之后
+// 或在其内部调用，则该调用不执行任何操作，并且 args 必须与模糊测试目标的
+// 参数匹配。
 func (f *F) Add(args ...any) {
 	var values []any
 	for i := range args {
@@ -161,7 +158,7 @@ func (f *F) Add(args ...any) {
 	f.corpus = append(f.corpus, corpusEntry{Values: values, IsSeed: true, Path: fmt.Sprintf("seed#%d", len(f.corpus))})
 }
 
-// supportedTypes represents all of the supported types which can be fuzzed.
+// supportedTypes 表示所有可被模糊测试支持的类型。
 var supportedTypes = map[reflect.Type]bool{
 	reflect.TypeFor[[]byte]():  true,
 	reflect.TypeFor[string]():  true,
@@ -182,32 +179,31 @@ var supportedTypes = map[reflect.Type]bool{
 	reflect.TypeFor[uint64]():  true,
 }
 
-// Fuzz runs the fuzz function, ff, for fuzz testing. If ff fails for a set of
-// arguments, those arguments will be added to the seed corpus.
+// Fuzz 运行模糊测试函数 ff，用于模糊测试。如果 ff 针对某组参数
+// 失败，则这些参数将被添加到种子语料库中。
 //
-// ff must be a function with no return value whose first argument is [*T] and
-// whose remaining arguments are the types to be fuzzed.
-// For example:
+// ff 必须是一个没有返回值的函数，其第一个参数为 [*T]，
+// 其余参数为要模糊测试的类型。
+// 例如：
 //
 //	f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
 //
-// The following types are allowed: []byte, string, bool, byte, rune, float32,
-// float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64.
-// More types may be supported in the future.
+// 允许使用以下类型：[]byte、string、bool、byte、rune、float32、
+// float64、int、int8、int16、int32、int64、uint、uint8、uint16、uint32、uint64。
+// 未来可能会支持更多类型。
 //
-// ff must not call any [*F] methods, e.g. [F.Log], [F.Error], [F.Skip]. Use
-// the corresponding [*T] method instead. The only [*F] methods that are allowed in
-// the F.Fuzz function are [F.Failed] and [F.Name].
+// ff 不得调用任何 [*F] 方法，例如 [F.Log]、[F.Error]、[F.Skip]。
+// 而应使用对应的 [*T] 方法。在 F.Fuzz 函数中唯一允许使用的
+// [*F] 方法是 [F.Failed] 和 [F.Name]。
 //
-// This function should be fast and deterministic, and its behavior should not
-// depend on shared state. No mutable input arguments, or pointers to them,
-// should be retained between executions of the fuzz function, as the memory
-// backing them may be mutated during a subsequent invocation. ff must not
-// modify the underlying data of the arguments provided by the fuzzing engine.
+// 该函数应当快速且确定，其行为不应依赖共享状态。在模糊测试函数的
+// 多次执行之间，不应保留可变的输入参数或指向它们的指针，
+// 因为支撑它们的内存可能在后续调用中被修改。ff 不得
+// 修改模糊测试引擎所提供参数的底层数据。
 //
-// When fuzzing, F.Fuzz does not return until a problem is found, time runs out
-// (set with -fuzztime), or the test process is interrupted by a signal. F.Fuzz
-// should be called exactly once, unless [F.Skip] or [F.Fail] is called beforehand.
+// 进行模糊测试时，F.Fuzz 会一直运行，直到发现问题、时间耗尽
+// （通过 -fuzztime 设置），或测试进程被信号中断。F.Fuzz
+// 应当只调用一次，除非事先调用了 [F.Skip] 或 [F.Fail]。
 func (f *F) Fuzz(ff any) {
 	if f.fuzzCalled {
 		panic("testing: F.Fuzz called more than once")
@@ -218,7 +214,7 @@ func (f *F) Fuzz(ff any) {
 	}
 	f.Helper()
 
-	// ff should be in the form func(*testing.T, ...interface{})
+	// ff 的形式应为 func(*testing.T, ...interface{})
 	fn := reflect.ValueOf(ff)
 	fnType := fn.Type()
 	if fnType.Kind() != reflect.Func {
@@ -231,7 +227,7 @@ func (f *F) Fuzz(ff any) {
 		panic("testing: fuzz target must not return a value")
 	}
 
-	// Save the types of the function to compare against the corpus.
+	// 保存函数的类型，以便与语料库进行比对。
 	var types []reflect.Type
 	for i := 1; i < fnType.NumIn(); i++ {
 		t := fnType.In(i)
@@ -241,28 +237,28 @@ func (f *F) Fuzz(ff any) {
 		types = append(types, t)
 	}
 
-	// Load the testdata seed corpus. Check types of entries in the testdata
-	// corpus and entries declared with F.Add.
+	// 加载 testdata 种子语料库。检查 testdata 语料库中的条目
+	// 以及使用 F.Add 声明的条目的类型。
 	//
-	// Don't load the seed corpus if this is a worker process; we won't use it.
+	// 如果当前是工作进程，则不加载种子语料库；我们不会用到它。
 	if f.fstate.mode != fuzzWorker {
 		for _, c := range f.corpus {
 			if err := f.fstate.deps.CheckCorpus(c.Values, types); err != nil {
-				// TODO(#48302): Report the source location of the F.Add call.
+				// TODO(#48302): 报告 F.Add 调用的源代码位置。
 				f.Fatal(err)
 			}
 		}
 
-		// Load seed corpus
+		// 加载种子语料库
 		c, err := f.fstate.deps.ReadCorpus(filepath.Join(corpusDir, f.name), types)
 		if err != nil {
 			f.Fatal(err)
 		}
 		for i := range c {
-			c[i].IsSeed = true // these are all seed corpus values
+			c[i].IsSeed = true // 这些都是种子语料库的值
 			if f.fstate.mode == fuzzCoordinator {
-				// If this is the coordinator process, zero the values, since we don't need
-				// to hold onto them.
+				// 如果这是协调者进程，则将这些值清零，因为我们不需要
+				// 保留它们。
 				c[i].Values = nil
 			}
 		}
@@ -270,13 +266,13 @@ func (f *F) Fuzz(ff any) {
 		f.corpus = append(f.corpus, c...)
 	}
 
-	// run calls fn on a given input, as a subtest with its own T.
-	// run is analogous to T.Run. The test filtering and cleanup works similarly.
-	// fn is called in its own goroutine.
+	// run 针对给定输入调用 fn，将其作为拥有自己 T 的子测试。
+	// run 类似于 T.Run。测试过滤与清理的工作方式类似。
+	// fn 在它自己的 goroutine 中调用。
 	run := func(captureOut io.Writer, e corpusEntry) (ok bool) {
 		if e.Values == nil {
-			// The corpusEntry must have non-nil Values in order to run the
-			// test. If Values is nil, it is a bug in our code.
+			// corpusEntry 的 Values 必须非 nil 才能运行测试。
+			// 如果 Values 为 nil，则是我们代码中的 bug。
 			panic(fmt.Sprintf("corpus file %q was not unmarshaled", e.Path))
 		}
 		if shouldFailFast() {
@@ -287,18 +283,18 @@ func (f *F) Fuzz(ff any) {
 			testName = fmt.Sprintf("%s/%s", testName, filepath.Base(e.Path))
 		}
 		if f.tstate.isFuzzing {
-			// Don't preserve subtest names while fuzzing. If fn calls T.Run,
-			// there will be a very large number of subtests with duplicate names,
-			// which will use a large amount of memory. The subtest names aren't
-			// useful since there's no way to re-run them deterministically.
+			// 模糊测试期间不保留子测试名称。如果 fn 调用 T.Run，
+			// 将会产生数量极多且名称重复的子测试，
+			// 从而占用大量内存。由于无法确定性地重新运行它们，
+			// 这些子测试名称并没有用处。
 			f.tstate.match.clearSubNames()
 		}
 
 		ctx, cancelCtx := context.WithCancel(f.ctx)
 
-		// Record the stack trace at the point of this call so that if the subtest
-		// function - which runs in a separate stack - is marked as a helper, we can
-		// continue walking the stack into the parent test.
+		// 在此调用点记录栈回溯，这样如果子测试函数（它运行在
+		// 单独的栈上）被标记为辅助函数，我们就能继续
+		// 向上遍历栈进入父测试。
 		var pc [maxStackLen]uintptr
 		n := runtime.Callers(2, pc[:])
 		t := &T{
@@ -316,7 +312,7 @@ func (f *F) Fuzz(ff any) {
 			tstate: f.tstate,
 		}
 		if captureOut != nil {
-			// t.parent aliases f.common.
+			// t.parent 与 f.common 是同一对象。
 			t.parent.w = captureOut
 		}
 		t.w = indenter{&t.common}
@@ -330,10 +326,10 @@ func (f *F) Fuzz(ff any) {
 			for _, v := range e.Values {
 				args = append(args, reflect.ValueOf(v))
 			}
-			// Before resetting the current coverage, defer the snapshot so that
-			// we make sure it is called right before the tRunner function
-			// exits, regardless of whether it was executed cleanly, panicked,
-			// or if the fuzzFn called t.Fatal.
+			// 在重置当前覆盖率之前，用 defer 安排快照，以确保
+			// 它会在 tRunner 函数退出之前被调用，
+			// 无论该函数是正常执行完成、发生了 panic，
+			// 还是 fuzzFn 调用了 t.Fatal。
 			if f.tstate.isFuzzing {
 				defer f.fstate.deps.SnapshotCoverage()
 				f.fstate.deps.ResetCoverage()
@@ -350,9 +346,9 @@ func (f *F) Fuzz(ff any) {
 
 	switch f.fstate.mode {
 	case fuzzCoordinator:
-		// Fuzzing is enabled, and this is the test process started by 'go test'.
-		// Act as the coordinator process, and coordinate workers to perform the
-		// actual fuzzing.
+		// 模糊测试已启用，且这是由 'go test' 启动的测试进程。
+		// 作为协调者进程，协调各工作进程执行
+		// 实际的模糊测试。
 		corpusTargetDir := filepath.Join(corpusDir, f.name)
 		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
 		err := f.fstate.deps.CoordinateFuzzing(
@@ -376,32 +372,31 @@ func (f *F) Fuzz(ff any) {
 				fmt.Fprintf(f.w, "To re-run:\ngo test -run=%s/%s\n", f.name, testName)
 			}
 		}
-		// TODO(jayconrod,katiehockman): Aggregate statistics across workers
-		// and add to FuzzResult (ie. time taken, num iterations)
+		// TODO(jayconrod,katiehockman): 汇总各工作进程的统计信息，
+		// 并添加到 FuzzResult 中（即耗时、迭代次数）
 
 	case fuzzWorker:
-		// Fuzzing is enabled, and this is a worker process. Follow instructions
-		// from the coordinator.
+		// 模糊测试已启用，且这是一个工作进程。遵循协调者的
+		// 指令。
 		if err := f.fstate.deps.RunFuzzWorker(func(e corpusEntry) error {
-			// Don't write to f.w (which points to Stdout) if running from a
-			// fuzz worker. This would become very verbose, particularly during
-			// minimization. Return the error instead, and let the caller deal
-			// with the output.
+			// 如果从模糊测试工作进程运行，则不要写入 f.w（它指向 Stdout）。
+			// 那会变得非常冗长，尤其是在最小化期间。
+			// 改为返回错误，让调用者处理输出。
 			var buf strings.Builder
 			if ok := run(&buf, e); !ok {
 				return errors.New(buf.String())
 			}
 			return nil
 		}); err != nil {
-			// Internal errors are marked with f.Fail; user code may call this too, before F.Fuzz.
-			// The worker will exit with fuzzWorkerExitCode, indicating this is a failure
-			// (and 'go test' should exit non-zero) but a failing input should not be recorded.
+			// 内部错误会通过 f.Fail 标记；用户代码也可以在 F.Fuzz 之前调用它。
+			// 工作进程将以 fuzzWorkerExitCode 退出，表示这是一次失败
+			// （且 'go test' 应以非零状态退出），但不应当记录失败的输入。
 			f.Errorf("communicating with fuzzing coordinator: %v", err)
 		}
 
 	default:
-		// Fuzzing is not enabled, or will be done later. Only run the seed
-		// corpus now.
+		// 模糊测试未启用，或将在稍后进行。现在只运行种子
+		// 语料库。
 		for _, e := range f.corpus {
 			name := fmt.Sprintf("%s/%s", f.name, filepath.Base(e.Path))
 			if _, ok, _ := f.tstate.match.fullName(nil, name); ok {
@@ -428,11 +423,11 @@ func (f *F) report() {
 	}
 }
 
-// fuzzResult contains the results of a fuzz run.
+// fuzzResult 包含一次模糊测试运行的结果。
 type fuzzResult struct {
-	N     int           // The number of iterations.
-	T     time.Duration // The total time taken.
-	Error error         // Error is the error from the failing input
+	N     int           // 迭代次数。
+	T     time.Duration // 总耗时。
+	Error error         // Error 是导致失败的输入所产生的错误
 }
 
 func (r fuzzResult) String() string {
@@ -442,22 +437,22 @@ func (r fuzzResult) String() string {
 	return r.Error.Error()
 }
 
-// fuzzCrashError is satisfied by a failing input detected while fuzzing.
-// These errors are written to the seed corpus and can be re-run with 'go test'.
-// Errors within the fuzzing framework (like I/O errors between coordinator
-// and worker processes) don't satisfy this interface.
+// fuzzCrashError 由模糊测试期间检测到的失败输入来满足。
+// 这些错误会被写入种子语料库，并可以用 'go test' 重新运行。
+// 模糊测试框架内部的错误（如协调者进程与
+// 工作进程之间的 I/O 错误）不满足此接口。
 type fuzzCrashError interface {
 	error
 	Unwrap() error
 
-	// CrashPath returns the path of the subtest that corresponds to the saved
-	// crash input file in the seed corpus. The test can be re-run with go test
-	// -run=$test/$name $test is the fuzz test name, and $name is the
-	// filepath.Base of the string returned here.
+	// CrashPath 返回与种子语料库中保存的崩溃输入文件相对应的
+	// 子测试路径。可以使用 go test -run=$test/$name 重新运行该测试，
+	// 其中 $test 是模糊测试名称，$name 是此处
+	// 返回字符串的 filepath.Base。
 	CrashPath() string
 }
 
-// fuzzState holds fields common to all fuzz tests.
+// fuzzState 保存所有模糊测试共有的字段。
 type fuzzState struct {
 	deps testDeps
 	mode fuzzMode
@@ -471,9 +466,9 @@ const (
 	fuzzWorker
 )
 
-// runFuzzTests runs the fuzz tests matching the pattern for -run. This will
-// only run the (*F).Fuzz function for each seed corpus without using the
-// fuzzing engine to generate or mutate inputs.
+// runFuzzTests 运行与 -run 模式匹配的模糊测试。它只会针对每个种子语料库
+// 运行 (*F).Fuzz 函数，而不会使用模糊测试引擎
+// 来生成或变异输入。
 func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.Time) (ran, ok bool) {
 	ok = true
 	if len(fuzzTests) == 0 || *isFuzzWorker {
@@ -495,7 +490,7 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 			tstate := newTestState(*parallel, m)
 			tstate.deadline = deadline
 			fstate := &fuzzState{deps: deps, mode: seedCorpusOnly}
-			root := common{w: os.Stdout} // gather output in one place
+			root := common{w: os.Stdout} // 将输出集中到一处
 			if Verbose() {
 				root.chatty = newChattyPrinter(root.w)
 			}
@@ -509,8 +504,8 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 				}
 				if mFuzz != nil {
 					if _, fuzzMatched, _ := mFuzz.fullName(nil, ft.Name); fuzzMatched {
-						// If this will be fuzzed, then don't run the seed corpus
-						// right now. That will happen later.
+						// 如果此测试将被模糊测试，则现在不要运行种子语料库。
+						// 那会在稍后进行。
 						continue
 					}
 				}
@@ -543,8 +538,8 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 				ran = ran || f.ran
 			}
 			if !ran {
-				// There were no tests to run on this iteration.
-				// This won't change, so no reason to keep trying.
+				// 本次迭代没有要运行的测试。
+				// 这不会改变，因此没有理由继续尝试。
 				break
 			}
 		}
@@ -553,12 +548,12 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
 	return ran, ok
 }
 
-// runFuzzing runs the fuzz test matching the pattern for -fuzz. Only one such
-// fuzz test must match. This will run the fuzzing engine to generate and
-// mutate new inputs against the fuzz target.
+// runFuzzing 运行与 -fuzz 模式匹配的模糊测试。必须只匹配一个这样的
+// 模糊测试。它会运行模糊测试引擎，针对模糊测试目标生成并
+// 变异新的输入。
 //
-// If fuzzing is disabled (-test.fuzz is not set), runFuzzing
-// returns immediately.
+// 如果模糊测试被禁用（未设置 -test.fuzz），runFuzzing
+// 会立即返回。
 func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 	if len(fuzzTests) == 0 || *matchFuzz == "" {
 		return true
@@ -604,7 +599,7 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 	f := &F{
 		common: common{
 			signal:    make(chan bool),
-			barrier:   nil, // T.Parallel has no effect when fuzzing.
+			barrier:   nil, // 模糊测试时 T.Parallel 不起作用。
 			name:      testName,
 			parent:    &root,
 			level:     root.level + 1,
@@ -628,28 +623,27 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
 	return !f.failed
 }
 
-// fRunner wraps a call to a fuzz test and ensures that cleanup functions are
-// called and status flags are set. fRunner should be called in its own
-// goroutine. To wait for its completion, receive from f.signal.
+// fRunner 封装对模糊测试的调用，并确保清理函数被调用、
+// 状态标志被设置。fRunner 应在它自己的 goroutine 中调用。
+// 要等待其完成，请从 f.signal 接收。
 //
-// fRunner is analogous to tRunner, which wraps subtests started with T.Run.
-// Unit tests and fuzz tests work a little differently, so for now, these
-// functions aren't consolidated. In particular, because there are no F.Run and
-// F.Parallel methods, i.e., no fuzz sub-tests or parallel fuzz tests, a few
-// simplifications are made. We also require that F.Fuzz, F.Skip, or F.Fail is
-// called.
+// fRunner 类似于 tRunner，后者封装用 T.Run 启动的子测试。
+// 单元测试和模糊测试的工作方式略有不同，因此目前这两个
+// 函数尚未合并。特别是，由于没有 F.Run 和
+// F.Parallel 方法，即没有模糊子测试或并行模糊测试，所以做了
+// 一些简化。我们还要求必须调用 F.Fuzz、F.Skip 或 F.Fail。
 func fRunner(f *F, fn func(*F)) {
-	// When this goroutine is done, either because runtime.Goexit was called, a
-	// panic started, or fn returned normally, record the duration and send
-	// t.signal, indicating the fuzz test is done.
+	// 当此 goroutine 结束时（无论是调用了 runtime.Goexit、发生了
+	// panic，还是 fn 正常返回），记录耗时并发送
+	// t.signal，表示模糊测试已完成。
 	defer func() {
-		// Detect whether the fuzz test panicked or called runtime.Goexit
-		// without calling F.Fuzz, F.Fail, or F.Skip. If it did, panic (possibly
-		// replacing a nil panic value). Nothing should recover after fRunner
-		// unwinds, so this should crash the process and print stack.
-		// Unfortunately, recovering here adds stack frames, but the location of
-		// the original panic should still be
-		// clear.
+		// 检测模糊测试是否在未调用 F.Fuzz、F.Fail 或 F.Skip 的情况下
+		// 发生 panic 或调用了 runtime.Goexit。如果是，则 panic
+		// （可能会替换 nil 的 panic 值）。fRunner 展开之后不应有任何
+		// recover，因此这会使进程崩溃并打印栈信息。
+		// 遗憾的是，在此处 recover 会增加栈帧，但原始 panic 的
+		// 位置应当仍然
+		// 清晰。
 		f.checkRaces()
 		if f.Failed() {
 			numFailed.Add(1)
@@ -667,20 +661,20 @@ func fRunner(f *F, fn func(*F)) {
 			}
 		}
 
-		// Use a deferred call to ensure that we report that the test is
-		// complete even if a cleanup function calls F.FailNow. See issue 41355.
+		// 使用延迟调用来确保即使清理函数调用了 F.FailNow，
+		// 我们也能报告测试已完成。参见 issue 41355。
 		didPanic := false
 		defer func() {
 			if !didPanic {
-				// Only report that the test is complete if it doesn't panic,
-				// as otherwise the test binary can exit before the panic is
-				// reported to the user. See issue 41479.
+				// 只有在测试未发生 panic 时才报告测试已完成，
+				// 否则测试二进制文件可能会在 panic 被报告给用户之前
+				// 就退出。参见 issue 41479。
 				f.signal <- true
 			}
 		}()
 
-		// If we recovered a panic or inappropriate runtime.Goexit, fail the test,
-		// flush the output log up to the root, then panic.
+		// 如果我们恢复了 panic 或不恰当的 runtime.Goexit，则使测试失败，
+		// 将输出日志刷新到根节点，然后 panic。
 		doPanic := func(err any) {
 			f.Fail()
 			if r := f.runCleanup(recoverAndReturnPanic); r != nil {
@@ -700,17 +694,17 @@ func fRunner(f *F, fn func(*F)) {
 			doPanic(err)
 		}
 
-		// No panic or inappropriate Goexit.
+		// 没有 panic 或不恰当的 Goexit。
 		f.duration += highPrecisionTimeSince(f.start)
 
 		if len(f.sub) > 0 {
-			// Unblock inputs that called T.Parallel while running the seed corpus.
-			// This only affects fuzz tests run as normal tests.
-			// While fuzzing, T.Parallel has no effect, so f.sub is empty, and this
-			// branch is not taken. f.barrier is nil in that case.
+			// 解除运行种子语料库期间调用了 T.Parallel 的输入的阻塞。
+			// 这只影响作为普通测试运行的模糊测试。
+			// 进行模糊测试时，T.Parallel 不起作用，因此 f.sub 为空，
+			// 不会进入此分支。此时 f.barrier 为 nil。
 			f.tstate.release()
 			close(f.barrier)
-			// Wait for the subtests to complete.
+			// 等待子测试完成。
 			for _, sub := range f.sub {
 				<-sub.signal
 			}
@@ -722,7 +716,7 @@ func fRunner(f *F, fn func(*F)) {
 			}
 		}
 
-		// Report after all subtests have finished.
+		// 在所有子测试完成后进行报告。
 		f.report()
 		f.done = true
 		f.setRan()
@@ -737,8 +731,7 @@ func fRunner(f *F, fn func(*F)) {
 	f.resetRaces()
 	fn(f)
 
-	// Code beyond this point will not be executed when FailNow or SkipNow
-	// is invoked.
+	// 当调用 FailNow 或 SkipNow 时，此后的代码将不会被执行。
 	f.mu.Lock()
 	f.finished = true
 	f.mu.Unlock()
