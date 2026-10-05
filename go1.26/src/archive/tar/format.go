@@ -6,15 +6,14 @@ package tar
 
 import "strings"
 
-// Format represents the tar archive format.
+// Format 表示 tar 归档格式。
 //
-// The original tar format was introduced in Unix V7.
-// Since then, there have been multiple competing formats attempting to
-// standardize or extend the V7 format to overcome its limitations.
-// The most common formats are the USTAR, PAX, and GNU formats,
-// each with their own advantages and limitations.
+// 最初的 tar 格式在 Unix V7 中引入。
+// 此后，出现了多种相互竞争的格式，试图标准化或扩展 V7 格式以克服其局限性。
+// 最常见的格式是 USTAR、PAX 和 GNU 格式，
+// 它们各有自己的优势和局限。
 //
-// The following table captures the capabilities of each format:
+// 下表列出了每种格式的能力：
 //
 //	                  |  USTAR |       PAX |       GNU
 //	------------------+--------+-----------+----------
@@ -33,73 +32,73 @@ import "strings"
 //	sub-second times  |     no |       yes |        no
 //	sparse files      |     no |       yes |       yes
 //
-// The table's upper portion shows the [Header] fields, where each format reports
-// the maximum number of bytes allowed for each string field and
-// the integer type used to store each numeric field
-// (where timestamps are stored as the number of seconds since the Unix epoch).
+// 表格的上半部分展示了 [Header] 字段，其中每种格式报告了
+// 每个字符串字段所允许的最大字节数，以及
+// 用于存储每个数值字段的整数类型
+// （其中时间戳存储为自 Unix 纪元以来的秒数）。
 //
-// The table's lower portion shows specialized features of each format,
-// such as supported string encodings, support for sub-second timestamps,
-// or support for sparse files.
+// 表格的下半部分展示了每种格式的专门特性，
+// 例如支持的字符串编码、对亚秒级时间戳的支持，
+// 或对稀疏文件的支持。
 //
-// The Writer currently provides no support for sparse files.
+// Writer 当前不支持稀疏文件。
 type Format int
 
-// Constants to identify various tar formats.
+// 用于标识各种 tar 格式的常量。
 const (
-	// Deliberately hide the meaning of constants from public API.
-	_ Format = (1 << iota) / 4 // Sequence of 0, 0, 1, 2, 4, 8, etc...
+	// 故意对公共 API 隐藏常量的含义。
+	_ Format = (1 << iota) / 4 // 序列 0, 0, 1, 2, 4, 8, 等等...
 
-	// FormatUnknown indicates that the format is unknown.
+	// FormatUnknown 表示格式未知。
 	FormatUnknown
 
-	// The format of the original Unix V7 tar tool prior to standardization.
+	// 标准化之前原始 Unix V7 tar 工具的格式。
 	formatV7
 
-	// FormatUSTAR represents the USTAR header format defined in POSIX.1-1988.
+	// FormatUSTAR 表示 POSIX.1-1988 中定义的 USTAR 头部格式。
 	//
-	// While this format is compatible with most tar readers,
-	// the format has several limitations making it unsuitable for some usages.
-	// Most notably, it cannot support sparse files, files larger than 8GiB,
-	// filenames larger than 256 characters, and non-ASCII filenames.
+	// 虽然此格式与大多数 tar 读取器兼容，
+	// 但该格式有一些局限性，使其不适用于某些用途。
+	// 最显著的是，它不支持稀疏文件、大于 8GiB 的文件、
+	// 长度超过 256 个字符的文件名，以及非 ASCII 文件名。
 	//
-	// Reference:
+	// 参考：
 	//	http://pubs.opengroup.org/onlinepubs/9699919799/utilities/pax.html#tag_20_92_13_06
 	FormatUSTAR
 
-	// FormatPAX represents the PAX header format defined in POSIX.1-2001.
+	// FormatPAX 表示 POSIX.1-2001 中定义的 PAX 头部格式。
 	//
-	// PAX extends USTAR by writing a special file with Typeflag TypeXHeader
-	// preceding the original header. This file contains a set of key-value
-	// records, which are used to overcome USTAR's shortcomings, in addition to
-	// providing the ability to have sub-second resolution for timestamps.
+	// PAX 通过在原头部之前写入一个 Typeflag 为 TypeXHeader
+	// 的特殊文件来扩展 USTAR。该文件包含一组键值
+	// 记录，用于克服 USTAR 的缺点，此外还
+	// 提供了对时间戳进行亚秒级分辨率处理的能力。
 	//
-	// Some newer formats add their own extensions to PAX by defining their
-	// own keys and assigning certain semantic meaning to the associated values.
-	// For example, sparse file support in PAX is implemented using keys
-	// defined by the GNU manual (e.g., "GNU.sparse.map").
+	// 一些较新的格式通过定义各自的
+	// 键并赋予关联值特定语义，为 PAX 添加自己的扩展。
+	// 例如，PAX 中的稀疏文件支持是通过 GNU 手册
+	// 定义的键（例如 "GNU.sparse.map"）实现的。
 	//
-	// Reference:
+	// 参考：
 	//	http://pubs.opengroup.org/onlinepubs/009695399/utilities/pax.html
 	FormatPAX
 
-	// FormatGNU represents the GNU header format.
+	// FormatGNU 表示 GNU 头部格式。
 	//
-	// The GNU header format is older than the USTAR and PAX standards and
-	// is not compatible with them. The GNU format supports
-	// arbitrary file sizes, filenames of arbitrary encoding and length,
-	// sparse files, and other features.
+	// GNU 头部格式比 USTAR 和 PAX 标准更早，且
+	// 与它们不兼容。GNU 格式支持
+	// 任意文件大小、任意编码和长度的文件名、
+	// 稀疏文件以及其他特性。
 	//
-	// It is recommended that PAX be chosen over GNU unless the target
-	// application can only parse GNU formatted archives.
+	// 建议优先选择 PAX 而非 GNU，除非目标
+	// 应用程序只能解析 GNU 格式的归档。
 	//
-	// Reference:
+	// 参考：
 	//	https://www.gnu.org/software/tar/manual/html_node/Standard.html
 	FormatGNU
 
-	// Schily's tar format, which is incompatible with USTAR.
-	// This does not cover STAR extensions to the PAX format; these fall under
-	// the PAX format.
+	// Schily 的 tar 格式，与 USTAR 不兼容。
+	// 这不涵盖对 PAX 格式的 STAR 扩展；这些扩展归入
+	// PAX 格式。
 	formatSTAR
 
 	formatMax
@@ -131,26 +130,26 @@ func (f Format) String() string {
 	}
 }
 
-// Magics used to identify various formats.
+// 用于标识各种格式的魔数。
 const (
 	magicGNU, versionGNU     = "ustar ", " \x00"
 	magicUSTAR, versionUSTAR = "ustar\x00", "00"
 	trailerSTAR              = "tar\x00"
 )
 
-// Size constants from various tar specifications.
+// 来自各种 tar 规范的大小常量。
 const (
-	blockSize  = 512 // Size of each block in a tar stream
-	nameSize   = 100 // Max length of the name field in USTAR format
-	prefixSize = 155 // Max length of the prefix field in USTAR format
+	blockSize  = 512 // tar 流中每个块的大小
+	nameSize   = 100 // USTAR 格式中 name 字段的最大长度
+	prefixSize = 155 // USTAR 格式中 prefix 字段的最大长度
 
-	// Max length of a special file (PAX header, GNU long name or link).
-	// This matches the limit used by libarchive.
+	// 特殊文件（PAX 头部、GNU 长名称或链接）的最大长度。
+	// 这与 libarchive 使用的限制一致。
 	maxSpecialFileSize = 1 << 20
 )
 
-// blockPadding computes the number of bytes needed to pad offset up to the
-// nearest block edge where 0 <= n < blockSize.
+// blockPadding 计算将 offset 填充到最近的块边界所需的字节数，
+// 其中 0 <= n < blockSize。
 func blockPadding(offset int64) (n int64) {
 	return -offset & (blockSize - 1)
 }
@@ -159,18 +158,18 @@ var zeroBlock block
 
 type block [blockSize]byte
 
-// Convert block to any number of formats.
+// 将 block 转换为任意数量的格式。
 func (b *block) toV7() *headerV7       { return (*headerV7)(b) }
 func (b *block) toGNU() *headerGNU     { return (*headerGNU)(b) }
 func (b *block) toSTAR() *headerSTAR   { return (*headerSTAR)(b) }
 func (b *block) toUSTAR() *headerUSTAR { return (*headerUSTAR)(b) }
 func (b *block) toSparse() sparseArray { return sparseArray(b[:]) }
 
-// getFormat checks that the block is a valid tar header based on the checksum.
-// It then attempts to guess the specific format based on magic values.
-// If the checksum fails, then FormatUnknown is returned.
+// getFormat 根据校验和检查该块是否为有效的 tar 头部。
+// 然后它尝试根据魔数猜测具体的格式。
+// 如果校验和失败，则返回 FormatUnknown。
 func (b *block) getFormat() Format {
-	// Verify checksum.
+	// 验证校验和。
 	var p parser
 	value := p.parseOctal(b.toV7().chksum())
 	chksum1, chksum2 := b.computeChecksum()
@@ -178,7 +177,7 @@ func (b *block) getFormat() Format {
 		return FormatUnknown
 	}
 
-	// Guess the magic values.
+	// 猜测魔数。
 	magic := string(b.toUSTAR().magic())
 	version := string(b.toUSTAR().version())
 	trailer := string(b.toSTAR().trailer())
@@ -194,13 +193,13 @@ func (b *block) getFormat() Format {
 	}
 }
 
-// setFormat writes the magic values necessary for specified format
-// and then updates the checksum accordingly.
+// setFormat 写入指定格式所需的魔数，
+// 然后相应地更新校验和。
 func (b *block) setFormat(format Format) {
-	// Set the magic values.
+	// 设置魔数。
 	switch {
 	case format.has(formatV7):
-		// Do nothing.
+		// 不做任何事。
 	case format.has(FormatGNU):
 		copy(b.toGNU().magic(), magicGNU)
 		copy(b.toGNU().version(), versionGNU)
@@ -215,23 +214,23 @@ func (b *block) setFormat(format Format) {
 		panic("invalid format")
 	}
 
-	// Update checksum.
-	// This field is special in that it is terminated by a NULL then space.
+	// 更新校验和。
+	// 此字段特殊之处在于它以 NULL 后跟空格终止。
 	var f formatter
 	field := b.toV7().chksum()
-	chksum, _ := b.computeChecksum() // Possible values are 256..128776
-	f.formatOctal(field[:7], chksum) // Never fails since 128776 < 262143
+	chksum, _ := b.computeChecksum() // 可能的值是 256..128776
+	f.formatOctal(field[:7], chksum) // 永不失败，因为 128776 < 262143
 	field[7] = ' '
 }
 
-// computeChecksum computes the checksum for the header block.
-// POSIX specifies a sum of the unsigned byte values, but the Sun tar used
-// signed byte values.
-// We compute and return both.
+// computeChecksum 计算头部块的校验和。
+// POSIX 规定为无符号字节值之和，但 Sun tar 使用
+// 有符号字节值。
+// 我们计算并返回两者。
 func (b *block) computeChecksum() (unsigned, signed int64) {
 	for i, c := range b {
 		if 148 <= i && i < 156 {
-			c = ' ' // Treat the checksum field itself as all spaces.
+			c = ' ' // 将校验和字段本身视为全为空格。
 		}
 		unsigned += int64(c)
 		signed += int64(int8(c))
@@ -239,7 +238,7 @@ func (b *block) computeChecksum() (unsigned, signed int64) {
 	return unsigned, signed
 }
 
-// reset clears the block with all zeros.
+// reset 用全零清除该块。
 func (b *block) reset() {
 	*b = block{}
 }

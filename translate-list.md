@@ -60,7 +60,7 @@
 
 ## 第8部分 数据压缩与归档
 
-- [ ] archive/tar：实现tar存档访问
+- [X] archive/tar：实现tar存档访问
 - [ ] archive/zip：提供ZIP归档文件的读写支持
 - [ ] compress/bzip2：实现bzip2解压缩
 - [ ] compress/flate：实现DEFLATE压缩数据格式（RFC 1951）
