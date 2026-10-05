@@ -9,10 +9,10 @@ import (
 	"io"
 )
 
-// bitReader wraps an io.Reader and provides the ability to read values,
-// bit-by-bit, from it. Its Read* methods don't return the usual error
-// because the error handling was verbose. Instead, any error is kept and can
-// be checked afterwards.
+// bitReader 包装了一个 io.Reader，并提供了从其中逐位读取值的
+// 能力。它的 Read* 方法不返回通常的错误，
+// 因为错误处理太冗长了。相反，任何错误都会被保留下来，
+// 之后可以检查。
 type bitReader struct {
 	r    io.ByteReader
 	n    uint64
@@ -20,8 +20,8 @@ type bitReader struct {
 	err  error
 }
 
-// newBitReader returns a new bitReader reading from r. If r is not
-// already an io.ByteReader, it will be converted via a bufio.Reader.
+// newBitReader 返回一个从 r 读取的新 bitReader。如果 r
+// 还不是 io.ByteReader，它将通过 bufio.Reader 进行转换。
 func newBitReader(r io.Reader) bitReader {
 	byter, ok := r.(io.ByteReader)
 	if !ok {
@@ -30,9 +30,9 @@ func newBitReader(r io.Reader) bitReader {
 	return bitReader{r: byter}
 }
 
-// ReadBits64 reads the given number of bits and returns them in the
-// least-significant part of a uint64. In the event of an error, it returns 0
-// and the error can be obtained by calling bitReader.Err().
+// ReadBits64 读取给定位数的比特，并将其返回在
+// uint64 的最低有效部分中。如果发生错误，它返回 0，
+// 且可以通过调用 bitReader.Err() 获取该错误。
 func (br *bitReader) ReadBits64(bits uint) (n uint64) {
 	for bits > br.bits {
 		b, err := br.r.ReadByte()
@@ -48,7 +48,7 @@ func (br *bitReader) ReadBits64(bits uint) (n uint64) {
 		br.bits += 8
 	}
 
-	// br.n looks like this (assuming that br.bits = 14 and bits = 6):
+	// br.n 看起来像这样（假设 br.bits = 14 且 bits = 6）：
 	// Bit: 111111
 	//      5432109876543210
 	//
@@ -60,8 +60,8 @@ func (br *bitReader) ReadBits64(bits uint) (n uint64) {
 	//        |------------|
 	//           br.bits (num valid bits)
 	//
-	// The next line right shifts the desired bits into the
-	// least-significant places and masks off anything above.
+	// 下一行把所需的比特右移到
+	// 最低有效位，并屏蔽掉上面的一切。
 	n = (br.n >> (br.bits - bits)) & ((1 << bits) - 1)
 	br.bits -= bits
 	return

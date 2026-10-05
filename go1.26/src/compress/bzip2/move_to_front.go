@@ -4,17 +4,17 @@
 
 package bzip2
 
-// moveToFrontDecoder implements a move-to-front list. Such a list is an
-// efficient way to transform a string with repeating elements into one with
-// many small valued numbers, which is suitable for entropy encoding. It works
-// by starting with an initial list of symbols and references symbols by their
-// index into that list. When a symbol is referenced, it's moved to the front
-// of the list. Thus, a repeated symbol ends up being encoded with many zeros,
-// as the symbol will be at the front of the list after the first access.
+// moveToFrontDecoder 实现了一个移动到前端（move-to-front）列表。
+// 这种列表是一种高效的方式，可将含有重复元素的字符串转换为
+// 含有许多小数值的字符串，从而适合熵编码。它的工作方式是：
+// 从一份初始符号列表开始，并通过符号在该列表中的索引来引用
+// 符号。当一个符号被引用时，它会被移动到列表的前端。因此，
+// 重复的符号最终会以许多零来编码，因为该符号在第一次访问后
+// 就会位于列表的前端。
 type moveToFrontDecoder []byte
 
-// newMTFDecoder creates a move-to-front decoder with an explicit initial list
-// of symbols.
+// newMTFDecoder 创建一个带有显式初始符号列表的
+// move-to-front 解码器。
 func newMTFDecoder(symbols []byte) moveToFrontDecoder {
 	if len(symbols) > 256 {
 		panic("too many symbols")
@@ -22,8 +22,8 @@ func newMTFDecoder(symbols []byte) moveToFrontDecoder {
 	return moveToFrontDecoder(symbols)
 }
 
-// newMTFDecoderWithRange creates a move-to-front decoder with an initial
-// symbol list of 0...n-1.
+// newMTFDecoderWithRange 创建一个 move-to-front 解码器，
+// 其初始符号列表为 0...n-1。
 func newMTFDecoderWithRange(n int) moveToFrontDecoder {
 	if n > 256 {
 		panic("newMTFDecoderWithRange: cannot have > 256 symbols")
@@ -37,17 +37,17 @@ func newMTFDecoderWithRange(n int) moveToFrontDecoder {
 }
 
 func (m moveToFrontDecoder) Decode(n int) (b byte) {
-	// Implement move-to-front with a simple copy. This approach
-	// beats more sophisticated approaches in benchmarking, probably
-	// because it has high locality of reference inside of a
-	// single cache line (most move-to-front operations have n < 64).
+	// 用一个简单的复制来实现 move-to-front。在基准测试中，
+	// 这种方法胜过更复杂的方法，可能是因为它在单个缓存行
+	// 内具有很高的引用局部性（大多数 move-to-front 操作的
+	// n < 64）。
 	b = m[n]
 	copy(m[1:], m[:n])
 	m[0] = b
 	return
 }
 
-// First returns the symbol at the front of the list.
+// First 返回列表前端的符号。
 func (m moveToFrontDecoder) First() byte {
 	return m[0]
 }

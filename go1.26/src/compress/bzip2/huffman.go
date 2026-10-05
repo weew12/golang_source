@@ -9,53 +9,49 @@ import (
 	"slices"
 )
 
-// A huffmanTree is a binary tree which is navigated, bit-by-bit to reach a
-// symbol.
+// huffmanTree 是一棵二叉树，逐位导航以到达某个符号。
 type huffmanTree struct {
-	// nodes contains all the non-leaf nodes in the tree. nodes[0] is the
-	// root of the tree and nextNode contains the index of the next element
-	// of nodes to use when the tree is being constructed.
+	// nodes 包含树中所有非叶节点。nodes[0] 是树的根，
+	// 而 nextNode 包含构建树时要使用的下一个 nodes 元素的索引。
 	nodes    []huffmanNode
 	nextNode int
 }
 
-// A huffmanNode is a node in the tree. left and right contain indexes into the
-// nodes slice of the tree. If left or right is invalidNodeValue then the child
-// is a left node and its value is in leftValue/rightValue.
+// huffmanNode 是树中的一个节点。left 和 right 包含树中 nodes 切片的
+// 索引。如果 left 或 right 为 invalidNodeValue，则该子节点为左节点，
+// 其值位于 leftValue/rightValue 中。
 //
-// The symbols are uint16s because bzip2 encodes not only MTF indexes in the
-// tree, but also two magic values for run-length encoding and an EOF symbol.
-// Thus there are more than 256 possible symbols.
+// 符号为 uint16 类型，因为 bzip2 不仅将 MTF 索引编码进树中，还编码了
+// 用于游程编码的两个魔术值和一个 EOF 符号。因此可能的符号超过 256 个。
 type huffmanNode struct {
 	left, right           uint16
 	leftValue, rightValue uint16
 }
 
-// invalidNodeValue is an invalid index which marks a leaf node in the tree.
+// invalidNodeValue 是一个无效索引，用于标记树中的叶节点。
 const invalidNodeValue = 0xffff
 
-// Decode reads bits from the given bitReader and navigates the tree until a
-// symbol is found.
+// Decode 从给定的 bitReader 读取位并导航树，直到找到某个符号。
 func (t *huffmanTree) Decode(br *bitReader) (v uint16) {
-	nodeIndex := uint16(0) // node 0 is the root of the tree.
+	nodeIndex := uint16(0) // 节点 0 是树的根。
 
 	for {
 		node := &t.nodes[nodeIndex]
 
 		var bit uint16
 		if br.bits > 0 {
-			// Get next bit - fast path.
+			// 获取下一位 - 快速路径。
 			br.bits--
 			bit = uint16(br.n>>(br.bits&63)) & 1
 		} else {
-			// Get next bit - slow path.
-			// Use ReadBits to retrieve a single bit
-			// from the underling io.ByteReader.
+			// 获取下一位 - 慢速路径。
+			// 使用 ReadBits 从底层的 io.ByteReader
+			// 中获取单个位。
 			bit = uint16(br.ReadBits(1))
 		}
 
-		// Trick a compiler into generating conditional move instead of branch,
-		// by making both loads unconditional.
+		// 通过使两次加载都无条件执行，诱使编译器
+		// 生成条件传送而非分支。
 		l, r := node.left, node.right
 
 		if bit == 1 {
@@ -65,8 +61,8 @@ func (t *huffmanTree) Decode(br *bitReader) (v uint16) {
 		}
 
 		if nodeIndex == invalidNodeValue {
-			// We found a leaf. Use the value of bit to decide
-			// whether is a left or a right value.
+			// 我们找到了一个叶节点。使用 bit 的值来决定
+			// 是左值还是右值。
 			l, r := node.leftValue, node.rightValue
 			if bit == 1 {
 				v = l
@@ -78,16 +74,14 @@ func (t *huffmanTree) Decode(br *bitReader) (v uint16) {
 	}
 }
 
-// newHuffmanTree builds a Huffman tree from a slice containing the code
-// lengths of each symbol. The maximum code length is 32 bits.
+// newHuffmanTree 根据包含每个符号码长的切片构建一棵 Huffman 树。
+// 最大码长为 32 位。
 func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
-	// There are many possible trees that assign the same code length to
-	// each symbol (consider reflecting a tree down the middle, for
-	// example). Since the code length assignments determine the
-	// efficiency of the tree, each of these trees is equally good. In
-	// order to minimize the amount of information needed to build a tree
-	// bzip2 uses a canonical tree so that it can be reconstructed given
-	// only the code length assignments.
+	// 存在许多可能的树为每个符号分配相同的码长（例如，考虑
+	// 将一棵树沿中间镜像翻转）。由于码长分配决定了树的
+	// 效率，这些树都同样好。为了最小化构建一棵树所需的
+	// 信息量，bzip2 使用规范树（canonical tree），
+	// 使得仅凭码长分配就能重建它。
 
 	if len(lengths) < 2 {
 		panic("newHuffmanTree: too few symbols")
@@ -95,8 +89,8 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 
 	var t huffmanTree
 
-	// First we sort the code length assignments by ascending code length,
-	// using the symbol value to break ties.
+	// 首先我们按码长升序对码长分配进行排序，
+	// 并使用符号值来打破平局。
 	pairs := make([]huffmanSymbolLengthPair, len(lengths))
 	for i, length := range lengths {
 		pairs[i].value = uint16(i)
@@ -110,10 +104,10 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 		return cmp.Compare(a.value, b.value)
 	})
 
-	// Now we assign codes to the symbols, starting with the longest code.
-	// We keep the codes packed into a uint32, at the most-significant end.
-	// So branches are taken from the MSB downwards. This makes it easy to
-	// sort them later.
+	// 现在我们从最长的码开始为符号分配码。
+	// 我们将码打包进一个 uint32，靠最高有效位存放。
+	// 因此分支是从 MSB 向下取的。这使得后续
+	// 对它们排序变得容易。
 	code := uint32(0)
 	length := uint8(32)
 
@@ -125,13 +119,13 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 		codes[i].code = code
 		codes[i].codeLen = length
 		codes[i].value = pairs[i].value
-		// We need to 'increment' the code, which means treating |code|
-		// like a |length| bit number.
+		// 我们需要"递增"该码，这意味着将 |code|
+		// 视作一个 |length| 位的数。
 		code += 1 << (32 - length)
 	}
 
-	// Now we can sort by the code so that the left half of each branch are
-	// grouped together, recursively.
+	// 现在我们可以按码排序，从而将每个分支的左半部分
+	// 递归地归组在一起。
 	slices.SortFunc(codes, func(a, b huffmanCode) int {
 		return cmp.Compare(a.code, b.code)
 	})
@@ -141,26 +135,26 @@ func newHuffmanTree(lengths []uint8) (huffmanTree, error) {
 	return t, err
 }
 
-// huffmanSymbolLengthPair contains a symbol and its code length.
+// huffmanSymbolLengthPair 包含一个符号及其码长。
 type huffmanSymbolLengthPair struct {
 	value  uint16
 	length uint8
 }
 
-// huffmanCode contains a symbol, its code and code length.
+// huffmanCode 包含一个符号、它的码以及码长。
 type huffmanCode struct {
 	code    uint32
 	codeLen uint8
 	value   uint16
 }
 
-// buildHuffmanNode takes a slice of sorted huffmanCodes and builds a node in
-// the Huffman tree at the given level. It returns the index of the newly
-// constructed node.
+// buildHuffmanNode 接收一个已排序的 huffmanCode 切片，并在
+// 给定层级上构建 Huffman 树中的一个节点。它返回新建
+// 节点的索引。
 func buildHuffmanNode(t *huffmanTree, codes []huffmanCode, level uint32) (nodeIndex uint16, err error) {
 	test := uint32(1) << (31 - level)
 
-	// We have to search the list of codes to find the divide between the left and right sides.
+	// 我们必须搜索码列表，以找出左右两侧之间的分界。
 	firstRightIndex := len(codes)
 	for i, code := range codes {
 		if code.code&test != 0 {
@@ -173,30 +167,29 @@ func buildHuffmanNode(t *huffmanTree, codes []huffmanCode, level uint32) (nodeIn
 	right := codes[firstRightIndex:]
 
 	if len(left) == 0 || len(right) == 0 {
-		// There is a superfluous level in the Huffman tree indicating
-		// a bug in the encoder. However, this bug has been observed in
-		// the wild so we handle it.
+		// Huffman 树中存在一个多余的层级，这表明编码器
+		// 有 bug。然而，这个 bug 已在现实中观察到，
+		// 因此我们处理它。
 
-		// If this function was called recursively then we know that
-		// len(codes) >= 2 because, otherwise, we would have hit the
-		// "leaf node" case, below, and not recurred.
+		// 如果本函数是被递归调用的，那么我们知道
+		// len(codes) >= 2，因为否则我们就会命中下面的
+		// "leaf node"（叶节点）情形，而不会递归。
 		//
-		// However, for the initial call it's possible that len(codes)
-		// is zero or one. Both cases are invalid because a zero length
-		// tree cannot encode anything and a length-1 tree can only
-		// encode EOF and so is superfluous. We reject both.
+		// 然而，对于初始调用而言，len(codes) 可能
+		// 为零或一。这两种情形都无效，因为长度为 0 的
+		// 树无法编码任何内容，而长度为 1 的树只能
+		// 编码 EOF，因而多余。我们拒绝这两种情形。
 		if len(codes) < 2 {
 			return 0, StructuralError("empty Huffman tree")
 		}
 
-		// In this case the recursion doesn't always reduce the length
-		// of codes so we need to ensure termination via another
-		// mechanism.
+		// 在这种情况下，递归并不总能缩短 codes 的
+		// 长度，因此我们需要通过另一种机制来
+		// 确保终止。
 		if level == 31 {
-			// Since len(codes) >= 2 the only way that the values
-			// can match at all 32 bits is if they are equal, which
-			// is invalid. This ensures that we never enter
-			// infinite recursion.
+			// 由于 len(codes) >= 2，这些值在所有 32 位上
+			// 都匹配的唯一可能就是它们相等，而这是无效的。
+			// 这确保我们永远不会进入无限递归。
 			return 0, StructuralError("equal symbols in Huffman tree")
 		}
 
@@ -211,7 +204,7 @@ func buildHuffmanNode(t *huffmanTree, codes []huffmanCode, level uint32) (nodeIn
 	t.nextNode++
 
 	if len(left) == 1 {
-		// leaf node
+		// 叶节点
 		node.left = invalidNodeValue
 		node.leftValue = left[0].value
 	} else {
@@ -223,7 +216,7 @@ func buildHuffmanNode(t *huffmanTree, codes []huffmanCode, level uint32) (nodeIn
 	}
 
 	if len(right) == 1 {
-		// leaf node
+		// 叶节点
 		node.right = invalidNodeValue
 		node.rightValue = right[0].value
 	} else {
