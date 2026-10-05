@@ -9,32 +9,32 @@ import (
 )
 
 const (
-	// The largest offset code.
+	// 最大的偏移码。
 	offsetCodeCount = 30
 
-	// The special code used to mark the end of a block.
+	// 用于标记块结束的特殊码。
 	endBlockMarker = 256
 
-	// The first length code.
+	// 第一个长度码。
 	lengthCodesStart = 257
 
-	// The number of codegen codes.
+	// codegen 码的数量。
 	codegenCodeCount = 19
 	badCode          = 255
 
-	// bufferFlushSize indicates the buffer size
-	// after which bytes are flushed to the writer.
-	// Should preferably be a multiple of 6, since
-	// we accumulate 6 bytes between writes to the buffer.
+	// bufferFlushSize 表示缓冲区大小，
+	// 超过该大小后字节会被刷新到 writer。
+	// 最好取 6 的倍数，因为我们在每次
+	// 写入缓冲区之间累积 6 个字节。
 	bufferFlushSize = 240
 
-	// bufferSize is the actual output byte buffer size.
-	// It must have additional headroom for a flush
-	// which can contain up to 8 bytes.
+	// bufferSize 是实际输出字节缓冲区的大小。
+	// 它必须有额外的余量用于一次刷新，
+	// 刷新最多可包含 8 个字节。
 	bufferSize = bufferFlushSize + 8
 )
 
-// The number of extra bits needed by length code X - LENGTH_CODES_START.
+// 长度码 X - LENGTH_CODES_START 所需的额外比特数。
 var lengthExtraBits = []int8{
 	/* 257 */ 0, 0, 0,
 	/* 260 */ 0, 0, 0, 0, 0, 1, 1, 1, 1, 2,
@@ -42,14 +42,14 @@ var lengthExtraBits = []int8{
 	/* 280 */ 4, 5, 5, 5, 5, 0,
 }
 
-// The length indicated by length code X - LENGTH_CODES_START.
+// 长度码 X - LENGTH_CODES_START 所指示的长度。
 var lengthBase = []uint32{
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 10,
 	12, 14, 16, 20, 24, 28, 32, 40, 48, 56,
 	64, 80, 96, 112, 128, 160, 192, 224, 255,
 }
 
-// offset code word extra bits.
+// 偏移码字的额外比特。
 var offsetExtraBits = []int8{
 	0, 0, 0, 0, 1, 1, 2, 2, 3, 3,
 	4, 4, 5, 5, 6, 6, 7, 7, 8, 8,
@@ -65,18 +65,18 @@ var offsetBase = []uint32{
 	0x001800, 0x002000, 0x003000, 0x004000, 0x006000,
 }
 
-// The odd order in which the codegen code sizes are written.
+// codegen 码大小被写入的奇特顺序。
 var codegenOrder = []uint32{16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15}
 
 type huffmanBitWriter struct {
-	// writer is the underlying writer.
-	// Do not use it directly; use the write method, which ensures
-	// that Write errors are sticky.
+	// writer 是底层 writer。
+	// 不要直接使用它；请使用 write 方法，该方法确保
+	// Write 错误具有粘性。
 	writer io.Writer
 
-	// Data waiting to be written is bytes[0:nbytes]
-	// and then the low nbits of bits.  Data is always written
-	// sequentially into the bytes array.
+	// 等待写入的数据是 bytes[0:nbytes]，
+	// 然后是 bits 的低 nbits 位。数据总是
+	// 按顺序写入 bytes 数组。
 	bits            uint64
 	nbits           uint
 	bytes           [bufferSize]byte
@@ -117,7 +117,7 @@ func (w *huffmanBitWriter) flush() {
 	for w.nbits != 0 {
 		w.bytes[n] = byte(w.bits)
 		w.bits >>= 8
-		if w.nbits > 8 { // Avoid underflow
+		if w.nbits > 8 { // 避免下溢
 			w.nbits -= 8
 		} else {
 			w.nbits = 0
@@ -185,26 +185,26 @@ func (w *huffmanBitWriter) writeBytes(bytes []byte) {
 	w.write(bytes)
 }
 
-// RFC 1951 3.2.7 specifies a special run-length encoding for specifying
-// the literal and offset lengths arrays (which are concatenated into a single
-// array).  This method generates that run-length encoding.
+// RFC 1951 3.2.7 规定了一种特殊的游程编码，用于指定
+// 字面量和偏移长度数组（它们被连接成一个单一
+// 数组）。该方法生成该游程编码。
 //
-// The result is written into the codegen array, and the frequencies
-// of each code is written into the codegenFreq array.
-// Codes 0-15 are single byte codes. Codes 16-18 are followed by additional
-// information. Code badCode is an end marker
+// 结果被写入 codegen 数组，每个码的频率
+// 被写入 codegenFreq 数组。
+// 码 0-15 是单字节码。码 16-18 后面跟着额外
+// 信息。码 badCode 是结束标记
 //
-//	numLiterals      The number of literals in literalEncoding
-//	numOffsets       The number of offsets in offsetEncoding
-//	litenc, offenc   The literal and offset encoder to use
+//	numLiterals      literalEncoding 中字面量的数量
+//	numOffsets       offsetEncoding 中偏移的数量
+//	litenc, offenc   要使用的字面量和偏移编码器
 func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int, litEnc, offEnc *huffmanEncoder) {
 	clear(w.codegenFreq[:])
-	// Note that we are using codegen both as a temporary variable for holding
-	// a copy of the frequencies, and as the place where we put the result.
-	// This is fine because the output is always shorter than the input used
-	// so far.
-	codegen := w.codegen // cache
-	// Copy the concatenated code sizes to codegen. Put a marker at the end.
+	// 注意，我们既把 codegen 用作保存频率副本的
+	// 临时变量，又把它用作存放结果的地方。
+	// 这没问题，因为输出总是比到目前为止使用的
+	// 输入更短。
+	codegen := w.codegen // 缓存
+	// 将连接后的码大小复制到 codegen。在末尾放一个标记。
 	cgnl := codegen[:numLiterals]
 	for i := range cgnl {
 		cgnl[i] = uint8(litEnc.codes[i].len)
@@ -220,14 +220,14 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int, litE
 	count := 1
 	outIndex := 0
 	for inIndex := 1; size != badCode; inIndex++ {
-		// INVARIANT: We have seen "count" copies of size that have not yet
-		// had output generated for them.
+		// 不变式：我们已经看到 "count" 个 size 的副本，
+		// 但尚未为它们生成输出。
 		nextSize := codegen[inIndex]
 		if nextSize == size {
 			count++
 			continue
 		}
-		// We need to generate codegen indicating "count" of size.
+		// 我们需要生成表示 "count" 个 size 的 codegen。
 		if size != 0 {
 			codegen[outIndex] = size
 			outIndex++
@@ -274,15 +274,15 @@ func (w *huffmanBitWriter) generateCodegen(numLiterals int, numOffsets int, litE
 			outIndex++
 			w.codegenFreq[size]++
 		}
-		// Set up invariant for next time through the loop.
+		// 为下一次循环设置不变式。
 		size = nextSize
 		count = 1
 	}
-	// Marker indicating the end of the codegen.
+	// 表示 codegen 结束的标记。
 	codegen[outIndex] = badCode
 }
 
-// dynamicSize returns the size of dynamically encoded data in bits.
+// dynamicSize 返回动态编码数据的大小（以比特为单位）。
 func (w *huffmanBitWriter) dynamicSize(litEnc, offEnc *huffmanEncoder, extraBits int) (size, numCodegens int) {
 	numCodegens = len(w.codegenFreq)
 	for numCodegens > 4 && w.codegenFreq[codegenOrder[numCodegens-1]] == 0 {
@@ -301,7 +301,7 @@ func (w *huffmanBitWriter) dynamicSize(litEnc, offEnc *huffmanEncoder, extraBits
 	return size, numCodegens
 }
 
-// fixedSize returns the size of dynamically encoded data in bits.
+// fixedSize 返回动态编码数据的大小（以比特为单位）。
 func (w *huffmanBitWriter) fixedSize(extraBits int) int {
 	return 3 +
 		fixedLiteralEncoding.bitLength(w.literalFreq) +
@@ -309,9 +309,9 @@ func (w *huffmanBitWriter) fixedSize(extraBits int) int {
 		extraBits
 }
 
-// storedSize calculates the stored size, including header.
-// The function returns the size in bits and whether the block
-// fits inside a single block.
+// storedSize 计算存储大小，包括头部。
+// 该函数返回以比特为单位的大小，以及该块
+// 是否适合放在单个块内。
 func (w *huffmanBitWriter) storedSize(in []byte) (int, bool) {
 	if in == nil {
 		return 0, false
@@ -349,11 +349,11 @@ func (w *huffmanBitWriter) writeCode(c hcode) {
 	}
 }
 
-// Write the header of a dynamic Huffman block to the output stream.
+// 将动态 Huffman 块的头部写入输出流。
 //
-//	numLiterals  The number of literals specified in codegen
-//	numOffsets   The number of offsets specified in codegen
-//	numCodegens  The number of codegens used in codegen
+//	numLiterals  codegen 中指定的字面量数量
+//	numOffsets   codegen 中指定的偏移数量
+//	numCodegens  codegen 中使用的 codegen 数量
 func (w *huffmanBitWriter) writeDynamicHeader(numLiterals int, numOffsets int, numCodegens int, isEof bool) {
 	if w.err != nil {
 		return
@@ -413,7 +413,7 @@ func (w *huffmanBitWriter) writeFixedHeader(isEof bool) {
 	if w.err != nil {
 		return
 	}
-	// Indicate that we are a fixed Huffman block
+	// 表明我们是一个固定 Huffman 块
 	var value int32 = 2
 	if isEof {
 		value = 3
@@ -421,11 +421,11 @@ func (w *huffmanBitWriter) writeFixedHeader(isEof bool) {
 	w.writeBits(value, 3)
 }
 
-// writeBlock will write a block of tokens with the smallest encoding.
-// The original input can be supplied, and if the huffman encoded data
-// is larger than the original bytes, the data will be written as a
-// stored block.
-// If the input is nil, the tokens will always be Huffman encoded.
+// writeBlock 将以最小编码写入一个 token 块。
+// 可以提供原始输入，如果 Huffman 编码数据
+// 大于原始字节，则数据将被写为
+// 存储块。
+// 如果输入为 nil，则 token 将始终进行 Huffman 编码。
 func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 	if w.err != nil {
 		return
@@ -437,31 +437,30 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 	var extraBits int
 	storedSize, storable := w.storedSize(input)
 	if storable {
-		// We only bother calculating the costs of the extra bits required by
-		// the length of offset fields (which will be the same for both fixed
-		// and dynamic encoding), if we need to compare those two encodings
-		// against stored encoding.
+		// 只有在需要将这两种编码与存储编码进行比较时，
+		// 我们才费力计算偏移字段长度所需的额外比特的
+		// 代价（固定编码和动态编码的该代价相同）。
 		for lengthCode := lengthCodesStart + 8; lengthCode < numLiterals; lengthCode++ {
-			// First eight length codes have extra size = 0.
+			// 前八个长度码的额外大小 = 0。
 			extraBits += int(w.literalFreq[lengthCode]) * int(lengthExtraBits[lengthCode-lengthCodesStart])
 		}
 		for offsetCode := 4; offsetCode < numOffsets; offsetCode++ {
-			// First four offset codes have extra size = 0.
+			// 前四个偏移码的额外大小 = 0。
 			extraBits += int(w.offsetFreq[offsetCode]) * int(offsetExtraBits[offsetCode])
 		}
 	}
 
-	// Figure out smallest code.
-	// Fixed Huffman baseline.
+	// 找出最小的码。
+	// 固定 Huffman 基线。
 	var literalEncoding = fixedLiteralEncoding
 	var offsetEncoding = fixedOffsetEncoding
 	var size = w.fixedSize(extraBits)
 
-	// Dynamic Huffman?
+	// 动态 Huffman？
 	var numCodegens int
 
-	// Generate codegen and codegenFrequencies, which indicates how to encode
-	// the literalEncoding and the offsetEncoding.
+	// 生成 codegen 和 codegenFrequencies，它们指示如何编码
+	// literalEncoding 和 offsetEncoding。
 	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, w.offsetEncoding)
 	w.codegenEncoding.generate(w.codegenFreq[:], 7)
 	dynamicSize, numCodegens := w.dynamicSize(w.literalEncoding, w.offsetEncoding, extraBits)
@@ -472,29 +471,29 @@ func (w *huffmanBitWriter) writeBlock(tokens []token, eof bool, input []byte) {
 		offsetEncoding = w.offsetEncoding
 	}
 
-	// Stored bytes?
+	// 存储字节？
 	if storable && storedSize < size {
 		w.writeStoredHeader(len(input), eof)
 		w.writeBytes(input)
 		return
 	}
 
-	// Huffman.
+	// Huffman。
 	if literalEncoding == fixedLiteralEncoding {
 		w.writeFixedHeader(eof)
 	} else {
 		w.writeDynamicHeader(numLiterals, numOffsets, numCodegens, eof)
 	}
 
-	// Write the tokens.
+	// 写入 token。
 	w.writeTokens(tokens, literalEncoding.codes, offsetEncoding.codes)
 }
 
-// writeBlockDynamic encodes a block using a dynamic Huffman table.
-// This should be used if the symbols used have a disproportionate
-// histogram distribution.
-// If input is supplied and the compression savings are below 1/16th of the
-// input size the block is stored.
+// writeBlockDynamic 使用动态 Huffman 表编码一个块。
+// 如果使用的符号具有不成比例的直方图分布，
+// 则应使用此方法。
+// 如果提供了 input 且压缩节省量低于输入大小的
+// 1/16，则该块被存储。
 func (w *huffmanBitWriter) writeBlockDynamic(tokens []token, eof bool, input []byte) {
 	if w.err != nil {
 		return
@@ -503,30 +502,30 @@ func (w *huffmanBitWriter) writeBlockDynamic(tokens []token, eof bool, input []b
 	tokens = append(tokens, endBlockMarker)
 	numLiterals, numOffsets := w.indexTokens(tokens)
 
-	// Generate codegen and codegenFrequencies, which indicates how to encode
-	// the literalEncoding and the offsetEncoding.
+	// 生成 codegen 和 codegenFrequencies，它们指示如何编码
+	// literalEncoding 和 offsetEncoding。
 	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, w.offsetEncoding)
 	w.codegenEncoding.generate(w.codegenFreq[:], 7)
 	size, numCodegens := w.dynamicSize(w.literalEncoding, w.offsetEncoding, 0)
 
-	// Store bytes, if we don't get a reasonable improvement.
+	// 存储字节，如果我们没有得到合理的改进。
 	if ssize, storable := w.storedSize(input); storable && ssize < (size+size>>4) {
 		w.writeStoredHeader(len(input), eof)
 		w.writeBytes(input)
 		return
 	}
 
-	// Write Huffman table.
+	// 写入 Huffman 表。
 	w.writeDynamicHeader(numLiterals, numOffsets, numCodegens, eof)
 
-	// Write the tokens.
+	// 写入 token。
 	w.writeTokens(tokens, w.literalEncoding.codes, w.offsetEncoding.codes)
 }
 
-// indexTokens indexes a slice of tokens, and updates
-// literalFreq and offsetFreq, and generates literalEncoding
-// and offsetEncoding.
-// The number of literal and offset tokens is returned.
+// indexTokens 对 token 切片建立索引，并更新
+// literalFreq 和 offsetFreq，同时生成 literalEncoding
+// 和 offsetEncoding。
+// 返回字面量和偏移 token 的数量。
 func (w *huffmanBitWriter) indexTokens(tokens []token) (numLiterals, numOffsets int) {
 	clear(w.literalFreq)
 	clear(w.offsetFreq)
@@ -542,19 +541,19 @@ func (w *huffmanBitWriter) indexTokens(tokens []token) (numLiterals, numOffsets 
 		w.offsetFreq[offsetCode(offset)]++
 	}
 
-	// get the number of literals
+	// 获取字面量的数量
 	numLiterals = len(w.literalFreq)
 	for w.literalFreq[numLiterals-1] == 0 {
 		numLiterals--
 	}
-	// get the number of offsets
+	// 获取偏移的数量
 	numOffsets = len(w.offsetFreq)
 	for numOffsets > 0 && w.offsetFreq[numOffsets-1] == 0 {
 		numOffsets--
 	}
 	if numOffsets == 0 {
-		// We haven't found a single match. If we want to go with the dynamic encoding,
-		// we should count at least one offset to be sure that the offset huffman tree could be encoded.
+		// 我们还没有找到任何匹配。如果我们想采用动态编码，
+		// 应该至少计数一个偏移，以确保偏移 huffman 树能够被编码。
 		w.offsetFreq[0] = 1
 		numOffsets = 1
 	}
@@ -563,8 +562,8 @@ func (w *huffmanBitWriter) indexTokens(tokens []token) (numLiterals, numOffsets 
 	return
 }
 
-// writeTokens writes a slice of tokens to the output.
-// codes for literal and offset encoding must be supplied.
+// writeTokens 将一个 token 切片写入输出。
+// 必须提供字面量和偏移编码的码。
 func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode) {
 	if w.err != nil {
 		return
@@ -574,7 +573,7 @@ func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode)
 			w.writeCode(leCodes[t.literal()])
 			continue
 		}
-		// Write the length
+		// 写入长度
 		length := t.length()
 		lengthCode := lengthCode(length)
 		w.writeCode(leCodes[lengthCode+lengthCodesStart])
@@ -583,7 +582,7 @@ func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode)
 			extraLength := int32(length - lengthBase[lengthCode])
 			w.writeBits(extraLength, extraLengthBits)
 		}
-		// Write the offset
+		// 写入偏移
 		offset := t.offset()
 		offsetCode := offsetCode(offset)
 		w.writeCode(oeCodes[offsetCode])
@@ -595,8 +594,8 @@ func (w *huffmanBitWriter) writeTokens(tokens []token, leCodes, oeCodes []hcode)
 	}
 }
 
-// huffOffset is a static offset encoder used for huffman only encoding.
-// It can be reused since we will not be encoding offset values.
+// huffOffset 是一个静态偏移编码器，仅用于 huffman 编码。
+// 它可以被重用，因为我们不会编码偏移值。
 var huffOffset *huffmanEncoder
 
 func init() {
@@ -606,18 +605,18 @@ func init() {
 	huffOffset.generate(offsetFreq, 15)
 }
 
-// writeBlockHuff encodes a block of bytes as either
-// Huffman encoded literals or uncompressed bytes if the
-// results only gains very little from compression.
+// writeBlockHuff 将字节块编码为
+// Huffman 编码的字面量，或者如果压缩带来的
+// 收益很小，则编码为未压缩字节。
 func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 	if w.err != nil {
 		return
 	}
 
-	// Clear histogram
+	// 清除直方图
 	clear(w.literalFreq)
 
-	// Add everything as literals
+	// 将所有内容作为字面量添加
 	histogram(input, w.literalFreq)
 
 	w.literalFreq[endBlockMarker] = 1
@@ -628,36 +627,36 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 
 	w.literalEncoding.generate(w.literalFreq, 15)
 
-	// Figure out smallest code.
-	// Always use dynamic Huffman or Store
+	// 找出最小的码。
+	// 始终使用动态 Huffman 或 Store
 	var numCodegens int
 
-	// Generate codegen and codegenFrequencies, which indicates how to encode
-	// the literalEncoding and the offsetEncoding.
+	// 生成 codegen 和 codegenFrequencies，它们指示如何编码
+	// literalEncoding 和 offsetEncoding。
 	w.generateCodegen(numLiterals, numOffsets, w.literalEncoding, huffOffset)
 	w.codegenEncoding.generate(w.codegenFreq[:], 7)
 	size, numCodegens := w.dynamicSize(w.literalEncoding, huffOffset, 0)
 
-	// Store bytes, if we don't get a reasonable improvement.
+	// 存储字节，如果我们没有得到合理的改进。
 	if ssize, storable := w.storedSize(input); storable && ssize < (size+size>>4) {
 		w.writeStoredHeader(len(input), eof)
 		w.writeBytes(input)
 		return
 	}
 
-	// Huffman.
+	// Huffman。
 	w.writeDynamicHeader(numLiterals, numOffsets, numCodegens, eof)
 	encoding := w.literalEncoding.codes[:257]
 	n := w.nbytes
 	for _, t := range input {
-		// Bitwriting inlined, ~30% speedup
+		// 比特写入内联，约 30% 提速
 		c := encoding[t]
 		w.bits |= uint64(c.code) << w.nbits
 		w.nbits += uint(c.len)
 		if w.nbits < 48 {
 			continue
 		}
-		// Store 6 bytes
+		// 存储 6 个字节
 		bits := w.bits
 		w.bits >>= 48
 		w.nbits -= 48
@@ -674,7 +673,7 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 		}
 		w.write(w.bytes[:n])
 		if w.err != nil {
-			return // Return early in the event of write failures
+			return // 在写入失败时提前返回
 		}
 		n = 0
 	}
@@ -682,9 +681,9 @@ func (w *huffmanBitWriter) writeBlockHuff(eof bool, input []byte) {
 	w.writeCode(encoding[endBlockMarker])
 }
 
-// histogram accumulates a histogram of b in h.
+// histogram 在 h 中累积 b 的直方图。
 //
-// len(h) must be >= 256, and h's elements must be all zeroes.
+// len(h) 必须 >= 256，且 h 的元素必须全为零。
 func histogram(b []byte, h []int32) {
 	h = h[:256]
 	for _, t := range b {

@@ -5,9 +5,9 @@
 package flate
 
 const (
-	// 2 bits:   type   0 = literal  1=EOF  2=Match   3=Unused
-	// 8 bits:   xlength = length - MIN_MATCH_LENGTH
-	// 22 bits   xoffset = offset - MIN_OFFSET_SIZE, or literal
+	// 2 位：   type   0 = 字面量  1=EOF  2=匹配   3=未使用
+	// 8 位：   xlength = length - MIN_MATCH_LENGTH
+	// 22 位   xoffset = offset - MIN_OFFSET_SIZE，或字面量
 	lengthShift = 22
 	offsetMask  = 1<<lengthShift - 1
 	typeMask    = 3 << 30
@@ -15,8 +15,8 @@ const (
 	matchType   = 1 << 30
 )
 
-// The length code for length X (MIN_MATCH_LENGTH <= X <= MAX_MATCH_LENGTH)
-// is lengthCodes[length - MIN_MATCH_LENGTH]
+// 长度 X 的长度码（MIN_MATCH_LENGTH <= X <= MAX_MATCH_LENGTH）
+// 为 lengthCodes[length - MIN_MATCH_LENGTH]
 var lengthCodes = [...]uint32{
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 8,
 	9, 9, 10, 10, 11, 11, 12, 12, 12, 12,
@@ -67,25 +67,25 @@ var offsetCodes = [...]uint32{
 
 type token uint32
 
-// Convert a literal into a literal token.
+// 将字面量转换为字面量 token。
 func literalToken(literal uint32) token { return token(literalType + literal) }
 
-// Convert a < xlength, xoffset > pair into a match token.
+// 将 < xlength, xoffset > 对转换为匹配 token。
 func matchToken(xlength uint32, xoffset uint32) token {
 	return token(matchType + xlength<<lengthShift + xoffset)
 }
 
-// Returns the literal of a literal token.
+// 返回字面量 token 的字面量。
 func (t token) literal() uint32 { return uint32(t - literalType) }
 
-// Returns the extra offset of a match token.
+// 返回匹配 token 的额外偏移量。
 func (t token) offset() uint32 { return uint32(t) & offsetMask }
 
 func (t token) length() uint32 { return uint32((t - matchType) >> lengthShift) }
 
 func lengthCode(len uint32) uint32 { return lengthCodes[len] }
 
-// Returns the offset code corresponding to a specific offset.
+// 返回与特定偏移量对应的偏移码。
 func offsetCode(off uint32) uint32 {
 	if off < uint32(len(offsetCodes)) {
 		return offsetCodes[off]

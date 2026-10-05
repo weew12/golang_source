@@ -10,7 +10,7 @@ import (
 	"sort"
 )
 
-// hcode is a huffman code with a bit code and bit length.
+// hcode 是一个带有位编码和位长度的霍夫曼编码。
 type hcode struct {
 	code, len uint16
 }
@@ -19,8 +19,8 @@ type huffmanEncoder struct {
 	codes     []hcode
 	freqcache []literalNode
 	bitCount  [17]int32
-	lns       byLiteral // stored to avoid repeated allocation in generate
-	lfs       byFreq    // stored to avoid repeated allocation in generate
+	lns       byLiteral // 存储以避免在 generate 中重复分配
+	lfs       byFreq    // 存储以避免在 generate 中重复分配
 }
 
 type literalNode struct {
@@ -28,27 +28,26 @@ type literalNode struct {
 	freq    int32
 }
 
-// A levelInfo describes the state of the constructed tree for a given depth.
+// levelInfo 描述在给定深度处已构造树的状态。
 type levelInfo struct {
-	// Our level.  for better printing
+	// 当前层级。为了打印更清晰
 	level int32
 
-	// The frequency of the last node at this level
+	// 该层级上最后一个节点的频率
 	lastFreq int32
 
-	// The frequency of the next character to add to this level
+	// 要添加到该层级的下一个字符的频率
 	nextCharFreq int32
 
-	// The frequency of the next pair (from level below) to add to this level.
-	// Only valid if the "needed" value of the next lower level is 0.
+	// 要添加到该层级的下一个对（来自下一层级）的频率。
+	// 仅当下一较低层级的 "needed" 值为 0 时有效。
 	nextPairFreq int32
 
-	// The number of chains remaining to generate for this level before moving
-	// up to the next level
+	// 该层级在上升到下一层级之前还需生成的链的数量
 	needed int32
 }
 
-// set sets the code and length of an hcode.
+// set 设置 hcode 的编码和长度。
 func (h *hcode) set(code uint16, length uint16) {
 	h.len = length
 	h.code = code
@@ -60,7 +59,7 @@ func newHuffmanEncoder(size int) *huffmanEncoder {
 	return &huffmanEncoder{codes: make([]hcode, size)}
 }
 
-// Generates a HuffmanCode corresponding to the fixed literal table.
+// 生成与固定字面量表对应的 HuffmanCode。
 func generateFixedLiteralEncoding() *huffmanEncoder {
 	h := newHuffmanEncoder(maxNumLit)
 	codes := h.codes
@@ -115,20 +114,19 @@ func (h *huffmanEncoder) bitLength(freq []int32) int {
 
 const maxBitsLimit = 16
 
-// bitCounts computes the number of literals assigned to each bit size in the Huffman encoding.
-// It is only called when list.length >= 3.
-// The cases of 0, 1, and 2 literals are handled by special case code.
+// bitCounts 计算霍夫曼编码中分配给每个位大小的字面量数量。
+// 它仅在 list.length >= 3 时被调用。
+// 字面量为 0、1 和 2 的情况由特殊用例代码处理。
 //
-// list is an array of the literals with non-zero frequencies
-// and their associated frequencies. The array is in order of increasing
-// frequency and has as its last element a special element with frequency
-// MaxInt32.
+// list 是非零频率字面量及其关联频率的数组。该数组按频率
+// 递增排序，其最后一个元素是一个频率为 MaxInt32
+// 的特殊元素。
 //
-// maxBits is the maximum number of bits that should be used to encode any literal.
-// It must be less than 16.
+// maxBits 是用于编码任何字面量的最大位数。
+// 它必须小于 16。
 //
-// bitCounts returns an integer slice in which slice[i] indicates the number of literals
-// that should be encoded in i bits.
+// bitCounts 返回一个整数切片，其中 slice[i] 表示应以 i 位编码的
+// 字面量数量。
 func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	if maxBits >= maxBitsLimit {
 		panic("flate: maxBits too large")
@@ -137,26 +135,26 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	list = list[0 : n+1]
 	list[n] = maxNode()
 
-	// The tree can't have greater depth than n - 1, no matter what. This
-	// saves a little bit of work in some small cases
+	// 无论如何，树的深度都不会超过 n - 1。这
+	// 在某些小规模情况下可以节省一点工作量
 	if maxBits > n-1 {
 		maxBits = n - 1
 	}
 
-	// Create information about each of the levels.
-	// A bogus "Level 0" whose sole purpose is so that
-	// level1.prev.needed==0.  This makes level1.nextPairFreq
-	// be a legitimate value that never gets chosen.
+	// 创建关于每个层级的信息。
+	// 一个虚假的 "Level 0"，其唯一目的是让
+	// level1.prev.needed==0。这使得 level1.nextPairFreq
+	// 成为一个永远不会被选中的合法值。
 	var levels [maxBitsLimit]levelInfo
-	// leafCounts[i] counts the number of literals at the left
-	// of ancestors of the rightmost node at level i.
-	// leafCounts[i][j] is the number of literals at the left
-	// of the level j ancestor.
+	// leafCounts[i] 统计层级 i 最右节点的祖先左侧的
+	// 字面量数量。
+	// leafCounts[i][j] 是层级 j 祖先左侧的
+	// 字面量数量。
 	var leafCounts [maxBitsLimit][maxBitsLimit]int32
 
 	for level := int32(1); level <= maxBits; level++ {
-		// For every level, the first two items are the first two characters.
-		// We initialize the levels as if we had already figured this out.
+		// 对于每个层级，前两项是前两个字符。
+		// 我们初始化各层级，就如同已经弄清楚了这一点。
 		levels[level] = levelInfo{
 			level:        level,
 			lastFreq:     list[1].freq,
@@ -169,17 +167,17 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 		}
 	}
 
-	// We need a total of 2*n - 2 items at top level and have already generated 2.
+	// 顶层总共需要 2*n - 2 项，现在已经生成了 2 项。
 	levels[maxBits].needed = 2*n - 4
 
 	level := maxBits
 	for {
 		l := &levels[level]
 		if l.nextPairFreq == math.MaxInt32 && l.nextCharFreq == math.MaxInt32 {
-			// We've run out of both leaves and pairs.
-			// End all calculations for this level.
-			// To make sure we never come back to this level or any lower level,
-			// set nextPairFreq impossibly large.
+			// 叶节点和对都已耗尽。
+			// 结束该层级的所有计算。
+			// 为了确保我们永远不会回到该层级或任何更低层级，
+			// 将 nextPairFreq 设置为不可能达到的大值。
 			l.needed = 0
 			levels[level+1].nextPairFreq = math.MaxInt32
 			level++
@@ -188,43 +186,42 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 
 		prevFreq := l.lastFreq
 		if l.nextCharFreq < l.nextPairFreq {
-			// The next item on this row is a leaf node.
+			// 该行上的下一项是一个叶节点。
 			n := leafCounts[level][level] + 1
 			l.lastFreq = l.nextCharFreq
-			// Lower leafCounts are the same of the previous node.
+			// 较低的 leafCounts 与前一个节点相同。
 			leafCounts[level][level] = n
 			l.nextCharFreq = list[n].freq
 		} else {
-			// The next item on this row is a pair from the previous row.
-			// nextPairFreq isn't valid until we generate two
-			// more values in the level below
+			// 该行上的下一项是来自上一行的一个对。
+			// 在我们于下方层级生成两个
+			// 更多的值之前，nextPairFreq 是无效的
 			l.lastFreq = l.nextPairFreq
-			// Take leaf counts from the lower level, except counts[level] remains the same.
+			// 从较低层级获取叶计数，但 counts[level] 保持不变。
 			copy(leafCounts[level][:level], leafCounts[level-1][:level])
 			levels[l.level-1].needed = 2
 		}
 
 		if l.needed--; l.needed == 0 {
-			// We've done everything we need to do for this level.
-			// Continue calculating one level up. Fill in nextPairFreq
-			// of that level with the sum of the two nodes we've just calculated on
-			// this level.
+			// 我们已经完成了该层级需要做的所有事情。
+			// 继续向上计算一个层级。用我们刚刚在该层级上计算出的
+			// 两个节点之和填充上一层的 nextPairFreq。
 			if l.level == maxBits {
-				// All done!
+				// 全部完成！
 				break
 			}
 			levels[l.level+1].nextPairFreq = prevFreq + l.lastFreq
 			level++
 		} else {
-			// If we stole from below, move down temporarily to replenish it.
+			// 如果我们从下方借用，则临时下移以补充它。
 			for levels[level-1].needed > 0 {
 				level--
 			}
 		}
 	}
 
-	// Somethings is wrong if at the end, the top level is null or hasn't used
-	// all of the leaves.
+	// 如果到最后顶层为空或没有使用所有叶节点，
+	// 则说明出了问题。
 	if leafCounts[maxBits][maxBits] != n {
 		panic("leafCounts[maxBits][maxBits] != n")
 	}
@@ -233,16 +230,16 @@ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
 	bits := 1
 	counts := &leafCounts[maxBits]
 	for level := maxBits; level > 0; level-- {
-		// chain.leafCount gives the number of literals requiring at least "bits"
-		// bits to encode.
+		// chain.leafCount 给出至少需要 "bits"
+		// 位来编码的字面量数量。
 		bitCount[bits] = counts[level] - counts[level-1]
 		bits++
 	}
 	return bitCount
 }
 
-// Look at the leaves and assign them a bit count and an encoding as specified
-// in RFC 1951 3.2.2
+// 查看叶节点，并按照 RFC 1951 3.2.2 中的规定
+// 为它们分配位计数和编码
 func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalNode) {
 	code := uint16(0)
 	for n, bits := range bitCount {
@@ -250,10 +247,10 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
 		if n == 0 || bits == 0 {
 			continue
 		}
-		// The literals list[len(list)-bits] .. list[len(list)-bits]
-		// are encoded using "bits" bits, and get the values
-		// code, code + 1, ....  The code values are
-		// assigned in literal order (not frequency order).
+		// 字面量 list[len(list)-bits] .. list[len(list)-bits]
+		// 使用 "bits" 位进行编码，并获得值
+		// code、code + 1、……。这些编码值
+		// 按字面量顺序（而非频率顺序）分配。
 		chunk := list[len(list)-int(bits):]
 
 		h.lns.sort(chunk)
@@ -265,21 +262,21 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
 	}
 }
 
-// Update this Huffman Code object to be the minimum code for the specified frequency count.
+// 更新此霍夫曼编码对象，使其成为指定频率计数下的最小编码。
 //
-// freq is an array of frequencies, in which freq[i] gives the frequency of literal i.
-// maxBits  The maximum number of bits to use for any literal.
+// freq 是频率数组，其中 freq[i] 给出字面量 i 的频率。
+// maxBits  用于任何字面量的最大位数。
 func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
 	if h.freqcache == nil {
-		// Allocate a reusable buffer with the longest possible frequency table.
-		// Possible lengths are codegenCodeCount, offsetCodeCount and maxNumLit.
-		// The largest of these is maxNumLit, so we allocate for that case.
+		// 分配一个可复用缓冲区，使用可能最长的频率表。
+		// 可能的长度为 codegenCodeCount、offsetCodeCount 和 maxNumLit。
+		// 其中最大的是 maxNumLit，因此我们按该情况分配。
 		h.freqcache = make([]literalNode, maxNumLit+1)
 	}
 	list := h.freqcache[:len(freq)+1]
-	// Number of non-zero literals
+	// 非零字面量的数量
 	count := 0
-	// Set list to be the set of all non-zero literals and their frequencies
+	// 将 list 设置为所有非零字面量及其频率的集合
 	for i, f := range freq {
 		if f != 0 {
 			list[count] = literalNode{uint16(i), f}
@@ -291,19 +288,19 @@ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
 
 	list = list[:count]
 	if count <= 2 {
-		// Handle the small cases here, because they are awkward for the general case code. With
-		// two or fewer literals, everything has bit length 1.
+		// 在此处理小规模情况，因为它们对通用情况代码来说很麻烦。对于
+		// 两个或更少的字面量，所有内容的位长度均为 1。
 		for i, node := range list {
-			// "list" is in order of increasing literal value.
+			// "list" 按字面量值递增排序。
 			h.codes[node.literal].set(uint16(i), 1)
 		}
 		return
 	}
 	h.lfs.sort(list)
 
-	// Get the number of literals for each bit count
+	// 获取每个位计数的字面量数量
 	bitCount := h.bitCounts(list, maxBits)
-	// And do the assignment
+	// 然后进行分配
 	h.assignEncodingAndSize(bitCount, list)
 }
 

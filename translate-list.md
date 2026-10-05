@@ -63,7 +63,7 @@
 - [X] archive/tar：实现tar存档访问
 - [X] archive/zip：提供ZIP归档文件的读写支持
 - [X] compress/bzip2：实现bzip2解压缩
-- [ ] compress/flate：实现DEFLATE压缩数据格式（RFC 1951）
+- [X] compress/flate：实现DEFLATE压缩数据格式（RFC 1951）
 - [ ] compress/gzip：实现gzip格式压缩文件读写（RFC 1952）
 - [ ] compress/lzw：实现Lempel-Ziv-Welch压缩格式
 - [ ] compress/zlib：实现zlib格式压缩数据读写（RFC 1950）
