@@ -11,57 +11,55 @@ import (
 	"io"
 )
 
-// A writer is a buffered, flushable writer.
+// writer 是一个带缓冲、可刷新的 writer。
 type writer interface {
 	io.ByteWriter
 	Flush() error
 }
 
 const (
-	// A code is a 12 bit value, stored as a uint32 when encoding to avoid
-	// type conversions when shifting bits.
+	// code 是一个 12 位的值，编码时以 uint32 存储，以避免移位时发生
+	// 类型转换。
 	maxCode     = 1<<12 - 1
 	invalidCode = 1<<32 - 1
-	// There are 1<<12 possible codes, which is an upper bound on the number of
-	// valid hash table entries at any given point in time. tableSize is 4x that.
+	// 一共有 1<<12 个可能的 code，这是任意时刻有效哈希表表项数量的上界。
+	// tableSize 是它的 4 倍。
 	tableSize = 4 * 1 << 12
 	tableMask = tableSize - 1
-	// A hash table entry is a uint32. Zero is an invalid entry since the
-	// lower 12 bits of a valid entry must be a non-literal code.
+	// 哈希表表项是一个 uint32。零是无效表项，因为有效表项的低 12 位
+	// 必须是一个非字面量（non-literal）code。
 	invalidEntry = 0
 )
 
-// Writer is an LZW compressor. It writes the compressed form of the data
-// to an underlying writer (see [NewWriter]).
+// Writer 是一个 LZW 压缩器。它把数据的压缩形式写入底层 writer
+// （参见 [NewWriter]）。
 type Writer struct {
-	// w is the writer that compressed bytes are written to.
+	// w 是压缩后的字节被写入的 writer。
 	w writer
-	// litWidth is the width in bits of literal codes.
+	// litWidth 是字面量 code 的位宽（以比特为单位）。
 	litWidth uint
-	// order, write, bits, nBits and width are the state for
-	// converting a code stream into a byte stream.
+	// order、write、bits、nBits 和 width 是把 code 流转换为字节流所需的状态。
 	order Order
 	write func(*Writer, uint32) error
 	nBits uint
 	width uint
 	bits  uint32
-	// hi is the code implied by the next code emission.
-	// overflow is the code at which hi overflows the code width.
+	// hi 是下一次发出 code 时所隐含的 code。
+	// overflow 是 hi 溢出 code 宽度时的 code。
 	hi, overflow uint32
-	// savedCode is the accumulated code at the end of the most recent Write
-	// call. It is equal to invalidCode if there was no such call.
+	// savedCode 是最近一次 Write 调用结束时累积的 code。如果没有这样的调用，
+	// 它等于 invalidCode。
 	savedCode uint32
-	// err is the first error encountered during writing. Closing the writer
-	// will make any future Write calls return errClosed
+	// err 是写入过程中遇到的第一个错误。关闭 writer 会使之后所有的 Write
+	// 调用返回 errClosed。
 	err error
-	// table is the hash table from 20-bit keys to 12-bit values. Each table
-	// entry contains key<<12|val and collisions resolve by linear probing.
-	// The keys consist of a 12-bit code prefix and an 8-bit byte suffix.
-	// The values are a 12-bit code.
+	// table 是从 20 位键到 12 位值的哈希表。每个表项包含 key<<12|val，
+	// 冲突通过线性探测解决。键由一个 12 位的 code 前缀和一个 8 位的字节后缀组成。
+	// 值是 12 位的 code。
 	table [tableSize]uint32
 }
 
-// writeLSB writes the code c for "Least Significant Bits first" data.
+// writeLSB 为“最低有效位优先”的数据写入 code c。
 func (w *Writer) writeLSB(c uint32) error {
 	w.bits |= c << w.nBits
 	w.nBits += w.width
@@ -75,7 +73,7 @@ func (w *Writer) writeLSB(c uint32) error {
 	return nil
 }
 
-// writeMSB writes the code c for "Most Significant Bits first" data.
+// writeMSB 为“最高有效位优先”的数据写入 code c。
 func (w *Writer) writeMSB(c uint32) error {
 	w.bits |= c << (32 - w.width - w.nBits)
 	w.nBits += w.width
@@ -89,13 +87,12 @@ func (w *Writer) writeMSB(c uint32) error {
 	return nil
 }
 
-// errOutOfCodes is an internal error that means that the writer has run out
-// of unused codes and a clear code needs to be sent next.
+// errOutOfCodes 是一个内部错误，表示 writer 已用尽未使用的 code，
+// 接下来需要发送一个 clear code。
 var errOutOfCodes = errors.New("lzw: out of codes")
 
-// incHi increments e.hi and checks for both overflow and running out of
-// unused codes. In the latter case, incHi sends a clear code, resets the
-// writer state and returns errOutOfCodes.
+// incHi 递增 e.hi，并检查是否溢出以及是否用尽未使用的 code。在后一种情况下，
+// incHi 会发送一个 clear code，重置 writer 状态并返回 errOutOfCodes。
 func (w *Writer) incHi() error {
 	w.hi++
 	if w.hi == w.overflow {
@@ -118,7 +115,7 @@ func (w *Writer) incHi() error {
 	return nil
 }
 
-// Write writes a compressed representation of p to w's underlying writer.
+// Write 把 p 的压缩表示写入 w 的底层 writer。
 func (w *Writer) Write(p []byte) (n int, err error) {
 	if w.err != nil {
 		return 0, w.err
@@ -137,27 +134,25 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 	n = len(p)
 	code := w.savedCode
 	if code == invalidCode {
-		// This is the first write; send a clear code.
-		// https://www.w3.org/Graphics/GIF/spec-gif89a.txt Appendix F
-		// "Variable-Length-Code LZW Compression" says that "Encoders should
-		// output a Clear code as the first code of each image data stream".
+		// 这是第一次写入；发送一个 clear code。
+		// https://www.w3.org/Graphics/GIF/spec-gif89a.txt 附录 F
+		// “Variable-Length-Code LZW Compression” 指出 “Encoders should
+		// output a Clear code as the first code of each image data stream”。
 		//
-		// LZW compression isn't only used by GIF, but it's cheap to follow
-		// that directive unconditionally.
+		// LZW 压缩并非只用于 GIF，但无条件遵循该指令的成本很低。
 		clear := uint32(1) << w.litWidth
 		if err := w.write(w, clear); err != nil {
 			return 0, err
 		}
-		// After the starting clear code, the next code sent (for non-empty
-		// input) is always a literal code.
+		// 在起始 clear code 之后，对于非空输入，下一个发送的 code 总是
+		// 一个字面量 code。
 		code, p = uint32(p[0]), p[1:]
 	}
 loop:
 	for _, x := range p {
 		literal := uint32(x)
 		key := code<<8 | literal
-		// If there is a hash table hit for this key then we continue the loop
-		// and do not emit a code yet.
+		// 如果该 key 在哈希表中命中，则继续循环，暂不发出 code。
 		hash := (key>>12 ^ key) & tableMask
 		for h, t := hash, w.table[hash]; t != invalidEntry; {
 			if key == t>>12 {
@@ -167,14 +162,13 @@ loop:
 			h = (h + 1) & tableMask
 			t = w.table[h]
 		}
-		// Otherwise, write the current code, and literal becomes the start of
-		// the next emitted code.
+		// 否则，写入当前 code，literal 成为下一个发出 code 的起始。
 		if w.err = w.write(w, code); w.err != nil {
 			return 0, w.err
 		}
 		code = literal
-		// Increment e.hi, the next implied code. If we run out of codes, reset
-		// the writer state (including clearing the hash table) and continue.
+		// 递增 e.hi，即下一个隐含的 code。如果 code 用尽，重置 writer 状态
+		// （包括清空哈希表）并继续。
 		if err1 := w.incHi(); err1 != nil {
 			if err1 == errOutOfCodes {
 				continue
@@ -182,7 +176,7 @@ loop:
 			w.err = err1
 			return 0, w.err
 		}
-		// Otherwise, insert key -> e.hi into the map that e.table represents.
+		// 否则，把 key -> e.hi 插入 e.table 所表示的映射中。
 		for {
 			if w.table[hash] == invalidEntry {
 				w.table[hash] = (key << 12) | w.hi
@@ -195,8 +189,7 @@ loop:
 	return n, nil
 }
 
-// Close closes the [Writer], flushing any pending output. It does not close
-// w's underlying writer.
+// Close 关闭 [Writer]，刷新所有待处理的输出。它不会关闭 w 的底层 writer。
 func (w *Writer) Close() error {
 	if w.err != nil {
 		if w.err == errClosed {
@@ -204,9 +197,9 @@ func (w *Writer) Close() error {
 		}
 		return w.err
 	}
-	// Make any future calls to Write return errClosed.
+	// 使之后所有对 Write 的调用返回 errClosed。
 	w.err = errClosed
-	// Write the savedCode if valid.
+	// 如果 savedCode 有效则写入它。
 	if w.savedCode != invalidCode {
 		if err := w.write(w, w.savedCode); err != nil {
 			return err
@@ -215,18 +208,18 @@ func (w *Writer) Close() error {
 			return err
 		}
 	} else {
-		// Write the starting clear code, as w.Write did not.
+		// 写入起始 clear code，因为 w.Write 没有写。
 		clear := uint32(1) << w.litWidth
 		if err := w.write(w, clear); err != nil {
 			return err
 		}
 	}
-	// Write the eof code.
+	// 写入 eof code。
 	eof := uint32(1)<<w.litWidth + 1
 	if err := w.write(w, eof); err != nil {
 		return err
 	}
-	// Write the final bits.
+	// 写入最后的比特位。
 	if w.nBits > 0 {
 		if w.order == MSB {
 			w.bits >>= 24
@@ -238,22 +231,19 @@ func (w *Writer) Close() error {
 	return w.w.Flush()
 }
 
-// Reset clears the [Writer]'s state and allows it to be reused again
-// as a new [Writer].
+// Reset 清除 [Writer] 的状态，使其可以作为一个新的 [Writer] 再次复用。
 func (w *Writer) Reset(dst io.Writer, order Order, litWidth int) {
 	*w = Writer{}
 	w.init(dst, order, litWidth)
 }
 
-// NewWriter creates a new [io.WriteCloser].
-// Writes to the returned [io.WriteCloser] are compressed and written to w.
-// It is the caller's responsibility to call Close on the WriteCloser when
-// finished writing.
-// The number of bits to use for literal codes, litWidth, must be in the
-// range [2,8] and is typically 8. Input bytes must be less than 1<<litWidth.
+// NewWriter 创建一个新的 [io.WriteCloser]。
+// 写入返回的 [io.WriteCloser] 的数据会被压缩并写入 w。
+// 调用者负责在写入完成后对 WriteCloser 调用 Close。
+// 用于字面量 code 的比特数 litWidth 必须在 [2,8] 范围内，通常为 8。
+// 输入字节必须小于 1<<litWidth。
 //
-// It is guaranteed that the underlying type of the returned [io.WriteCloser]
-// is a *[Writer].
+// 保证返回的 [io.WriteCloser] 的底层类型是 *[Writer]。
 func NewWriter(w io.Writer, order Order, litWidth int) io.WriteCloser {
 	return newWriter(w, order, litWidth)
 }
