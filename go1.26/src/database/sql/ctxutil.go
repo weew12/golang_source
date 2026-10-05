@@ -105,14 +105,14 @@ func ctxDriverBegin(ctx context.Context, opts *TxOptions, ci driver.Conn) (drive
 	}
 
 	if opts != nil {
-		// Check the transaction level. If the transaction level is non-default
-		// then return an error here as the BeginTx driver value is not supported.
+		// 检查事务级别。如果事务级别为非默认值，
+		// 则在此返回错误，因为不支持 BeginTx 驱动值。
 		if opts.Isolation != LevelDefault {
 			return nil, errors.New("sql: driver does not support non-default isolation level")
 		}
 
-		// If a read-only transaction is requested return an error as the
-		// BeginTx driver value is not supported.
+		// 如果请求了只读事务，则返回错误，因为不支持
+		// BeginTx 驱动值。
 		if opts.ReadOnly {
 			return nil, errors.New("sql: driver does not support read-only transactions")
 		}

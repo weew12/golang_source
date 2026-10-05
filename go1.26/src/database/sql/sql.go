@@ -2,17 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package sql provides a generic interface around SQL (or SQL-like)
-// databases.
+// Package sql 提供了围绕 SQL（或类 SQL）数据库的通用接口。
 //
-// The sql package must be used in conjunction with a database driver.
-// See https://golang.org/s/sqldrivers for a list of drivers.
+// sql 包必须与数据库驱动一起使用。
+// 驱动列表见 https://golang.org/s/sqldrivers。
 //
-// Drivers that do not support context cancellation will not return until
-// after the query is completed.
+// 不支持 context 取消的驱动在查询完成之前不会返回。
 //
-// For usage examples, see the wiki page at
-// https://golang.org/s/sqlwiki.
+// 用法示例见 wiki 页面 https://golang.org/s/sqlwiki。
 package sql
 
 import (
@@ -35,24 +32,24 @@ import (
 
 var driversMu sync.RWMutex
 
-// drivers should be an internal detail,
-// but widely used packages access it using linkname.
-// (It is extra wrong that they linkname drivers but not driversMu.)
-// Notable members of the hall of shame include:
+// drivers 本应是一个内部细节，
+// 但被广泛使用的包通过 linkname 访问它。
+// （它们 linkname 了 drivers 却没有 linkname driversMu，这尤其错误。）
+// 耻辱柱上值得注意的成员包括：
 //   - github.com/instana/go-sensor
 //
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
+// 不要删除或更改类型签名。
+// 参见 go.dev/issue/67401。
 //
 //go:linkname drivers
 var drivers = make(map[string]driver.Driver)
 
-// nowFunc returns the current time; it's overridden in tests.
+// nowFunc 返回当前时间；它在测试中会被覆盖。
 var nowFunc = time.Now
 
-// Register makes a database driver available by the provided name.
-// If Register is called twice with the same name or if driver is nil,
-// it panics.
+// Register 使数据库驱动可以通过提供的名称使用。
+// 如果以相同名称调用 Register 两次，或者 driver 为 nil，
+// 它会 panic。
 func Register(name string, driver driver.Driver) {
 	driversMu.Lock()
 	defer driversMu.Unlock()
@@ -68,43 +65,43 @@ func Register(name string, driver driver.Driver) {
 func unregisterAllDrivers() {
 	driversMu.Lock()
 	defer driversMu.Unlock()
-	// For tests.
+	// 用于测试。
 	drivers = make(map[string]driver.Driver)
 }
 
-// Drivers returns a sorted list of the names of the registered drivers.
+// Drivers 返回已注册驱动名称的排序列表。
 func Drivers() []string {
 	driversMu.RLock()
 	defer driversMu.RUnlock()
 	return slices.Sorted(maps.Keys(drivers))
 }
 
-// A NamedArg is a named argument. NamedArg values may be used as
-// arguments to [DB.Query] or [DB.Exec] and bind to the corresponding named
-// parameter in the SQL statement.
+// NamedArg 是一个命名参数。NamedArg 值可用作
+// [DB.Query] 或 [DB.Exec] 的参数，并绑定到 SQL 语句中
+// 对应的命名参数。
 //
-// For a more concise way to create NamedArg values, see
-// the [Named] function.
+// 有关创建 NamedArg 值的更简洁方式，见
+// [Named] 函数。
 type NamedArg struct {
 	_NamedFieldsRequired struct{}
 
-	// Name is the name of the parameter placeholder.
+	// Name 是参数占位符的名称。
 	//
-	// If empty, the ordinal position in the argument list will be
-	// used.
+	// 如果为空，将使用参数列表中的
+	// 序号位置。
 	//
-	// Name must omit any symbol prefix.
+	// Name 必须省略任何符号前缀。
 	Name string
 
-	// Value is the value of the parameter.
-	// It may be assigned the same value types as the query
-	// arguments.
+	// Value 是参数的值。
+	// 它可以被赋予与查询参数
+	// 相同的值类型。
 	Value any
 }
 
-// Named provides a more concise way to create [NamedArg] values.
+// Named 提供了创建 [NamedArg] 值的更简洁方式。
 //
-// Example usage:
+// 用法示例：
 //
 //	db.ExecContext(ctx, `
 //	    delete from Invoice
@@ -115,20 +112,20 @@ type NamedArg struct {
 //	    sql.Named("end", endTime),
 //	)
 func Named(name string, value any) NamedArg {
-	// This method exists because the go1compat promise
-	// doesn't guarantee that structs don't grow more fields,
-	// so unkeyed struct literals are a vet error. Thus, we don't
-	// want to allow sql.NamedArg{name, value}.
+	// 存在这个函数是因为 go1compat 承诺
+	// 并不保证结构体不会增加更多字段，
+	// 因此无键结构体字面量是一个 vet 错误。所以我们
+	// 不希望允许 sql.NamedArg{name, value}。
 	return NamedArg{Name: name, Value: value}
 }
 
-// IsolationLevel is the transaction isolation level used in [TxOptions].
+// IsolationLevel 是 [TxOptions] 中使用的事务隔离级别。
 type IsolationLevel int
 
-// Various isolation levels that drivers may support in [DB.BeginTx].
-// If a driver does not support a given isolation level an error may be returned.
+// 驱动可以在 [DB.BeginTx] 中支持的各种隔离级别。
+// 如果驱动不支持给定的隔离级别，可能会返回错误。
 //
-// See https://en.wikipedia.org/wiki/Isolation_(database_systems)#Isolation_levels.
+// 参见 https://en.wikipedia.org/wiki/Isolation_(database_systems)#Isolation_levels。
 const (
 	LevelDefault IsolationLevel = iota
 	LevelReadUncommitted
@@ -140,7 +137,7 @@ const (
 	LevelLinearizable
 )
 
-// String returns the name of the transaction isolation level.
+// String 返回事务隔离级别的名称。
 func (i IsolationLevel) String() string {
 	switch i {
 	case LevelDefault:
@@ -166,37 +163,37 @@ func (i IsolationLevel) String() string {
 
 var _ fmt.Stringer = LevelDefault
 
-// TxOptions holds the transaction options to be used in [DB.BeginTx].
+// TxOptions 保存 [DB.BeginTx] 中使用的事务选项。
 type TxOptions struct {
-	// Isolation is the transaction isolation level.
-	// If zero, the driver or database's default level is used.
+	// Isolation 是事务隔离级别。
+	// 如果为零，则使用驱动或数据库的默认级别。
 	Isolation IsolationLevel
 	ReadOnly  bool
 }
 
-// RawBytes is a byte slice that holds a reference to memory owned by
-// the database itself. After a [Rows.Scan] into a RawBytes, the slice is only
-// valid until the next call to [Rows.Next], [Rows.Scan], or [Rows.Close].
+// RawBytes 是一个字节切片，持有对数据库自身拥有的内存的引用。
+// 将 [Rows.Scan] 扫描到 RawBytes 之后，该切片仅在
+// 下次调用 [Rows.Next]、[Rows.Scan] 或 [Rows.Close] 之前有效。
 type RawBytes []byte
 
-// NullString represents a string that may be null.
-// NullString implements the [Scanner] interface so
-// it can be used as a scan destination:
+// NullString 表示一个可能为 null 的字符串。
+// NullString 实现了 [Scanner] 接口，因此
+// 它可以用作扫描目标：
 //
 //	var s NullString
 //	err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
 //	...
 //	if s.Valid {
-//	   // use s.String
+//	   // 使用 s.String
 //	} else {
-//	   // NULL value
+//	   // NULL 值
 //	}
 type NullString struct {
 	String string
-	Valid  bool // Valid is true if String is not NULL
+	Valid  bool // 如果 String 不为 NULL，则 Valid 为 true
 }
 
-// Scan implements the [Scanner] interface.
+// Scan 实现了 [Scanner] 接口。
 func (ns *NullString) Scan(value any) error {
 	if value == nil {
 		ns.String, ns.Valid = "", false
@@ -206,7 +203,7 @@ func (ns *NullString) Scan(value any) error {
 	return convertAssign(&ns.String, value)
 }
 
-// Value implements the [driver.Valuer] interface.
+// Value 实现了 [driver.Valuer] 接口。
 func (ns NullString) Value() (driver.Value, error) {
 	if !ns.Valid {
 		return nil, nil
@@ -214,15 +211,15 @@ func (ns NullString) Value() (driver.Value, error) {
 	return ns.String, nil
 }
 
-// NullInt64 represents an int64 that may be null.
-// NullInt64 implements the [Scanner] interface so
-// it can be used as a scan destination, similar to [NullString].
+// NullInt64 表示一个可能为 null 的 int64。
+// NullInt64 实现了 [Scanner] 接口，因此
+// 它可以用作扫描目标，类似于 [NullString]。
 type NullInt64 struct {
 	Int64 int64
-	Valid bool // Valid is true if Int64 is not NULL
+	Valid bool // 如果 Int64 不为 NULL，则 Valid 为 true
 }
 
-// Scan implements the [Scanner] interface.
+// Scan 实现了 [Scanner] 接口。
 func (n *NullInt64) Scan(value any) error {
 	if value == nil {
 		n.Int64, n.Valid = 0, false
@@ -232,7 +229,7 @@ func (n *NullInt64) Scan(value any) error {
 	return convertAssign(&n.Int64, value)
 }
 
-// Value implements the [driver.Valuer] interface.
+// Value 实现了 [driver.Valuer] 接口。
 func (n NullInt64) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -240,15 +237,15 @@ func (n NullInt64) Value() (driver.Value, error) {
 	return n.Int64, nil
 }
 
-// NullInt32 represents an int32 that may be null.
-// NullInt32 implements the [Scanner] interface so
-// it can be used as a scan destination, similar to [NullString].
+// NullInt32 表示一个可能为 null 的 int32。
+// NullInt32 实现了 [Scanner] 接口，因此
+// 它可以用作扫描目标，类似于 [NullString]。
 type NullInt32 struct {
 	Int32 int32
-	Valid bool // Valid is true if Int32 is not NULL
+	Valid bool // 如果 Int32 不为 NULL，则 Valid 为 true
 }
 
-// Scan implements the [Scanner] interface.
+// Scan 实现了 [Scanner] 接口。
 func (n *NullInt32) Scan(value any) error {
 	if value == nil {
 		n.Int32, n.Valid = 0, false
@@ -258,7 +255,7 @@ func (n *NullInt32) Scan(value any) error {
 	return convertAssign(&n.Int32, value)
 }
 
-// Value implements the [driver.Valuer] interface.
+// Value 实现了 [driver.Valuer] 接口。
 func (n NullInt32) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -266,15 +263,15 @@ func (n NullInt32) Value() (driver.Value, error) {
 	return int64(n.Int32), nil
 }
 
-// NullInt16 represents an int16 that may be null.
-// NullInt16 implements the [Scanner] interface so
-// it can be used as a scan destination, similar to [NullString].
+// NullInt16 表示一个可能为 null 的 int16。
+// NullInt16 实现了 [Scanner] 接口，因此
+// 它可以用作扫描目标，类似于 [NullString]。
 type NullInt16 struct {
 	Int16 int16
-	Valid bool // Valid is true if Int16 is not NULL
+	Valid bool // 如果 Int16 不为 NULL，则 Valid 为 true
 }
 
-// Scan implements the [Scanner] interface.
+// Scan 实现了 [Scanner] 接口。
 func (n *NullInt16) Scan(value any) error {
 	if value == nil {
 		n.Int16, n.Valid = 0, false
@@ -285,7 +282,7 @@ func (n *NullInt16) Scan(value any) error {
 	return err
 }
 
-// Value implements the [driver.Valuer] interface.
+// Value 实现了 [driver.Valuer] 接口。
 func (n NullInt16) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -293,15 +290,15 @@ func (n NullInt16) Value() (driver.Value, error) {
 	return int64(n.Int16), nil
 }
 
-// NullByte represents a byte that may be null.
-// NullByte implements the [Scanner] interface so
-// it can be used as a scan destination, similar to [NullString].
+// NullByte 表示一个可能为 null 的 byte。
+// NullByte 实现了 [Scanner] 接口，因此
+// 它可以用作扫描目标，类似于 [NullString]。
 type NullByte struct {
 	Byte  byte
-	Valid bool // Valid is true if Byte is not NULL
+	Valid bool // 如果 Byte 不为 NULL，则 Valid 为 true
 }
 
-// Scan implements the [Scanner] interface.
+// Scan 实现了 [Scanner] 接口。
 func (n *NullByte) Scan(value any) error {
 	if value == nil {
 		n.Byte, n.Valid = 0, false
@@ -312,7 +309,7 @@ func (n *NullByte) Scan(value any) error {
 	return err
 }
 
-// Value implements the [driver.Valuer] interface.
+// Value 实现了 [driver.Valuer] 接口。
 func (n NullByte) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -320,15 +317,15 @@ func (n NullByte) Value() (driver.Value, error) {
 	return int64(n.Byte), nil
 }
 
-// NullFloat64 represents a float64 that may be null.
-// NullFloat64 implements the [Scanner] interface so
-// it can be used as a scan destination, similar to [NullString].
+// NullFloat64 表示一个可能为 null 的 float64。
+// NullFloat64 实现了 [Scanner] 接口，因此
+// 它可以用作扫描目标，类似于 [NullString]。
 type NullFloat64 struct {
 	Float64 float64
-	Valid   bool // Valid is true if Float64 is not NULL
+	Valid   bool // 如果 Float64 不为 NULL，则 Valid 为 true
 }
 
-// Scan implements the [Scanner] interface.
+// Scan 实现了 [Scanner] 接口。
 func (n *NullFloat64) Scan(value any) error {
 	if value == nil {
 		n.Float64, n.Valid = 0, false
@@ -338,7 +335,7 @@ func (n *NullFloat64) Scan(value any) error {
 	return convertAssign(&n.Float64, value)
 }
 
-// Value implements the [driver.Valuer] interface.
+// Value 实现了 [driver.Valuer] 接口。
 func (n NullFloat64) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -346,15 +343,15 @@ func (n NullFloat64) Value() (driver.Value, error) {
 	return n.Float64, nil
 }
 
-// NullBool represents a bool that may be null.
-// NullBool implements the [Scanner] interface so
-// it can be used as a scan destination, similar to [NullString].
+// NullBool 表示一个可能为 null 的 bool。
+// NullBool 实现了 [Scanner] 接口，因此
+// 它可以用作扫描目标，类似于 [NullString]。
 type NullBool struct {
 	Bool  bool
-	Valid bool // Valid is true if Bool is not NULL
+	Valid bool // 如果 Bool 不为 NULL，则 Valid 为 true
 }
 
-// Scan implements the [Scanner] interface.
+// Scan 实现了 [Scanner] 接口。
 func (n *NullBool) Scan(value any) error {
 	if value == nil {
 		n.Bool, n.Valid = false, false
@@ -364,7 +361,7 @@ func (n *NullBool) Scan(value any) error {
 	return convertAssign(&n.Bool, value)
 }
 
-// Value implements the [driver.Valuer] interface.
+// Value 实现了 [driver.Valuer] 接口。
 func (n NullBool) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -372,15 +369,15 @@ func (n NullBool) Value() (driver.Value, error) {
 	return n.Bool, nil
 }
 
-// NullTime represents a [time.Time] that may be null.
-// NullTime implements the [Scanner] interface so
-// it can be used as a scan destination, similar to [NullString].
+// NullTime 表示一个可能为 null 的 [time.Time]。
+// NullTime 实现了 [Scanner] 接口，因此
+// 它可以用作扫描目标，类似于 [NullString]。
 type NullTime struct {
 	Time  time.Time
-	Valid bool // Valid is true if Time is not NULL
+	Valid bool // 如果 Time 不为 NULL，则 Valid 为 true
 }
 
-// Scan implements the [Scanner] interface.
+// Scan 实现了 [Scanner] 接口。
 func (n *NullTime) Scan(value any) error {
 	if value == nil {
 		n.Time, n.Valid = time.Time{}, false
@@ -390,7 +387,7 @@ func (n *NullTime) Scan(value any) error {
 	return convertAssign(&n.Time, value)
 }
 
-// Value implements the [driver.Valuer] interface.
+// Value 实现了 [driver.Valuer] 接口。
 func (n NullTime) Value() (driver.Value, error) {
 	if !n.Valid {
 		return nil, nil
@@ -398,20 +395,20 @@ func (n NullTime) Value() (driver.Value, error) {
 	return n.Time, nil
 }
 
-// Null represents a value that may be null.
-// Null implements the [Scanner] interface so
-// it can be used as a scan destination:
+// Null 表示一个可能为 null 的值。
+// Null 实现了 [Scanner] 接口，因此
+// 它可以用作扫描目标：
 //
 //	var s Null[string]
 //	err := db.QueryRow("SELECT name FROM foo WHERE id=?", id).Scan(&s)
 //	...
 //	if s.Valid {
-//	   // use s.V
+//	   // 使用 s.V
 //	} else {
-//	   // NULL value
+//	   // NULL 值
 //	}
 //
-// T should be one of the types accepted by [driver.Value].
+// T 应为 [driver.Value] 所接受的类型之一。
 type Null[T any] struct {
 	V     T
 	Valid bool
@@ -431,7 +428,7 @@ func (n Null[T]) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	v := any(n.V)
-	// See issue 69728.
+	// 见 issue 69728。
 	if valuer, ok := v.(driver.Valuer); ok {
 		val, err := callValuerValue(valuer)
 		if err != nil {
@@ -439,15 +436,15 @@ func (n Null[T]) Value() (driver.Value, error) {
 		}
 		v = val
 	}
-	// See issue 69837.
+	// 见 issue 69837。
 	return driver.DefaultParameterConverter.ConvertValue(v)
 }
 
-// Scanner is an interface used by [Rows.Scan].
+// Scanner 是 [Rows.Scan] 使用的接口。
 type Scanner interface {
-	// Scan assigns a value from a database driver.
+	// Scan 从数据库驱动赋值一个值。
 	//
-	// The src value will be of one of the following types:
+	// src 值将是以下类型之一：
 	//
 	//    int64
 	//    float64
@@ -455,123 +452,122 @@ type Scanner interface {
 	//    []byte
 	//    string
 	//    time.Time
-	//    nil - for NULL values
+	//    nil - 表示 NULL 值
 	//
-	// An error should be returned if the value cannot be stored
-	// without loss of information.
+	// 如果值无法在不丢失信息的情况下被存储，
+	// 则应返回错误。
 	//
-	// Reference types such as []byte are only valid until the next call to Scan
-	// and should not be retained. Their underlying memory is owned by the driver.
-	// If retention is necessary, copy their values before the next call to Scan.
+	// []byte 之类的引用类型仅在下次调用 Scan 之前有效，
+	// 不应被保留。它们的底层内存归驱动所有。
+	// 如果必须保留，请在下次调用 Scan 之前复制其值。
 	Scan(src any) error
 }
 
-// Out may be used to retrieve OUTPUT value parameters from stored procedures.
+// Out 可用于从存储过程检索 OUTPUT 值参数。
 //
-// Not all drivers and databases support OUTPUT value parameters.
+// 并非所有驱动和数据库都支持 OUTPUT 值参数。
 //
-// Example usage:
+// 用法示例：
 //
 //	var outArg string
 //	_, err := db.ExecContext(ctx, "ProcName", sql.Named("Arg1", sql.Out{Dest: &outArg}))
 type Out struct {
 	_NamedFieldsRequired struct{}
 
-	// Dest is a pointer to the value that will be set to the result of the
-	// stored procedure's OUTPUT parameter.
+	// Dest 是一个指针，指向将被设置为存储过程
+	// OUTPUT 参数结果的值。
 	Dest any
 
-	// In is whether the parameter is an INOUT parameter. If so, the input value to the stored
-	// procedure is the dereferenced value of Dest's pointer, which is then replaced with
-	// the output value.
+	// In 表示参数是否为 INOUT 参数。如果是，存储过程的
+	// 输入值是 Dest 指针解引用后的值，随后该值会被
+	// 输出值替换。
 	In bool
 }
 
-// ErrNoRows is returned by [Row.Scan] when [DB.QueryRow] doesn't return a
-// row. In such a case, QueryRow returns a placeholder [*Row] value that
-// defers this error until a Scan.
+// ErrNoRows 由 [Row.Scan] 在 [DB.QueryRow] 未返回行时返回。
+// 在这种情况下，QueryRow 返回一个占位的 [*Row] 值，
+// 将该错误推迟到 Scan 时才产生。
 var ErrNoRows = errors.New("sql: no rows in result set")
 
-// DB is a database handle representing a pool of zero or more
-// underlying connections. It's safe for concurrent use by multiple
-// goroutines.
+// DB 是一个数据库句柄，表示零个或多个底层连接的池。
+// 它可以被多个 goroutine 并发安全地使用。
 //
-// The sql package creates and frees connections automatically; it
-// also maintains a free pool of idle connections. If the database has
-// a concept of per-connection state, such state can be reliably observed
-// within a transaction ([Tx]) or connection ([Conn]). Once [DB.Begin] is called, the
-// returned [Tx] is bound to a single connection. Once [Tx.Commit] or
-// [Tx.Rollback] is called on the transaction, that transaction's
-// connection is returned to [DB]'s idle connection pool. The pool size
-// can be controlled with [DB.SetMaxIdleConns].
+// sql 包会自动创建和释放连接；它
+// 还维护一个空闲连接池。如果数据库有
+// 每连接状态的概念，这种状态可以在事务（[Tx]）
+// 或连接（[Conn]）中被可靠地观察到。一旦调用 [DB.Begin]，
+// 返回的 [Tx] 就绑定到一个单一连接。一旦对该事务
+// 调用 [Tx.Commit] 或 [Tx.Rollback]，该事务的连接
+// 就会被归还到 [DB] 的空闲连接池。池的大小
+// 可以通过 [DB.SetMaxIdleConns] 控制。
 type DB struct {
-	// Total time waited for new connections.
+	// 等待新连接的总时间。
 	waitDuration atomic.Int64
 
 	connector driver.Connector
-	// numClosed is an atomic counter which represents a total number of
-	// closed connections. Stmt.openStmt checks it before cleaning closed
-	// connections in Stmt.css.
+	// numClosed 是一个原子计数器，表示已关闭连接的
+	// 总数。Stmt.openStmt 在清理 Stmt.css 中的
+	// 已关闭连接之前会检查它。
 	numClosed atomic.Uint64
 
-	mu           sync.Mutex    // protects following fields
-	freeConn     []*driverConn // free connections ordered by returnedAt oldest to newest
+	mu           sync.Mutex    // 保护以下字段
+	freeConn     []*driverConn // 空闲连接，按 returnedAt 从旧到新排序
 	connRequests connRequestSet
-	numOpen      int // number of opened and pending open connections
-	// Used to signal the need for new connections
-	// a goroutine running connectionOpener() reads on this chan and
-	// maybeOpenNewConnections sends on the chan (one send per needed connection)
-	// It is closed during db.Close(). The close tells the connectionOpener
-	// goroutine to exit.
+	numOpen      int // 已打开和待打开的连接数
+	// 用于发出需要新连接的信号。
+	// 运行 connectionOpener() 的 goroutine 在此 chan 上读取，
+	// maybeOpenNewConnections 在此 chan 上发送（每个所需连接发送一次）。
+	// 它在 db.Close() 期间被关闭。关闭操作会通知 connectionOpener
+	// goroutine 退出。
 	openerCh          chan struct{}
 	closed            bool
 	dep               map[finalCloser]depSet
-	lastPut           map[*driverConn]string // stacktrace of last conn's put; debug only
-	maxIdleCount      int                    // zero means defaultMaxIdleConns; negative means 0
-	maxOpen           int                    // <= 0 means unlimited
-	maxLifetime       time.Duration          // maximum amount of time a connection may be reused
-	maxIdleTime       time.Duration          // maximum amount of time a connection may be idle before being closed
+	lastPut           map[*driverConn]string // 上次 put conn 的堆栈跟踪；仅用于调试
+	maxIdleCount      int                    // 零表示 defaultMaxIdleConns；负数表示 0
+	maxOpen           int                    // <= 0 表示无限制
+	maxLifetime       time.Duration          // 连接可被复用的最长时间
+	maxIdleTime       time.Duration          // 连接在被关闭前可处于空闲状态的最长时间
 	cleanerCh         chan struct{}
-	waitCount         int64 // Total number of connections waited for.
-	maxIdleClosed     int64 // Total number of connections closed due to idle count.
-	maxIdleTimeClosed int64 // Total number of connections closed due to idle time.
-	maxLifetimeClosed int64 // Total number of connections closed due to max connection lifetime limit.
+	waitCount         int64 // 等待过的连接总数。
+	maxIdleClosed     int64 // 因空闲数量而被关闭的连接总数。
+	maxIdleTimeClosed int64 // 因空闲时间而被关闭的连接总数。
+	maxLifetimeClosed int64 // 因最大连接生命周期限制而被关闭的连接总数。
 
-	stop func() // stop cancels the connection opener.
+	stop func() // stop 取消连接打开器。
 }
 
-// connReuseStrategy determines how (*DB).conn returns database connections.
+// connReuseStrategy 决定 (*DB).conn 如何返回数据库连接。
 type connReuseStrategy uint8
 
 const (
-	// alwaysNewConn forces a new connection to the database.
+	// alwaysNewConn 强制与数据库建立新连接。
 	alwaysNewConn connReuseStrategy = iota
-	// cachedOrNewConn returns a cached connection, if available, else waits
-	// for one to become available (if MaxOpenConns has been reached) or
-	// creates a new database connection.
+	// cachedOrNewConn 返回缓存的连接（如果有），否则等待
+	// 一个连接变为可用（如果已达到 MaxOpenConns），或
+	// 创建一个新的数据库连接。
 	cachedOrNewConn
 )
 
-// driverConn wraps a driver.Conn with a mutex, to
-// be held during all calls into the Conn. (including any calls onto
-// interfaces returned via that Conn, such as calls on Tx, Stmt,
-// Result, Rows)
+// driverConn 用互斥锁包装 driver.Conn，
+// 在进入 Conn 的所有调用期间持有该锁（包括对通过该 Conn
+// 返回的接口的任何调用，例如对 Tx、Stmt、
+// Result、Rows 的调用）。
 type driverConn struct {
 	db        *DB
 	createdAt time.Time
 
-	sync.Mutex  // guards following
+	sync.Mutex  // 保护以下字段
 	ci          driver.Conn
-	needReset   bool // The connection session should be reset before use if true.
+	needReset   bool // 如果为 true，连接会话应在使用前重置。
 	closed      bool
-	finalClosed bool // ci.Close has been called
+	finalClosed bool // ci.Close 已被调用
 	openStmt    map[*driverStmt]bool
 
-	// guarded by db.mu
+	// 由 db.mu 保护
 	inUse      bool
-	dbmuClosed bool      // same as closed, but guarded by db.mu, for removeClosedStmtLocked
-	returnedAt time.Time // Time the connection was created or returned.
-	onPut      []func()  // code (with db.mu held) run when conn is next returned
+	dbmuClosed bool      // 与 closed 相同，但由 db.mu 保护，用于 removeClosedStmtLocked
+	returnedAt time.Time // 连接被创建或归还的时间。
+	onPut      []func()  // 下次归还 conn 时运行的代码（持有 db.mu）
 }
 
 func (dc *driverConn) releaseConn(err error) {
@@ -591,8 +587,8 @@ func (dc *driverConn) expired(timeout time.Duration) bool {
 	return dc.createdAt.Add(timeout).Before(nowFunc())
 }
 
-// resetSession checks if the driver connection needs the
-// session to be reset and if required, resets it.
+// resetSession 检查驱动连接是否需要重置会话，
+// 如果需要则进行重置。
 func (dc *driverConn) resetSession(ctx context.Context) error {
 	dc.Lock()
 	defer dc.Unlock()
@@ -606,8 +602,8 @@ func (dc *driverConn) resetSession(ctx context.Context) error {
 	return nil
 }
 
-// validateConnection checks if the connection is valid and can
-// still be used. It also marks the session for reset if required.
+// validateConnection 检查连接是否有效并且
+// 仍可使用。它还在需要时将会话标记为需要重置。
 func (dc *driverConn) validateConnection(needsReset bool) bool {
 	dc.Lock()
 	defer dc.Unlock()
@@ -621,8 +617,8 @@ func (dc *driverConn) validateConnection(needsReset bool) bool {
 	return true
 }
 
-// prepareLocked prepares the query on dc. When cg == nil the dc must keep track of
-// the prepared statements in a pool.
+// prepareLocked 在 dc 上准备查询。当 cg == nil 时，dc 必须在
+// 池中跟踪已准备的语句。
 func (dc *driverConn) prepareLocked(ctx context.Context, cg stmtConnGrabber, query string) (*driverStmt, error) {
 	si, err := ctxDriverPrepare(ctx, dc.ci, query)
 	if err != nil {
@@ -630,15 +626,15 @@ func (dc *driverConn) prepareLocked(ctx context.Context, cg stmtConnGrabber, que
 	}
 	ds := &driverStmt{Locker: dc, si: si}
 
-	// No need to manage open statements if there is a single connection grabber.
+	// 如果只有一个连接获取器，则无需管理已打开的语句。
 	if cg != nil {
 		return ds, nil
 	}
 
-	// Track each driverConn's open statements, so we can close them
-	// before closing the conn.
+	// 跟踪每个 driverConn 已打开的语句，以便我们可以在关闭
+	// 连接之前关闭它们。
 	//
-	// Wrap all driver.Stmt is *driverStmt to ensure they are only closed once.
+	// 将所有 driver.Stmt 包装为 *driverStmt，以确保它们只被关闭一次。
 	if dc.openStmt == nil {
 		dc.openStmt = make(map[*driverStmt]bool)
 	}
@@ -646,7 +642,7 @@ func (dc *driverConn) prepareLocked(ctx context.Context, cg stmtConnGrabber, que
 	return ds, nil
 }
 
-// the dc.db's Mutex is held.
+// 持有 dc.db 的 Mutex。
 func (dc *driverConn) closeDBLocked() func() error {
 	dc.Lock()
 	defer dc.Unlock()
@@ -664,9 +660,9 @@ func (dc *driverConn) Close() error {
 		return errors.New("sql: duplicate driverConn close")
 	}
 	dc.closed = true
-	dc.Unlock() // not defer; removeDep finalClose calls may need to lock
+	dc.Unlock() // 不是 defer；removeDep finalClose 调用可能需要加锁
 
-	// And now updates that require holding dc.mu.Lock.
+	// 现在进行需要持有 dc.mu.Lock 的更新。
 	dc.db.mu.Lock()
 	dc.dbmuClosed = true
 	fn := dc.db.removeDepLocked(dc, dc)
@@ -677,8 +673,8 @@ func (dc *driverConn) Close() error {
 func (dc *driverConn) finalClose() error {
 	var err error
 
-	// Each *driverStmt has a lock to the dc. Copy the list out of the dc
-	// before calling close on each stmt.
+	// 每个 *driverStmt 都持有 dc 的锁。在对每个 stmt
+	// 调用 close 之前，先将列表从 dc 中复制出来。
 	var openStmt []*driverStmt
 	withLock(dc, func() {
 		openStmt = make([]*driverStmt, 0, len(dc.openStmt))
@@ -705,18 +701,18 @@ func (dc *driverConn) finalClose() error {
 	return err
 }
 
-// driverStmt associates a driver.Stmt with the
-// *driverConn from which it came, so the driverConn's lock can be
-// held during calls.
+// driverStmt 将 driver.Stmt 与它来自的 *driverConn
+// 关联起来，这样在调用期间可以持有
+// driverConn 的锁。
 type driverStmt struct {
-	sync.Locker // the *driverConn
+	sync.Locker // 即 *driverConn
 	si          driver.Stmt
 	closed      bool
-	closeErr    error // return value of previous Close call
+	closeErr    error // 上次 Close 调用的返回值
 }
 
-// Close ensures driver.Stmt is only closed once and always returns the same
-// result.
+// Close 确保 driver.Stmt 只被关闭一次，并且始终返回
+// 相同的结果。
 func (ds *driverStmt) Close() error {
 	ds.Lock()
 	defer ds.Unlock()
@@ -728,19 +724,19 @@ func (ds *driverStmt) Close() error {
 	return ds.closeErr
 }
 
-// depSet is a finalCloser's outstanding dependencies
-type depSet map[any]bool // set of true bools
+// depSet 是某个 finalCloser 尚未完成的依赖
+type depSet map[any]bool // true 布尔值的集合
 
-// The finalCloser interface is used by (*DB).addDep and related
-// dependency reference counting.
+// finalCloser 接口由 (*DB).addDep 及相关的
+// 依赖引用计数使用。
 type finalCloser interface {
-	// finalClose is called when the reference count of an object
-	// goes to zero. (*DB).mu is not held while calling it.
+	// 当某个对象的引用计数降为零时，会调用 finalClose。
+	// 调用时不会持有 (*DB).mu。
 	finalClose() error
 }
 
-// addDep notes that x now depends on dep, and x's finalClose won't be
-// called until all of x's dependencies are removed with removeDep.
+// addDep 记录 x 现在依赖于 dep，在 x 的所有依赖都通过 removeDep
+// 被移除之前，不会调用 x 的 finalClose。
 func (db *DB) addDep(x finalCloser, dep any) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -759,10 +755,10 @@ func (db *DB) addDepLocked(x finalCloser, dep any) {
 	xdep[dep] = true
 }
 
-// removeDep notes that x no longer depends on dep.
-// If x still has dependencies, nil is returned.
-// If x no longer has any dependencies, its finalClose method will be
-// called and its error value will be returned.
+// removeDep 记录 x 不再依赖于 dep。
+// 如果 x 仍有依赖，返回 nil。
+// 如果 x 不再有任何依赖，将调用其 finalClose 方法
+// 并返回其错误值。
 func (db *DB) removeDep(x finalCloser, dep any) error {
 	db.mu.Lock()
 	fn := db.removeDepLocked(x, dep)
@@ -781,23 +777,23 @@ func (db *DB) removeDepLocked(x finalCloser, dep any) func() error {
 
 	switch len(xdep) {
 	case l0:
-		// Nothing removed. Shouldn't happen.
+		// 没有移除任何内容。不应该发生。
 		panic(fmt.Sprintf("unpaired removeDep: no %T dep on %T", dep, x))
 	case 0:
-		// No more dependencies.
+		// 没有更多依赖。
 		delete(db.dep, x)
 		return x.finalClose
 	default:
-		// Dependencies remain.
+		// 仍有依赖。
 		return func() error { return nil }
 	}
 }
 
-// This is the size of the connectionOpener request chan (DB.openerCh).
-// This value should be larger than the maximum typical value
-// used for DB.maxOpen. If maxOpen is significantly larger than
-// connectionRequestQueueSize then it is possible for ALL calls into the *DB
-// to block until the connectionOpener can satisfy the backlog of requests.
+// 这是 connectionOpener 请求 chan（DB.openerCh）的大小。
+// 该值应当大于 DB.maxOpen 使用的典型最大值。
+// 如果 maxOpen 显著大于 connectionRequestQueueSize，
+// 那么进入 *DB 的所有调用都可能阻塞，直到 connectionOpener
+// 能够满足积压的请求为止。
 var connectionRequestQueueSize = 1000000
 
 type dsnConnector struct {
@@ -813,22 +809,21 @@ func (t dsnConnector) Driver() driver.Driver {
 	return t.driver
 }
 
-// OpenDB opens a database using a [driver.Connector], allowing drivers to
-// bypass a string based data source name.
+// OpenDB 使用 [driver.Connector] 打开数据库，允许驱动
+// 绕过基于字符串的数据源名称。
 //
-// Most users will open a database via a driver-specific connection
-// helper function that returns a [*DB]. No database drivers are included
-// in the Go standard library. See https://golang.org/s/sqldrivers for
-// a list of third-party drivers.
+// 大多数用户会通过返回 [*DB] 的驱动特定连接辅助函数
+// 来打开数据库。Go 标准库中不包含任何数据库驱动。
+// 第三方驱动列表见 https://golang.org/s/sqldrivers。
 //
-// OpenDB may just validate its arguments without creating a connection
-// to the database. To verify that the data source name is valid, call
-// [DB.Ping].
+// OpenDB 可能只验证其参数而不创建到数据库的连接。
+// 要验证数据源名称是否有效，请调用
+// [DB.Ping]。
 //
-// The returned [DB] is safe for concurrent use by multiple goroutines
-// and maintains its own pool of idle connections. Thus, the OpenDB
-// function should be called just once. It is rarely necessary to
-// close a [DB].
+// 返回的 [DB] 可以被多个 goroutine 并发安全地使用，
+// 并维护自己的空闲连接池。因此，OpenDB
+// 函数应当只被调用一次。很少需要
+// 关闭 [DB]。
 func OpenDB(c driver.Connector) *DB {
 	ctx, cancel := context.WithCancel(context.Background())
 	db := &DB{
@@ -843,23 +838,22 @@ func OpenDB(c driver.Connector) *DB {
 	return db
 }
 
-// Open opens a database specified by its database driver name and a
-// driver-specific data source name, usually consisting of at least a
-// database name and connection information.
+// Open 打开由其数据库驱动名称和驱动特定的数据源名称
+// 指定的数据库，数据源名称通常至少包含
+// 数据库名称和连接信息。
 //
-// Most users will open a database via a driver-specific connection
-// helper function that returns a [*DB]. No database drivers are included
-// in the Go standard library. See https://golang.org/s/sqldrivers for
-// a list of third-party drivers.
+// 大多数用户会通过返回 [*DB] 的驱动特定连接辅助函数
+// 来打开数据库。Go 标准库中不包含任何数据库驱动。
+// 第三方驱动列表见 https://golang.org/s/sqldrivers。
 //
-// Open may just validate its arguments without creating a connection
-// to the database. To verify that the data source name is valid, call
-// [DB.Ping].
+// Open 可能只验证其参数而不创建到数据库的连接。
+// 要验证数据源名称是否有效，请调用
+// [DB.Ping]。
 //
-// The returned [DB] is safe for concurrent use by multiple goroutines
-// and maintains its own pool of idle connections. Thus, the Open
-// function should be called just once. It is rarely necessary to
-// close a [DB].
+// 返回的 [DB] 可以被多个 goroutine 并发安全地使用，
+// 并维护自己的空闲连接池。因此，Open
+// 函数应当只被调用一次。很少需要
+// 关闭 [DB]。
 func Open(driverName, dataSourceName string) (*DB, error) {
 	driversMu.RLock()
 	driveri, ok := drivers[driverName]
@@ -890,8 +884,8 @@ func (db *DB) pingDC(ctx context.Context, dc *driverConn, release func(error)) e
 	return err
 }
 
-// PingContext verifies a connection to the database is still alive,
-// establishing a connection if necessary.
+// PingContext 验证到数据库的连接仍然有效，
+// 必要时会建立连接。
 func (db *DB) PingContext(ctx context.Context) error {
 	var dc *driverConn
 	var err error
@@ -908,24 +902,24 @@ func (db *DB) PingContext(ctx context.Context) error {
 	return db.pingDC(ctx, dc, dc.releaseConn)
 }
 
-// Ping verifies a connection to the database is still alive,
-// establishing a connection if necessary.
+// Ping 验证到数据库的连接仍然有效，
+// 必要时会建立连接。
 //
-// Ping uses [context.Background] internally; to specify the context, use
-// [DB.PingContext].
+// Ping 内部使用 [context.Background]；要指定 context，请使用
+// [DB.PingContext]。
 func (db *DB) Ping() error {
 	return db.PingContext(context.Background())
 }
 
-// Close closes the database and prevents new queries from starting.
-// Close then waits for all queries that have started processing on the server
-// to finish.
+// Close 关闭数据库并阻止新查询开始。
+// 然后 Close 会等待所有已在服务器上开始处理的查询
+// 完成。
 //
-// It is rare to Close a [DB], as the [DB] handle is meant to be
-// long-lived and shared between many goroutines.
+// 很少调用 Close 关闭 [DB]，因为 [DB] 句柄应当是
+// 长期存在并在许多 goroutine 之间共享的。
 func (db *DB) Close() error {
 	db.mu.Lock()
-	if db.closed { // Make DB.Close idempotent
+	if db.closed { // 使 DB.Close 幂等
 		db.mu.Unlock()
 		return nil
 	}
@@ -963,7 +957,7 @@ func (db *DB) maxIdleConnsLocked() int {
 	n := db.maxIdleCount
 	switch {
 	case n == 0:
-		// TODO(bradfitz): ask driver, if supported, for its default preference
+		// TODO(bradfitz)：如果驱动支持，询问其默认偏好
 		return defaultMaxIdleConns
 	case n < 0:
 		return 0
@@ -982,25 +976,24 @@ func (db *DB) shortestIdleTimeLocked() time.Duration {
 	return min(db.maxIdleTime, db.maxLifetime)
 }
 
-// SetMaxIdleConns sets the maximum number of connections in the idle
-// connection pool.
+// SetMaxIdleConns 设置空闲连接池中连接的最大数量。
 //
-// If MaxOpenConns is greater than 0 but less than the new MaxIdleConns,
-// then the new MaxIdleConns will be reduced to match the MaxOpenConns limit.
+// 如果 MaxOpenConns 大于 0 但小于新的 MaxIdleConns，
+// 那么新的 MaxIdleConns 会被缩减以匹配 MaxOpenConns 限制。
 //
-// If n <= 0, no idle connections are retained.
+// 如果 n <= 0，则不保留任何空闲连接。
 //
-// The default max idle connections is currently 2. This may change in
-// a future release.
+// 默认的最大空闲连接数目前为 2。这可能在
+// 未来版本中改变。
 func (db *DB) SetMaxIdleConns(n int) {
 	db.mu.Lock()
 	if n > 0 {
 		db.maxIdleCount = n
 	} else {
-		// No idle connections.
+		// 没有空闲连接。
 		db.maxIdleCount = -1
 	}
-	// Make sure maxIdle doesn't exceed maxOpen
+	// 确保 maxIdle 不超过 maxOpen
 	if db.maxOpen > 0 && db.maxIdleConnsLocked() > db.maxOpen {
 		db.maxIdleCount = db.maxOpen
 	}
@@ -1018,14 +1011,14 @@ func (db *DB) SetMaxIdleConns(n int) {
 	}
 }
 
-// SetMaxOpenConns sets the maximum number of open connections to the database.
+// SetMaxOpenConns 设置到数据库的打开连接的最大数量。
 //
-// If MaxIdleConns is greater than 0 and the new MaxOpenConns is less than
-// MaxIdleConns, then MaxIdleConns will be reduced to match the new
-// MaxOpenConns limit.
+// 如果 MaxIdleConns 大于 0 且新的 MaxOpenConns 小于
+// MaxIdleConns，那么 MaxIdleConns 会被缩减以匹配新的
+// MaxOpenConns 限制。
 //
-// If n <= 0, then there is no limit on the number of open connections.
-// The default is 0 (unlimited).
+// 如果 n <= 0，则对打开连接的数量没有限制。
+// 默认值为 0（无限制）。
 func (db *DB) SetMaxOpenConns(n int) {
 	db.mu.Lock()
 	db.maxOpen = n
@@ -1039,17 +1032,17 @@ func (db *DB) SetMaxOpenConns(n int) {
 	}
 }
 
-// SetConnMaxLifetime sets the maximum amount of time a connection may be reused.
+// SetConnMaxLifetime 设置连接可被复用的最长时间。
 //
-// Expired connections may be closed lazily before reuse.
+// 已过期的连接可能会在复用前被延迟关闭。
 //
-// If d <= 0, connections are not closed due to a connection's age.
+// 如果 d <= 0，则连接不会因存在时间过长而被关闭。
 func (db *DB) SetConnMaxLifetime(d time.Duration) {
 	if d < 0 {
 		d = 0
 	}
 	db.mu.Lock()
-	// Wake cleaner up when lifetime is shortened.
+	// 当生命周期被缩短时唤醒清理器。
 	if d > 0 && d < db.shortestIdleTimeLocked() && db.cleanerCh != nil {
 		select {
 		case db.cleanerCh <- struct{}{}:
@@ -1061,11 +1054,11 @@ func (db *DB) SetConnMaxLifetime(d time.Duration) {
 	db.mu.Unlock()
 }
 
-// SetConnMaxIdleTime sets the maximum amount of time a connection may be idle.
+// SetConnMaxIdleTime 设置连接可处于空闲状态的最长时间。
 //
-// Expired connections may be closed lazily before reuse.
+// 已过期的连接可能会在复用前被延迟关闭。
 //
-// If d <= 0, connections are not closed due to a connection's idle time.
+// 如果 d <= 0，则连接不会因空闲时间过长而被关闭。
 func (db *DB) SetConnMaxIdleTime(d time.Duration) {
 	if d < 0 {
 		d = 0
@@ -1073,7 +1066,7 @@ func (db *DB) SetConnMaxIdleTime(d time.Duration) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
-	// Wake cleaner up when idle time is shortened.
+	// 当空闲时间被缩短时唤醒清理器。
 	if d > 0 && d < db.shortestIdleTimeLocked() && db.cleanerCh != nil {
 		select {
 		case db.cleanerCh <- struct{}{}:
@@ -1084,7 +1077,7 @@ func (db *DB) SetConnMaxIdleTime(d time.Duration) {
 	db.startCleanerLocked()
 }
 
-// startCleanerLocked starts connectionCleaner if needed.
+// startCleanerLocked 在需要时启动 connectionCleaner。
 func (db *DB) startCleanerLocked() {
 	if (db.maxLifetime > 0 || db.maxIdleTime > 0) && db.numOpen > 0 && db.cleanerCh == nil {
 		db.cleanerCh = make(chan struct{}, 1)
@@ -1103,7 +1096,7 @@ func (db *DB) connectionCleaner(d time.Duration) {
 	for {
 		select {
 		case <-t.C:
-		case <-db.cleanerCh: // maxLifetime was changed or db was closed.
+		case <-db.cleanerCh: // maxLifetime 被更改或 db 被关闭。
 		}
 
 		db.mu.Lock()
@@ -1135,15 +1128,15 @@ func (db *DB) connectionCleaner(d time.Duration) {
 	}
 }
 
-// connectionCleanerRunLocked removes connections that should be closed from
-// freeConn and returns them along side an updated duration to the next check
-// if a quicker check is required to ensure connections are checked appropriately.
+// connectionCleanerRunLocked 从 freeConn 中移除应当关闭的连接，
+// 并将它们与更新后的下次检查时长一起返回；
+// 如果需要更快的检查以确保连接被恰当地检查。
 func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*driverConn) {
 	var idleClosing int64
 	var closing []*driverConn
 	if db.maxIdleTime > 0 {
-		// As freeConn is ordered by returnedAt process
-		// in reverse order to minimise the work needed.
+		// 由于 freeConn 按 returnedAt 排序，因此按
+		// 逆序处理以尽量减少工作量。
 		idleSince := nowFunc().Add(-db.maxIdleTime)
 		last := len(db.freeConn) - 1
 		for i := last; i >= 0; i-- {
@@ -1161,8 +1154,7 @@ func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*dri
 		if len(db.freeConn) > 0 {
 			c := db.freeConn[0]
 			if d2 := c.returnedAt.Sub(idleSince); d2 < d {
-				// Ensure idle connections are cleaned up as soon as
-				// possible.
+				// 确保空闲连接尽快被清理。
 				d = d2
 			}
 		}
@@ -1176,15 +1168,13 @@ func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*dri
 				closing = append(closing, c)
 
 				last := len(db.freeConn) - 1
-				// Use slow delete as order is required to ensure
-				// connections are reused least idle time first.
+				// 使用慢速删除，因为需要保持顺序以确保连接按空闲时间最短优先被复用。
 				copy(db.freeConn[i:], db.freeConn[i+1:])
 				db.freeConn[last] = nil
 				db.freeConn = db.freeConn[:last]
 				i--
 			} else if d2 := c.createdAt.Sub(expiredSince); d2 < d {
-				// Prevent connections sitting the freeConn when they
-				// have expired by updating our next deadline d.
+				// 连接已过期时，通过更新下次截止时间 d 防止它们滞留在 freeConn 中。
 				d = d2
 			}
 		}
@@ -1194,24 +1184,24 @@ func (db *DB) connectionCleanerRunLocked(d time.Duration) (time.Duration, []*dri
 	return d, closing
 }
 
-// DBStats contains database statistics.
+// DBStats 包含数据库统计信息。
 type DBStats struct {
-	MaxOpenConnections int // Maximum number of open connections to the database.
+	MaxOpenConnections int // 到数据库的打开连接的最大数量。
 
-	// Pool Status
-	OpenConnections int // The number of established connections both in use and idle.
-	InUse           int // The number of connections currently in use.
-	Idle            int // The number of idle connections.
+	// 池状态
+	OpenConnections int // 已建立连接的数量，包括使用中和空闲的。
+	InUse           int // 当前正在使用的连接数量。
+	Idle            int // 空闲连接的数量。
 
-	// Counters
-	WaitCount         int64         // The total number of connections waited for.
-	WaitDuration      time.Duration // The total time blocked waiting for a new connection.
-	MaxIdleClosed     int64         // The total number of connections closed due to SetMaxIdleConns.
-	MaxIdleTimeClosed int64         // The total number of connections closed due to SetConnMaxIdleTime.
-	MaxLifetimeClosed int64         // The total number of connections closed due to SetConnMaxLifetime.
+	// 计数器
+	WaitCount         int64         // 等待过的连接总数。
+	WaitDuration      time.Duration // 等待新连接而被阻塞的总时间。
+	MaxIdleClosed     int64         // 因 SetMaxIdleConns 而被关闭的连接总数。
+	MaxIdleTimeClosed int64         // 因 SetConnMaxIdleTime 而被关闭的连接总数。
+	MaxLifetimeClosed int64         // 因 SetConnMaxLifetime 而被关闭的连接总数。
 }
 
-// Stats returns database statistics.
+// Stats 返回数据库统计信息。
 func (db *DB) Stats() DBStats {
 	wait := db.waitDuration.Load()
 
@@ -1234,9 +1224,9 @@ func (db *DB) Stats() DBStats {
 	return stats
 }
 
-// Assumes db.mu is locked.
-// If there are connRequests and the connection limit hasn't been reached,
-// then tell the connectionOpener to open new connections.
+// 假定 db.mu 已加锁。
+// 如果存在 connRequests 且尚未达到连接限制，
+// 则通知 connectionOpener 打开新连接。
 func (db *DB) maybeOpenNewConnections() {
 	numRequests := db.connRequests.Len()
 	if db.maxOpen > 0 {
@@ -1246,7 +1236,7 @@ func (db *DB) maybeOpenNewConnections() {
 		}
 	}
 	for numRequests > 0 {
-		db.numOpen++ // optimistically
+		db.numOpen++ // 乐观地
 		numRequests--
 		if db.closed {
 			return
@@ -1255,7 +1245,7 @@ func (db *DB) maybeOpenNewConnections() {
 	}
 }
 
-// Runs in a separate goroutine, opens new connections when requested.
+// 在单独的 goroutine 中运行，在需要时打开新连接。
 func (db *DB) connectionOpener(ctx context.Context) {
 	for {
 		select {
@@ -1267,11 +1257,11 @@ func (db *DB) connectionOpener(ctx context.Context) {
 	}
 }
 
-// Open one new connection
+// 打开一个新连接
 func (db *DB) openNewConnection(ctx context.Context) {
-	// maybeOpenNewConnections has already executed db.numOpen++ before it sent
-	// on db.openerCh. This function must execute db.numOpen-- if the
-	// connection fails or is closed before returning.
+	// maybeOpenNewConnections 在向 db.openerCh 发送之前已经执行了
+	// db.numOpen++。如果连接失败或在返回之前被关闭，
+	// 此函数必须执行 db.numOpen--。
 	ci, err := db.connector.Connect(ctx)
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -1302,9 +1292,9 @@ func (db *DB) openNewConnection(ctx context.Context) {
 	}
 }
 
-// connRequest represents one request for a new connection
-// When there are no idle connections available, DB.conn will create
-// a new connRequest and put it on the db.connRequests list.
+// connRequest 表示对一个新连接的请求。
+// 当没有可用的空闲连接时，DB.conn 会创建一个新的
+// connRequest 并将其放入 db.connRequests 列表。
 type connRequest struct {
 	conn *driverConn
 	err  error
@@ -1312,14 +1302,14 @@ type connRequest struct {
 
 var errDBClosed = errors.New("sql: database is closed")
 
-// conn returns a newly-opened or cached *driverConn.
+// conn 返回一个新打开的或缓存的 *driverConn。
 func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn, error) {
 	db.mu.Lock()
 	if db.closed {
 		db.mu.Unlock()
 		return nil, errDBClosed
 	}
-	// Check if the context is expired.
+	// 检查 context 是否已过期。
 	select {
 	default:
 	case <-ctx.Done():
@@ -1328,11 +1318,11 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 	}
 	lifetime := db.maxLifetime
 
-	// Prefer a free connection, if possible.
+	// 如有可能，优先使用空闲连接。
 	last := len(db.freeConn) - 1
 	if strategy == cachedOrNewConn && last >= 0 {
-		// Reuse the lowest idle time connection so we can close
-		// connections which remain idle as soon as possible.
+		// 复用空闲时间最短的连接，以便我们尽快关闭
+		// 仍然空闲的连接。
 		conn := db.freeConn[last]
 		db.freeConn = db.freeConn[:last]
 		conn.inUse = true
@@ -1344,7 +1334,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		}
 		db.mu.Unlock()
 
-		// Reset the session if required.
+		// 如有需要，重置会话。
 		if err := conn.resetSession(ctx); errors.Is(err, driver.ErrBadConn) {
 			conn.Close()
 			return nil, err
@@ -1353,11 +1343,11 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		return conn, nil
 	}
 
-	// Out of free connections or we were asked not to use one. If we're not
-	// allowed to open any more connections, make a request and wait.
+	// 没有空闲连接，或者被要求不要使用空闲连接。如果我们
+	// 不被允许再打开任何连接，就发起一个请求并等待。
 	if db.maxOpen > 0 && db.numOpen >= db.maxOpen {
-		// Make the connRequest channel. It's buffered so that the
-		// connectionOpener doesn't block while waiting for the req to be read.
+		// 创建 connRequest channel。它是带缓冲的，这样
+		// connectionOpener 在等待 req 被读取时不会阻塞。
 		req := make(chan connRequest, 1)
 		delHandle := db.connRequests.Add(req)
 		db.waitCount++
@@ -1365,26 +1355,26 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 
 		waitStart := nowFunc()
 
-		// Timeout the connection request with the context.
+		// 使用 context 为连接请求设置超时。
 		select {
 		case <-ctx.Done():
-			// Remove the connection request and ensure no value has been sent
-			// on it after removing.
+			// 移除连接请求，并确保移除之后
+			// 没有值被发送到它上面。
 			db.mu.Lock()
 			deleted := db.connRequests.Delete(delHandle)
 			db.mu.Unlock()
 
 			db.waitDuration.Add(int64(time.Since(waitStart)))
 
-			// If we failed to delete it, that means either the DB was closed or
-			// something else grabbed it and is about to send on it.
+			// 如果我们删除失败，那意味着要么 DB 被关闭了，要么
+			// 其他什么东西抢占了它并即将向它发送数据。
 			if !deleted {
-				// TODO(bradfitz): rather than this best effort select, we
-				// should probably start a goroutine to read from req. This best
-				// effort select existed before the change to check 'deleted'.
-				// But if we know for sure it wasn't deleted and a sender is
-				// outstanding, we should probably block on req (in a new
-				// goroutine) to get the connection back.
+				// TODO(bradfitz)：与其使用这种尽力而为的 select，我们
+				// 或许应该启动一个 goroutine 从 req 读取。这种尽力而为的
+				// select 在引入检查 'deleted' 的改动之前就已存在。
+				// 但如果我们确定它没有被删除且仍有发送方未完成，
+				// 我们或许应该（在新的 goroutine 中）阻塞在 req 上
+				// 以取回该连接。
 				select {
 				default:
 				case ret, ok := <-req:
@@ -1400,12 +1390,12 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 			if !ok {
 				return nil, errDBClosed
 			}
-			// Only check if the connection is expired if the strategy is cachedOrNewConns.
-			// If we require a new connection, just re-use the connection without looking
-			// at the expiry time. If it is expired, it will be checked when it is placed
-			// back into the connection pool.
-			// This prioritizes giving a valid connection to a client over the exact connection
-			// lifetime, which could expire exactly after this point anyway.
+			// 仅当策略为 cachedOrNewConns 时才检查连接是否过期。
+			// 如果我们需要一个新连接，就直接复用该连接而不查看
+			// 过期时间。如果它已过期，它会在被放回连接池时
+			// 被检查。
+			// 这优先考虑将有效连接提供给客户端，而不是严格遵循连接
+			// 生命周期，因为连接无论如何都可能恰好在此时之后过期。
 			if strategy == cachedOrNewConn && ret.err == nil && ret.conn.expired(lifetime) {
 				db.mu.Lock()
 				db.maxLifetimeClosed++
@@ -1417,7 +1407,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 				return nil, ret.err
 			}
 
-			// Reset the session if required.
+			// 如有需要，重置会话。
 			if err := ret.conn.resetSession(ctx); errors.Is(err, driver.ErrBadConn) {
 				ret.conn.Close()
 				return nil, err
@@ -1426,12 +1416,12 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 		}
 	}
 
-	db.numOpen++ // optimistically
+	db.numOpen++ // 乐观地
 	db.mu.Unlock()
 	ci, err := db.connector.Connect(ctx)
 	if err != nil {
 		db.mu.Lock()
-		db.numOpen-- // correct for earlier optimism
+		db.numOpen-- // 修正之前的乐观计数
 		db.maybeOpenNewConnections()
 		db.mu.Unlock()
 		return nil, err
@@ -1449,12 +1439,12 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
 	return dc, nil
 }
 
-// putConnHook is a hook for testing.
+// putConnHook 是用于测试的钩子。
 var putConnHook func(*DB, *driverConn)
 
-// noteUnusedDriverStatement notes that ds is no longer used and should
-// be closed whenever possible (when c is next not in use), unless c is
-// already closed.
+// noteUnusedDriverStatement 记录 ds 不再被使用，应尽可能
+// 关闭它（当 c 下次不被使用时），除非 c
+// 已经被关闭。
 func (db *DB) noteUnusedDriverStatement(c *driverConn, ds *driverStmt) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
@@ -1472,12 +1462,12 @@ func (db *DB) noteUnusedDriverStatement(c *driverConn, ds *driverStmt) {
 	}
 }
 
-// debugGetPut determines whether getConn & putConn calls' stack traces
-// are returned for more verbose crashes.
+// debugGetPut 决定是否返回 getConn 和 putConn 调用的堆栈跟踪，
+// 以获得更详细的崩溃信息。
 const debugGetPut = false
 
-// putConn adds a connection to the db's free pool.
-// err is optionally the last error that occurred on this connection.
+// putConn 将连接添加到 db 的空闲池。
+// err 可选地表示该连接上发生的最后一个错误。
 func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 	if !errors.Is(err, driver.ErrBadConn) {
 		if !dc.validateConnection(resetSession) {
@@ -1509,10 +1499,10 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 	dc.onPut = nil
 
 	if errors.Is(err, driver.ErrBadConn) {
-		// Don't reuse bad connections.
-		// Since the conn is considered bad and is being discarded, treat it
-		// as closed. Don't decrement the open count here, finalClose will
-		// take care of that.
+		// 不要复用失效的连接。
+		// 由于该 conn 被视为失效并将被丢弃，因此将其
+		// 视为已关闭。此处不要递减打开计数，finalClose 会
+		// 处理它。
 		db.maybeOpenNewConnections()
 		db.mu.Unlock()
 		dc.Close()
@@ -1530,15 +1520,14 @@ func (db *DB) putConn(dc *driverConn, err error, resetSession bool) {
 	}
 }
 
-// Satisfy a connRequest or put the driverConn in the idle pool and return true
-// or return false.
-// putConnDBLocked will satisfy a connRequest if there is one, or it will
-// return the *driverConn to the freeConn list if err == nil and the idle
-// connection limit will not be exceeded.
-// If err != nil, the value of dc is ignored.
-// If err == nil, then dc must not equal nil.
-// If a connRequest was fulfilled or the *driverConn was placed in the
-// freeConn list, then true is returned, otherwise false is returned.
+// 满足一个 connRequest，或把 driverConn 放入空闲池并返回 true，
+// 否则返回 false。
+// putConnDBLocked 会在存在 connRequest 时满足它，或者如果 err == nil
+// 且不会超过空闲连接限制，则把 *driverConn 返回到 freeConn 列表。
+// 如果 err != nil，dc 的值会被忽略。
+// 如果 err == nil，则 dc 不能等于 nil。
+// 如果满足了一个 connRequest，或 *driverConn 被放入
+// freeConn 列表，则返回 true，否则返回 false。
 func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 	if db.closed {
 		return false
@@ -1566,15 +1555,14 @@ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
 	return false
 }
 
-// maxBadConnRetries is the number of maximum retries if the driver returns
-// driver.ErrBadConn to signal a broken connection before forcing a new
-// connection to be opened.
+// maxBadConnRetries 是驱动返回 driver.ErrBadConn 以表示连接已损坏时
+// 在强制打开新连接之前允许的最大重试次数。
 const maxBadConnRetries = 2
 
 func (db *DB) retry(fn func(strategy connReuseStrategy) error) error {
 	for i := int64(0); i < maxBadConnRetries; i++ {
 		err := fn(cachedOrNewConn)
-		// retry if err is driver.ErrBadConn
+		// 如果 err 是 driver.ErrBadConn 则重试
 		if err == nil || !errors.Is(err, driver.ErrBadConn) {
 			return err
 		}
@@ -1583,14 +1571,13 @@ func (db *DB) retry(fn func(strategy connReuseStrategy) error) error {
 	return fn(alwaysNewConn)
 }
 
-// PrepareContext creates a prepared statement for later queries or executions.
-// Multiple queries or executions may be run concurrently from the
-// returned statement.
-// The caller must call the statement's [*Stmt.Close] method
-// when the statement is no longer needed.
+// PrepareContext 创建一个已准备的语句，供后续查询或执行使用。
+// 多个查询或执行可以在返回的语句上并发运行。
+// 当不再需要该语句时，调用方必须调用该语句的
+// [*Stmt.Close] 方法。
 //
-// The provided context is used for the preparation of the statement, not for the
-// execution of the statement.
+// 提供的 context 用于该语句的准备，而不是
+// 该语句的执行。
 func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	var stmt *Stmt
 	var err error
@@ -1603,25 +1590,23 @@ func (db *DB) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	return stmt, err
 }
 
-// Prepare creates a prepared statement for later queries or executions.
-// Multiple queries or executions may be run concurrently from the
-// returned statement.
-// The caller must call the statement's [*Stmt.Close] method
-// when the statement is no longer needed.
+// Prepare 创建一个已准备的语句，供后续查询或执行使用。
+// 多个查询或执行可以在返回的语句上并发运行。
+// 当不再需要该语句时，调用方必须调用该语句的
+// [*Stmt.Close] 方法。
 //
-// Prepare uses [context.Background] internally; to specify the context, use
-// [DB.PrepareContext].
+// Prepare 内部使用 [context.Background]；要指定 context，请使用
+// [DB.PrepareContext]。
 func (db *DB) Prepare(query string) (*Stmt, error) {
 	return db.PrepareContext(context.Background(), query)
 }
 
 func (db *DB) prepare(ctx context.Context, query string, strategy connReuseStrategy) (*Stmt, error) {
-	// TODO: check if db.driver supports an optional
-	// driver.Preparer interface and call that instead, if so,
-	// otherwise we make a prepared statement that's bound
-	// to a connection, and to execute this prepared statement
-	// we either need to use this connection (if it's free), else
-	// get a new connection + re-prepare + execute on that one.
+	// TODO：检查 db.driver 是否支持可选的
+	// driver.Preparer 接口，如果支持则改为调用它，
+	// 否则我们创建一个绑定到连接的已准备语句，
+	// 而要执行这个已准备语句，我们要么需要使用这个连接
+	// （如果它空闲），要么获取一个新连接 + 重新准备 + 在其上执行。
 	dc, err := db.conn(ctx, strategy)
 	if err != nil {
 		return nil, err
@@ -1629,9 +1614,9 @@ func (db *DB) prepare(ctx context.Context, query string, strategy connReuseStrat
 	return db.prepareDC(ctx, dc, dc.releaseConn, nil, query)
 }
 
-// prepareDC prepares a query on the driverConn and calls release before
-// returning. When cg == nil it implies that a connection pool is used, and
-// when cg != nil only a single driver connection is used.
+// prepareDC 在 driverConn 上准备查询，并在返回之前调用 release。
+// 当 cg == nil 时，意味着使用连接池；
+// 当 cg != nil 时，只使用单个驱动连接。
 func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error), cg stmtConnGrabber, query string) (*Stmt, error) {
 	var ds *driverStmt
 	var err error
@@ -1651,9 +1636,8 @@ func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error)
 		cgds:  ds,
 	}
 
-	// When cg == nil this statement will need to keep track of various
-	// connections they are prepared on and record the stmt dependency on
-	// the DB.
+	// 当 cg == nil 时，该语句需要跟踪它们在各种连接上
+	// 被准备的情况，并在 DB 上记录 stmt 依赖。
 	if cg == nil {
 		stmt.css = []connStmt{{dc, ds}}
 		stmt.lastNumClosed = db.numClosed.Load()
@@ -1662,8 +1646,8 @@ func (db *DB) prepareDC(ctx context.Context, dc *driverConn, release func(error)
 	return stmt, nil
 }
 
-// ExecContext executes a query without returning any rows.
-// The args are for any placeholder parameters in the query.
+// ExecContext 执行一个不返回任何行的查询。
+// args 用于查询中的任何占位符参数。
 func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
 	var res Result
 	var err error
@@ -1676,11 +1660,11 @@ func (db *DB) ExecContext(ctx context.Context, query string, args ...any) (Resul
 	return res, err
 }
 
-// Exec executes a query without returning any rows.
-// The args are for any placeholder parameters in the query.
+// Exec 执行一个不返回任何行的查询。
+// args 用于查询中的任何占位符参数。
 //
-// Exec uses [context.Background] internally; to specify the context, use
-// [DB.ExecContext].
+// Exec 内部使用 [context.Background]；要指定 context，请使用
+// [DB.ExecContext]。
 func (db *DB) Exec(query string, args ...any) (Result, error) {
 	return db.ExecContext(context.Background(), query, args...)
 }
@@ -1732,8 +1716,8 @@ func (db *DB) execDC(ctx context.Context, dc *driverConn, release func(error), q
 	return resultFromStatement(ctx, dc.ci, ds, args...)
 }
 
-// QueryContext executes a query that returns rows, typically a SELECT.
-// The args are for any placeholder parameters in the query.
+// QueryContext 执行一个返回行的查询，通常是 SELECT。
+// args 用于查询中的任何占位符参数。
 func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*Rows, error) {
 	var rows *Rows
 	var err error
@@ -1746,11 +1730,11 @@ func (db *DB) QueryContext(ctx context.Context, query string, args ...any) (*Row
 	return rows, err
 }
 
-// Query executes a query that returns rows, typically a SELECT.
-// The args are for any placeholder parameters in the query.
+// Query 执行一个返回行的查询，通常是 SELECT。
+// args 用于查询中的任何占位符参数。
 //
-// Query uses [context.Background] internally; to specify the context, use
-// [DB.QueryContext].
+// Query 内部使用 [context.Background]；要指定 context，请使用
+// [DB.QueryContext]。
 func (db *DB) Query(query string, args ...any) (*Rows, error) {
 	return db.QueryContext(context.Background(), query, args...)
 }
@@ -1764,10 +1748,10 @@ func (db *DB) query(ctx context.Context, query string, args []any, strategy conn
 	return db.queryDC(ctx, nil, dc, dc.releaseConn, query, args)
 }
 
-// queryDC executes a query on the given connection.
-// The connection gets released by the releaseConn function.
-// The ctx context is from a query method and the txctx context is from an
-// optional transaction context.
+// queryDC 在给定连接上执行查询。
+// 该连接由 releaseConn 函数释放。
+// ctx 来自查询方法，txctx 来自
+// 可选的事务 context。
 func (db *DB) queryDC(ctx, txctx context.Context, dc *driverConn, releaseConn func(error), query string, args []any) (*Rows, error) {
 	queryerCtx, ok := dc.ci.(driver.QueryerContext)
 	var queryer driver.Queryer
@@ -1790,8 +1774,7 @@ func (db *DB) queryDC(ctx, txctx context.Context, dc *driverConn, releaseConn fu
 				releaseConn(err)
 				return nil, err
 			}
-			// Note: ownership of dc passes to the *Rows, to be freed
-			// with releaseConn.
+			// 注意：dc 的所有权传递给 *Rows，由 releaseConn 负责释放。
 			rows := &Rows{
 				dc:          dc,
 				releaseConn: releaseConn,
@@ -1820,8 +1803,7 @@ func (db *DB) queryDC(ctx, txctx context.Context, dc *driverConn, releaseConn fu
 		return nil, err
 	}
 
-	// Note: ownership of ci passes to the *Rows, to be freed
-	// with releaseConn.
+	// 注意：ci 的所有权传递给 *Rows，由 releaseConn 负责释放。
 	rows := &Rows{
 		dc:          dc,
 		releaseConn: releaseConn,
@@ -1832,40 +1814,40 @@ func (db *DB) queryDC(ctx, txctx context.Context, dc *driverConn, releaseConn fu
 	return rows, nil
 }
 
-// QueryRowContext executes a query that is expected to return at most one row.
-// QueryRowContext always returns a non-nil value. Errors are deferred until
-// [Row]'s Scan method is called.
-// If the query selects no rows, the [*Row.Scan] will return [ErrNoRows].
-// Otherwise, [*Row.Scan] scans the first selected row and discards
-// the rest.
+// QueryRowContext 执行一个预期最多返回一行的查询。
+// QueryRowContext 始终返回非 nil 值。错误会被推迟到
+// 调用 [Row] 的 Scan 方法时才产生。
+// 如果查询没有选中任何行，[*Row.Scan] 将返回 [ErrNoRows]。
+// 否则，[*Row.Scan] 扫描第一个选中的行并丢弃
+// 其余的行。
 func (db *DB) QueryRowContext(ctx context.Context, query string, args ...any) *Row {
 	rows, err := db.QueryContext(ctx, query, args...)
 	return &Row{rows: rows, err: err}
 }
 
-// QueryRow executes a query that is expected to return at most one row.
-// QueryRow always returns a non-nil value. Errors are deferred until
-// [Row]'s Scan method is called.
-// If the query selects no rows, the [*Row.Scan] will return [ErrNoRows].
-// Otherwise, [*Row.Scan] scans the first selected row and discards
-// the rest.
+// QueryRow 执行一个预期最多返回一行的查询。
+// QueryRow 始终返回非 nil 值。错误会被推迟到
+// 调用 [Row] 的 Scan 方法时才产生。
+// 如果查询没有选中任何行，[*Row.Scan] 将返回 [ErrNoRows]。
+// 否则，[*Row.Scan] 扫描第一个选中的行并丢弃
+// 其余的行。
 //
-// QueryRow uses [context.Background] internally; to specify the context, use
-// [DB.QueryRowContext].
+// QueryRow 内部使用 [context.Background]；要指定 context，请使用
+// [DB.QueryRowContext]。
 func (db *DB) QueryRow(query string, args ...any) *Row {
 	return db.QueryRowContext(context.Background(), query, args...)
 }
 
-// BeginTx starts a transaction.
+// BeginTx 启动一个事务。
 //
-// The provided context is used until the transaction is committed or rolled back.
-// If the context is canceled, the sql package will roll back
-// the transaction. [Tx.Commit] will return an error if the context provided to
-// BeginTx is canceled.
+// 提供的 context 会一直使用到事务被提交或回滚。
+// 如果 context 被取消，sql 包将回滚该事务。
+// 如果提供给 BeginTx 的 context 被取消，
+// [Tx.Commit] 将返回错误。
 //
-// The provided [TxOptions] is optional and may be nil if defaults should be used.
-// If a non-default isolation level is used that the driver doesn't support,
-// an error will be returned.
+// 提供的 [TxOptions] 是可选的，如果应使用默认值则可以为 nil。
+// 如果使用了驱动不支持的非默认隔离级别，
+// 将返回错误。
 func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 	var tx *Tx
 	var err error
@@ -1878,11 +1860,11 @@ func (db *DB) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 	return tx, err
 }
 
-// Begin starts a transaction. The default isolation level is dependent on
-// the driver.
+// Begin 启动一个事务。默认隔离级别取决于
+// 驱动。
 //
-// Begin uses [context.Background] internally; to specify the context, use
-// [DB.BeginTx].
+// Begin 内部使用 [context.Background]；要指定 context，请使用
+// [DB.BeginTx]。
 func (db *DB) Begin() (*Tx, error) {
 	return db.BeginTx(context.Background(), nil)
 }
@@ -1895,7 +1877,7 @@ func (db *DB) begin(ctx context.Context, opts *TxOptions, strategy connReuseStra
 	return db.beginDC(ctx, dc, dc.releaseConn, opts)
 }
 
-// beginDC starts a transaction. The provided dc must be valid and ready to use.
+// beginDC 启动一个事务。提供的 dc 必须有效且可以使用。
 func (db *DB) beginDC(ctx context.Context, dc *driverConn, release func(error), opts *TxOptions) (tx *Tx, err error) {
 	var txi driver.Tx
 	keepConnOnRollback := false
@@ -1910,8 +1892,8 @@ func (db *DB) beginDC(ctx context.Context, dc *driverConn, release func(error), 
 		return nil, err
 	}
 
-	// Schedule the transaction to rollback when the context is canceled.
-	// The cancel function in Tx will be called after done is set to true.
+	// 安排事务在 context 被取消时回滚。
+	// Tx 中的 cancel 函数会在 done 被设置为 true 之后调用。
 	ctx, cancel := context.WithCancel(ctx)
 	tx = &Tx{
 		db:                 db,
@@ -1926,22 +1908,20 @@ func (db *DB) beginDC(ctx context.Context, dc *driverConn, release func(error), 
 	return tx, nil
 }
 
-// Driver returns the database's underlying driver.
+// Driver 返回数据库的底层驱动。
 func (db *DB) Driver() driver.Driver {
 	return db.connector.Driver()
 }
 
-// ErrConnDone is returned by any operation that is performed on a connection
-// that has already been returned to the connection pool.
+// ErrConnDone 由任何在已归还到连接池的连接上执行的操作返回。
 var ErrConnDone = errors.New("sql: connection is already closed")
 
-// Conn returns a single connection by either opening a new connection
-// or returning an existing connection from the connection pool. Conn will
-// block until either a connection is returned or ctx is canceled.
-// Queries run on the same Conn will be run in the same database session.
+// Conn 通过打开新连接或从连接池返回现有连接来返回单个连接。
+// Conn 会阻塞，直到返回一个连接或 ctx 被取消。
+// 在同一个 Conn 上运行的查询将在同一个数据库会话中运行。
 //
-// Every Conn must be returned to the database pool after use by
-// calling [Conn.Close].
+// 每个 Conn 使用后都必须通过调用 [Conn.Close]
+// 归还到数据库池。
 func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 	var dc *driverConn
 	var err error
@@ -1964,39 +1944,39 @@ func (db *DB) Conn(ctx context.Context) (*Conn, error) {
 
 type releaseConn func(error)
 
-// Conn represents a single database connection rather than a pool of database
-// connections. Prefer running queries from [DB] unless there is a specific
-// need for a continuous single database connection.
+// Conn 表示单个数据库连接，而不是数据库连接池。
+// 除非确实需要持续的单个数据库连接，否则
+// 优先使用 [DB] 运行查询。
 //
-// A Conn must call [Conn.Close] to return the connection to the database pool
-// and may do so concurrently with a running query.
+// Conn 必须调用 [Conn.Close] 将连接归还到数据库池，
+// 并且可以在有查询运行的同时这样做。
 //
-// After a call to [Conn.Close], all operations on the
-// connection fail with [ErrConnDone].
+// 调用 [Conn.Close] 之后，对该连接的所有操作
+// 都会以 [ErrConnDone] 失败。
 type Conn struct {
 	db *DB
 
-	// closemu prevents the connection from closing while there
-	// is an active query. It is held for read during queries
-	// and exclusively during close.
+	// closemu 防止在有活动查询时关闭连接。
+	// 它在查询期间以读模式持有，
+	// 在关闭时以独占模式持有。
 	closemu sync.RWMutex
 
-	// dc is owned until close, at which point
-	// it's returned to the connection pool.
+	// dc 在关闭之前被持有，关闭时
+	// 它会被归还到连接池。
 	dc *driverConn
 
-	// done transitions from false to true exactly once, on close.
-	// Once done, all operations fail with ErrConnDone.
+	// done 在关闭时从 false 精确地转变为 true 一次。
+	// 一旦 done，所有操作都会以 ErrConnDone 失败。
 	done atomic.Bool
 
 	releaseConnOnce sync.Once
-	// releaseConnCache is a cache of c.closemuRUnlockCondReleaseConn
-	// to save allocations in a call to grabConn.
+	// releaseConnCache 是 c.closemuRUnlockCondReleaseConn 的缓存，
+	// 用于在调用 grabConn 时节省分配。
 	releaseConnCache releaseConn
 }
 
-// grabConn takes a context to implement stmtConnGrabber
-// but the context is not used.
+// grabConn 接收一个 context 以实现 stmtConnGrabber，
+// 但该 context 并未被使用。
 func (c *Conn) grabConn(context.Context) (*driverConn, releaseConn, error) {
 	if c.done.Load() {
 		return nil, nil, ErrConnDone
@@ -2008,7 +1988,7 @@ func (c *Conn) grabConn(context.Context) (*driverConn, releaseConn, error) {
 	return c.dc, c.releaseConnCache, nil
 }
 
-// PingContext verifies the connection to the database is still alive.
+// PingContext 验证到数据库的连接仍然有效。
 func (c *Conn) PingContext(ctx context.Context) error {
 	dc, release, err := c.grabConn(ctx)
 	if err != nil {
@@ -2017,8 +1997,8 @@ func (c *Conn) PingContext(ctx context.Context) error {
 	return c.db.pingDC(ctx, dc, release)
 }
 
-// ExecContext executes a query without returning any rows.
-// The args are for any placeholder parameters in the query.
+// ExecContext 执行一个不返回任何行的查询。
+// args 用于查询中的任何占位符参数。
 func (c *Conn) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
 	dc, release, err := c.grabConn(ctx)
 	if err != nil {
@@ -2027,8 +2007,8 @@ func (c *Conn) ExecContext(ctx context.Context, query string, args ...any) (Resu
 	return c.db.execDC(ctx, dc, release, query, args)
 }
 
-// QueryContext executes a query that returns rows, typically a SELECT.
-// The args are for any placeholder parameters in the query.
+// QueryContext 执行一个返回行的查询，通常是 SELECT。
+// args 用于查询中的任何占位符参数。
 func (c *Conn) QueryContext(ctx context.Context, query string, args ...any) (*Rows, error) {
 	dc, release, err := c.grabConn(ctx)
 	if err != nil {
@@ -2037,25 +2017,24 @@ func (c *Conn) QueryContext(ctx context.Context, query string, args ...any) (*Ro
 	return c.db.queryDC(ctx, nil, dc, release, query, args)
 }
 
-// QueryRowContext executes a query that is expected to return at most one row.
-// QueryRowContext always returns a non-nil value. Errors are deferred until
-// the [*Row.Scan] method is called.
-// If the query selects no rows, the [*Row.Scan] will return [ErrNoRows].
-// Otherwise, the [*Row.Scan] scans the first selected row and discards
-// the rest.
+// QueryRowContext 执行一个预期最多返回一行的查询。
+// QueryRowContext 始终返回非 nil 值。错误会被推迟到
+// 调用 [*Row.Scan] 方法时才产生。
+// 如果查询没有选中任何行，[*Row.Scan] 将返回 [ErrNoRows]。
+// 否则，[*Row.Scan] 扫描第一个选中的行并丢弃
+// 其余的行。
 func (c *Conn) QueryRowContext(ctx context.Context, query string, args ...any) *Row {
 	rows, err := c.QueryContext(ctx, query, args...)
 	return &Row{rows: rows, err: err}
 }
 
-// PrepareContext creates a prepared statement for later queries or executions.
-// Multiple queries or executions may be run concurrently from the
-// returned statement.
-// The caller must call the statement's [*Stmt.Close] method
-// when the statement is no longer needed.
+// PrepareContext 创建一个已准备的语句，供后续查询或执行使用。
+// 多个查询或执行可以在返回的语句上并发运行。
+// 当不再需要该语句时，调用方必须调用该语句的
+// [*Stmt.Close] 方法。
 //
-// The provided context is used for the preparation of the statement, not for the
-// execution of the statement.
+// 提供的 context 用于该语句的准备，而不是
+// 该语句的执行。
 func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	dc, release, err := c.grabConn(ctx)
 	if err != nil {
@@ -2064,16 +2043,16 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (*Stmt, error) 
 	return c.db.prepareDC(ctx, dc, release, c, query)
 }
 
-// Raw executes f exposing the underlying driver connection for the
-// duration of f. The driverConn must not be used outside of f.
+// Raw 在 f 的执行期间执行 f 并暴露底层驱动连接。
+// driverConn 不得在 f 之外使用。
 //
-// Once f returns and err is not [driver.ErrBadConn], the [Conn] will continue to be usable
-// until [Conn.Close] is called.
+// 一旦 f 返回且 err 不是 [driver.ErrBadConn]，[Conn] 将继续可用，
+// 直到调用 [Conn.Close]。
 func (c *Conn) Raw(f func(driverConn any) error) (err error) {
 	var dc *driverConn
 	var release releaseConn
 
-	// grabConn takes a context to implement stmtConnGrabber, but the context is not used.
+	// grabConn 接收一个 context 以实现 stmtConnGrabber，但该 context 并未被使用。
 	dc, release, err = c.grabConn(nil)
 	if err != nil {
 		return
@@ -2083,9 +2062,9 @@ func (c *Conn) Raw(f func(driverConn any) error) (err error) {
 	defer func() {
 		dc.Mutex.Unlock()
 
-		// If f panics fPanic will remain true.
-		// Ensure an error is passed to release so the connection
-		// may be discarded.
+		// 如果 f panic，fPanic 将保持为 true。
+		// 确保向 release 传递一个错误，以便该连接
+		// 可以被丢弃。
 		if fPanic {
 			err = driver.ErrBadConn
 		}
@@ -2097,16 +2076,16 @@ func (c *Conn) Raw(f func(driverConn any) error) (err error) {
 	return
 }
 
-// BeginTx starts a transaction.
+// BeginTx 启动一个事务。
 //
-// The provided context is used until the transaction is committed or rolled back.
-// If the context is canceled, the sql package will roll back
-// the transaction. [Tx.Commit] will return an error if the context provided to
-// BeginTx is canceled.
+// 提供的 context 会一直使用到事务被提交或回滚。
+// 如果 context 被取消，sql 包将回滚该事务。
+// 如果提供给 BeginTx 的 context 被取消，
+// [Tx.Commit] 将返回错误。
 //
-// The provided [TxOptions] is optional and may be nil if defaults should be used.
-// If a non-default isolation level is used that the driver doesn't support,
-// an error will be returned.
+// 提供的 [TxOptions] 是可选的，如果应使用默认值则可以为 nil。
+// 如果使用了驱动不支持的非默认隔离级别，
+// 将返回错误。
 func (c *Conn) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 	dc, release, err := c.grabConn(ctx)
 	if err != nil {
@@ -2115,8 +2094,8 @@ func (c *Conn) BeginTx(ctx context.Context, opts *TxOptions) (*Tx, error) {
 	return c.db.beginDC(ctx, dc, release, opts)
 }
 
-// closemuRUnlockCondReleaseConn read unlocks closemu
-// as the sql operation is done with the dc.
+// closemuRUnlockCondReleaseConn 以读模式解锁 closemu，
+// 因为对 dc 的 sql 操作已完成。
 func (c *Conn) closemuRUnlockCondReleaseConn(err error) {
 	c.closemu.RUnlock()
 	if errors.Is(err, driver.ErrBadConn) {
@@ -2133,8 +2112,8 @@ func (c *Conn) close(err error) error {
 		return ErrConnDone
 	}
 
-	// Lock around releasing the driver connection
-	// to ensure all queries have been stopped before doing so.
+	// 在释放驱动连接前后加锁，
+	// 以确保在释放之前所有查询都已停止。
 	c.closemu.Lock()
 	defer c.closemu.Unlock()
 
@@ -2144,79 +2123,77 @@ func (c *Conn) close(err error) error {
 	return err
 }
 
-// Close returns the connection to the connection pool.
-// All operations after a Close will return with [ErrConnDone].
-// Close is safe to call concurrently with other operations and will
-// block until all other operations finish. It may be useful to first
-// cancel any used context and then call close directly after.
+// Close 将连接归还到连接池。
+// Close 之后的所有操作都将以 [ErrConnDone] 返回。
+// Close 可以与其他操作并发安全地调用，并且会
+// 阻塞直到所有其他操作完成。先取消任何使用过的
+// context，然后紧接着调用 close 可能会有用。
 func (c *Conn) Close() error {
 	return c.close(nil)
 }
 
-// Tx is an in-progress database transaction.
+// Tx 是一个进行中的数据库事务。
 //
-// A transaction must end with a call to [Tx.Commit] or [Tx.Rollback].
+// 事务必须以调用 [Tx.Commit] 或 [Tx.Rollback] 结束。
 //
-// After a call to [Tx.Commit] or [Tx.Rollback], all operations on the
-// transaction fail with [ErrTxDone].
+// 调用 [Tx.Commit] 或 [Tx.Rollback] 之后，对该事务的所有操作
+// 都会以 [ErrTxDone] 失败。
 //
-// The statements prepared for a transaction by calling
-// the transaction's [Tx.Prepare] or [Tx.Stmt] methods are closed
-// by the call to [Tx.Commit] or [Tx.Rollback].
+// 通过调用事务的 [Tx.Prepare] 或 [Tx.Stmt] 方法为该事务
+// 准备的语句，会在调用 [Tx.Commit] 或 [Tx.Rollback] 时
+// 被关闭。
 type Tx struct {
 	db *DB
 
-	// closemu prevents the transaction from closing while there
-	// is an active query. It is held for read during queries
-	// and exclusively during close.
+	// closemu 防止在有活动查询时关闭事务。
+	// 它在查询期间以读模式持有，
+	// 在关闭时以独占模式持有。
 	closemu sync.RWMutex
 
-	// dc is owned exclusively until Commit or Rollback, at which point
-	// it's returned with putConn.
+	// dc 在 Commit 或 Rollback 之前被独占持有，届时
+	// 它会被 putConn 归还。
 	dc  *driverConn
 	txi driver.Tx
 
-	// releaseConn is called once the Tx is closed to release
-	// any held driverConn back to the pool.
+	// releaseConn 在 Tx 关闭时被调用，用于将
+	// 持有的任何 driverConn 释放回池中。
 	releaseConn func(error)
 
-	// done transitions from false to true exactly once, on Commit
-	// or Rollback. once done, all operations fail with
-	// ErrTxDone.
+	// done 在 Commit 或 Rollback 时从 false 精确地转变为 true 一次。
+	// 一旦 done，所有操作都会以
+	// ErrTxDone 失败。
 	done atomic.Bool
 
-	// keepConnOnRollback is true if the driver knows
-	// how to reset the connection's session and if need be discard
-	// the connection.
+	// 如果驱动知道如何重置连接的会话并在需要时丢弃
+	// 该连接，则 keepConnOnRollback 为 true。
 	keepConnOnRollback bool
 
-	// All Stmts prepared for this transaction. These will be closed after the
-	// transaction has been committed or rolled back.
+	// 为此事务准备的所有 Stmt。它们会在事务
+	// 被提交或回滚之后被关闭。
 	stmts struct {
 		sync.Mutex
 		v []*Stmt
 	}
 
-	// cancel is called after done transitions from 0 to 1.
+	// cancel 在 done 从 0 转变为 1 之后被调用。
 	cancel func()
 
-	// ctx lives for the life of the transaction.
+	// ctx 在事务的整个生命周期内存续。
 	ctx context.Context
 }
 
-// awaitDone blocks until the context in Tx is canceled and rolls back
-// the transaction if it's not already done.
+// awaitDone 阻塞直到 Tx 中的 context 被取消，并在事务尚未完成时
+// 回滚该事务。
 func (tx *Tx) awaitDone() {
-	// Wait for either the transaction to be committed or rolled
-	// back, or for the associated context to be closed.
+	// 等待事务被提交或回滚，
+	// 或者关联的 context 被关闭。
 	<-tx.ctx.Done()
 
-	// Discard and close the connection used to ensure the
-	// transaction is closed and the resources are released.  This
-	// rollback does nothing if the transaction has already been
-	// committed or rolled back.
-	// Do not discard the connection if the connection knows
-	// how to reset the session.
+	// 丢弃并关闭所使用的连接，以确保事务被关闭
+	// 且资源被释放。如果事务已经被提交或回滚，
+	// 这次回滚不做任何事情。
+	// 如果连接知道如何重置会话，则不要丢弃
+	// 该连接。
 	discardConnection := !tx.keepConnOnRollback
 	tx.rollback(discardConnection)
 }
@@ -2225,21 +2202,20 @@ func (tx *Tx) isDone() bool {
 	return tx.done.Load()
 }
 
-// ErrTxDone is returned by any operation that is performed on a transaction
-// that has already been committed or rolled back.
+// ErrTxDone 由任何在已提交或已回滚的事务上执行的操作返回。
 var ErrTxDone = errors.New("sql: transaction has already been committed or rolled back")
 
-// close returns the connection to the pool and
-// must only be called by Tx.rollback or Tx.Commit while
-// tx is already canceled and won't be executed concurrently.
+// close 将连接归还到池中，并且
+// 只能在 tx 已被取消且不会被并发执行时，
+// 由 Tx.rollback 或 Tx.Commit 调用。
 func (tx *Tx) close(err error) {
 	tx.releaseConn(err)
 	tx.dc = nil
 	tx.txi = nil
 }
 
-// hookTxGrabConn specifies an optional hook to be called on
-// a successful call to (*Tx).grabConn. For tests.
+// hookTxGrabConn 指定一个可选的钩子，在成功调用
+// (*Tx).grabConn 时被调用。用于测试。
 var hookTxGrabConn func()
 
 func (tx *Tx) grabConn(ctx context.Context) (*driverConn, releaseConn, error) {
@@ -2249,14 +2225,14 @@ func (tx *Tx) grabConn(ctx context.Context) (*driverConn, releaseConn, error) {
 		return nil, nil, ctx.Err()
 	}
 
-	// closemu.RLock must come before the check for isDone to prevent the Tx from
-	// closing while a query is executing.
+	// closemu.RLock 必须在 isDone 检查之前进行，以防止 Tx
+	// 在有查询执行时被关闭。
 	tx.closemu.RLock()
 	if tx.isDone() {
 		tx.closemu.RUnlock()
 		return nil, nil, ErrTxDone
 	}
-	if hookTxGrabConn != nil { // test hook
+	if hookTxGrabConn != nil { // 测试钩子
 		hookTxGrabConn()
 	}
 	return tx.dc, tx.closemuRUnlockRelease, nil
@@ -2266,15 +2242,14 @@ func (tx *Tx) txCtx() context.Context {
 	return tx.ctx
 }
 
-// closemuRUnlockRelease is used as a func(error) method value in
-// [DB.ExecContext] and [DB.QueryContext]. Unlocking in the releaseConn keeps
-// the driver conn from being returned to the connection pool until
-// the Rows has been closed.
+// closemuRUnlockRelease 在 [DB.ExecContext] 和 [DB.QueryContext] 中
+// 作为 func(error) 方法值使用。在 releaseConn 中解锁可以防止驱动 conn
+// 在 Rows 被关闭之前被归还到连接池。
 func (tx *Tx) closemuRUnlockRelease(error) {
 	tx.closemu.RUnlock()
 }
 
-// Closes all Stmts prepared for this transaction.
+// 关闭为此事务准备的所有 Stmt。
 func (tx *Tx) closePrepared() {
 	tx.stmts.Lock()
 	defer tx.stmts.Unlock()
@@ -2283,11 +2258,11 @@ func (tx *Tx) closePrepared() {
 	}
 }
 
-// Commit commits the transaction.
+// Commit 提交事务。
 func (tx *Tx) Commit() error {
-	// Check context first to avoid transaction leak.
-	// If put it behind tx.done CompareAndSwap statement, we can't ensure
-	// the consistency between tx.done and the real COMMIT operation.
+	// 先检查 context 以避免事务泄漏。
+	// 如果把它放在 tx.done 的 CompareAndSwap 语句之后，我们就无法确保
+	// tx.done 与真正的 COMMIT 操作之间的一致性。
 	select {
 	default:
 	case <-tx.ctx.Done():
@@ -2300,10 +2275,10 @@ func (tx *Tx) Commit() error {
 		return ErrTxDone
 	}
 
-	// Cancel the Tx to release any active R-closemu locks.
-	// This is safe to do because tx.done has already transitioned
-	// from 0 to 1. Hold the W-closemu lock prior to rollback
-	// to ensure no other connection has an active query.
+	// 取消 Tx 以释放任何活动的 R-closemu 锁。
+	// 这样做是安全的，因为 tx.done 已经从 0 转变为 1。
+	// 在回滚之前持有 W-closemu 锁，
+	// 以确保没有其他连接有活动的查询。
 	tx.cancel()
 	tx.closemu.Lock()
 	tx.closemu.Unlock()
@@ -2321,8 +2296,8 @@ func (tx *Tx) Commit() error {
 
 var rollbackHook func()
 
-// rollback aborts the transaction and optionally forces the pool to discard
-// the connection.
+// rollback 中止事务，并可选择强制池丢弃
+// 该连接。
 func (tx *Tx) rollback(discardConn bool) error {
 	if !tx.done.CompareAndSwap(false, true) {
 		return ErrTxDone
@@ -2332,10 +2307,10 @@ func (tx *Tx) rollback(discardConn bool) error {
 		rollbackHook()
 	}
 
-	// Cancel the Tx to release any active R-closemu locks.
-	// This is safe to do because tx.done has already transitioned
-	// from 0 to 1. Hold the W-closemu lock prior to rollback
-	// to ensure no other connection has an active query.
+	// 取消 Tx 以释放任何活动的 R-closemu 锁。
+	// 这样做是安全的，因为 tx.done 已经从 0 转变为 1。
+	// 在回滚之前持有 W-closemu 锁，
+	// 以确保没有其他连接有活动的查询。
 	tx.cancel()
 	tx.closemu.Lock()
 	tx.closemu.Unlock()
@@ -2354,21 +2329,21 @@ func (tx *Tx) rollback(discardConn bool) error {
 	return err
 }
 
-// Rollback aborts the transaction.
+// Rollback 中止事务。
 func (tx *Tx) Rollback() error {
 	return tx.rollback(false)
 }
 
-// PrepareContext creates a prepared statement for use within a transaction.
+// PrepareContext 创建一个在事务内使用的已准备语句。
 //
-// The returned statement operates within the transaction and will be closed
-// when the transaction has been committed or rolled back.
+// 返回的语句在事务内运行，并会在事务被提交或
+// 回滚时被关闭。
 //
-// To use an existing prepared statement on this transaction, see [Tx.Stmt].
+// 要在该事务上使用已有的已准备语句，见 [Tx.Stmt]。
 //
-// The provided context will be used for the preparation of the context, not
-// for the execution of the returned statement. The returned statement
-// will run in the transaction context.
+// 提供的 context 将用于该 context 的准备，而不是
+// 返回语句的执行。返回的语句
+// 将在事务 context 中运行。
 func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	dc, release, err := tx.grabConn(ctx)
 	if err != nil {
@@ -2385,23 +2360,22 @@ func (tx *Tx) PrepareContext(ctx context.Context, query string) (*Stmt, error) {
 	return stmt, nil
 }
 
-// Prepare creates a prepared statement for use within a transaction.
+// Prepare 创建一个在事务内使用的已准备语句。
 //
-// The returned statement operates within the transaction and will be closed
-// when the transaction has been committed or rolled back.
+// 返回的语句在事务内运行，并会在事务被提交或
+// 回滚时被关闭。
 //
-// To use an existing prepared statement on this transaction, see [Tx.Stmt].
+// 要在该事务上使用已有的已准备语句，见 [Tx.Stmt]。
 //
-// Prepare uses [context.Background] internally; to specify the context, use
-// [Tx.PrepareContext].
+// Prepare 内部使用 [context.Background]；要指定 context，请使用
+// [Tx.PrepareContext]。
 func (tx *Tx) Prepare(query string) (*Stmt, error) {
 	return tx.PrepareContext(context.Background(), query)
 }
 
-// StmtContext returns a transaction-specific prepared statement from
-// an existing statement.
+// StmtContext 从已有的语句返回一个特定于事务的已准备语句。
 //
-// Example:
+// 示例：
 //
 //	updateMoney, err := db.Prepare("UPDATE balance SET money=money+? WHERE id=?")
 //	...
@@ -2409,11 +2383,11 @@ func (tx *Tx) Prepare(query string) (*Stmt, error) {
 //	...
 //	res, err := tx.StmtContext(ctx, updateMoney).Exec(123.45, 98293203)
 //
-// The provided context is used for the preparation of the statement, not for the
-// execution of the statement.
+// 提供的 context 用于该语句的准备，而不是
+// 该语句的执行。
 //
-// The returned statement operates within the transaction and will be closed
-// when the transaction has been committed or rolled back.
+// 返回的语句在事务内运行，并会在事务被提交或
+// 回滚时被关闭。
 func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 	dc, release, err := tx.grabConn(ctx)
 	if err != nil {
@@ -2428,12 +2402,12 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 	var parentStmt *Stmt
 	stmt.mu.Lock()
 	if stmt.closed || stmt.cg != nil {
-		// If the statement has been closed or already belongs to a
-		// transaction, we can't reuse it in this connection.
-		// Since tx.StmtContext should never need to be called with a
-		// Stmt already belonging to tx, we ignore this edge case and
-		// re-prepare the statement in this case. No need to add
-		// code-complexity for this.
+		// 如果该语句已被关闭或已属于某个事务，
+		// 我们就无法在该连接中复用它。
+		// 由于 tx.StmtContext 在调用时不应传入已属于 tx 的
+		// Stmt，我们忽略这个边界情况，并在这种情况下
+		// 重新准备该语句。无需为此增加
+		// 代码复杂度。
 		stmt.mu.Unlock()
 		withLock(dc, func() {
 			si, err = ctxDriverPrepare(ctx, dc.ci, stmt.query)
@@ -2443,8 +2417,8 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 		}
 	} else {
 		stmt.removeClosedStmtLocked()
-		// See if the statement has already been prepared on this connection,
-		// and reuse it if possible.
+		// 看看该语句是否已在此连接上准备好，
+		// 如果可能则复用它。
 		for _, v := range stmt.css {
 			if v.dc == dc {
 				si = v.ds.si
@@ -2486,10 +2460,9 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 	return txs
 }
 
-// Stmt returns a transaction-specific prepared statement from
-// an existing statement.
+// Stmt 从已有的语句返回一个特定于事务的已准备语句。
 //
-// Example:
+// 示例：
 //
 //	updateMoney, err := db.Prepare("UPDATE balance SET money=money+? WHERE id=?")
 //	...
@@ -2497,17 +2470,17 @@ func (tx *Tx) StmtContext(ctx context.Context, stmt *Stmt) *Stmt {
 //	...
 //	res, err := tx.Stmt(updateMoney).Exec(123.45, 98293203)
 //
-// The returned statement operates within the transaction and will be closed
-// when the transaction has been committed or rolled back.
+// 返回的语句在事务内运行，并会在事务被提交或
+// 回滚时被关闭。
 //
-// Stmt uses [context.Background] internally; to specify the context, use
-// [Tx.StmtContext].
+// Stmt 内部使用 [context.Background]；要指定 context，请使用
+// [Tx.StmtContext]。
 func (tx *Tx) Stmt(stmt *Stmt) *Stmt {
 	return tx.StmtContext(context.Background(), stmt)
 }
 
-// ExecContext executes a query that doesn't return rows.
-// For example: an INSERT and UPDATE.
+// ExecContext 执行一个不返回行的查询。
+// 例如：INSERT 和 UPDATE。
 func (tx *Tx) ExecContext(ctx context.Context, query string, args ...any) (Result, error) {
 	dc, release, err := tx.grabConn(ctx)
 	if err != nil {
@@ -2516,16 +2489,16 @@ func (tx *Tx) ExecContext(ctx context.Context, query string, args ...any) (Resul
 	return tx.db.execDC(ctx, dc, release, query, args)
 }
 
-// Exec executes a query that doesn't return rows.
-// For example: an INSERT and UPDATE.
+// Exec 执行一个不返回行的查询。
+// 例如：INSERT 和 UPDATE。
 //
-// Exec uses [context.Background] internally; to specify the context, use
-// [Tx.ExecContext].
+// Exec 内部使用 [context.Background]；要指定 context，请使用
+// [Tx.ExecContext]。
 func (tx *Tx) Exec(query string, args ...any) (Result, error) {
 	return tx.ExecContext(context.Background(), query, args...)
 }
 
-// QueryContext executes a query that returns rows, typically a SELECT.
+// QueryContext 执行一个返回行的查询，通常是 SELECT。
 func (tx *Tx) QueryContext(ctx context.Context, query string, args ...any) (*Rows, error) {
 	dc, release, err := tx.grabConn(ctx)
 	if err != nil {
@@ -2535,54 +2508,54 @@ func (tx *Tx) QueryContext(ctx context.Context, query string, args ...any) (*Row
 	return tx.db.queryDC(ctx, tx.ctx, dc, release, query, args)
 }
 
-// Query executes a query that returns rows, typically a SELECT.
+// Query 执行一个返回行的查询，通常是 SELECT。
 //
-// Query uses [context.Background] internally; to specify the context, use
-// [Tx.QueryContext].
+// Query 内部使用 [context.Background]；要指定 context，请使用
+// [Tx.QueryContext]。
 func (tx *Tx) Query(query string, args ...any) (*Rows, error) {
 	return tx.QueryContext(context.Background(), query, args...)
 }
 
-// QueryRowContext executes a query that is expected to return at most one row.
-// QueryRowContext always returns a non-nil value. Errors are deferred until
-// [Row]'s Scan method is called.
-// If the query selects no rows, the [*Row.Scan] will return [ErrNoRows].
-// Otherwise, the [*Row.Scan] scans the first selected row and discards
-// the rest.
+// QueryRowContext 执行一个预期最多返回一行的查询。
+// QueryRowContext 始终返回非 nil 值。错误会被推迟到
+// 调用 [Row] 的 Scan 方法时才产生。
+// 如果查询没有选中任何行，[*Row.Scan] 将返回 [ErrNoRows]。
+// 否则，[*Row.Scan] 扫描第一个选中的行并丢弃
+// 其余的行。
 func (tx *Tx) QueryRowContext(ctx context.Context, query string, args ...any) *Row {
 	rows, err := tx.QueryContext(ctx, query, args...)
 	return &Row{rows: rows, err: err}
 }
 
-// QueryRow executes a query that is expected to return at most one row.
-// QueryRow always returns a non-nil value. Errors are deferred until
-// [Row]'s Scan method is called.
-// If the query selects no rows, the [*Row.Scan] will return [ErrNoRows].
-// Otherwise, the [*Row.Scan] scans the first selected row and discards
-// the rest.
+// QueryRow 执行一个预期最多返回一行的查询。
+// QueryRow 始终返回非 nil 值。错误会被推迟到
+// 调用 [Row] 的 Scan 方法时才产生。
+// 如果查询没有选中任何行，[*Row.Scan] 将返回 [ErrNoRows]。
+// 否则，[*Row.Scan] 扫描第一个选中的行并丢弃
+// 其余的行。
 //
-// QueryRow uses [context.Background] internally; to specify the context, use
-// [Tx.QueryRowContext].
+// QueryRow 内部使用 [context.Background]；要指定 context，请使用
+// [Tx.QueryRowContext]。
 func (tx *Tx) QueryRow(query string, args ...any) *Row {
 	return tx.QueryRowContext(context.Background(), query, args...)
 }
 
-// connStmt is a prepared statement on a particular connection.
+// connStmt 是特定连接上的一个已准备语句。
 type connStmt struct {
 	dc *driverConn
 	ds *driverStmt
 }
 
-// stmtConnGrabber represents a Tx or Conn that will return the underlying
-// driverConn and release function.
+// stmtConnGrabber 表示一个 Tx 或 Conn，它会返回底层的
+// driverConn 和 release 函数。
 type stmtConnGrabber interface {
-	// grabConn returns the driverConn and the associated release function
-	// that must be called when the operation completes.
+	// grabConn 返回 driverConn 以及关联的 release 函数，
+	// 操作完成时必须调用该函数。
 	grabConn(context.Context) (*driverConn, releaseConn, error)
 
-	// txCtx returns the transaction context if available.
-	// The returned context should be selected on along with
-	// any query context when awaiting a cancel.
+	// txCtx 返回可用的事务 context。
+	// 在等待取消时，应当将返回的 context 与
+	// 任何查询 context 一起进行 select。
 	txCtx() context.Context
 }
 
@@ -2591,55 +2564,53 @@ var (
 	_ stmtConnGrabber = &Conn{}
 )
 
-// Stmt is a prepared statement.
-// A Stmt is safe for concurrent use by multiple goroutines.
+// Stmt 是一个已准备的语句。
+// Stmt 可以被多个 goroutine 并发安全地使用。
 //
-// If a Stmt is prepared on a [Tx] or [Conn], it will be bound to a single
-// underlying connection forever. If the [Tx] or [Conn] closes, the Stmt will
-// become unusable and all operations will return an error.
-// If a Stmt is prepared on a [DB], it will remain usable for the lifetime of the
-// [DB]. When the Stmt needs to execute on a new underlying connection, it will
-// prepare itself on the new connection automatically.
+// 如果 Stmt 是在 [Tx] 或 [Conn] 上准备的，它将永远绑定到单个
+// 底层连接。如果 [Tx] 或 [Conn] 关闭，Stmt 将
+// 变得不可用，所有操作都会返回错误。
+// 如果 Stmt 是在 [DB] 上准备的，它在 [DB] 的生命周期内
+// 保持可用。当 Stmt 需要在一个新的底层连接上执行时，
+// 它会自动在新连接上准备自身。
 type Stmt struct {
-	// Immutable:
-	db        *DB    // where we came from
-	query     string // that created the Stmt
-	stickyErr error  // if non-nil, this error is returned for all operations
+	// 不可变：
+	db        *DB    // 我们来自哪里
+	query     string // 创建该 Stmt 的查询
+	stickyErr error  // 如果非 nil，所有操作都会返回该错误
 
-	closemu sync.RWMutex // held exclusively during close, for read otherwise.
+	closemu sync.RWMutex // 关闭时独占持有，其他时候以读模式持有。
 
-	// If Stmt is prepared on a Tx or Conn then cg is present and will
-	// only ever grab a connection from cg.
-	// If cg is nil then the Stmt must grab an arbitrary connection
-	// from db and determine if it must prepare the stmt again by
-	// inspecting css.
+	// 如果 Stmt 是在 Tx 或 Conn 上准备的，则 cg 存在，并且
+	// 只会从 cg 获取连接。
+	// 如果 cg 为 nil，则 Stmt 必须从 db 获取任意连接，
+	// 并通过检查 css 来判断是否必须重新准备该 stmt。
 	cg   stmtConnGrabber
 	cgds *driverStmt
 
-	// parentStmt is set when a transaction-specific statement
-	// is requested from an identical statement prepared on the same
-	// conn. parentStmt is used to track the dependency of this statement
-	// on its originating ("parent") statement so that parentStmt may
-	// be closed by the user without them having to know whether or not
-	// any transactions are still using it.
+	// 当从同一 conn 上准备的相同语句请求
+	// 特定于事务的语句时，会设置 parentStmt。
+	// parentStmt 用于跟踪该语句对
+	// 其来源（“父”）语句的依赖，这样用户就可以关闭 parentStmt，
+	// 而无需知道是否仍有事务在使用它。
 	parentStmt *Stmt
 
-	mu     sync.Mutex // protects the rest of the fields
+	mu     sync.Mutex // 保护其余字段
 	closed bool
 
-	// css is a list of underlying driver statement interfaces
-	// that are valid on particular connections. This is only
-	// used if cg == nil and one is found that has idle
-	// connections. If cg != nil, cgds is always used.
+	// css 是一个底层驱动语句接口的列表，
+	// 这些接口在特定连接上有效。仅在 cg == nil
+	// 且找到了一个拥有空闲连接的连接时使用。
+	// 如果 cg != nil，则始终使用 cgds。
 	css []connStmt
 
-	// lastNumClosed is copied from db.numClosed when Stmt is created
-	// without tx and closed connections in css are removed.
+	// lastNumClosed 在创建不带 tx 的 Stmt 时
+	// 从 db.numClosed 复制，用于移除 css 中已关闭的连接。
 	lastNumClosed uint64
 }
 
-// ExecContext executes a prepared statement with the given arguments and
-// returns a [Result] summarizing the effect of the statement.
+// ExecContext 使用给定参数执行一个已准备的语句，
+// 并返回一个概述该语句效果的 [Result]。
 func (s *Stmt) ExecContext(ctx context.Context, args ...any) (Result, error) {
 	s.closemu.RLock()
 	defer s.closemu.RUnlock()
@@ -2659,11 +2630,11 @@ func (s *Stmt) ExecContext(ctx context.Context, args ...any) (Result, error) {
 	return res, err
 }
 
-// Exec executes a prepared statement with the given arguments and
-// returns a [Result] summarizing the effect of the statement.
+// Exec 使用给定参数执行一个已准备的语句，
+// 并返回一个概述该语句效果的 [Result]。
 //
-// Exec uses [context.Background] internally; to specify the context, use
-// [Stmt.ExecContext].
+// Exec 内部使用 [context.Background]；要指定 context，请使用
+// [Stmt.ExecContext]。
 func (s *Stmt) Exec(args ...any) (Result, error) {
 	return s.ExecContext(context.Background(), args...)
 }
@@ -2684,10 +2655,10 @@ func resultFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, ar
 	return driverResult{ds.Locker, resi}, nil
 }
 
-// removeClosedStmtLocked removes closed conns in s.css.
+// removeClosedStmtLocked 移除 s.css 中已关闭的 conn。
 //
-// To avoid lock contention on DB.mu, we do it only when
-// s.db.numClosed - s.lastNum is large enough.
+// 为避免对 DB.mu 的锁争用，我们仅在
+// s.db.numClosed - s.lastNum 足够大时才执行。
 func (s *Stmt) removeClosedStmtLocked() {
 	t := len(s.css)/2 + 1
 	if t > 10 {
@@ -2702,7 +2673,7 @@ func (s *Stmt) removeClosedStmtLocked() {
 	for i := 0; i < len(s.css); i++ {
 		if s.css[i].dc.dbmuClosed {
 			s.css[i] = s.css[len(s.css)-1]
-			// Zero out the last element (for GC) before shrinking the slice.
+			// 在收缩切片之前将最后一个元素置零（以便 GC）。
 			s.css[len(s.css)-1] = connStmt{}
 			s.css = s.css[:len(s.css)-1]
 			i--
@@ -2712,9 +2683,9 @@ func (s *Stmt) removeClosedStmtLocked() {
 	s.lastNumClosed = dbClosed
 }
 
-// connStmt returns a free driver connection on which to execute the
-// statement, a function to call to release the connection, and a
-// statement bound to that connection.
+// connStmt 返回一个空闲的驱动连接供执行该语句，
+// 一个用于释放该连接的函数，以及一个
+// 绑定到该连接的语句。
 func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *driverConn, releaseConn func(error), ds *driverStmt, err error) {
 	if err = s.stickyErr; err != nil {
 		return
@@ -2726,11 +2697,11 @@ func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *dr
 		return
 	}
 
-	// In a transaction or connection, we always use the connection that the
-	// stmt was created on.
+	// 在事务或连接中，我们始终使用创建该
+	// stmt 时所用的连接。
 	if s.cg != nil {
 		s.mu.Unlock()
-		dc, releaseConn, err = s.cg.grabConn(ctx) // blocks, waiting for the connection.
+		dc, releaseConn, err = s.cg.grabConn(ctx) // 阻塞，等待连接。
 		if err != nil {
 			return
 		}
@@ -2754,7 +2725,7 @@ func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *dr
 	}
 	s.mu.Unlock()
 
-	// No luck; we need to prepare the statement on this connection
+	// 运气不好；我们需要在此连接上准备该语句
 	withLock(dc, func() {
 		ds, err = s.prepareOnConnLocked(ctx, dc)
 	})
@@ -2766,8 +2737,8 @@ func (s *Stmt) connStmt(ctx context.Context, strategy connReuseStrategy) (dc *dr
 	return dc, dc.releaseConn, ds, nil
 }
 
-// prepareOnConnLocked prepares the query in Stmt s on dc and adds it to the list of
-// open connStmt on the statement. It assumes the caller is holding the lock on dc.
+// prepareOnConnLocked 在 dc 上准备 Stmt s 中的查询，并将其添加到
+// 该语句已打开的 connStmt 列表中。它假定调用方持有 dc 的锁。
 func (s *Stmt) prepareOnConnLocked(ctx context.Context, dc *driverConn) (*driverStmt, error) {
 	si, err := dc.prepareLocked(ctx, s.cg, s.query)
 	if err != nil {
@@ -2780,8 +2751,8 @@ func (s *Stmt) prepareOnConnLocked(ctx context.Context, dc *driverConn) (*driver
 	return cs.ds, nil
 }
 
-// QueryContext executes a prepared query statement with the given arguments
-// and returns the query results as a [*Rows].
+// QueryContext 使用给定参数执行一个已准备的查询语句，
+// 并将查询结果作为 [*Rows] 返回。
 func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 	s.closemu.RLock()
 	defer s.closemu.RUnlock()
@@ -2797,19 +2768,18 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 
 		rowsi, err = rowsiFromStatement(ctx, dc.ci, ds, args...)
 		if err == nil {
-			// Note: ownership of ci passes to the *Rows, to be freed
-			// with releaseConn.
+			// 注意：ci 的所有权传递给 *Rows，由 releaseConn 负责释放。
 			rows = &Rows{
 				dc:    dc,
 				rowsi: rowsi,
-				// releaseConn set below
+				// releaseConn 在下面设置
 			}
-			// addDep must be added before initContextClose or it could attempt
-			// to removeDep before it has been added.
+			// addDep 必须在 initContextClose 之前添加，否则它可能会
+			// 在添加之前就尝试 removeDep。
 			s.db.addDep(s, rows)
 
-			// releaseConn must be set before initContextClose or it could
-			// release the connection before it is set.
+			// releaseConn 必须在 initContextClose 之前设置，否则它可能会
+			// 在设置之前就释放连接。
 			rows.releaseConn = func(err error) {
 				releaseConn(err)
 				s.db.removeDep(s, rows)
@@ -2829,11 +2799,11 @@ func (s *Stmt) QueryContext(ctx context.Context, args ...any) (*Rows, error) {
 	return rows, err
 }
 
-// Query executes a prepared query statement with the given arguments
-// and returns the query results as a *Rows.
+// Query 使用给定参数执行一个已准备的查询语句，
+// 并将查询结果作为 *Rows 返回。
 //
-// Query uses [context.Background] internally; to specify the context, use
-// [Stmt.QueryContext].
+// Query 内部使用 [context.Background]；要指定 context，请使用
+// [Stmt.QueryContext]。
 func (s *Stmt) Query(args ...any) (*Rows, error) {
 	return s.QueryContext(context.Background(), args...)
 }
@@ -2848,12 +2818,12 @@ func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, arg
 	return ctxDriverStmtQuery(ctx, ds.si, dargs)
 }
 
-// QueryRowContext executes a prepared query statement with the given arguments.
-// If an error occurs during the execution of the statement, that error will
-// be returned by a call to Scan on the returned [*Row], which is always non-nil.
-// If the query selects no rows, the [*Row.Scan] will return [ErrNoRows].
-// Otherwise, the [*Row.Scan] scans the first selected row and discards
-// the rest.
+// QueryRowContext 使用给定参数执行一个已准备的查询语句。
+// 如果语句执行期间发生错误，该错误将由对返回的 [*Row]
+// 调用 Scan 时返回，而 [*Row] 始终非 nil。
+// 如果查询没有选中任何行，[*Row.Scan] 将返回 [ErrNoRows]。
+// 否则，[*Row.Scan] 扫描第一个选中的行并丢弃
+// 其余的行。
 func (s *Stmt) QueryRowContext(ctx context.Context, args ...any) *Row {
 	rows, err := s.QueryContext(ctx, args...)
 	if err != nil {
@@ -2862,25 +2832,25 @@ func (s *Stmt) QueryRowContext(ctx context.Context, args ...any) *Row {
 	return &Row{rows: rows}
 }
 
-// QueryRow executes a prepared query statement with the given arguments.
-// If an error occurs during the execution of the statement, that error will
-// be returned by a call to Scan on the returned [*Row], which is always non-nil.
-// If the query selects no rows, the [*Row.Scan] will return [ErrNoRows].
-// Otherwise, the [*Row.Scan] scans the first selected row and discards
-// the rest.
+// QueryRow 使用给定参数执行一个已准备的查询语句。
+// 如果语句执行期间发生错误，该错误将由对返回的 [*Row]
+// 调用 Scan 时返回，而 [*Row] 始终非 nil。
+// 如果查询没有选中任何行，[*Row.Scan] 将返回 [ErrNoRows]。
+// 否则，[*Row.Scan] 扫描第一个选中的行并丢弃
+// 其余的行。
 //
-// Example usage:
+// 用法示例：
 //
 //	var name string
 //	err := nameByUseridStmt.QueryRow(id).Scan(&name)
 //
-// QueryRow uses [context.Background] internally; to specify the context, use
-// [Stmt.QueryRowContext].
+// QueryRow 内部使用 [context.Background]；要指定 context，请使用
+// [Stmt.QueryRowContext]。
 func (s *Stmt) QueryRow(args ...any) *Row {
 	return s.QueryRowContext(context.Background(), args...)
 }
 
-// Close closes the statement.
+// Close 关闭该语句。
 func (s *Stmt) Close() error {
 	s.closemu.Lock()
 	defer s.closemu.Unlock()
@@ -2904,8 +2874,8 @@ func (s *Stmt) Close() error {
 	}
 
 	if s.parentStmt != nil {
-		// If parentStmt is set, we must not close s.txds since it's stored
-		// in the css array of the parentStmt.
+		// 如果设置了 parentStmt，我们绝不能关闭 s.txds，因为它存储在
+		// parentStmt 的 css 数组中。
 		return s.db.removeDep(s.parentStmt, s)
 	}
 	return txds.Close()
@@ -2924,55 +2894,54 @@ func (s *Stmt) finalClose() error {
 	return nil
 }
 
-// Rows is the result of a query. Its cursor starts before the first row
-// of the result set. Use [Rows.Next] to advance from row to row.
+// Rows 是一次查询的结果。它的游标从结果集的第一行之前
+// 开始。使用 [Rows.Next] 逐行前进。
 type Rows struct {
-	dc          *driverConn // owned; must call releaseConn when closed to release
+	dc          *driverConn // 被持有；关闭时必须调用 releaseConn 来释放
 	releaseConn func(error)
 	rowsi       driver.Rows
-	cancel      func()      // called when Rows is closed, may be nil.
-	closeStmt   *driverStmt // if non-nil, statement to Close on close
+	cancel      func()      // 在 Rows 被关闭时调用，可能为 nil。
+	closeStmt   *driverStmt // 如果非 nil，表示关闭时要 Close 的语句
 
-	contextDone atomic.Pointer[error] // error that awaitDone saw; set before close attempt
+	contextDone atomic.Pointer[error] // awaitDone 看到的错误；在尝试关闭之前设置
 
-	// closemu prevents Rows from closing while there
-	// is an active streaming result. It is held for read during non-close operations
-	// and exclusively during close.
+	// closemu 防止在有活动的流式结果时关闭 Rows。
+	// 它在非关闭操作期间以读模式持有，
+	// 在关闭时以独占模式持有。
 	//
-	// closemu guards lasterr and closed.
+	// closemu 保护 lasterr 和 closed。
 	closemu sync.RWMutex
-	lasterr error // non-nil only if closed is true
+	lasterr error // 仅当 closed 为 true 时非 nil
 	closed  bool
 
-	// closemuScanHold is whether the previous call to Scan kept closemu RLock'ed
-	// without unlocking it. It does that when the user passes a *RawBytes scan
-	// target. In that case, we need to prevent awaitDone from closing the Rows
-	// while the user's still using the memory. See go.dev/issue/60304.
+	// closemuScanHold 表示上一次对 Scan 的调用是否让 closemu 保持 RLock
+	// 而未解锁。当用户传入 *RawBytes 作为扫描目标时它会这样做。
+	// 在这种情况下，我们需要防止 awaitDone 在用户仍在使用
+	// 该内存时关闭 Rows。参见 go.dev/issue/60304。
 	//
-	// It is only used by Scan, Next, and NextResultSet which are expected
-	// not to be called concurrently.
+	// 它仅由 Scan、Next 和 NextResultSet 使用，这些函数
+	// 不应被并发调用。
 	closemuScanHold bool
 
-	// hitEOF is whether Next hit the end of the rows without
-	// encountering an error. It's set in Next before
-	// returning. It's only used by Next and Err which are
-	// expected not to be called concurrently.
+	// hitEOF 表示 Next 是否在未遇到错误的情况下碰到了行尾。
+	// 它在 Next 返回之前设置。它仅由 Next 和 Err 使用，
+	// 这些函数不应被并发调用。
 	hitEOF bool
 
-	// lastcols is only used in Scan, Next, and NextResultSet which are expected
-	// not to be called concurrently.
+	// lastcols 仅在 Scan、Next 和 NextResultSet 中使用，
+	// 这些函数不应被并发调用。
 	lastcols []driver.Value
 
-	// raw is a buffer for RawBytes that persists between Scan calls.
-	// This is used when the driver returns a mismatched type that requires
-	// a cloning allocation. For example, if the driver returns a *string and
-	// the user is scanning into a *RawBytes, we need to copy the string.
-	// The raw buffer here lets us reuse the memory for that copy across Scan calls.
+	// raw 是 RawBytes 的缓冲区，在多次 Scan 调用之间持续存在。
+	// 当驱动返回不匹配的类型而需要克隆分配时使用它。
+	// 例如，如果驱动返回 *string，而用户正在扫描到
+	// *RawBytes，我们就需要复制该字符串。
+	// 这里的 raw 缓冲区让我们可以在多次 Scan 调用之间复用该副本的内存。
 	raw []byte
 }
 
-// lasterrOrErrLocked returns either lasterr or the provided err.
-// rs.closemu must be read-locked.
+// lasterrOrErrLocked 返回 lasterr 或提供的 err。
+// rs.closemu 必须处于读锁定状态。
 func (rs *Rows) lasterrOrErrLocked(err error) error {
 	if rs.lasterr != nil && rs.lasterr != io.EOF {
 		return rs.lasterr
@@ -2980,8 +2949,8 @@ func (rs *Rows) lasterrOrErrLocked(err error) error {
 	return err
 }
 
-// bypassRowsAwaitDone is only used for testing.
-// If true, it will not close the Rows automatically from the context.
+// bypassRowsAwaitDone 仅用于测试。
+// 如果为 true，则不会由 context 自动关闭 Rows。
 var bypassRowsAwaitDone = false
 
 func (rs *Rows) initContextClose(ctx, txctx context.Context) {
@@ -2996,11 +2965,11 @@ func (rs *Rows) initContextClose(ctx, txctx context.Context) {
 	go rs.awaitDone(ctx, txctx, closectx)
 }
 
-// awaitDone blocks until ctx, txctx, or closectx is canceled.
-// The ctx is provided from the query context.
-// If the query was issued in a transaction, the transaction's context
-// is also provided in txctx, to ensure Rows is closed if the Tx is closed.
-// The closectx is closed by an explicit call to rs.Close.
+// awaitDone 阻塞直到 ctx、txctx 或 closectx 被取消。
+// ctx 来自查询 context。
+// 如果查询是在事务中发起的，事务的 context 也会
+// 通过 txctx 提供，以确保在 Tx 关闭时 Rows 被关闭。
+// closectx 由对 rs.Close 的显式调用关闭。
 func (rs *Rows) awaitDone(ctx, txctx, closectx context.Context) {
 	var txctxDone <-chan struct{}
 	if txctx != nil {
@@ -3014,22 +2983,21 @@ func (rs *Rows) awaitDone(ctx, txctx, closectx context.Context) {
 		err := txctx.Err()
 		rs.contextDone.Store(&err)
 	case <-closectx.Done():
-		// rs.cancel was called via Close(); don't store this into contextDone
-		// to ensure Err() is unaffected.
+		// rs.cancel 是通过 Close() 调用的；不要把它存入 contextDone，
+		// 以确保 Err() 不受影响。
 	}
 	rs.close(ctx.Err())
 }
 
-// Next prepares the next result row for reading with the [Rows.Scan] method. It
-// returns true on success, or false if there is no next result row or an error
-// happened while preparing it. [Rows.Err] should be consulted to distinguish between
-// the two cases.
+// Next 准备下一行结果，以便用 [Rows.Scan] 方法读取。如果成功则返回 true；
+// 如果没有下一行结果，或在准备过程中发生错误，则返回 false。[Rows.Err]
+// 应被用于区分这两种情况。
 //
-// Every call to [Rows.Scan], even the first one, must be preceded by a call to [Rows.Next].
+// 每一次对 [Rows.Scan] 的调用，即使是第一次，都必须先调用 [Rows.Next]。
 func (rs *Rows) Next() bool {
-	// If the user's calling Next, they're done with their previous row's Scan
-	// results (any RawBytes memory), so we can release the read lock that would
-	// be preventing awaitDone from calling close.
+	// 如果用户正在调用 Next，说明他们已经用完了上一行的 Scan 结果
+	// （任何 RawBytes 内存），因此我们可以释放那个会阻止 awaitDone
+	// 调用 close 的读锁。
 	rs.closemuRUnlockIfHeldByScan()
 
 	if rs.contextDone.Load() != nil {
@@ -3054,8 +3022,8 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 		return false, false
 	}
 
-	// Lock the driver connection before calling the driver interface
-	// rowsi to prevent a Tx from rolling back the connection at the same time.
+	// 在调用驱动接口 rowsi 之前锁定驱动连接，
+	// 以防止 Tx 同时回滚该连接。
 	rs.dc.Lock()
 	defer rs.dc.Unlock()
 
@@ -3065,7 +3033,7 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 
 	rs.lasterr = rs.rowsi.Next(rs.lastcols)
 	if rs.lasterr != nil {
-		// Close the connection if there is a driver error.
+		// 如果有驱动错误，则关闭连接。
 		if rs.lasterr != io.EOF {
 			return true, false
 		}
@@ -3073,9 +3041,9 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 		if !ok {
 			return true, false
 		}
-		// The driver is at the end of the current result set.
-		// Test to see if there is another result set after the current one.
-		// Only close Rows if there is no further result sets to read.
+		// 驱动已处于当前结果集的末尾。
+		// 测试在当前结果集之后是否还有另一个结果集。
+		// 只有在没有更多结果集可读时才关闭 Rows。
 		if !nextResultSet.HasNextResultSet() {
 			doClose = true
 		}
@@ -3084,18 +3052,16 @@ func (rs *Rows) nextLocked() (doClose, ok bool) {
 	return false, true
 }
 
-// NextResultSet prepares the next result set for reading. It reports whether
-// there is further result sets, or false if there is no further result set
-// or if there is an error advancing to it. The [Rows.Err] method should be consulted
-// to distinguish between the two cases.
+// NextResultSet 准备下一个结果集以供读取。它报告是否还有更多结果集；
+// 如果没有更多结果集，或在推进到下一个结果集时发生错误，则返回 false。
+// [Rows.Err] 方法应被用于区分这两种情况。
 //
-// After calling NextResultSet, the [Rows.Next] method should always be called before
-// scanning. If there are further result sets they may not have rows in the result
-// set.
+// 在调用 NextResultSet 之后，在扫描之前应始终先调用 [Rows.Next] 方法。
+// 如果还有更多结果集，它们可能在结果集中没有行。
 func (rs *Rows) NextResultSet() bool {
-	// If the user's calling NextResultSet, they're done with their previous
-	// row's Scan results (any RawBytes memory), so we can release the read lock
-	// that would be preventing awaitDone from calling close.
+	// 如果用户正在调用 NextResultSet，说明他们已经用完了上一行的 Scan 结果
+	// （任何 RawBytes 内存），因此我们可以释放那个会阻止 awaitDone
+	// 调用 close 的读锁。
 	rs.closemuRUnlockIfHeldByScan()
 
 	var doClose bool
@@ -3118,8 +3084,8 @@ func (rs *Rows) NextResultSet() bool {
 		return false
 	}
 
-	// Lock the driver connection before calling the driver interface
-	// rowsi to prevent a Tx from rolling back the connection at the same time.
+	// 在调用驱动接口 rowsi 之前锁定驱动连接，
+	// 以防止 Tx 同时回滚该连接。
 	rs.dc.Lock()
 	defer rs.dc.Unlock()
 
@@ -3131,13 +3097,12 @@ func (rs *Rows) NextResultSet() bool {
 	return true
 }
 
-// Err returns the error, if any, that was encountered during iteration.
-// Err may be called after an explicit or implicit [Rows.Close].
+// Err 返回在迭代过程中遇到的错误（如果有）。
+// 可以在显式或隐式调用 [Rows.Close] 之后调用 Err。
 func (rs *Rows) Err() error {
-	// Return any context error that might've happened during row iteration,
-	// but only if we haven't reported the final Next() = false after rows
-	// are done, in which case the user might've canceled their own context
-	// before calling Rows.Err.
+	// 返回行迭代期间可能发生的任何 context 错误，
+	// 但仅当我们尚未在行取完后报告最终的 Next() = false 时，
+	// 因为在那种情况下用户可能已经在调用 Rows.Err 之前取消了自己的 context。
 	if !rs.hitEOF {
 		if errp := rs.contextDone.Load(); errp != nil {
 			return *errp
@@ -3149,25 +3114,25 @@ func (rs *Rows) Err() error {
 	return rs.lasterrOrErrLocked(nil)
 }
 
-// rawbuf returns the buffer to append RawBytes values to.
-// This buffer is reused across calls to Rows.Scan.
+// rawbuf 返回用于追加 RawBytes 值的缓冲区。
+// 该缓冲区在多次调用 Rows.Scan 之间被复用。
 //
-// Usage:
+// 用法：
 //
 //	rawBytes = rows.setrawbuf(append(rows.rawbuf(), value...))
 func (rs *Rows) rawbuf() []byte {
 	if rs == nil {
-		// convertAssignRows can take a nil *Rows; for simplicity handle it here
+		// convertAssignRows 可以接受 nil 的 *Rows；为简单起见在此处理
 		return nil
 	}
 	return rs.raw
 }
 
-// setrawbuf updates the RawBytes buffer with the result of appending a new value to it.
-// It returns the new value.
+// setrawbuf 用向其追加一个新值后的结果更新 RawBytes 缓冲区。
+// 它返回新值。
 func (rs *Rows) setrawbuf(b []byte) RawBytes {
 	if rs == nil {
-		// convertAssignRows can take a nil *Rows; for simplicity handle it here
+		// convertAssignRows 可以接受 nil 的 *Rows；为简单起见在此处理
 		return RawBytes(b)
 	}
 	off := len(rs.raw)
@@ -3178,8 +3143,8 @@ func (rs *Rows) setrawbuf(b []byte) RawBytes {
 var errRowsClosed = errors.New("sql: Rows are closed")
 var errNoRows = errors.New("sql: no Rows available")
 
-// Columns returns the column names.
-// Columns returns an error if the rows are closed.
+// Columns 返回列名。
+// 如果 rows 已关闭，Columns 返回一个错误。
 func (rs *Rows) Columns() ([]string, error) {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
@@ -3195,8 +3160,8 @@ func (rs *Rows) Columns() ([]string, error) {
 	return rs.rowsi.Columns(), nil
 }
 
-// ColumnTypes returns column information such as column type, length,
-// and nullable. Some information may not be available from some drivers.
+// ColumnTypes 返回列信息，例如列类型、长度和是否可为 null。
+// 某些信息可能无法从某些驱动获取。
 func (rs *Rows) ColumnTypes() ([]*ColumnType, error) {
 	rs.closemu.RLock()
 	defer rs.closemu.RUnlock()
@@ -3212,7 +3177,7 @@ func (rs *Rows) ColumnTypes() ([]*ColumnType, error) {
 	return rowsColumnInfoSetupConnLocked(rs.rowsi), nil
 }
 
-// ColumnType contains the name and type of a column.
+// ColumnType 包含列的名称和类型。
 type ColumnType struct {
 	name string
 
@@ -3228,45 +3193,42 @@ type ColumnType struct {
 	scanType     reflect.Type
 }
 
-// Name returns the name or alias of the column.
+// Name 返回列的名称或别名。
 func (ci *ColumnType) Name() string {
 	return ci.name
 }
 
-// Length returns the column type length for variable length column types such
-// as text and binary field types. If the type length is unbounded the value will
-// be [math.MaxInt64] (any database limits will still apply).
-// If the column type is not variable length, such as an int, or if not supported
-// by the driver ok is false.
+// Length 返回可变长度列类型（例如 text 和 binary 字段类型）的列类型长度。
+// 如果类型长度无界，则值为 [math.MaxInt64]（任何数据库限制仍将适用）。
+// 如果列类型不是可变长度的，例如 int，或如果驱动不支持，则 ok 为 false。
 func (ci *ColumnType) Length() (length int64, ok bool) {
 	return ci.length, ci.hasLength
 }
 
-// DecimalSize returns the scale and precision of a decimal type.
-// If not applicable or if not supported ok is false.
+// DecimalSize 返回 decimal 类型的标度和精度。
+// 如果不适用，或如果驱动不支持，则 ok 为 false。
 func (ci *ColumnType) DecimalSize() (precision, scale int64, ok bool) {
 	return ci.precision, ci.scale, ci.hasPrecisionScale
 }
 
-// ScanType returns a Go type suitable for scanning into using [Rows.Scan].
-// If a driver does not support this property ScanType will return
-// the type of an empty interface.
+// ScanType 返回一个适合用 [Rows.Scan] 扫描到的 Go 类型。
+// 如果驱动不支持此属性，ScanType 将返回空接口的类型。
 func (ci *ColumnType) ScanType() reflect.Type {
 	return ci.scanType
 }
 
-// Nullable reports whether the column may be null.
-// If a driver does not support this property ok will be false.
+// Nullable 报告该列是否可为 null。
+// 如果驱动不支持此属性，ok 将为 false。
 func (ci *ColumnType) Nullable() (nullable, ok bool) {
 	return ci.nullable, ci.hasNullable
 }
 
-// DatabaseTypeName returns the database system name of the column type. If an empty
-// string is returned, then the driver type name is not supported.
-// Consult your driver documentation for a list of driver data types. [ColumnType.Length] specifiers
-// are not included.
-// Common type names include "VARCHAR", "TEXT", "NVARCHAR", "DECIMAL", "BOOL",
-// "INT", and "BIGINT".
+// DatabaseTypeName 返回列类型的数据库系统名称。如果返回空字符串，
+// 则表示不支持该驱动类型名称。
+// 请查阅驱动文档以获取驱动数据类型的列表。[ColumnType.Length]
+// 说明符不包含在内。
+// 常见的类型名称包括 "VARCHAR"、"TEXT"、"NVARCHAR"、"DECIMAL"、"BOOL"、
+// "INT" 和 "BIGINT"。
 func (ci *ColumnType) DatabaseTypeName() string {
 	return ci.databaseType
 }
@@ -3302,12 +3264,11 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 	return list
 }
 
-// Scan copies the columns in the current row into the values pointed
-// at by dest. The number of values in dest must be the same as the
-// number of columns in [Rows].
+// Scan 将当前行中的列复制到 dest 所指向的值。dest 中的值的数量
+// 必须与 [Rows] 中的列数相同。
 //
-// Scan converts columns read from the database into the following
-// common Go types and special types provided by the sql package:
+// Scan 将从数据库读取的列转换为以下
+// 常见 Go 类型和 sql 包提供的特殊类型：
 //
 //	*string
 //	*[]byte
@@ -3320,52 +3281,45 @@ func rowsColumnInfoSetupConnLocked(rowsi driver.Rows) []*ColumnType {
 //	*Rows (cursor value)
 //	any type implementing Scanner (see Scanner docs)
 //
-// In the most simple case, if the type of the value from the source
-// column is an integer, bool or string type T and dest is of type *T,
-// Scan simply assigns the value through the pointer.
+// 在最简单的情况下，如果源列值的类型为整数、bool 或字符串类型 T，
+// 而 dest 的类型为 *T，Scan 只需通过指针赋值。
 //
-// Scan also converts between string and numeric types, as long as no
-// information would be lost. While Scan stringifies all numbers
-// scanned from numeric database columns into *string, scans into
-// numeric types are checked for overflow. For example, a float64 with
-// value 300 or a string with value "300" can scan into a uint16, but
-// not into a uint8, though float64(255) or "255" can scan into a
-// uint8. One exception is that scans of some float64 numbers to
-// strings may lose information when stringifying. In general, scan
-// floating point columns into *float64.
+// 只要不丢失信息，Scan 也可以在字符串和数值类型之间转换。虽然 Scan 会将
+// 从数值数据库列扫描到的所有数字字符串化写入 *string，但扫描到
+// 数值类型时会检查溢出。例如，值为 300 的 float64 或值为 "300" 的字符串
+// 可以扫描进 uint16，但不能扫描进 uint8，尽管 float64(255) 或 "255"
+// 可以扫描进 uint8。一个例外是，某些 float64 数字扫描到字符串时
+// 在字符串化过程中可能丢失信息。一般而言，应将浮点列扫描进 *float64。
 //
-// If a dest argument has type *[]byte, Scan saves in that argument a
-// copy of the corresponding data. The copy is owned by the caller and
-// can be modified and held indefinitely. The copy can be avoided by
-// using an argument of type [*RawBytes] instead; see the documentation
-// for [RawBytes] for restrictions on its use.
+// 如果某个 dest 参数的类型为 *[]byte，Scan 会在该参数中保存
+// 相应数据的副本。该副本归调用者所有，
+// 可以被修改并无限期持有。可以通过改用类型为 [*RawBytes] 的参数
+// 来避免复制；关于其使用的限制，请参阅 [RawBytes] 的文档。
 //
-// If an argument has type *interface{}, Scan copies the value
-// provided by the underlying driver without conversion. When scanning
-// from a source value of type []byte to *interface{}, a copy of the
-// slice is made and the caller owns the result.
+// 如果某个参数的类型为 *interface{}，Scan 会不经转换地复制
+// 底层驱动提供的值。当从类型为 []byte 的源值扫描到 *interface{} 时，
+// 会制作该切片的一个副本，结果归调用者所有。
 //
-// Source values of type [time.Time] may be scanned into values of type
-// *time.Time, *interface{}, *string, or *[]byte. When converting to
-// the latter two, [time.RFC3339Nano] is used.
+// 类型为 [time.Time] 的源值可以被扫描进类型为
+// *time.Time、*interface{}、*string 或 *[]byte 的值。当转换为
+// 后两者时，使用 [time.RFC3339Nano]。
 //
-// Source values of type bool may be scanned into types *bool,
-// *interface{}, *string, *[]byte, or [*RawBytes].
+// 类型为 bool 的源值可以被扫描进类型 *bool、
+// *interface{}、*string、*[]byte 或 [*RawBytes]。
 //
-// For scanning into *bool, the source may be true, false, 1, 0, or
-// string inputs parseable by [strconv.ParseBool].
+// 对于扫描进 *bool，源可以是 true、false、1、0，或
+// 可被 [strconv.ParseBool] 解析的字符串输入。
 //
-// Scan can also convert a cursor returned from a query, such as
-// "select cursor(select * from my_table) from dual", into a
-// [*Rows] value that can itself be scanned from. The parent
-// select query will close any cursor [*Rows] if the parent [*Rows] is closed.
+// Scan 还可以将查询返回的游标（例如
+// "select cursor(select * from my_table) from dual"）转换为
+// 一个 [*Rows] 值，该值本身可以被扫描。如果父 [*Rows] 被关闭，
+// 父 select 查询将关闭任何游标 [*Rows]。
 //
-// If any of the first arguments implementing [Scanner] returns an error,
-// that error will be wrapped in the returned error.
+// 如果任何实现 [Scanner] 的前导参数返回错误，
+// 该错误将被包装在返回的错误中。
 func (rs *Rows) Scan(dest ...any) error {
 	if rs.closemuScanHold {
-		// This should only be possible if the user calls Scan twice in a row
-		// without calling Next.
+		// 只有在用户连续调用 Scan 两次而不调用 Next 时才可能出现这种情况。
 		return fmt.Errorf("sql: Scan called without calling Next (closemuScanHold)")
 	}
 
@@ -3404,8 +3358,8 @@ func (rs *Rows) scanLocked(dest ...any) error {
 	return nil
 }
 
-// closemuRUnlockIfHeldByScan releases any closemu.RLock held open by a previous
-// call to Scan with *RawBytes.
+// closemuRUnlockIfHeldByScan 释放先前使用 *RawBytes 调用 Scan 时
+// 持有并保持打开的 closemu.RLock。
 func (rs *Rows) closemuRUnlockIfHeldByScan() {
 	if rs.closemuScanHold {
 		rs.closemuScanHold = false
@@ -3422,18 +3376,18 @@ func scanArgsContainRawBytes(args []any) bool {
 	return false
 }
 
-// rowsCloseHook returns a function so tests may install the
-// hook through a test only mutex.
+// rowsCloseHook 返回一个函数，以便测试可以通过仅测试用的互斥锁
+// 安装该钩子。
 var rowsCloseHook = func() func(*Rows, *error) { return nil }
 
-// Close closes the [Rows], preventing further enumeration. If [Rows.Next] is called
-// and returns false and there are no further result sets,
-// the [Rows] are closed automatically and it will suffice to check the
-// result of [Rows.Err]. Close is idempotent and does not affect the result of [Rows.Err].
+// Close 关闭 [Rows]，阻止进一步枚举。如果调用 [Rows.Next]
+// 并返回 false 且没有更多结果集，[Rows] 会自动关闭，
+// 此时只需检查 [Rows.Err] 的结果即可。Close 是幂等的，
+// 且不影响 [Rows.Err] 的结果。
 func (rs *Rows) Close() error {
-	// If the user's calling Close, they're done with their previous row's Scan
-	// results (any RawBytes memory), so we can release the read lock that would
-	// be preventing awaitDone from calling the unexported close before we do so.
+	// 如果用户正在调用 Close，说明他们已经用完了上一行的 Scan 结果
+	// （任何 RawBytes 内存），因此我们可以释放那个会阻止 awaitDone
+	// 在我们执行之前调用未导出的 close 的读锁。
 	rs.closemuRUnlockIfHeldByScan()
 
 	return rs.close(nil)
@@ -3471,36 +3425,31 @@ func (rs *Rows) close(err error) error {
 	return err
 }
 
-// Row is the result of calling [DB.QueryRow] to select a single row.
+// Row 是调用 [DB.QueryRow] 以选择单行的结果。
 type Row struct {
-	// One of these two will be non-nil:
-	err  error // deferred error for easy chaining
+	// 以下两者之一将为非 nil：
+	err  error // 为便于链式调用而延迟的错误
 	rows *Rows
 }
 
-// Scan copies the columns from the matched row into the values
-// pointed at by dest. See the documentation on [Rows.Scan] for details.
-// If more than one row matches the query,
-// Scan uses the first row and discards the rest. If no row matches
-// the query, Scan returns [ErrNoRows].
+// Scan 将匹配行中的列复制到 dest 所指向的值。
+// 详情请参阅 [Rows.Scan] 的文档。
+// 如果有多行匹配该查询，Scan 使用第一行并丢弃其余的。
+// 如果没有行匹配该查询，Scan 返回 [ErrNoRows]。
 func (r *Row) Scan(dest ...any) error {
 	if r.err != nil {
 		return r.err
 	}
 
-	// TODO(bradfitz): for now we need to defensively clone all
-	// []byte that the driver returned (not permitting
-	// *RawBytes in Rows.Scan), since we're about to close
-	// the Rows in our defer, when we return from this function.
-	// the contract with the driver.Next(...) interface is that it
-	// can return slices into read-only temporary memory that's
-	// only valid until the next Scan/Close. But the TODO is that
-	// for a lot of drivers, this copy will be unnecessary. We
-	// should provide an optional interface for drivers to
-	// implement to say, "don't worry, the []bytes that I return
-	// from Next will not be modified again." (for instance, if
-	// they were obtained from the network anyway) But for now we
-	// don't care.
+	// TODO(bradfitz)：目前我们需要防御性地克隆驱动返回的所有
+	// []byte（不允许在 Rows.Scan 中使用 *RawBytes），因为当我们
+	// 从这个函数返回时，我们的 defer 即将关闭 Rows。
+	// 与驱动 Next(...) 接口的约定是，它可以返回指向只读临时内存的切片，
+	// 该内存仅在下次 Scan/Close 之前有效。但 TODO 是，
+	// 对于很多驱动而言，这种复制是不必要的。我们应该提供一个可选的
+	// 接口供驱动实现，以表明“别担心，我从 Next 返回的 []byte
+	// 不会被再次修改。”（例如，如果它们本来就是从网络获取的）
+	// 但目前我们不在意。
 	defer r.rows.Close()
 	if scanArgsContainRawBytes(dest) {
 		return errors.New("sql: RawBytes isn't allowed on Row.Scan")
@@ -3516,35 +3465,32 @@ func (r *Row) Scan(dest ...any) error {
 	if err != nil {
 		return err
 	}
-	// Make sure the query can be processed to completion with no errors.
+	// 确保查询能够在没有错误的情况下完整处理。
 	return r.rows.Close()
 }
 
-// Err provides a way for wrapping packages to check for
-// query errors without calling [Row.Scan].
-// Err returns the error, if any, that was encountered while running the query.
-// If this error is not nil, this error will also be returned from [Row.Scan].
+// Err 为包装包提供了一种在不调用 [Row.Scan] 的情况下检查
+// 查询错误的方式。
+// Err 返回在运行查询时遇到的错误（如果有）。
+// 如果此错误不为 nil，则 [Row.Scan] 也会返回此错误。
 func (r *Row) Err() error {
 	return r.err
 }
 
-// A Result summarizes an executed SQL command.
+// Result 汇总了一条已执行的 SQL 命令。
 type Result interface {
-	// LastInsertId returns the integer generated by the database
-	// in response to a command. Typically this will be from an
-	// "auto increment" column when inserting a new row. Not all
-	// databases support this feature, and the syntax of such
-	// statements varies.
+	// LastInsertId 返回数据库为响应命令而生成的整数。
+	// 通常这来自插入新行时的 "auto increment" 列。
+	// 并非所有数据库都支持此特性，且此类语句的语法各不相同。
 	LastInsertId() (int64, error)
 
-	// RowsAffected returns the number of rows affected by an
-	// update, insert, or delete. Not every database or database
-	// driver may support this.
+	// RowsAffected 返回受 update、insert 或 delete 影响的行数。
+	// 并非每个数据库或数据库驱动都支持此功能。
 	RowsAffected() (int64, error)
 }
 
 type driverResult struct {
-	sync.Locker // the *driverConn
+	sync.Locker // 即 *driverConn
 	resi        driver.Result
 }
 
@@ -3565,39 +3511,39 @@ func stack() string {
 	return string(buf[:runtime.Stack(buf[:], false)])
 }
 
-// withLock runs while holding lk.
+// withLock 在持有 lk 的情况下运行。
 func withLock(lk sync.Locker, fn func()) {
 	lk.Lock()
-	defer lk.Unlock() // in case fn panics
+	defer lk.Unlock() // 以防 fn 发生 panic
 	fn()
 }
 
-// connRequestSet is a set of chan connRequest that's
-// optimized for:
+// connRequestSet 是一组 chan connRequest，它针对以下操作
+// 进行了优化：
 //
-//   - adding an element
-//   - removing an element (only by the caller who added it)
-//   - taking (get + delete) a random element
+//   - 添加元素
+//   - 移除元素（只能由添加它的调用者执行）
+//   - 取出（获取 + 删除）一个随机元素
 //
-// We previously used a map for this but the take of a random element
-// was expensive, making mapiters. This type avoids a map entirely
-// and just uses a slice.
+// 我们之前为此使用了 map，但取出随机元素代价高昂，
+// 需要用到 map 迭代器。该类型完全避免使用 map，
+// 只使用一个切片。
 type connRequestSet struct {
-	// s are the elements in the set.
+	// s 是集合中的元素。
 	s []connRequestAndIndex
 }
 
 type connRequestAndIndex struct {
-	// req is the element in the set.
+	// req 是集合中的元素。
 	req chan connRequest
 
-	// curIdx points to the current location of this element in
-	// connRequestSet.s. It gets set to -1 upon removal.
+	// curIdx 指向该元素在
+	// connRequestSet.s 中的当前位置。移除时它会被设为 -1。
 	curIdx *int
 }
 
-// CloseAndRemoveAll closes all channels in the set
-// and clears the set.
+// CloseAndRemoveAll 关闭集合中的所有 channel
+// 并清空该集合。
 func (s *connRequestSet) CloseAndRemoveAll() {
 	for _, v := range s.s {
 		*v.curIdx = -1
@@ -3606,37 +3552,36 @@ func (s *connRequestSet) CloseAndRemoveAll() {
 	s.s = nil
 }
 
-// Len returns the length of the set.
+// Len 返回集合的长度。
 func (s *connRequestSet) Len() int { return len(s.s) }
 
-// connRequestDelHandle is an opaque handle to delete an
-// item from calling Add.
+// connRequestDelHandle 是一个不透明的句柄，用于删除
+// 由 Add 调用所添加的项。
 type connRequestDelHandle struct {
-	idx *int // pointer to index; or -1 if not in slice
+	idx *int // 指向索引的指针；如果不在切片中则为 -1
 }
 
-// Add adds v to the set of waiting requests.
-// The returned connRequestDelHandle can be used to remove the item from
-// the set.
+// Add 将 v 添加到等待请求的集合中。
+// 返回的 connRequestDelHandle 可用于从集合中
+// 移除该项。
 func (s *connRequestSet) Add(v chan connRequest) connRequestDelHandle {
 	idx := len(s.s)
-	// TODO(bradfitz): for simplicity, this always allocates a new int-sized
-	// allocation to store the index. But generally the set will be small and
-	// under a scannable-threshold. As an optimization, we could permit the *int
-	// to be nil when the set is small and should be scanned. This works even if
-	// the set grows over the threshold with delete handles outstanding because
-	// an element can only move to a lower index. So if it starts with a nil
-	// position, it'll always be in a low index and thus scannable. But that
-	// can be done in a follow-up change.
+	// TODO(bradfitz)：为简单起见，这里总是分配一个新的 int 大小的
+	// 分配来存储索引。但一般而言集合会很小，
+	// 处于可扫描的阈值以下。作为一种优化，我们可以在集合很小且
+	// 应被扫描时允许 *int 为 nil。即使集合在存在未处理删除句柄的情况下
+	// 增长超过阈值，这也能工作，因为元素只会移动到更低的索引。
+	// 所以如果它开始时为 nil 位置，它将始终处于低索引因而可被扫描。
+	// 但这可以在后续变更中完成。
 	idxPtr := &idx
 	s.s = append(s.s, connRequestAndIndex{v, idxPtr})
 	return connRequestDelHandle{idxPtr}
 }
 
-// Delete removes an element from the set.
+// Delete 从集合中移除一个元素。
 //
-// It reports whether the element was deleted. (It can return false if a caller
-// of TakeRandom took it meanwhile, or upon the second call to Delete)
+// 它报告该元素是否被删除。（如果 TakeRandom 的某个调用者
+// 在此期间将它取走，或者第二次调用 Delete，则可能返回 false）
 func (s *connRequestSet) Delete(h connRequestDelHandle) bool {
 	idx := *h.idx
 	if idx < 0 {
@@ -3647,23 +3592,23 @@ func (s *connRequestSet) Delete(h connRequestDelHandle) bool {
 }
 
 func (s *connRequestSet) deleteIndex(idx int) {
-	// Mark item as deleted.
+	// 将该项标记为已删除。
 	*(s.s[idx].curIdx) = -1
-	// Copy last element, updating its position
-	// to its new home.
+	// 复制最后一个元素，将其位置
+	// 更新到它的新位置。
 	if idx < len(s.s)-1 {
 		last := s.s[len(s.s)-1]
 		*last.curIdx = idx
 		s.s[idx] = last
 	}
-	// Zero out last element (for GC) before shrinking the slice.
+	// 在收缩切片之前将最后一个元素清零（以便 GC）。
 	s.s[len(s.s)-1] = connRequestAndIndex{}
 	s.s = s.s[:len(s.s)-1]
 }
 
-// TakeRandom returns and removes a random element from s
-// and reports whether there was one to take. (It returns ok=false
-// if the set is empty.)
+// TakeRandom 从 s 中返回并移除一个随机元素，
+// 并报告是否有可取的元素。（如果集合为空，
+// 则返回 ok=false。）
 func (s *connRequestSet) TakeRandom() (v chan connRequest, ok bool) {
 	if len(s.s) == 0 {
 		return nil, false

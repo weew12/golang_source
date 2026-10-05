@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Type conversions for Scan.
+// Scan 的类型转换。
 
 package sql
 
@@ -16,10 +16,10 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
-	_ "unsafe" // for linkname
+	_ "unsafe" // 用于 linkname
 )
 
-var errNilPtr = errors.New("destination pointer is nil") // embedded in descriptive error
+var errNilPtr = errors.New("destination pointer is nil") // 嵌入到描述性错误中
 
 func describeNamedValue(nv *driver.NamedValue) string {
 	if len(nv.Name) == 0 {
@@ -39,9 +39,9 @@ func validateNamedValueName(name string) error {
 	return fmt.Errorf("name %q does not begin with a letter", name)
 }
 
-// ccChecker wraps the driver.ColumnConverter and allows it to be used
-// as if it were a NamedValueChecker. If the driver ColumnConverter
-// is not present then the NamedValueChecker will return driver.ErrSkip.
+// ccChecker 包装了 driver.ColumnConverter，使其能够像
+// NamedValueChecker 一样被使用。如果驱动的 ColumnConverter
+// 不存在，那么 NamedValueChecker 将返回 driver.ErrSkip。
 type ccChecker struct {
 	cci  driver.ColumnConverter
 	want int
@@ -51,17 +51,16 @@ func (c ccChecker) CheckNamedValue(nv *driver.NamedValue) error {
 	if c.cci == nil {
 		return driver.ErrSkip
 	}
-	// The column converter shouldn't be called on any index
-	// it isn't expecting. The final error will be thrown
-	// in the argument converter loop.
+	// 不应在任何它不期望的索引上调用列转换器。
+	// 最终的错误将在参数转换循环中抛出。
 	index := nv.Ordinal - 1
 	if c.want >= 0 && c.want <= index {
 		return nil
 	}
 
-	// First, see if the value itself knows how to convert
-	// itself to a driver type. For example, a NullString
-	// struct changing into a string or nil.
+	// 首先，看看值本身是否知道如何将自身转换为
+	// driver 类型。例如，一个 NullString
+	// 结构体转换成 string 或 nil。
 	if vr, ok := nv.Value.(driver.Valuer); ok {
 		sv, err := callValuerValue(vr)
 		if err != nil {
@@ -73,13 +72,12 @@ func (c ccChecker) CheckNamedValue(nv *driver.NamedValue) error {
 		nv.Value = sv
 	}
 
-	// Second, ask the column to sanity check itself. For
-	// example, drivers might use this to make sure that
-	// an int64 values being inserted into a 16-bit
-	// integer field is in range (before getting
-	// truncated), or that a nil can't go into a NOT NULL
-	// column before going across the network to get the
-	// same error.
+	// 其次，让列对其自身进行合理性检查。例如，
+	// 驱动程序可能借此确保插入到 16 位整数字段的
+	// int64 值在范围内（在被截断之前），
+	// 或者确保 nil 不能进入 NOT NULL 列，
+	// 从而避免跨网络之后才得到
+	// 同样的错误。
 	var err error
 	arg := nv.Value
 	nv.Value, err = c.cci.ColumnConverter(index).ConvertValue(arg)
@@ -92,26 +90,26 @@ func (c ccChecker) CheckNamedValue(nv *driver.NamedValue) error {
 	return nil
 }
 
-// defaultCheckNamedValue wraps the default ColumnConverter to have the same
-// function signature as the CheckNamedValue in the driver.NamedValueChecker
-// interface.
+// defaultCheckNamedValue 包装了默认的 ColumnConverter，使其具有
+// 与 driver.NamedValueChecker 接口中的 CheckNamedValue
+// 相同的函数签名。
 func defaultCheckNamedValue(nv *driver.NamedValue) (err error) {
 	nv.Value, err = driver.DefaultParameterConverter.ConvertValue(nv.Value)
 	return err
 }
 
-// driverArgsConnLocked converts arguments from callers of Stmt.Exec and
-// Stmt.Query into driver Values.
+// driverArgsConnLocked 将 Stmt.Exec 和 Stmt.Query 的调用方传入的参数
+// 转换为 driver Values。
 //
-// The statement ds may be nil, if no statement is available.
+// 如果没有可用的语句，语句 ds 可以为 nil。
 //
-// ci must be locked.
+// ci 必须处于加锁状态。
 func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.NamedValue, error) {
 	nvargs := make([]driver.NamedValue, len(args))
 
-	// -1 means the driver doesn't know how to count the number of
-	// placeholders, so we won't sanity check input here and instead let the
-	// driver deal with errors.
+	// -1 表示驱动程序不知道如何统计占位符的数量，
+	// 因此我们不会在此处对输入做合理性检查，而是让
+	// 驱动程序处理错误。
 	want := -1
 
 	var si driver.Stmt
@@ -122,10 +120,10 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 		cc.want = want
 	}
 
-	// Check all types of interfaces from the start.
-	// Drivers may opt to use the NamedValueChecker for special
-	// argument types, then return driver.ErrSkip to pass it along
-	// to the column converter.
+	// 从一开始就检查所有类型的接口。
+	// 驱动程序可以选择对特殊参数类型使用 NamedValueChecker，
+	// 然后返回 driver.ErrSkip，将其传递给
+	// 列转换器。
 	nvc, ok := si.(driver.NamedValueChecker)
 	if !ok {
 		nvc, _ = ci.(driver.NamedValueChecker)
@@ -135,11 +133,11 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 		cc.cci = cci
 	}
 
-	// Loop through all the arguments, checking each one.
-	// If no error is returned simply increment the index
-	// and continue. However, if driver.ErrRemoveArgument
-	// is returned the argument is not included in the query
-	// argument list.
+	// 遍历所有参数，逐一检查。
+	// 如果没有返回错误，只需递增索引
+	// 并继续。然而，如果返回了 driver.ErrRemoveArgument，
+	// 该参数就不会包含在查询
+	// 参数列表中。
 	var err error
 	var n int
 	for _, arg := range args {
@@ -154,17 +152,17 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 		nv.Ordinal = n + 1
 		nv.Value = arg
 
-		// Checking sequence has four routes:
+		// 检查序列有四条路径：
 		// A: 1. Default
 		// B: 1. NamedValueChecker 2. Column Converter 3. Default
 		// C: 1. NamedValueChecker 3. Default
 		// D: 1. Column Converter 2. Default
 		//
-		// The only time a Column Converter is called is first
-		// or after NamedValueConverter. If first it is handled before
-		// the nextCheck label. Thus for repeats tries only when the
-		// NamedValueConverter is selected should the Column Converter
-		// be used in the retry.
+		// 唯一会调用 Column Converter 的时机是最开始，
+		// 或者在 NamedValueConverter 之后。如果是最开始，
+		// 它会在 nextCheck 标签之前被处理。因此对于重复的尝试，
+		// 只有在选择了 NamedValueConverter 时，
+		// 才应在重试中使用 Column Converter。
 		checker := defaultCheckNamedValue
 		nextCC := false
 		switch {
@@ -197,8 +195,8 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 		}
 	}
 
-	// Check the length of arguments after conversion to allow for omitted
-	// arguments.
+	// 在转换后检查参数的长度，以允许省略
+	// 参数。
 	if want != -1 && len(nvargs) != want {
 		return nil, fmt.Errorf("sql: expected %d arguments, got %d", want, len(nvargs))
 	}
@@ -206,29 +204,29 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
 	return nvargs, nil
 }
 
-// convertAssign is the same as convertAssignRows, but without the optional
-// rows argument.
+// convertAssign 与 convertAssignRows 相同，但没有可选的
+// rows 参数。
 //
-// convertAssign should be an internal detail,
-// but widely used packages access it using linkname.
-// Notable members of the hall of shame include:
+// convertAssign 本应是一个内部细节，
+// 但被广泛使用的包通过 linkname 访问它。
+// 耻辱柱上值得注意的成员包括：
 //   - ariga.io/entcache
 //
-// Do not remove or change the type signature.
-// See go.dev/issue/67401.
+// 不要删除或更改类型签名。
+// 参见 go.dev/issue/67401。
 //
 //go:linkname convertAssign
 func convertAssign(dest, src any) error {
 	return convertAssignRows(dest, src, nil)
 }
 
-// convertAssignRows copies to dest the value in src, converting it if possible.
-// An error is returned if the copy would result in loss of information.
-// dest should be a pointer type. If rows is passed in, the rows will
-// be used as the parent for any cursor values converted from a
-// driver.Rows to a *Rows.
+// convertAssignRows 将 src 中的值复制到 dest，并在可能时进行转换。
+// 如果复制会导致信息丢失，则返回错误。
+// dest 应当是指针类型。如果传入了 rows，这些 rows 将
+// 被用作任何从 driver.Rows 转换为 *Rows 的游标值的
+// 父级。
 func convertAssignRows(dest, src any, rows *Rows) error {
-	// Common cases, without reflect.
+	// 常见情况，无需 reflect。
 	switch s := src.(type) {
 	case string:
 		switch d := dest.(type) {
@@ -325,7 +323,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 			*d = nil
 			return nil
 		}
-	// The driver is returning a cursor the client may iterate over.
+	// 驱动程序返回了一个客户端可以遍历的游标。
 	case driver.Rows:
 		switch d := dest.(type) {
 		case *Rows:
@@ -340,11 +338,11 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 				releaseConn: func(error) {},
 				rowsi:       s,
 			}
-			// Chain the cancel function.
+			// 链式串联 cancel 函数。
 			parentCancel := rows.cancel
 			rows.cancel = func() {
-				// When Rows.cancel is called, the closemu will be locked as well.
-				// So we can access rs.lasterr.
+				// 当调用 Rows.cancel 时，closemu 也会被加锁。
+				// 因此我们可以访问 rs.lasterr。
 				d.close(rows.lasterr)
 				if parentCancel != nil {
 					parentCancel()
@@ -422,11 +420,11 @@ func convertAssignRows(dest, src any, rows *Rows) error {
 		return nil
 	}
 
-	// The following conversions use a string value as an intermediate representation
-	// to convert between various numeric types.
+	// 以下转换使用字符串值作为中间表示，
+	// 在各种数值类型之间进行转换。
 	//
-	// This also allows scanning into user defined types such as "type Int int64".
-	// For symmetry, also check for string destination types.
+	// 这也允许扫描到用户定义的类型中，例如 "type Int int64"。
+	// 为对称起见，还要检查字符串目标类型。
 	switch dv.Kind() {
 	case reflect.Pointer:
 		if src == nil {
@@ -539,17 +537,17 @@ func asBytes(buf []byte, rv reflect.Value) (b []byte, ok bool) {
 
 var valuerReflectType = reflect.TypeFor[driver.Valuer]()
 
-// callValuerValue returns vr.Value(), with one exception:
-// If vr.Value is an auto-generated method on a pointer type and the
-// pointer is nil, it would panic at runtime in the panicwrap
-// method. Treat it like nil instead.
-// Issue 8415.
+// callValuerValue 返回 vr.Value()，只有一个例外：
+// 如果 vr.Value 是某个指针类型上自动生成的方法，而该
+// 指针为 nil，那么它会在运行时的 panicwrap
+// 方法中 panic。此时应将其视为 nil。
+// 见 Issue 8415。
 //
-// This is so people can implement driver.Value on value types and
-// still use nil pointers to those types to mean nil/NULL, just like
-// string/*string.
+// 这样做是为了让人们可以在值类型上实现 driver.Value，
+// 并且仍然使用指向这些类型的 nil 指针来表示 nil/NULL，就像
+// string/*string 一样。
 //
-// This function is mirrored in the database/sql/driver package.
+// 此函数在 database/sql/driver 包中有对应的镜像。
 func callValuerValue(vr driver.Valuer) (v driver.Value, err error) {
 	if rv := reflect.ValueOf(vr); rv.Kind() == reflect.Pointer &&
 		rv.IsNil() &&
@@ -559,41 +557,41 @@ func callValuerValue(vr driver.Valuer) (v driver.Value, err error) {
 	return vr.Value()
 }
 
-// decimal composes or decomposes a decimal value to and from individual parts.
-// There are four parts: a boolean negative flag, a form byte with three possible states
-// (finite=0, infinite=1, NaN=2), a base-2 big-endian integer
-// coefficient (also known as a significand) as a []byte, and an int32 exponent.
-// These are composed into a final value as "decimal = (neg) (form=finite) coefficient * 10 ^ exponent".
-// A zero length coefficient is a zero value.
-// The big-endian integer coefficient stores the most significant byte first (at coefficient[0]).
-// If the form is not finite the coefficient and exponent should be ignored.
-// The negative parameter may be set to true for any form, although implementations are not required
-// to respect the negative parameter in the non-finite form.
+// decimal 将十进制值组合到各个部分中或从各个部分分解。
+// 共有四个部分：一个布尔负号标志、一个具有三种可能状态的 form 字节
+// （finite=0, infinite=1, NaN=2）、一个以 []byte 表示的
+// 基为 2 的大端整数系数（也称为有效数字），以及一个 int32 指数。
+// 这些部分组合成最终值："decimal = (neg) (form=finite) coefficient * 10 ^ exponent"。
+// 长度为零的系数表示零值。
+// 大端整数系数将最高有效字节存储在最前面（位于 coefficient[0]）。
+// 如果 form 不是 finite，则应忽略系数和指数。
+// 对于任何 form，negative 参数都可以设置为 true，尽管实现不要求在
+// 非有限 form 中遵循 negative 参数。
 //
-// Implementations may choose to set the negative parameter to true on a zero or NaN value,
-// but implementations that do not differentiate between negative and positive
-// zero or NaN values should ignore the negative parameter without error.
-// If an implementation does not support Infinity it may be converted into a NaN without error.
-// If a value is set that is larger than what is supported by an implementation,
-// an error must be returned.
-// Implementations must return an error if a NaN or Infinity is attempted to be set while neither
-// are supported.
+// 实现可以选择在零或 NaN 值上将 negative 参数设置为 true，
+// 但不区分负零/正零或负 NaN/正 NaN 的实现
+// 应忽略 negative 参数而不报错。
+// 如果实现不支持 Infinity，可以将其转换为 NaN 而不报错。
+// 如果设置的值大于实现所支持的范围，
+// 必须返回错误。
+// 如果在既不支持 NaN 也不支持 Infinity 时尝试设置它们，
+// 实现必须返回错误。
 //
-// NOTE(kardianos): This is an experimental interface. See https://golang.org/issue/30870
+// NOTE(kardianos): 这是一个实验性接口。参见 https://golang.org/issue/30870
 type decimal interface {
 	decimalDecompose
 	decimalCompose
 }
 
 type decimalDecompose interface {
-	// Decompose returns the internal decimal state in parts.
-	// If the provided buf has sufficient capacity, buf may be returned as the coefficient with
-	// the value set and length set as appropriate.
+	// Decompose 按部分返回内部十进制状态。
+	// 如果提供的 buf 有足够的容量，可以将 buf 作为系数返回，并
+	// 适当地设置值和长度。
 	Decompose(buf []byte) (form byte, negative bool, coefficient []byte, exponent int32)
 }
 
 type decimalCompose interface {
-	// Compose sets the internal decimal value from parts. If the value cannot be
-	// represented then an error should be returned.
+	// Compose 从各部分设置内部十进制值。如果该值无法
+	// 表示，则应返回错误。
 	Compose(form byte, negative bool, coefficient []byte, exponent int32) error
 }
